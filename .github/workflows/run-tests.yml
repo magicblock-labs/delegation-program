@@ -60,22 +60,26 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
-      - name: install solana
-        if: steps.cache-solana.outputs.cache-hit != 'true'
-        run: |
-          sh -c "$(curl -sSfL https://release.solana.com/${{ env.solana_version }}/install)"
-          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-          solana --version
+      - uses: actions/cache@v4
+        name: cache solana cli
+        id: cache-solana
+        with:
+          path: |
+            ~/.cache/solana/
+            ~/.local/share/solana/
+          key: solana-${{ runner.os }}-v0000-${{ env.solana_version }}
+
       - name: setup solana
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
           solana-keygen new --silent --no-bip39-passphrase
-      
+
       - name: run build
         run: |
           cargo build
 
       - name: run tests
         run: |
+          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           cargo test-sbf
