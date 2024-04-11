@@ -59,6 +59,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      - uses: actions/checkout@v4
       - name: install solana
         if: steps.cache-solana.outputs.cache-hit != 'true'
         run: |
