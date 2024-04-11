@@ -70,6 +70,10 @@ jobs:
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           solana --version
           solana-keygen new --silent --no-bip39-passphrase
+      
+      - name: run build
+        run: |
+          cargo build
 
       - name: run tests
         run: |
