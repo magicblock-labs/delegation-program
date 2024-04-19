@@ -1,12 +1,12 @@
-use num_enum::TryFromPrimitive;
+use crate::consts::{BUFFER, DELEGATION};
+use crate::{impl_instruction_from_bytes, impl_to_bytes};
 use bytemuck::{Pod, Zeroable};
+use num_enum::TryFromPrimitive;
 use shank::ShankInstruction;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
-use crate::{impl_instruction_from_bytes, impl_to_bytes};
-use crate::consts::{DELEGATION, BUFFER};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -38,7 +38,13 @@ impl_to_bytes!(DelegateArgs);
 impl_instruction_from_bytes!(DelegateArgs);
 
 /// Builds a delegate instruction.
-pub fn delegate(payer: Pubkey, pda: Pubkey, owner_program: Pubkey, authority: Pubkey, system_program: Pubkey) -> Instruction {
+pub fn delegate(
+    payer: Pubkey,
+    pda: Pubkey,
+    owner_program: Pubkey,
+    authority: Pubkey,
+    system_program: Pubkey,
+) -> Instruction {
     let buffer_pda = Pubkey::find_program_address(&[BUFFER, &pda.to_bytes()], &crate::id());
     let authority_pda = Pubkey::find_program_address(&[DELEGATION, &pda.to_bytes()], &crate::id());
     Instruction {
@@ -56,8 +62,11 @@ pub fn delegate(payer: Pubkey, pda: Pubkey, owner_program: Pubkey, authority: Pu
             DlpInstruction::Delegate.to_vec(),
             DelegateArgs {
                 buffer_bump: buffer_pda.1,
-                authority_bump: authority_pda.1
-            }.to_bytes().to_vec(),
-        ].concat(),
+                authority_bump: authority_pda.1,
+            }
+            .to_bytes()
+            .to_vec(),
+        ]
+        .concat(),
     }
 }

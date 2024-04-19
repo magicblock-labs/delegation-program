@@ -18,7 +18,7 @@ pub struct Delegation {
     pub origin: Pubkey,
 
     /// The delegation validity
-    pub valid_until: i64
+    pub valid_until: i64,
 }
 
 impl Discriminator for Delegation {

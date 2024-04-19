@@ -6,7 +6,7 @@ use solana_program::{
 /// - Account is not owned by expected program.
 pub fn load_owned_pda<'a, 'info>(
     info: &'a AccountInfo<'info>,
-    owner: &Pubkey
+    owner: &Pubkey,
 ) -> Result<(), ProgramError> {
     if !info.owner.eq(&owner) {
         return Err(ProgramError::InvalidAccountOwner);

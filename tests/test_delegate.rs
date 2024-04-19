@@ -1,7 +1,12 @@
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program};
 use solana_program::pubkey::Pubkey;
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
-use solana_sdk::{account::Account, pubkey, signature::{Keypair, Signer}, transaction::Transaction};
+use solana_sdk::{
+    account::Account,
+    pubkey,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
 
 pub const PDA_ID: Pubkey = pubkey!("98WCwJLrk9AZxZpmohpjBamJiUbYw5tQcqH4jWv7xS4S");
 pub const PDA_OWNER_ID: Pubkey = pubkey!("wormH7q6y9EBUUL6EyptYhryxs6HoJg8sPK3LMfoNf4");
@@ -11,7 +16,13 @@ async fn test_delegate() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
     // Submit tx
-    let ix = dlp::instruction::delegate(payer.pubkey(), PDA_ID, PDA_OWNER_ID, payer.pubkey(), system_program::id());
+    let ix = dlp::instruction::delegate(
+        payer.pubkey(),
+        PDA_ID,
+        PDA_OWNER_ID,
+        payer.pubkey(),
+        system_program::id(),
+    );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);

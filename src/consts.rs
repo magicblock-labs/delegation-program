@@ -1,4 +1,3 @@
-
 /// The seed of the authority account PDA.
 pub const DELEGATION: &[u8] = b"delegation";
 

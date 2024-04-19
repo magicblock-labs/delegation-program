@@ -1,19 +1,18 @@
-use std::mem::size_of;
+use solana_program::program_error::ProgramError;
 use solana_program::{
-    {self},
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     pubkey::Pubkey,
-    system_program,
+    system_program, {self},
 };
-use solana_program::program_error::ProgramError;
+use std::mem::size_of;
 
-use crate::consts::{DELEGATION, BUFFER};
+use crate::consts::{BUFFER, DELEGATION};
 use crate::instruction::DelegateArgs;
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::Delegation;
 use crate::utils::create_pda;
-use crate::utils::{Discriminator, AccountDeserialize};
+use crate::utils::{AccountDeserialize, Discriminator};
 
 /// Delegate a Pda to an authority
 ///
@@ -29,13 +28,25 @@ pub fn process_delegate<'a, 'info>(
     data: &[u8],
 ) -> ProgramResult {
     let args = DelegateArgs::try_from_bytes(data)?;
-    let [payer, pda, owner_program, buffer, delegation_record, new_authority, system_program] = accounts else {
+    let [payer, pda, owner_program, buffer, delegation_record, new_authority, system_program] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     load_program(system_program, system_program::id())?;
     load_owned_pda(pda, owner_program.key)?;
-    load_uninitialized_pda(buffer, &[BUFFER, &pda.key.to_bytes()], args.buffer_bump, &crate::id())?;
-    load_uninitialized_pda(delegation_record, &[DELEGATION, &pda.key.to_bytes()], args.authority_bump, &crate::id())?;
+    load_uninitialized_pda(
+        buffer,
+        &[BUFFER, &pda.key.to_bytes()],
+        args.buffer_bump,
+        &crate::id(),
+    )?;
+    load_uninitialized_pda(
+        delegation_record,
+        &[DELEGATION, &pda.key.to_bytes()],
+        args.authority_bump,
+        &crate::id(),
+    )?;
     load_signer(payer)?;
     // Initialize the buffer PDA
     create_pda(
