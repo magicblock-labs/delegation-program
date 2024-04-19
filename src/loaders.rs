@@ -3,6 +3,19 @@ use solana_program::{
 };
 
 /// Errors if:
+/// - Account is not owned by expected program.
+pub fn load_owned_pda<'a, 'info>(
+    info: &'a AccountInfo<'info>,
+    owner: &Pubkey
+) -> Result<(), ProgramError> {
+    if !info.owner.eq(&owner) {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    Ok(())
+}
+
+/// Errors if:
 /// - Account is not a signer.
 pub fn load_signer<'a, 'info>(info: &'a AccountInfo<'info>) -> Result<(), ProgramError> {
     if !info.is_signer {
