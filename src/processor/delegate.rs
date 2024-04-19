@@ -1,3 +1,4 @@
+use std::mem::size_of;
 use solana_program::{
     {self},
     account_info::AccountInfo,
@@ -7,10 +8,12 @@ use solana_program::{
 };
 use solana_program::program_error::ProgramError;
 
-use crate::consts::{AUTHORITY, BUFFER};
+use crate::consts::{DELEGATION, BUFFER};
 use crate::instruction::DelegateArgs;
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
+use crate::state::Delegation;
 use crate::utils::create_pda;
+use crate::utils::{Discriminator, AccountDeserialize};
 
 /// Delegate a Pda to an authority
 ///
@@ -26,14 +29,14 @@ pub fn process_delegate<'a, 'info>(
     data: &[u8],
 ) -> ProgramResult {
     let args = DelegateArgs::try_from_bytes(data)?;
-    let [pda, owner_program, buffer, authority_record, authority, system_program] = accounts else {
+    let [payer, pda, owner_program, buffer, delegation_record, new_authority, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     load_program(system_program, system_program::id())?;
     load_owned_pda(pda, owner_program.key)?;
     load_uninitialized_pda(buffer, &[BUFFER, &pda.key.to_bytes()], args.buffer_bump, &crate::id())?;
-    load_uninitialized_pda(authority_record, &[AUTHORITY, &pda.key.to_bytes()], args.authority_bump, &crate::id())?;
-    load_signer(authority)?;
+    load_uninitialized_pda(delegation_record, &[DELEGATION, &pda.key.to_bytes()], args.authority_bump, &crate::id())?;
+    load_signer(payer)?;
     // Initialize the buffer PDA
     create_pda(
         buffer,
@@ -41,12 +44,32 @@ pub fn process_delegate<'a, 'info>(
         pda.data_len(),
         &[BUFFER, &pda.key.to_bytes(), &[args.buffer_bump]],
         system_program,
-        authority,
+        payer,
     )?;
-    // TODO: Implement delegation logic
-    //let mut buffer_data = buffer.try_borrow_mut_data()?;
-    //let new_data = pda.try_borrow_data()?;
-    //(*buffer_data).copy_from_slice(&new_data);
+    // Initialize the delegation record PDA
+    create_pda(
+        delegation_record,
+        &crate::id(),
+        8 + size_of::<Delegation>(),
+        &[DELEGATION, &pda.key.to_bytes(), &[args.authority_bump]],
+        system_program,
+        payer,
+    )?;
+    // 1. Copy the date to the buffer PDA
+    let mut buffer_data = buffer.try_borrow_mut_data()?;
+    let new_data = pda.try_borrow_data()?;
+    (*buffer_data).copy_from_slice(&new_data);
+    // 2. CPI into the owner program to Close the PDA
+    // TODO: Implement close logic in an external program and call it here
+    // 3. CPI into the owner program to re-init the PDA, setting the authority to the delegation program
+    // TODO: Implement init logic in an external program and call it here
+    // 4. Save new delegation in the Delegation Record
+    let mut delegation_data = delegation_record.try_borrow_mut_data()?;
+    delegation_data[0] = Delegation::discriminator() as u8;
+    let delegation = Delegation::try_from_bytes_mut(&mut delegation_data)?;
+    delegation.origin = *owner_program.key;
+    delegation.authority = *new_authority.key;
+    delegation.valid_until = 0;
     Ok(())
 }
 

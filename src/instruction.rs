@@ -6,7 +6,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use crate::{impl_instruction_from_bytes, impl_to_bytes};
-use crate::consts::{AUTHORITY, BUFFER};
+use crate::consts::{DELEGATION, BUFFER};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -19,11 +19,12 @@ pub struct DelegateArgs {
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ShankInstruction, TryFromPrimitive)]
 #[rustfmt::skip]
 pub enum DlpInstruction {
-    #[account(0, name = "pda", desc = "Pda to delegate", signer)]
-    #[account(1, name = "owner_program", desc = "The pda's owner", signer)]
-    #[account(2, name = "buffer", desc = "Data buffer")]
-    #[account(3, name = "authority_record", desc = "The pda's owner", signer)]
-    #[account(4, name = "authority", desc = "Delegate authority")]
+    #[account(0, name = "payer", desc = "The fees payer", signer)]
+    #[account(1, name = "pda", desc = "Account to delegate", signer)]
+    #[account(2, name = "owner_program", desc = "The pda's owner", signer)]
+    #[account(3, name = "buffer", desc = "Data buffer")]
+    #[account(4, name = "delegation_record", desc = "The delegation record PDA", signer)]
+    #[account(5, name = "authority", desc = "Delegate authority")]
     Delegate = 0,
 }
 
@@ -37,17 +38,18 @@ impl_to_bytes!(DelegateArgs);
 impl_instruction_from_bytes!(DelegateArgs);
 
 /// Builds a delegate instruction.
-pub fn delegate(pda: Pubkey, owner_program: Pubkey, authority: Pubkey, system_program: Pubkey) -> Instruction {
+pub fn delegate(payer: Pubkey, pda: Pubkey, owner_program: Pubkey, authority: Pubkey, system_program: Pubkey) -> Instruction {
     let buffer_pda = Pubkey::find_program_address(&[BUFFER, &pda.to_bytes()], &crate::id());
-    let authority_pda = Pubkey::find_program_address(&[AUTHORITY, &pda.to_bytes()], &crate::id());
+    let authority_pda = Pubkey::find_program_address(&[DELEGATION, &pda.to_bytes()], &crate::id());
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new(pda, false),
+            AccountMeta::new(payer, true),
+            AccountMeta::new(pda, false), // TODO: set to true, to this was called from the owner program
             AccountMeta::new(owner_program, false),
             AccountMeta::new(buffer_pda.0, false),
             AccountMeta::new(authority_pda.0, false),
-            AccountMeta::new(authority, true),
+            AccountMeta::new(authority, false),
             AccountMeta::new(system_program, false),
         ],
         data: [

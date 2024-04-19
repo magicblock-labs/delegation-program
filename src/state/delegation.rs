@@ -7,15 +7,18 @@ use crate::{
     utils::{AccountDiscriminator, Discriminator},
 };
 
-///
+/// The Delegation Record
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, ShankAccount, Zeroable)]
 pub struct Delegation {
-    ///
+    /// The delegated authority
     pub authority: Pubkey,
 
-    ///
+    /// The origin authority
     pub origin: Pubkey,
+
+    /// The delegation validity
+    pub valid_until: i64
 }
 
 impl Discriminator for Delegation {

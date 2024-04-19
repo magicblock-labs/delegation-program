@@ -11,7 +11,7 @@ async fn test_delegate() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
     // Submit tx
-    let ix = dlp::instruction::delegate(PDA_ID, PDA_OWNER_ID, payer.pubkey(), system_program::id());
+    let ix = dlp::instruction::delegate(payer.pubkey(), PDA_ID, PDA_OWNER_ID, payer.pubkey(), system_program::id());
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
