@@ -8,10 +8,7 @@ pub mod utils;
 
 use instruction::*;
 use processor::*;
-use solana_program::{
-    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult,
-    program_error::ProgramError, pubkey::Pubkey,
-};
+use solana_program::{self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
@@ -31,8 +28,14 @@ pub fn process_instruction(
         .split_first()
         .ok_or(ProgramError::InvalidInstructionData)?;
 
+    msg!("Processing instruction: {:?}", tag);
+    msg!("data: {:?}", data);
+
+    let new_data : &[u8] = &[244, 254];
+    //let new_data : &[u8] = &[255, 254];
+
     match DlpInstruction::try_from(*tag).or(Err(ProgramError::InvalidInstructionData))? {
-        DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
+        DlpInstruction::Delegate => process_delegate(program_id, accounts, new_data)?,
     }
 
     Ok(())

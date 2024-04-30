@@ -21,10 +21,10 @@ pub struct DelegateArgs {
 pub enum DlpInstruction {
     #[account(0, name = "payer", desc = "The fees payer", signer)]
     #[account(1, name = "pda", desc = "Account to delegate", signer)]
-    #[account(2, name = "owner_program", desc = "The pda's owner", signer)]
+    #[account(2, name = "owner_program", desc = "The pda's owner")]
     #[account(3, name = "buffer", desc = "Data buffer")]
-    #[account(4, name = "delegation_record", desc = "The delegation record PDA", signer)]
-    #[account(5, name = "authority", desc = "Delegate authority")]
+    #[account(4, name = "delegation_record", desc = "The delegation record PDA")]
+    #[account(5, name = "authority", desc = "Delegate authority", signer)]
     Delegate = 0,
 }
 
@@ -51,7 +51,7 @@ pub fn delegate(
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(pda, false), // TODO: set to true, to this was called from the owner program
+            AccountMeta::new(pda, false), // TODO: set to true, to check this was called from the owner program
             AccountMeta::new(owner_program, false),
             AccountMeta::new(buffer_pda.0, false),
             AccountMeta::new(authority_pda.0, false),

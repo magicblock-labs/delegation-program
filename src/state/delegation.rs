@@ -23,7 +23,7 @@ pub struct Delegation {
 
 impl Discriminator for Delegation {
     fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::Authority
+        AccountDiscriminator::Delegation
     }
 }
 

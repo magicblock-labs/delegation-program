@@ -1,0 +1,97 @@
+{
+  "version": "0.1.0",
+  "name": "dlp",
+  "instructions": [
+    {
+      "name": "Delegate",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "The fees payer"
+          ]
+        },
+        {
+          "name": "pda",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Account to delegate"
+          ]
+        },
+        {
+          "name": "ownerProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The pda's owner"
+          ]
+        },
+        {
+          "name": "buffer",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Data buffer"
+          ]
+        },
+        {
+          "name": "delegationRecord",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The delegation record PDA"
+          ]
+        },
+        {
+          "name": "authority",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "Delegate authority"
+          ]
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 0
+      }
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Delegation",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "authority",
+            "type": "publicKey"
+          },
+          {
+            "name": "origin",
+            "type": "publicKey"
+          },
+          {
+            "name": "validUntil",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [
+    {
+      "code": 0,
+      "name": "InvalidAuthority",
+      "msg": "Invalid Authority"
+    }
+  ],
+  "metadata": {
+    "origin": "shank",
+    "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+  }
+}

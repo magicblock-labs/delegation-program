@@ -1,9 +1,6 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
-    pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar};
 
 /// Creates a new pda
 #[inline(always)]
@@ -18,6 +15,8 @@ pub(crate) fn create_pda<'a, 'info>(
     let rent = Rent::get()?;
     if target_account.lamports().eq(&0) {
         // If balance is zero, create account
+        msg!("Is Signer: {:?}", payer.is_signer);
+        msg!("Is Writable: {:?}", payer.is_writable);
         solana_program::program::invoke_signed(
             &solana_program::system_instruction::create_account(
                 payer.key,
@@ -82,7 +81,7 @@ pub(crate) fn create_pda<'a, 'info>(
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 pub enum AccountDiscriminator {
-    Authority = 100,
+    Delegation = 100,
 }
 
 pub trait Discriminator {
