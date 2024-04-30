@@ -15,8 +15,6 @@ pub(crate) fn create_pda<'a, 'info>(
     let rent = Rent::get()?;
     if target_account.lamports().eq(&0) {
         // If balance is zero, create account
-        msg!("Is Signer: {:?}", payer.is_signer);
-        msg!("Is Writable: {:?}", payer.is_writable);
         solana_program::program::invoke_signed(
             &solana_program::system_instruction::create_account(
                 payer.key,

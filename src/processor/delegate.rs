@@ -24,8 +24,6 @@ pub fn process_delegate<'a, 'info>(
 ) -> ProgramResult {
     msg!("Processing delegate instruction");
     msg!("Data: {:?}", data);
-    let args = DelegateArgs::try_from_bytes(data)?;
-    msg!("Deserialize delegate args: {:?}", args);
     let [payer, pda, owner_program, buffer, delegation_record, new_authority, system_program] =
         accounts
     else {
@@ -34,18 +32,19 @@ pub fn process_delegate<'a, 'info>(
     msg!("Load accounts");
     load_program(system_program, system_program::id())?;
     load_owned_pda(pda, owner_program.key)?;
-    load_uninitialized_pda(
+    let buffer_bump = load_uninitialized_pda(
         buffer,
         &[BUFFER, &pda.key.to_bytes()],
-        args.buffer_bump,
         &crate::id(),
     )?;
-    load_uninitialized_pda(
+    let authority_bump = load_uninitialized_pda(
         delegation_record,
         &[DELEGATION, &pda.key.to_bytes()],
-        args.authority_bump,
         &crate::id(),
     )?;
+    msg!("Is Signer: {:?}", payer.is_signer);
+    msg!("Is Writable: {:?}", payer.is_writable);
+    msg!("Is PDA Signer: {:?}", pda.is_signer);
     load_signer(payer)?;
     msg!("Create PDAs and initialize delegation record");
     // Initialize the buffer PDA
@@ -53,7 +52,7 @@ pub fn process_delegate<'a, 'info>(
         buffer,
         &crate::id(),
         pda.data_len(),
-        &[BUFFER, &pda.key.to_bytes(), &[args.buffer_bump]],
+        &[BUFFER, &pda.key.to_bytes(), &[buffer_bump]],
         system_program,
         payer,
     )?;

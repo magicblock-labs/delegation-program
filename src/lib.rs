@@ -31,11 +31,8 @@ pub fn process_instruction(
     msg!("Processing instruction: {:?}", tag);
     msg!("data: {:?}", data);
 
-    let new_data : &[u8] = &[244, 254];
-    //let new_data : &[u8] = &[255, 254];
-
     match DlpInstruction::try_from(*tag).or(Err(ProgramError::InvalidInstructionData))? {
-        DlpInstruction::Delegate => process_delegate(program_id, accounts, new_data)?,
+        DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
     }
 
     Ok(())
