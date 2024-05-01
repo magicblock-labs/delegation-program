@@ -59,6 +59,8 @@ pub fn process_delegate<'a, 'info>(
     load_signer(payer)?;
     msg!("Create PDAs and initialize delegation record");
 
+    // TODO: check that the pda is a signer, to ensure this is being called from CPI
+
     // Initialize the buffer PDA
     create_pda(
         buffer,
@@ -113,98 +115,6 @@ pub fn process_update<'a, 'info>(
     data: &[u8],
 ) -> ProgramResult {
     // TODO: Implement delegation logic
-
-    Ok(())
-}
-
-/// Commit a new state of a delegated Pda
-///
-/// 1. Check that the pda is delegated
-/// 2. Init a new PDA to store the new state
-/// 3. Copy the new state to the new PDA
-/// 4. Init a new PDA to store the record of the new state commitment
-///
-pub fn process_commit_state<'a, 'info>(
-    _program_id: &Pubkey,
-    accounts: &'a [AccountInfo<'info>],
-    data: &[u8],
-) -> ProgramResult {
-    msg!("Processing commit state instruction");
-    msg!("Data: {:?}", data);
-    let [authority, origin_account, new_state, commit_state_record, delegation_record, system_program] =
-        accounts
-    else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
-    load_signer(authority)?;
-    load_initialized_pda(
-        delegation_record,
-        &[DELEGATION, &origin_account.key.to_bytes()],
-        &crate::id(),
-        true,
-    )?;
-
-    let mut delegation_record = delegation_record.try_borrow_mut_data()?;
-    let delegation_record = Delegation::try_from_bytes_mut(&mut delegation_record)?;
-
-    let state_diff_bump = load_uninitialized_pda(
-        new_state,
-        &[STATE_DIFF, &origin_account.key.to_bytes()],
-        &crate::id(),
-    )?;
-    let commit_state_bump = load_uninitialized_pda(
-        commit_state_record,
-        &[
-            COMMIT_RECORD,
-            &delegation_record.commits.to_be_bytes(),
-            &origin_account.key.to_bytes(),
-        ],
-        &crate::id(),
-    )?;
-
-    // Initialize the PDA containing the new committed state
-    create_pda(
-        new_state,
-        &crate::id(),
-        data.len(),
-        &[
-            STATE_DIFF,
-            &origin_account.key.to_bytes(),
-            &[state_diff_bump],
-        ],
-        system_program,
-        authority,
-    )?;
-
-    // Initialize the PDA containing the record of the committed state
-    create_pda(
-        commit_state_record,
-        &crate::id(),
-        data.len(),
-        &[
-            COMMIT_RECORD,
-            &delegation_record.commits.to_be_bytes(),
-            &origin_account.key.to_bytes(),
-            &[commit_state_bump],
-        ],
-        system_program,
-        authority,
-    )?;
-
-    let mut commit_state_record_data = commit_state_record.try_borrow_mut_data()?;
-    let commit_record = CommitState::try_from_bytes_mut(&mut commit_state_record_data)?;
-    commit_record.identity = *authority.key;
-    commit_record.account = *origin_account.key;
-    commit_record.timestamp = Clock::get()?.unix_timestamp;
-
-    // TODO: here we can add a stake deposit to the commit record
-
-    // Copy the new state to the initialized PDA
-    let mut buffer_data = new_state.try_borrow_mut_data()?;
-    (*buffer_data).copy_from_slice(data);
-
-    // Increase the number of commits in the delegation record
-    delegation_record.commits += 1;
 
     Ok(())
 }
