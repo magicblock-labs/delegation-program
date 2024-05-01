@@ -3,6 +3,19 @@ use solana_program::{
 };
 
 /// Errors if:
+/// - Account is not owned by expected program.
+pub fn load_owned_pda<'a, 'info>(
+    info: &'a AccountInfo<'info>,
+    owner: &Pubkey,
+) -> Result<(), ProgramError> {
+    if !info.owner.eq(&owner) {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    Ok(())
+}
+
+/// Errors if:
 /// - Account is not a signer.
 pub fn load_signer<'a, 'info>(info: &'a AccountInfo<'info>) -> Result<(), ProgramError> {
     if !info.is_signer {
@@ -18,20 +31,16 @@ pub fn load_signer<'a, 'info>(info: &'a AccountInfo<'info>) -> Result<(), Progra
 pub fn load_uninitialized_pda<'a, 'info>(
     info: &'a AccountInfo<'info>,
     seeds: &[&[u8]],
-    bump: u8,
     program_id: &Pubkey,
-) -> Result<(), ProgramError> {
+) -> Result<u8, ProgramError> {
     let pda = Pubkey::find_program_address(seeds, program_id);
 
     if info.key.ne(&pda.0) {
         return Err(ProgramError::InvalidSeeds);
     }
 
-    if bump.ne(&pda.1) {
-        return Err(ProgramError::InvalidSeeds);
-    }
-
-    load_uninitialized_account(info)
+    load_uninitialized_account(info)?;
+    Ok(pda.1)
 }
 
 /// Errors if:

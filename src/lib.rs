@@ -9,7 +9,7 @@ pub mod utils;
 use instruction::*;
 use processor::*;
 use solana_program::{
-    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult,
+    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey,
 };
 
@@ -30,6 +30,9 @@ pub fn process_instruction(
     let (tag, data) = data
         .split_first()
         .ok_or(ProgramError::InvalidInstructionData)?;
+
+    msg!("Processing instruction: {:?}", tag);
+    msg!("data: {:?}", data);
 
     match DlpInstruction::try_from(*tag).or(Err(ProgramError::InvalidInstructionData))? {
         DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
