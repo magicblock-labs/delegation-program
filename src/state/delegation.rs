@@ -14,11 +14,14 @@ pub struct Delegation {
     /// The delegated authority
     pub authority: Pubkey,
 
-    /// The origin authority
+    /// The original owner of the account
     pub origin: Pubkey,
 
     /// The delegation validity
     pub valid_until: i64,
+
+    /// The number of committed states for the delegated account
+    pub commits: u64,
 }
 
 impl Discriminator for Delegation {

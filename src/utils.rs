@@ -1,7 +1,6 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
     pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
 };
 
@@ -83,6 +82,7 @@ pub(crate) fn create_pda<'a, 'info>(
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 pub enum AccountDiscriminator {
     Delegation = 100,
+    CommitState = 101,
 }
 
 pub trait Discriminator {

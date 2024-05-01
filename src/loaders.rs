@@ -44,6 +44,31 @@ pub fn load_uninitialized_pda<'a, 'info>(
 }
 
 /// Errors if:
+/// - Address does not match PDA derived from provided seeds.
+/// - Owner is not the expected program.
+/// - Account is not writable if set to writable.
+pub fn load_initialized_pda<'a, 'info>(
+    info: &'a AccountInfo<'info>,
+    seeds: &[&[u8]],
+    program_id: &Pubkey,
+    is_writable: bool,
+) -> Result<u8, ProgramError> {
+    let pda = Pubkey::find_program_address(seeds, program_id);
+
+    if info.key.ne(&pda.0) {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    load_owned_pda(info, program_id)?;
+
+    if is_writable && !info.is_writable {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    Ok(pda.1)
+}
+
+/// Errors if:
 /// - Owner is not the system program.
 /// - Data is not empty.
 /// - Account is not writable.

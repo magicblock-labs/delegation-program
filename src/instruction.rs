@@ -26,6 +26,8 @@ pub enum DlpInstruction {
     #[account(4, name = "delegation_record", desc = "The delegation record PDA")]
     #[account(5, name = "authority", desc = "Delegate authority", signer)]
     Delegate = 0,
+    CommitState = 1,
+    Undelegate = 2,
 }
 
 impl DlpInstruction {

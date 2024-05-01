@@ -36,6 +36,8 @@ pub fn process_instruction(
 
     match DlpInstruction::try_from(*tag).or(Err(ProgramError::InvalidInstructionData))? {
         DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
+        DlpInstruction::CommitState => todo!(),
+        DlpInstruction::Undelegate => todo!(),
     }
 
     Ok(())
