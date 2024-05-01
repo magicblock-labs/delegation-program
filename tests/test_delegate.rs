@@ -69,7 +69,7 @@ async fn test_commit_new_state() {
     let new_state_account = banks.get_account(new_state_pda.0).await.unwrap().unwrap();
     assert_eq!(new_state_account.data, new_state.clone());
     // Assert the record about the commitment exists
-
+    // TODO: Add tests that the record exists
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
