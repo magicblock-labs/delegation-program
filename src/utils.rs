@@ -1,6 +1,9 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
+};
 
 /// Creates a new pda
 #[inline(always)]

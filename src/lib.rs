@@ -8,7 +8,10 @@ pub mod utils;
 
 use instruction::*;
 use processor::*;
-use solana_program::{self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{
+    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
+    program_error::ProgramError, pubkey::Pubkey,
+};
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 

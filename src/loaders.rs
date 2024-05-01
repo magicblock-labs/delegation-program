@@ -32,7 +32,7 @@ pub fn load_uninitialized_pda<'a, 'info>(
     info: &'a AccountInfo<'info>,
     seeds: &[&[u8]],
     program_id: &Pubkey,
-) -> Result<(u8), ProgramError> {
+) -> Result<u8, ProgramError> {
     let pda = Pubkey::find_program_address(seeds, program_id);
 
     if info.key.ne(&pda.0) {
