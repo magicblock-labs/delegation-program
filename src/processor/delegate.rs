@@ -138,7 +138,6 @@ fn call_close_pda<'a, 'info>(
     destination_account: &'a AccountInfo<'info>,
     program_id: &Pubkey, // Anchor program's ID
 ) -> ProgramResult {
-
     let instruction_data = CLOSE_INSTRUCTION_DISCRIMINATOR.to_vec();
 
     let close_instruction = Instruction {
@@ -153,7 +152,7 @@ fn call_close_pda<'a, 'info>(
                 pubkey: *account_to_close.key,
                 is_signer: false,
                 is_writable: true,
-            }
+            },
         ],
         data: instruction_data,
     };
