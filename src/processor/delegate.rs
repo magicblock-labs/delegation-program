@@ -1,21 +1,19 @@
 use std::mem::size_of;
 
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program::invoke;
-use solana_program::program_error::ProgramError;
 use solana_program::{
+    {self},
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     msg,
-    pubkey::Pubkey,
-    system_program, {self},
+    pubkey::Pubkey, system_program,
 };
+use solana_program::program_error::ProgramError;
 
 use crate::consts::{BUFFER, DELEGATION};
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::Delegation;
-use crate::utils::create_pda;
 use crate::utils::{AccountDeserialize, Discriminator};
+use crate::utils::create_pda;
 
 /// Delegate a Pda to an authority
 ///

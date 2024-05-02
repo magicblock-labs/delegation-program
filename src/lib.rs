@@ -18,6 +18,16 @@ declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 #[cfg(not(feature = "no-entrypoint"))]
 solana_program::entrypoint!(process_instruction);
 
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    name: "MagicBlock Delegation Program",
+    project_url: "https://magicblock.gg",
+    contacts: "email:dev@magicblock.gg,twitter:@magicblock",
+    policy: "https://github.com/magicblock-labs/delegation-program/blob/master/LICENSE.md",
+    preferred_languages: "en",
+    source_code: "https://github.com/magicblock-labs/Kamikaze-Joe"
+}
+
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -37,7 +47,7 @@ pub fn process_instruction(
     match DlpInstruction::try_from(*tag).or(Err(ProgramError::InvalidInstructionData))? {
         DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
         DlpInstruction::CommitState => process_commit_state(program_id, accounts, data)?,
-        DlpInstruction::Undelegate => todo!(),
+        DlpInstruction::Undelegate => process_undelegate(program_id, accounts, data)?,
     }
 
     Ok(())
