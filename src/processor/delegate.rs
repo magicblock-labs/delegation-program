@@ -1,3 +1,5 @@
+use std::mem::size_of;
+
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
@@ -8,7 +10,6 @@ use solana_program::{
     pubkey::Pubkey,
     system_program, {self},
 };
-use std::mem::size_of;
 
 use crate::consts::{BUFFER, DELEGATION};
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
@@ -23,7 +24,6 @@ use crate::utils::{AccountDeserialize, Discriminator};
 /// 3. Reopen origin with authority set to the delegation program
 /// 4. Save new authority in the Authority Record
 ///
-/// Accounts expected: Origin PDA, Buffer PDA, Authority Record
 pub fn process_delegate<'a, 'info>(
     _program_id: &Pubkey,
     accounts: &'a [AccountInfo<'info>],
@@ -55,6 +55,8 @@ pub fn process_delegate<'a, 'info>(
     msg!("PDA Address: {:?}", pda.key.to_string());
     load_signer(payer)?;
     msg!("Create PDAs and initialize delegation record");
+
+    // TODO: check that the pda is a signer, to ensure this is being called from CPI
 
     // Initialize the buffer PDA
     create_pda(
@@ -93,24 +95,7 @@ pub fn process_delegate<'a, 'info>(
     delegation.origin = *owner_program.key;
     delegation.authority = *new_authority.key;
     delegation.valid_until = 0;
-    Ok(())
-}
-
-/// Update the data of a delegated Pda
-///
-/// 1. Copy delegated PDA to a buffer PDA
-/// 2. Close PDA and reopen it with the origin authority
-/// 3. Reopen origin with authority set to the delegation program
-/// 4. Save new authority in the Authority Record
-///
-/// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
-pub fn process_update<'a, 'info>(
-    _program_id: &Pubkey,
-    accounts: &'a [AccountInfo<'info>],
-    data: &[u8],
-) -> ProgramResult {
-    // TODO: Implement delegation logic
-
+    delegation.commits = 0;
     Ok(())
 }
 

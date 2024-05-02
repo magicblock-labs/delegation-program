@@ -1,12 +1,14 @@
 use solana_program::pubkey::Pubkey;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program};
-use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+
+use dlp::consts::BUFFER;
 
 pub const PDA_ID: Pubkey = pubkey!("98WCwJLrk9AZxZpmohpjBamJiUbYw5tQcqH4jWv7xS4S");
 pub const PDA_OWNER_ID: Pubkey = pubkey!("wormH7q6y9EBUUL6EyptYhryxs6HoJg8sPK3LMfoNf4");
@@ -15,7 +17,7 @@ pub const PDA_OWNER_ID: Pubkey = pubkey!("wormH7q6y9EBUUL6EyptYhryxs6HoJg8sPK3LM
 async fn test_delegate() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
-    // Submit tx
+    // Submit the delegate tx
     let ix = dlp::instruction::delegate(
         payer.pubkey(),
         PDA_ID,
@@ -27,27 +29,18 @@ async fn test_delegate() {
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
     assert!(res.is_ok());
+    // Assert the buffer was created and contains a copy of the PDA account
+    let buffer_pda = Pubkey::find_program_address(&[BUFFER, &PDA_ID.to_bytes()], &dlp::id());
+    let buffer_account = banks.get_account(buffer_pda.0).await.unwrap().unwrap();
+    let pda_account = banks.get_account(PDA_ID).await.unwrap().unwrap();
+    assert_eq!(buffer_account.data, pda_account.data);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-
-    // Setup metadata program
-    let data = read_file(&"tests/buffers/metadata_program.bpf");
-    program_test.add_account(
-        mpl_token_metadata::ID,
-        Account {
-            lamports: Rent::default().minimum_balance(data.len()).max(1),
-            data,
-            owner: solana_sdk::bpf_loader::id(),
-            executable: true,
-            rent_epoch: 0,
-        },
-    );
-
-    // Setup alt payer
     let payer_alt = Keypair::new();
+
     program_test.add_account(
         payer_alt.pubkey(),
         Account {
@@ -60,7 +53,6 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup a PDA
-    let payer_alt = Keypair::new();
     program_test.add_account(
         PDA_ID,
         Account {

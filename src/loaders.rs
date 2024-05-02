@@ -44,6 +44,31 @@ pub fn load_uninitialized_pda<'a, 'info>(
 }
 
 /// Errors if:
+/// - Address does not match PDA derived from provided seeds.
+/// - Owner is not the expected program.
+/// - Account is not writable if set to writable.
+pub fn load_initialized_pda<'a, 'info>(
+    info: &'a AccountInfo<'info>,
+    seeds: &[&[u8]],
+    program_id: &Pubkey,
+    is_writable: bool,
+) -> Result<u8, ProgramError> {
+    let pda = Pubkey::find_program_address(seeds, program_id);
+
+    if info.key.ne(&pda.0) {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    load_owned_pda(info, program_id)?;
+
+    if is_writable && !info.is_writable {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    Ok(pda.1)
+}
+
+/// Errors if:
 /// - Owner is not the system program.
 /// - Data is not empty.
 /// - Account is not writable.
@@ -118,19 +143,9 @@ pub fn load_program<'a, 'info>(
 
 #[cfg(test)]
 mod tests {
-    use solana_program::{
-        account_info::AccountInfo, keccak::Hash as KeccakHash, program_option::COption,
-        program_pack::Pack, pubkey::Pubkey, system_program,
-    };
-    use spl_token::state::{AccountState, Mint};
+    use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
 
-    use crate::{
-        loaders::{
-            load_account, load_signer, load_sysvar, load_uninitialized_account,
-            load_uninitialized_pda,
-        },
-        utils::Discriminator,
-    };
+    use crate::loaders::{load_account, load_signer, load_sysvar, load_uninitialized_account};
 
     use super::load_program;
 
