@@ -81,9 +81,18 @@ pub fn commit_state(
     system_program: Pubkey,
     state: Vec<u8>,
 ) -> Instruction {
-    let delegation_pda = Pubkey::find_program_address(&[DELEGATION, &origin_account.to_bytes()], &crate::id());
-    let new_state_pda = Pubkey::find_program_address(&[STATE_DIFF, &origin_account.to_bytes()], &crate::id());
-    let commit_state_record_pda = Pubkey::find_program_address(&[COMMIT_RECORD, &commitment.to_be_bytes(), &origin_account.to_bytes()], &crate::id());
+    let delegation_pda =
+        Pubkey::find_program_address(&[DELEGATION, &origin_account.to_bytes()], &crate::id());
+    let new_state_pda =
+        Pubkey::find_program_address(&[STATE_DIFF, &origin_account.to_bytes()], &crate::id());
+    let commit_state_record_pda = Pubkey::find_program_address(
+        &[
+            COMMIT_RECORD,
+            &commitment.to_be_bytes(),
+            &origin_account.to_bytes(),
+        ],
+        &crate::id(),
+    );
     Instruction {
         program_id: crate::id(),
         accounts: vec![
@@ -94,10 +103,6 @@ pub fn commit_state(
             AccountMeta::new(delegation_pda.0, false),
             AccountMeta::new(system_program, false),
         ],
-        data: [
-            DlpInstruction::CommitState.to_vec(),
-            state,
-        ].concat(),
+        data: [DlpInstruction::CommitState.to_vec(), state].concat(),
     }
 }
-

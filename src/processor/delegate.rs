@@ -1,4 +1,5 @@
-use solana_program::clock::Clock;
+use std::mem::size_of;
+
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
@@ -9,16 +10,12 @@ use solana_program::{
     pubkey::Pubkey,
     system_program, {self},
 };
-use std::mem::size_of;
 
-use crate::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
-use crate::loaders::{
-    load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
-};
-use crate::state::{CommitState, Delegation};
+use crate::consts::{BUFFER, DELEGATION};
+use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
+use crate::state::Delegation;
 use crate::utils::create_pda;
 use crate::utils::{AccountDeserialize, Discriminator};
-use solana_program::sysvar::Sysvar;
 
 /// Delegate a Pda to an authority
 ///
@@ -99,23 +96,6 @@ pub fn process_delegate<'a, 'info>(
     delegation.authority = *new_authority.key;
     delegation.valid_until = 0;
     delegation.commits = 0;
-    Ok(())
-}
-
-/// Update the data of a delegated Pda
-///
-/// 1. Copy delegated PDA to a buffer PDA
-/// 2. Close PDA and reopen it with the origin authority
-/// 3. Reopen origin with authority set to the delegation program
-/// 4. Save new authority in the Authority Record
-///
-pub fn process_update<'a, 'info>(
-    _program_id: &Pubkey,
-    accounts: &'a [AccountInfo<'info>],
-    data: &[u8],
-) -> ProgramResult {
-    // TODO: Implement delegation logic
-
     Ok(())
 }
 

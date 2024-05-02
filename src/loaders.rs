@@ -143,19 +143,9 @@ pub fn load_program<'a, 'info>(
 
 #[cfg(test)]
 mod tests {
-    use solana_program::{
-        account_info::AccountInfo, keccak::Hash as KeccakHash, program_option::COption,
-        program_pack::Pack, pubkey::Pubkey, system_program,
-    };
-    use spl_token::state::{AccountState, Mint};
+    use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
 
-    use crate::{
-        loaders::{
-            load_account, load_signer, load_sysvar, load_uninitialized_account,
-            load_uninitialized_pda,
-        },
-        utils::Discriminator,
-    };
+    use crate::loaders::{load_account, load_signer, load_sysvar, load_uninitialized_account};
 
     use super::load_program;
 

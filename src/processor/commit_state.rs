@@ -1,24 +1,21 @@
+use std::mem::size_of;
+
 use solana_program::clock::Clock;
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
+use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     msg,
     pubkey::Pubkey,
-    system_program, {self},
+    {self},
 };
-use std::mem::size_of;
 
-use crate::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
-use crate::loaders::{
-    load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
-};
+use crate::consts::{COMMIT_RECORD, DELEGATION, STATE_DIFF};
+use crate::loaders::{load_initialized_pda, load_owned_pda, load_signer, load_uninitialized_pda};
 use crate::state::{CommitState, Delegation};
 use crate::utils::create_pda;
 use crate::utils::{AccountDeserialize, Discriminator};
-use solana_program::sysvar::Sysvar;
 
 /// Commit a new state of a delegated Pda
 ///
@@ -105,7 +102,7 @@ pub fn process_commit_state<'a, 'info>(
     commit_record.account = *origin_account.key;
     commit_record.timestamp = Clock::get()?.unix_timestamp;
 
-    // TODO: here we can add a stake deposit to the commit record
+    // TODO: here we can add a stake deposit to the state commit record
 
     // Copy the new state to the initialized PDA
     let mut buffer_data = new_state.try_borrow_mut_data()?;
