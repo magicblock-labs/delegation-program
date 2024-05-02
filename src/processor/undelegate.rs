@@ -1,12 +1,11 @@
-use solana_program::{
-    {self},
-    account_info::AccountInfo
-    ,
-    entrypoint::ProgramResult
-    , pubkey::Pubkey,
-};
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    pubkey::Pubkey,
+    {self},
+};
 
 /// Undelegate a delegated Pda
 ///
