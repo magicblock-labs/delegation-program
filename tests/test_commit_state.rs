@@ -12,7 +12,7 @@ use dlp::consts::{COMMIT_RECORD, STATE_DIFF};
 use dlp::state::CommitState;
 use dlp::utils::AccountDeserialize;
 
-pub const DELEGATED_PDA_ID: Pubkey = pubkey!("99B2bTijsU6f1GCT73HmdR7HCFFjGMBcPZY6jZ96ynrR");
+pub const DELEGATED_PDA_ID: Pubkey = pubkey!("DSpv6esFqXfNsiem9RNyXEagGgLY18i2RdepkSbQn86H");
 
 #[tokio::test]
 async fn test_commit_new_state() {
