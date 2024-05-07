@@ -1,5 +1,8 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
+};
 
 /// Creates a new pda
 #[inline(always)]
@@ -74,7 +77,6 @@ pub(crate) fn create_pda<'a, 'info>(
     Ok(())
 }
 
-
 /// Close PDA
 #[inline(always)]
 pub(crate) fn close_pda<'a, 'info>(
@@ -83,8 +85,9 @@ pub(crate) fn close_pda<'a, 'info>(
 ) -> ProgramResult {
     // Transfer tokens from the account to the destination.
     let dest_starting_lamports = destination.lamports();
-    **destination.lamports.borrow_mut() =
-        dest_starting_lamports.checked_add(target_account.lamports()).unwrap();
+    **destination.lamports.borrow_mut() = dest_starting_lamports
+        .checked_add(target_account.lamports())
+        .unwrap();
     **target_account.lamports.borrow_mut() = 0;
 
     target_account.assign(&solana_program::system_program::ID);

@@ -1,12 +1,18 @@
-use solana_program::{{self}, account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey, system_program};
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    msg,
+    pubkey::Pubkey,
+    system_program, {self},
+};
 
 use crate::consts::BUFFER;
 use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer};
 use crate::state::{CommitState, Delegation};
-use crate::utils::{AccountDeserialize, close_pda};
+use crate::utils::{close_pda, AccountDeserialize};
 
 /// Undelegate a delegated Pda
 ///
@@ -26,11 +32,11 @@ pub fn process_undelegate<'a, 'info>(
 ) -> ProgramResult {
     msg!("Processing undelegate instruction");
     msg!("Data: {:?}", data);
-    let [ payer, delegated_account, owner_program, buffer, state_diff, commit_state_record, delegation_record, reimbursement, system_program] =
+    let [payer, delegated_account, owner_program, buffer, state_diff, commit_state_record, delegation_record, reimbursement, system_program] =
         accounts
-        else {
-            return Err(ProgramError::NotEnoughAccountKeys);
-        };
+    else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
     msg!("Load accounts");
 
     load_signer(payer)?;
@@ -45,7 +51,12 @@ pub fn process_undelegate<'a, 'info>(
     let delegation_data = delegation_record.try_borrow_data()?;
     let delegation = Delegation::try_from_bytes(&delegation_data)?;
 
-    load_initialized_pda(buffer, &[BUFFER, &delegated_account.key.to_bytes()], &crate::id(), true)?;
+    load_initialized_pda(
+        buffer,
+        &[BUFFER, &delegated_account.key.to_bytes()],
+        &crate::id(),
+        true,
+    )?;
 
     // Load committed state
     let commit_record_data = commit_state_record.try_borrow_data()?;
@@ -61,7 +72,7 @@ pub fn process_undelegate<'a, 'info>(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    if !commit_record.identity.eq(reimbursement.key){
+    if !commit_record.identity.eq(reimbursement.key) {
         return Err(ProgramError::InvalidAccountData);
     }
 

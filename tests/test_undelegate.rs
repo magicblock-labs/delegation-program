@@ -19,8 +19,7 @@ async fn test_undelegate() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
-    let buffer =
-        Pubkey::find_program_address(&[BUFFER, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
+    let buffer = Pubkey::find_program_address(&[BUFFER, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
     let delegation_pda =
         Pubkey::find_program_address(&[DELEGATION, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
     let new_state_pda =
