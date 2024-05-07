@@ -3,10 +3,7 @@ use crate::{impl_instruction_from_bytes, impl_to_bytes};
 use bytemuck::{Pod, Zeroable};
 use num_enum::TryFromPrimitive;
 use shank::ShankInstruction;
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-};
+use solana_program::{instruction::{AccountMeta, Instruction}, pubkey::Pubkey, system_program};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -93,22 +90,23 @@ pub fn commit_state(
         ],
         &crate::id(),
     );
-    Instruction {
-        program_id: crate::id(),
-        accounts: vec![
-            AccountMeta::new(authority, true),
-            AccountMeta::new(origin_account, false),
-            AccountMeta::new(new_state_pda.0, false),
-            AccountMeta::new(commit_state_record_pda.0, false),
-            AccountMeta::new(delegation_pda.0, false),
-            AccountMeta::new(system_program, false),
-        ],
-        data: [DlpInstruction::CommitState.to_vec(), state].concat(),
-    }
+        Instruction {
+            program_id: crate::id(),
+            accounts: vec![
+                AccountMeta::new(authority, true),
+                AccountMeta::new(origin_account, false),
+                AccountMeta::new(new_state_pda.0, false),
+                AccountMeta::new(commit_state_record_pda.0, false),
+                AccountMeta::new(delegation_pda.0, false),
+                AccountMeta::new(system_program, false),
+            ],
+            data: [DlpInstruction::CommitState.to_vec(), state].concat(),
+        }
 }
 
 /// Builds a commit state instruction.
 pub fn undelegate(
+    payer: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
     buffer: Pubkey,
@@ -120,6 +118,7 @@ pub fn undelegate(
     Instruction {
         program_id: crate::id(),
         accounts: vec![
+            AccountMeta::new(payer, true),
             AccountMeta::new(delegated_account, false),
             AccountMeta::new(owner_program, false),
             AccountMeta::new(buffer, false),
@@ -127,6 +126,7 @@ pub fn undelegate(
             AccountMeta::new(committed_state_record, false),
             AccountMeta::new(delegation_record, false),
             AccountMeta::new(reimbursement, false),
+            AccountMeta::new(system_program::id(), false),
         ],
         data: DlpInstruction::Undelegate.to_vec(),
     }

@@ -1,10 +1,10 @@
-use solana_program::{{self}, account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
+use solana_program::{{self}, account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey, system_program};
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
-use crate::instruction::commit_state;
 
-use crate::loaders::load_owned_pda;
+use crate::consts::BUFFER;
+use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer};
 use crate::state::{CommitState, Delegation};
 use crate::utils::{AccountDeserialize, close_pda};
 
@@ -24,27 +24,34 @@ pub fn process_undelegate<'a, 'info>(
     accounts: &'a [AccountInfo<'info>],
     data: &[u8],
 ) -> ProgramResult {
-    msg!("Processing delegate instruction");
+    msg!("Processing undelegate instruction");
     msg!("Data: {:?}", data);
-    let [ delegated_account, owner_program, buffer, state_diff, commit_state_record, delegation_record, reimbursement] =
+    let [ payer, delegated_account, owner_program, buffer, state_diff, commit_state_record, delegation_record, reimbursement, system_program] =
         accounts
         else {
             return Err(ProgramError::NotEnoughAccountKeys);
         };
     msg!("Load accounts");
+
+    load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
     load_owned_pda(buffer, &crate::id())?;
     load_owned_pda(state_diff, &crate::id())?;
     load_owned_pda(commit_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
+    load_program(system_program, system_program::id())?;
 
     // Load delegation record
     let delegation_data = delegation_record.try_borrow_data()?;
     let delegation = Delegation::try_from_bytes(&delegation_data)?;
 
+    load_initialized_pda(buffer, &[BUFFER, &delegated_account.key.to_bytes()], &crate::id(), true)?;
+
     // Load committed state
     let commit_record_data = commit_state_record.try_borrow_data()?;
     let commit_record = CommitState::try_from_bytes(&commit_record_data)?;
+
+    msg!("Check for invalid state");
 
     if !delegation.origin.eq(owner_program.key) {
         return Err(ProgramError::InvalidAccountData);
@@ -60,26 +67,33 @@ pub fn process_undelegate<'a, 'info>(
 
     // TODO: Add the logic to check the state diff, Authority & Fraud proof
 
+    //buffer.realloc(state_diff.data_len(), false)?;
 
-    // Close the delegated account
-    close_pda(delegated_account, reimbursement)?;
+    // let mut buffer_data = buffer.try_borrow_mut_data()?;
+    // let new_data = state_diff.try_borrow_data()?;
+    // (*buffer_data).copy_from_slice(&new_data);
 
-    // TODO: CPI owner program to repoen the PDA with the original owner and the new state
-
+    //
+    // close_pda(delegated_account, reimbursement)?;
+    // // TODO: CPI owner program to repoen the PDA with the original owner and the new state
+    // // call_close_pda(delegated_account, payer, owner_program.key)?;
+    // //
     // Dropping references
     drop(commit_record_data);
     drop(delegation_data);
+    // drop(buffer_data);
+    // drop(new_data);
 
     // Closing accounts
     close_pda(commit_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
     close_pda(state_diff, reimbursement)?;
-    close_pda(buffer, reimbursement)?;
+    close_pda(delegated_account, reimbursement)?;
 
     Ok(())
 }
 
-const CLOSE_INSTRUCTION_DISCRIMINATOR: [u8; 8] = [98, 165, 201, 177, 108, 65, 206, 96];
+const CLOSE_INSTRUCTION_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
 
 fn call_close_pda<'a, 'info>(
     account_to_close: &'a AccountInfo<'info>,

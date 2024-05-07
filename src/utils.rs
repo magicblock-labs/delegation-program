@@ -1,8 +1,5 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
-    pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey, rent::Rent, sysvar::Sysvar};
 
 /// Creates a new pda
 #[inline(always)]
@@ -34,7 +31,6 @@ pub(crate) fn create_pda<'a, 'info>(
         )?;
     } else {
         // Otherwise, if balance is nonzero:
-
         // 1) transfer sufficient lamports for rent exemption
         let rent_exempt_balance = rent
             .minimum_balance(space)

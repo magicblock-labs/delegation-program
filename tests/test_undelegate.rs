@@ -62,6 +62,7 @@ async fn test_undelegate() {
 
     // Submit the undelegate tx
     let ix = dlp::instruction::undelegate(
+        payer.pubkey(),
         DELEGATED_PDA_ID,
         dlp::id(),
         buffer.0,
@@ -75,10 +76,6 @@ async fn test_undelegate() {
     println!("{:?}", res);
     assert!(res.is_ok());
 
-    // Assert the buffer was closed
-    let buffer_account = banks.get_account(buffer.0).await.unwrap();
-    assert!(buffer_account.is_none());
-
     // Assert the state_diff was closed
     let new_state_account = banks.get_account(new_state_pda.0).await.unwrap();
     assert!(new_state_account.is_none());
@@ -87,7 +84,7 @@ async fn test_undelegate() {
     let delegation_account = banks.get_account(delegation_pda.0).await.unwrap();
     assert!(delegation_account.is_none());
 
-    // Assert the delegation_pda was closed
+    // Assert the commit_state_record_pda was closed
     let commit_state_record_account = banks.get_account(commit_state_record_pda.0).await.unwrap();
     assert!(commit_state_record_account.is_none());
 }
