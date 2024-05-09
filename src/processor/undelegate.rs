@@ -18,10 +18,11 @@ use crate::utils::{close_pda, AccountDeserialize};
 ///
 /// 1. If the state diff is valid, copy the committed state to the buffer PDA
 /// 2. Close the locked account
-/// 3. Close the state diff account
-/// 4. CPI to the original owner to re-open the PDA with the original owner and the new state
-/// 5. Close the buffer PDA
-/// 6. Close the delegation record
+/// 3. CPI to the original owner to re-open the PDA with the original owner and the new state
+/// 4. Close the buffer PDA
+/// 5. Close the state diff account
+/// 6. Close the commit state record
+/// 7. Close the delegation record
 ///
 ///
 /// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
@@ -87,27 +88,24 @@ pub fn process_undelegate<'a, 'info>(
     msg!("Buffer PDA: {:?}", buffer.key.to_string());
     msg!("Buffer Data: {:?}", buffer_data.to_vec());
 
-    // Move all lamports from the committed state to the buffer account
-    // **buffer.lamports.borrow_mut() = buffer.lamports().checked_add(commit_state_record.lamports()).unwrap();
-    // **commit_state_record.lamports.borrow_mut() = commit_state_record.lamports().checked_sub(commit_state_record.lamports()).unwrap();
-
     // Dropping references
     drop(commit_record_data);
     drop(delegation_data);
     drop(buffer_data);
     drop(new_data);
 
-    //close_pda(delegated_account, reimbursement)?;
+    // Closing delegated account before reopening it with the original owner
+    close_pda(delegated_account, reimbursement)?;
 
     let signer_seeds: &[&[&[u8]]] = &[&[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]]];
-    call_external_undelegate(
-        payer,
-        delegated_account,
-        buffer,
-        system_program,
-        owner_program.key,
-        signer_seeds,
-    )?;
+    // call_external_undelegate(
+    //     payer,
+    //     delegated_account,
+    //     buffer,
+    //     system_program,
+    //     owner_program.key,
+    //     signer_seeds,
+    // )?;
 
     // Closing accounts
     close_pda(commit_state_record, reimbursement)?;
@@ -121,7 +119,7 @@ const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 
 
 fn call_external_undelegate<'a, 'info>(
     payer: &'a AccountInfo<'info>,
-    account_to_close: &'a AccountInfo<'info>,
+    account_to_undelegate: &'a AccountInfo<'info>,
     buffer: &'a AccountInfo<'info>,
     system_program: &'a AccountInfo<'info>,
     program_id: &Pubkey,
@@ -133,14 +131,14 @@ fn call_external_undelegate<'a, 'info>(
         program_id: *program_id,
         accounts: vec![
             AccountMeta {
-                pubkey: *account_to_close.key,
+                pubkey: *account_to_undelegate.key,
                 is_signer: false,
                 is_writable: true,
             },
             AccountMeta {
                 pubkey: *buffer.key,
-                is_signer: false,
-                is_writable: false,
+                is_signer: true,
+                is_writable: true,
             },
             AccountMeta {
                 pubkey: *payer.key,
@@ -156,11 +154,9 @@ fn call_external_undelegate<'a, 'info>(
         data: instruction_data,
     };
 
-    msg!("Buffer Is Signer: {:?}", buffer.is_signer);
-
     invoke_signed(
         &close_instruction,
-        &[account_to_close.clone(), payer.clone(), buffer.clone()],
+        &[account_to_undelegate.clone(), payer.clone(), buffer.clone()],
         signers_seeds,
     )
 }
