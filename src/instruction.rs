@@ -6,6 +6,7 @@ use shank::ShankInstruction;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
+    system_program,
 };
 
 #[repr(C)]
@@ -104,5 +105,33 @@ pub fn commit_state(
             AccountMeta::new(system_program, false),
         ],
         data: [DlpInstruction::CommitState.to_vec(), state].concat(),
+    }
+}
+
+/// Builds a commit state instruction.
+pub fn undelegate(
+    payer: Pubkey,
+    delegated_account: Pubkey,
+    owner_program: Pubkey,
+    buffer: Pubkey,
+    state_diff: Pubkey,
+    committed_state_record: Pubkey,
+    delegation_record: Pubkey,
+    reimbursement: Pubkey,
+) -> Instruction {
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(delegated_account, false),
+            AccountMeta::new(owner_program, false),
+            AccountMeta::new(buffer, false),
+            AccountMeta::new(state_diff, false),
+            AccountMeta::new(committed_state_record, false),
+            AccountMeta::new(delegation_record, false),
+            AccountMeta::new(reimbursement, false),
+            AccountMeta::new(system_program::id(), false),
+        ],
+        data: DlpInstruction::Undelegate.to_vec(),
     }
 }

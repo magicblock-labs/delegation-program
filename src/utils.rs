@@ -1,6 +1,6 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
     pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
 };
 
@@ -34,7 +34,6 @@ pub(crate) fn create_pda<'a, 'info>(
         )?;
     } else {
         // Otherwise, if balance is nonzero:
-
         // 1) transfer sufficient lamports for rent exemption
         let rent_exempt_balance = rent
             .minimum_balance(space)
@@ -76,6 +75,23 @@ pub(crate) fn create_pda<'a, 'info>(
     }
 
     Ok(())
+}
+
+/// Close PDA
+#[inline(always)]
+pub(crate) fn close_pda<'a, 'info>(
+    target_account: &'a AccountInfo<'info>,
+    destination: &'a AccountInfo<'info>,
+) -> ProgramResult {
+    // Transfer tokens from the account to the destination.
+    let dest_starting_lamports = destination.lamports();
+    **destination.lamports.borrow_mut() = dest_starting_lamports
+        .checked_add(target_account.lamports())
+        .unwrap();
+    **target_account.lamports.borrow_mut() = 0;
+
+    target_account.assign(&solana_program::system_program::ID);
+    target_account.realloc(0, false).map_err(Into::into)
 }
 
 #[repr(u8)]
