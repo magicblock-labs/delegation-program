@@ -1,5 +1,5 @@
 use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program::invoke;
+use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
@@ -51,7 +51,7 @@ pub fn process_undelegate<'a, 'info>(
     let delegation_data = delegation_record.try_borrow_data()?;
     let delegation = Delegation::try_from_bytes(&delegation_data)?;
 
-    load_initialized_pda(
+    let buffer_bump: u8 = load_initialized_pda(
         buffer,
         &[BUFFER, &delegated_account.key.to_bytes()],
         &crate::id(),
@@ -78,40 +78,56 @@ pub fn process_undelegate<'a, 'info>(
 
     // TODO: Add the logic to check the state diff, Authority & Fraud proof
 
-    //buffer.realloc(state_diff.data_len(), false)?;
+    buffer.realloc(state_diff.data_len(), false)?;
 
-    // let mut buffer_data = buffer.try_borrow_mut_data()?;
-    // let new_data = state_diff.try_borrow_data()?;
-    // (*buffer_data).copy_from_slice(&new_data);
+    let mut buffer_data = buffer.try_borrow_mut_data()?;
+    let new_data = state_diff.try_borrow_data()?;
+    (*buffer_data).copy_from_slice(&new_data);
 
-    //
-    // close_pda(delegated_account, reimbursement)?;
-    // // TODO: CPI owner program to repoen the PDA with the original owner and the new state
-    // // call_close_pda(delegated_account, payer, owner_program.key)?;
-    // //
+    msg!("Buffer PDA: {:?}", buffer.key.to_string());
+    msg!("Buffer Data: {:?}", buffer_data.to_vec());
+
+    // Move all lamports from the committed state to the buffer account
+    // **buffer.lamports.borrow_mut() = buffer.lamports().checked_add(commit_state_record.lamports()).unwrap();
+    // **commit_state_record.lamports.borrow_mut() = commit_state_record.lamports().checked_sub(commit_state_record.lamports()).unwrap();
+
     // Dropping references
     drop(commit_record_data);
     drop(delegation_data);
-    // drop(buffer_data);
-    // drop(new_data);
+    drop(buffer_data);
+    drop(new_data);
+
+    //close_pda(delegated_account, reimbursement)?;
+
+    let signer_seeds: &[&[&[u8]]] = &[&[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]]];
+    call_external_undelegate(
+        payer,
+        delegated_account,
+        buffer,
+        system_program,
+        owner_program.key,
+        signer_seeds,
+    )?;
 
     // Closing accounts
     close_pda(commit_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
     close_pda(state_diff, reimbursement)?;
-    close_pda(delegated_account, reimbursement)?;
-
+    close_pda(buffer, reimbursement)?;
     Ok(())
 }
 
-const CLOSE_INSTRUCTION_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
+const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
 
-fn call_close_pda<'a, 'info>(
+fn call_external_undelegate<'a, 'info>(
+    payer: &'a AccountInfo<'info>,
     account_to_close: &'a AccountInfo<'info>,
-    destination_account: &'a AccountInfo<'info>,
-    program_id: &Pubkey, // Anchor program's ID
+    buffer: &'a AccountInfo<'info>,
+    system_program: &'a AccountInfo<'info>,
+    program_id: &Pubkey,
+    signers_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let instruction_data = CLOSE_INSTRUCTION_DISCRIMINATOR.to_vec();
+    let instruction_data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
 
     let close_instruction = Instruction {
         program_id: *program_id,
@@ -122,16 +138,29 @@ fn call_close_pda<'a, 'info>(
                 is_writable: true,
             },
             AccountMeta {
-                pubkey: *account_to_close.key,
+                pubkey: *buffer.key,
                 is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: *payer.key,
+                is_signer: true,
                 is_writable: true,
+            },
+            AccountMeta {
+                pubkey: *system_program.key,
+                is_signer: false,
+                is_writable: false,
             },
         ],
         data: instruction_data,
     };
 
-    invoke(
+    msg!("Buffer Is Signer: {:?}", buffer.is_signer);
+
+    invoke_signed(
         &close_instruction,
-        &[account_to_close.clone(), destination_account.clone()],
+        &[account_to_close.clone(), payer.clone(), buffer.clone()],
+        signers_seeds,
     )
 }
