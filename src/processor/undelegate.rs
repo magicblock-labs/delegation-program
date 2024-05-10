@@ -1,5 +1,5 @@
 use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program::{invoke, invoke_signed};
+use solana_program::program::invoke_signed;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
@@ -14,11 +14,15 @@ use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_si
 use crate::state::{CommitState, Delegation};
 use crate::utils::{close_pda, AccountDeserialize};
 
+const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
+
 /// Undelegate a delegated Pda
 ///
 /// 1. If the state diff is valid, copy the committed state to the buffer PDA
 /// 2. Close the locked account
 /// 3. CPI to the original owner to re-open the PDA with the original owner and the new state
+/// - The CPI will be signed by the buffer PDA and will call the external program
+///   using the discriminator EXTERNAL_UNDELEGATE_DISCRIMINATOR
 /// 4. Close the buffer PDA
 /// 5. Close the state diff account
 /// 6. Close the commit state record
@@ -29,16 +33,13 @@ use crate::utils::{close_pda, AccountDeserialize};
 pub fn process_undelegate<'a, 'info>(
     _program_id: &Pubkey,
     accounts: &'a [AccountInfo<'info>],
-    data: &[u8],
+    _data: &[u8],
 ) -> ProgramResult {
-    msg!("Processing undelegate instruction");
-    msg!("Data: {:?}", data);
     let [payer, delegated_account, owner_program, buffer, state_diff, commit_state_record, delegation_record, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-    msg!("Load accounts");
 
     load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
@@ -63,8 +64,6 @@ pub fn process_undelegate<'a, 'info>(
     let commit_record_data = commit_state_record.try_borrow_data()?;
     let commit_record = CommitState::try_from_bytes(&commit_record_data)?;
 
-    msg!("Check for invalid state");
-
     if !delegation.origin.eq(owner_program.key) {
         return Err(ProgramError::InvalidAccountData);
     }
@@ -73,11 +72,7 @@ pub fn process_undelegate<'a, 'info>(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    if !commit_record.identity.eq(reimbursement.key) {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    // TODO: Add the logic to check the state diff, Authority & Fraud proof
+    // TODO: Add the logic to check the state diff, Authority and/or Fraud proof
 
     buffer.realloc(state_diff.data_len(), false)?;
 
@@ -97,15 +92,16 @@ pub fn process_undelegate<'a, 'info>(
     // Closing delegated account before reopening it with the original owner
     close_pda(delegated_account, reimbursement)?;
 
+    // CPI to the owner program to re-open the PDA
     let signer_seeds: &[&[&[u8]]] = &[&[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]]];
-    // call_external_undelegate(
-    //     payer,
-    //     delegated_account,
-    //     buffer,
-    //     system_program,
-    //     owner_program.key,
-    //     signer_seeds,
-    // )?;
+    call_external_undelegate(
+        payer,
+        delegated_account,
+        buffer,
+        system_program,
+        owner_program.key,
+        signer_seeds,
+    )?;
 
     // Closing accounts
     close_pda(commit_state_record, reimbursement)?;
@@ -114,8 +110,6 @@ pub fn process_undelegate<'a, 'info>(
     close_pda(buffer, reimbursement)?;
     Ok(())
 }
-
-const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
 
 fn call_external_undelegate<'a, 'info>(
     payer: &'a AccountInfo<'info>,
