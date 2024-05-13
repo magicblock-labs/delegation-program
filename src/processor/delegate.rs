@@ -4,7 +4,6 @@ use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
@@ -17,73 +16,64 @@ use crate::state::Delegation;
 use crate::utils::create_pda;
 use crate::utils::{AccountDeserialize, Discriminator};
 
-/// Delegate a Pda to an authority
+/// Delegate an account
 ///
-/// 1. Copy origin to a buffer PDA
-/// 2. Close origin
-/// 3. Reopen origin with authority set to the delegation program
-/// 4. Save new authority in the Authority Record
+/// 1. Checks that the account is owned by the delegation program, that the buffer is initialized and derived correctly from the PDA
+///  - Also checks that the delegate_account is a signer (enforcing that the instruction is being called from CPI) & other constraints
+/// 2. Copy the data from the buffer into the original account
+/// 3. Create a Delegation Record to store useful information about the delegation event
 ///
 pub fn process_delegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
-    data: &[u8],
+    _data: &[u8],
 ) -> ProgramResult {
-    msg!("Processing delegate instruction");
-    msg!("Data: {:?}", data);
-    let [payer, pda, owner_program, buffer, delegation_record, system_program] = accounts else {
+    let [payer, delegate_account, owner_program, buffer, delegation_record, system_program] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
-    msg!("Load accounts");
+
     load_program(system_program, system_program::id())?;
-    load_owned_pda(pda, &crate::id())?;
+    load_owned_pda(delegate_account, &crate::id())?;
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
     load_initialized_pda(
         buffer,
-        &[BUFFER, &pda.key.to_bytes()],
+        &[BUFFER, &delegate_account.key.to_bytes()],
         owner_program.key,
         false,
     )?;
     let authority_bump = load_uninitialized_pda(
         delegation_record,
-        &[DELEGATION, &pda.key.to_bytes()],
+        &[DELEGATION, &delegate_account.key.to_bytes()],
         &crate::id(),
     )?;
-    msg!("Payer is Signer: {:?}", payer.is_signer);
-    msg!("Payer is Writable: {:?}", payer.is_writable);
-    msg!("Buffer is Signer: {:?}", buffer.is_signer);
-    msg!("Buffer is Writable: {:?}", buffer.is_writable);
-    msg!("Buffer Address: {:?}", buffer.key.to_string());
-    msg!("PDA is Signer: {:?}", pda.is_signer);
-    msg!("PDA is Writable: {:?}", pda.is_writable);
-    msg!("PDA Address: {:?}", pda.key.to_string());
 
+    // Check that payer and delegate_account are signers, this ensures the instruction is being called from CPI
     load_signer(payer)?;
-    // Check that the PDA is a signer, to ensure the instruction is being called from CPI
-    load_signer(pda)?;
+    load_signer(delegate_account)?;
 
     // Initialize the delegation record PDA
     create_pda(
         delegation_record,
         &crate::id(),
         8 + size_of::<Delegation>(),
-        &[DELEGATION, &pda.key.to_bytes(), &[authority_bump]],
+        &[
+            DELEGATION,
+            &delegate_account.key.to_bytes(),
+            &[authority_bump],
+        ],
         system_program,
         payer,
     )?;
 
-    // 1. Copy the date to the buffer PDA
-    let mut pda_data = pda.try_borrow_mut_data()?;
+    // Copy the data from the buffer into the original account
+    let mut account_data = delegate_account.try_borrow_mut_data()?;
     let new_data = buffer.try_borrow_data()?;
-    (*pda_data).copy_from_slice(&new_data);
-    // 2. CPI into the owner program to Close the PDA
-    // TODO: Implement close logic in an external program and call it here with CPI to owner program
-    //drop(new_data);
-    //call_close_pda(pda, payer, owner_program.key)?;
-    // 3. CPI into the owner program to re-init the PDA, setting the authority to the delegation program
-    // TODO: Implement init logic in an external program and call it here with CPI to owner program
-    // 4. Save new delegation in the Delegation Record
+    (*account_data).copy_from_slice(&new_data);
+
+    // Initialize the delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
     delegation_data[0] = Delegation::discriminator() as u8;
     let delegation = Delegation::try_from_bytes_mut(&mut delegation_data)?;
