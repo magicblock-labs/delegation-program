@@ -1,6 +1,6 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
     pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
 };
 
@@ -124,7 +124,7 @@ macro_rules! impl_to_bytes {
 #[macro_export]
 macro_rules! impl_account_from_bytes {
     ($struct_name:ident) => {
-        impl crate::utils::AccountDeserialize for $struct_name {
+        impl $crate::utils::AccountDeserialize for $struct_name {
             fn try_from_bytes(
                 data: &[u8],
             ) -> Result<&Self, solana_program::program_error::ProgramError> {

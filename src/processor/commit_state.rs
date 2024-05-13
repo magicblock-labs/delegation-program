@@ -25,9 +25,9 @@ use crate::utils::{AccountDeserialize, Discriminator};
 /// 4. Init a new PDA to store the record of the new state commitment
 /// 5. Increase the commits counter in the delegation record
 ///
-pub fn process_commit_state<'a, 'info>(
+pub fn process_commit_state(
     _program_id: &Pubkey,
-    accounts: &'a [AccountInfo<'info>],
+    accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
     msg!("Processing commit state instruction");

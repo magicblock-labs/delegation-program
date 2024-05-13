@@ -10,9 +10,9 @@ use solana_program::{
 };
 
 use crate::consts::BUFFER;
-use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda};
+use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitState, Delegation};
-use crate::utils::{close_pda, AccountDeserialize, create_pda};
+use crate::utils::{close_pda, create_pda, AccountDeserialize};
 
 const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
 
@@ -30,9 +30,9 @@ const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 
 ///
 ///
 /// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
-pub fn process_undelegate<'a, 'info>(
+pub fn process_undelegate(
     _program_id: &Pubkey,
-    accounts: &'a [AccountInfo<'info>],
+    accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
     let [payer, delegated_account, owner_program, buffer, state_diff, commit_state_record, delegation_record, reimbursement, system_program] =

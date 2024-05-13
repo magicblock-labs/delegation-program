@@ -4,11 +4,8 @@ use solana_program::{
 
 /// Errors if:
 /// - Account is not owned by expected program.
-pub fn load_owned_pda<'a, 'info>(
-    info: &'a AccountInfo<'info>,
-    owner: &Pubkey,
-) -> Result<(), ProgramError> {
-    if !info.owner.eq(&owner) {
+pub fn load_owned_pda(info: &AccountInfo, owner: &Pubkey) -> Result<(), ProgramError> {
+    if !info.owner.eq(owner) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -17,7 +14,7 @@ pub fn load_owned_pda<'a, 'info>(
 
 /// Errors if:
 /// - Account is not a signer.
-pub fn load_signer<'a, 'info>(info: &'a AccountInfo<'info>) -> Result<(), ProgramError> {
+pub fn load_signer(info: &AccountInfo) -> Result<(), ProgramError> {
     if !info.is_signer {
         return Err(ProgramError::MissingRequiredSignature);
     }
@@ -28,8 +25,8 @@ pub fn load_signer<'a, 'info>(info: &'a AccountInfo<'info>) -> Result<(), Progra
 /// Errors if:
 /// - Address does not match PDA derived from provided seeds.
 /// - Cannot load as an uninitialized account.
-pub fn load_uninitialized_pda<'a, 'info>(
-    info: &'a AccountInfo<'info>,
+pub fn load_uninitialized_pda(
+    info: &AccountInfo,
     seeds: &[&[u8]],
     program_id: &Pubkey,
 ) -> Result<u8, ProgramError> {
@@ -47,8 +44,8 @@ pub fn load_uninitialized_pda<'a, 'info>(
 /// - Address does not match PDA derived from provided seeds.
 /// - Owner is not the expected program.
 /// - Account is not writable if set to writable.
-pub fn load_initialized_pda<'a, 'info>(
-    info: &'a AccountInfo<'info>,
+pub fn load_initialized_pda(
+    info: &AccountInfo,
     seeds: &[&[u8]],
     program_id: &Pubkey,
     is_writable: bool,
@@ -72,9 +69,8 @@ pub fn load_initialized_pda<'a, 'info>(
 /// - Owner is not the system program.
 /// - Data is not empty.
 /// - Account is not writable.
-pub fn load_uninitialized_account<'a, 'info>(
-    info: &'a AccountInfo<'info>,
-) -> Result<(), ProgramError> {
+#[allow(dead_code)]
+pub fn load_uninitialized_account(info: &AccountInfo) -> Result<(), ProgramError> {
     if info.owner.ne(&system_program::id()) {
         return Err(ProgramError::InvalidAccountOwner);
     }
@@ -93,10 +89,8 @@ pub fn load_uninitialized_account<'a, 'info>(
 /// Errors if:
 /// - Owner is not the sysvar address.
 /// - Account cannot load with the expected address.
-pub fn load_sysvar<'a, 'info>(
-    info: &'a AccountInfo<'info>,
-    key: Pubkey,
-) -> Result<(), ProgramError> {
+#[allow(dead_code)]
+pub fn load_sysvar(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError> {
     if info.owner.ne(&sysvar::id()) {
         return Err(ProgramError::InvalidAccountOwner);
     }
@@ -107,8 +101,8 @@ pub fn load_sysvar<'a, 'info>(
 /// Errors if:
 /// - Address does not match the expected value.
 /// - Expected to be writable, but is not.
-pub fn load_account<'a, 'info>(
-    info: &'a AccountInfo<'info>,
+pub fn load_account(
+    info: &AccountInfo,
     key: Pubkey,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
@@ -126,10 +120,7 @@ pub fn load_account<'a, 'info>(
 /// Errors if:
 /// - Address does not match the expected value.
 /// - Account is not executable.
-pub fn load_program<'a, 'info>(
-    info: &'a AccountInfo<'info>,
-    key: Pubkey,
-) -> Result<(), ProgramError> {
+pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError> {
     if info.key.ne(&key) {
         return Err(ProgramError::IncorrectProgramId);
     }

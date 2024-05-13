@@ -10,7 +10,9 @@ use solana_program::{
 };
 
 use crate::consts::{BUFFER, DELEGATION};
-use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda};
+use crate::loaders::{
+    load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
+};
 use crate::state::Delegation;
 use crate::utils::create_pda;
 use crate::utils::{AccountDeserialize, Discriminator};
@@ -22,22 +24,27 @@ use crate::utils::{AccountDeserialize, Discriminator};
 /// 3. Reopen origin with authority set to the delegation program
 /// 4. Save new authority in the Authority Record
 ///
-pub fn process_delegate<'a, 'info>(
+pub fn process_delegate(
     _program_id: &Pubkey,
-    accounts: &'a [AccountInfo<'info>],
+    accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
     msg!("Processing delegate instruction");
     msg!("Data: {:?}", data);
-    let [payer, pda, owner_program, buffer, delegation_record, new_authority, system_program] =
-        accounts
-    else {
+    let [payer, pda, owner_program, buffer, delegation_record, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     msg!("Load accounts");
     load_program(system_program, system_program::id())?;
     load_owned_pda(pda, &crate::id())?;
-    let buffer_bump = load_initialized_pda(buffer, &[BUFFER, &pda.key.to_bytes()], &owner_program.key, false)?;
+
+    // Check that the buffer PDA is initialized and derived correctly from the PDA
+    load_initialized_pda(
+        buffer,
+        &[BUFFER, &pda.key.to_bytes()],
+        owner_program.key,
+        false,
+    )?;
     let authority_bump = load_uninitialized_pda(
         delegation_record,
         &[DELEGATION, &pda.key.to_bytes()],
@@ -51,20 +58,10 @@ pub fn process_delegate<'a, 'info>(
     msg!("PDA is Signer: {:?}", pda.is_signer);
     msg!("PDA is Writable: {:?}", pda.is_writable);
     msg!("PDA Address: {:?}", pda.key.to_string());
+
     load_signer(payer)?;
-    msg!("Create PDAs and initialize delegation record");
-
-    // TODO: check that the pda is a signer, to ensure this is being called from CPI
-
-    // Initialize the buffer PDA
-    // create_pda(
-    //     buffer,
-    //     &crate::id(),
-    //     pda.data_len(),
-    //     &[BUFFER, &pda.key.to_bytes(), &[buffer_bump]],
-    //     system_program,
-    //     payer,
-    // )?;
+    // Check that the PDA is a signer, to ensure the instruction is being called from CPI
+    load_signer(pda)?;
 
     // Initialize the delegation record PDA
     create_pda(
@@ -91,7 +88,7 @@ pub fn process_delegate<'a, 'info>(
     delegation_data[0] = Delegation::discriminator() as u8;
     let delegation = Delegation::try_from_bytes_mut(&mut delegation_data)?;
     delegation.origin = *owner_program.key;
-    delegation.authority = *new_authority.key;
+    delegation.authority = Pubkey::default();
     delegation.valid_until = 0;
     delegation.commits = 0;
     Ok(())

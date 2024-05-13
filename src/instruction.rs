@@ -1,6 +1,3 @@
-use crate::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
-use crate::{impl_instruction_from_bytes, impl_to_bytes};
-use bytemuck::{Pod, Zeroable};
 use num_enum::TryFromPrimitive;
 use shank::ShankInstruction;
 use solana_program::{
@@ -9,25 +6,35 @@ use solana_program::{
     system_program,
 };
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct DelegateArgs {
-    pub buffer_bump: u8,
-    pub authority_bump: u8,
-}
+use crate::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ShankInstruction, TryFromPrimitive)]
 #[rustfmt::skip]
 pub enum DlpInstruction {
     #[account(0, name = "payer", desc = "The fees payer", signer)]
-    #[account(1, name = "pda", desc = "Account to delegate", signer)]
-    #[account(2, name = "owner_program", desc = "The pda's owner")]
-    #[account(3, name = "buffer", desc = "Data buffer")]
-    #[account(4, name = "delegation_record", desc = "The delegation record PDA")]
-    #[account(5, name = "authority", desc = "Delegate authority", signer)]
+    #[account(1, name = "delegate_account", desc = "Account to delegate", signer)]
+    #[account(2, name = "owner_program", desc = "The account owner program")]
+    #[account(3, name = "buffer", desc = "Buffer to hold the account data during delegation")]
+    #[account(4, name = "delegation_record", desc = "The account delegation record")]
+    #[account(5, name = "system_program", desc = "The system program")]
     Delegate = 0,
+    #[account(0, name = "authority", desc = "The authority that commit the new sate", signer)]
+    #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
+    #[account(2, name = "new_state", desc = "The account to store the new account state", signer)]
+    #[account(3, name = "commit_state_record", desc = "Account to store the state commitment record")]
+    #[account(4, name = "delegation_record", desc = "The account delegation record")]
+    #[account(5, name = "system_program", desc = "The system program")]
     CommitState = 1,
+    #[account(0, name = "payer", desc = "The fees payer", signer)]
+    #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
+    #[account(2, name = "owner_program", desc = "The account owner program")]
+    #[account(3, name = "buffer", desc = "Buffer to hold the account data during undelegation")]
+    #[account(4, name = "new_state", desc = "The account that store the new account state", signer)]
+    #[account(5, name = "committed_state_record", desc = "Account that store the state commitment record")]
+    #[account(6, name = "delegation_record", desc = "The account delegation record")]
+    #[account(7, name = "reimbursement", desc = "The account to reimburse the fees after closing the records accounts")]
+    #[account(8, name = "system_program", desc = "The system program")]
     Undelegate = 2,
 }
 
@@ -37,40 +44,29 @@ impl DlpInstruction {
     }
 }
 
-impl_to_bytes!(DelegateArgs);
-impl_instruction_from_bytes!(DelegateArgs);
-
 /// Builds a delegate instruction.
 pub fn delegate(
     payer: Pubkey,
     pda: Pubkey,
     owner_program: Pubkey,
-    authority: Pubkey,
     system_program: Pubkey,
+    delegation_program: Pubkey,
+    discriminator: Vec<u8>,
 ) -> Instruction {
-    let buffer_pda = Pubkey::find_program_address(&[BUFFER, &pda.to_bytes()], &crate::id());
+    let buffer_pda = Pubkey::find_program_address(&[BUFFER, &pda.to_bytes()], &owner_program);
     let delegation_pda = Pubkey::find_program_address(&[DELEGATION, &pda.to_bytes()], &crate::id());
     Instruction {
-        program_id: crate::id(),
+        program_id: owner_program,
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(pda, false),
             AccountMeta::new(owner_program, false),
             AccountMeta::new(buffer_pda.0, false),
             AccountMeta::new(delegation_pda.0, false),
-            AccountMeta::new(authority, false),
+            AccountMeta::new(delegation_program, false),
             AccountMeta::new(system_program, false),
         ],
-        data: [
-            DlpInstruction::Delegate.to_vec(),
-            DelegateArgs {
-                buffer_bump: buffer_pda.1,
-                authority_bump: delegation_pda.1,
-            }
-            .to_bytes()
-            .to_vec(),
-        ]
-        .concat(),
+        data: [discriminator].concat(),
     }
 }
 
@@ -109,6 +105,7 @@ pub fn commit_state(
 }
 
 /// Builds a commit state instruction.
+#[allow(clippy::too_many_arguments)]
 pub fn undelegate(
     payer: Pubkey,
     delegated_account: Pubkey,
