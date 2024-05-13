@@ -10,7 +10,7 @@ use solana_program::{
 };
 
 use crate::consts::{BUFFER, DELEGATION};
-use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
+use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::Delegation;
 use crate::utils::create_pda;
 use crate::utils::{AccountDeserialize, Discriminator};
@@ -36,8 +36,8 @@ pub fn process_delegate<'a, 'info>(
     };
     msg!("Load accounts");
     load_program(system_program, system_program::id())?;
-    load_owned_pda(pda, owner_program.key)?;
-    let buffer_bump = load_uninitialized_pda(buffer, &[BUFFER, &pda.key.to_bytes()], &crate::id())?;
+    load_owned_pda(pda, &crate::id())?;
+    let buffer_bump = load_initialized_pda(buffer, &[BUFFER, &pda.key.to_bytes()], &owner_program.key, false)?;
     let authority_bump = load_uninitialized_pda(
         delegation_record,
         &[DELEGATION, &pda.key.to_bytes()],
@@ -57,14 +57,14 @@ pub fn process_delegate<'a, 'info>(
     // TODO: check that the pda is a signer, to ensure this is being called from CPI
 
     // Initialize the buffer PDA
-    create_pda(
-        buffer,
-        &crate::id(),
-        pda.data_len(),
-        &[BUFFER, &pda.key.to_bytes(), &[buffer_bump]],
-        system_program,
-        payer,
-    )?;
+    // create_pda(
+    //     buffer,
+    //     &crate::id(),
+    //     pda.data_len(),
+    //     &[BUFFER, &pda.key.to_bytes(), &[buffer_bump]],
+    //     system_program,
+    //     payer,
+    // )?;
 
     // Initialize the delegation record PDA
     create_pda(
@@ -77,9 +77,9 @@ pub fn process_delegate<'a, 'info>(
     )?;
 
     // 1. Copy the date to the buffer PDA
-    let mut buffer_data = buffer.try_borrow_mut_data()?;
-    let new_data = pda.try_borrow_data()?;
-    (*buffer_data).copy_from_slice(&new_data);
+    let mut pda_data = pda.try_borrow_mut_data()?;
+    let new_data = buffer.try_borrow_data()?;
+    (*pda_data).copy_from_slice(&new_data);
     // 2. CPI into the owner program to Close the PDA
     // TODO: Implement close logic in an external program and call it here with CPI to owner program
     //drop(new_data);

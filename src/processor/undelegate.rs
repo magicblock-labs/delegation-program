@@ -10,9 +10,9 @@ use solana_program::{
 };
 
 use crate::consts::BUFFER;
-use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer};
+use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitState, Delegation};
-use crate::utils::{close_pda, AccountDeserialize};
+use crate::utils::{close_pda, AccountDeserialize, create_pda};
 
 const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
 
@@ -43,7 +43,6 @@ pub fn process_undelegate<'a, 'info>(
 
     load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_owned_pda(buffer, &crate::id())?;
     load_owned_pda(state_diff, &crate::id())?;
     load_owned_pda(commit_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
@@ -53,11 +52,20 @@ pub fn process_undelegate<'a, 'info>(
     let delegation_data = delegation_record.try_borrow_data()?;
     let delegation = Delegation::try_from_bytes(&delegation_data)?;
 
-    let buffer_bump: u8 = load_initialized_pda(
+    let buffer_bump: u8 = load_uninitialized_pda(
         buffer,
         &[BUFFER, &delegated_account.key.to_bytes()],
         &crate::id(),
-        true,
+    )?;
+
+    // Initialize the buffer PDA
+    create_pda(
+        buffer,
+        &crate::id(),
+        state_diff.data_len(),
+        &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
+        system_program,
+        payer,
     )?;
 
     // Load committed state
@@ -72,9 +80,7 @@ pub fn process_undelegate<'a, 'info>(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // TODO: Add the logic to check the state diff, Authority and/or Fraud proof
-
-    buffer.realloc(state_diff.data_len(), false)?;
+    // TODO: Add the logic to check the state diff, Authority and/or Fraud proofs
 
     let mut buffer_data = buffer.try_borrow_mut_data()?;
     let new_data = state_diff.try_borrow_data()?;
