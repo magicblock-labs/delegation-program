@@ -4,7 +4,6 @@ use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
@@ -18,7 +17,7 @@ const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 
 
 /// Undelegate a delegated Pda
 ///
-/// 1. If the state diff is valid, copy the committed state to the buffer PDA
+/// 1. If the new state is valid, copy the committed state to the buffer PDA
 /// 2. Close the locked account
 /// 3. CPI to the original owner to re-open the PDA with the original owner and the new state
 /// - The CPI will be signed by the buffer PDA and will call the external program
@@ -35,7 +34,7 @@ pub fn process_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, buffer, state_diff, commit_state_record, delegation_record, reimbursement, system_program] =
+    let [payer, delegated_account, owner_program, buffer, new_state, committed_state_record, delegation_record, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -43,8 +42,8 @@ pub fn process_undelegate(
 
     load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_owned_pda(state_diff, &crate::id())?;
-    load_owned_pda(commit_state_record, &crate::id())?;
+    load_owned_pda(new_state, &crate::id())?;
+    load_owned_pda(committed_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
     load_program(system_program, system_program::id())?;
 
@@ -62,14 +61,14 @@ pub fn process_undelegate(
     create_pda(
         buffer,
         &crate::id(),
-        state_diff.data_len(),
+        new_state.data_len(),
         &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
         system_program,
         payer,
     )?;
 
     // Load committed state
-    let commit_record_data = commit_state_record.try_borrow_data()?;
+    let commit_record_data = committed_state_record.try_borrow_data()?;
     let commit_record = CommitState::try_from_bytes(&commit_record_data)?;
 
     if !delegation.origin.eq(owner_program.key) {
@@ -83,11 +82,8 @@ pub fn process_undelegate(
     // TODO: Add the logic to check the state diff, Authority and/or Fraud proofs
 
     let mut buffer_data = buffer.try_borrow_mut_data()?;
-    let new_data = state_diff.try_borrow_data()?;
+    let new_data = new_state.try_borrow_data()?;
     (*buffer_data).copy_from_slice(&new_data);
-
-    msg!("Buffer PDA: {:?}", buffer.key.to_string());
-    msg!("Buffer Data: {:?}", buffer_data.to_vec());
 
     // Dropping references
     drop(commit_record_data);
@@ -110,9 +106,9 @@ pub fn process_undelegate(
     )?;
 
     // Closing accounts
-    close_pda(commit_state_record, reimbursement)?;
+    close_pda(committed_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
-    close_pda(state_diff, reimbursement)?;
+    close_pda(new_state, reimbursement)?;
     close_pda(buffer, reimbursement)?;
     Ok(())
 }

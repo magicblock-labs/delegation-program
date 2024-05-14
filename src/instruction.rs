@@ -47,22 +47,22 @@ impl DlpInstruction {
 /// Builds a delegate instruction.
 pub fn delegate(
     payer: Pubkey,
-    pda: Pubkey,
-    owner_program: Pubkey,
+    delegate_account: Pubkey,
     system_program: Pubkey,
     delegation_program: Pubkey,
+    owner_program: Pubkey,
     discriminator: Vec<u8>,
 ) -> Instruction {
-    let buffer_pda = Pubkey::find_program_address(&[BUFFER, &pda.to_bytes()], &owner_program);
-    let delegation_pda = Pubkey::find_program_address(&[DELEGATION, &pda.to_bytes()], &crate::id());
+    let buffer = Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner_program);
+    let delegation_record = Pubkey::find_program_address(&[DELEGATION, &delegate_account.to_bytes()], &crate::id());
     Instruction {
         program_id: owner_program,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(pda, false),
+            AccountMeta::new(delegate_account, false),
             AccountMeta::new(owner_program, false),
-            AccountMeta::new(buffer_pda.0, false),
-            AccountMeta::new(delegation_pda.0, false),
+            AccountMeta::new(buffer.0, false),
+            AccountMeta::new(delegation_record.0, false),
             AccountMeta::new(delegation_program, false),
             AccountMeta::new(system_program, false),
         ],
@@ -73,20 +73,20 @@ pub fn delegate(
 /// Builds a commit state instruction.
 pub fn commit_state(
     authority: Pubkey,
-    origin_account: Pubkey,
-    commitment: u64,
+    delegated_account: Pubkey,
+    commitment_idx: u64,
     system_program: Pubkey,
-    state: Vec<u8>,
+    new_state: Vec<u8>,
 ) -> Instruction {
     let delegation_pda =
-        Pubkey::find_program_address(&[DELEGATION, &origin_account.to_bytes()], &crate::id());
+        Pubkey::find_program_address(&[DELEGATION, &delegated_account.to_bytes()], &crate::id());
     let new_state_pda =
-        Pubkey::find_program_address(&[STATE_DIFF, &origin_account.to_bytes()], &crate::id());
+        Pubkey::find_program_address(&[STATE_DIFF, &delegated_account.to_bytes()], &crate::id());
     let commit_state_record_pda = Pubkey::find_program_address(
         &[
             COMMIT_RECORD,
-            &commitment.to_be_bytes(),
-            &origin_account.to_bytes(),
+            &commitment_idx.to_be_bytes(),
+            &delegated_account.to_bytes(),
         ],
         &crate::id(),
     );
@@ -94,13 +94,13 @@ pub fn commit_state(
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(authority, true),
-            AccountMeta::new(origin_account, false),
+            AccountMeta::new(delegated_account, false),
             AccountMeta::new(new_state_pda.0, false),
             AccountMeta::new(commit_state_record_pda.0, false),
             AccountMeta::new(delegation_pda.0, false),
             AccountMeta::new(system_program, false),
         ],
-        data: [DlpInstruction::CommitState.to_vec(), state].concat(),
+        data: [DlpInstruction::CommitState.to_vec(), new_state].concat(),
     }
 }
 
@@ -111,7 +111,7 @@ pub fn undelegate(
     delegated_account: Pubkey,
     owner_program: Pubkey,
     buffer: Pubkey,
-    state_diff: Pubkey,
+    new_state: Pubkey,
     committed_state_record: Pubkey,
     delegation_record: Pubkey,
     reimbursement: Pubkey,
@@ -123,7 +123,7 @@ pub fn undelegate(
             AccountMeta::new(delegated_account, false),
             AccountMeta::new(owner_program, false),
             AccountMeta::new(buffer, false),
-            AccountMeta::new(state_diff, false),
+            AccountMeta::new(new_state, false),
             AccountMeta::new(committed_state_record, false),
             AccountMeta::new(delegation_record, false),
             AccountMeta::new(reimbursement, false),

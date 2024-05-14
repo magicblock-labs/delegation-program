@@ -28,9 +28,9 @@ async fn test_delegate() {
     let ix = dlp::instruction::delegate(
         payer.pubkey(),
         PDA_ID,
-        PDA_OWNER_ID,
         system_program::id(),
         dlp::id(),
+        PDA_OWNER_ID,
         EXTERNAL_DELEGATE_DISCRIMINATOR.to_vec(),
     );
 
