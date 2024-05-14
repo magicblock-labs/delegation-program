@@ -16,6 +16,7 @@ Delegation module for https://arxiv.org/pdf/2311.02650.pdf
 
 - [`Delegate`](src/processor/delegate.rs) - Delegate an account
 - [`CommitState`](src/processor/update.rs) – Commit a new state
+- [`Finalize`](src/processor/finalize.rs) – Finalize a new state
 - [`Undelegate`](src/processor/undelegate.rs) – Undelegate an account 
 
 
