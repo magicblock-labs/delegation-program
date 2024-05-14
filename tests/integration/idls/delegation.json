@@ -136,9 +136,75 @@
       ]
     },
     {
-      "name": "undelegate",
+      "name": "finalize",
       "discriminator": [
         2,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "accounts": [
+        {
+          "name": "payer",
+          "signer": true,
+          "writable": true
+        },
+        {
+          "name": "delegated_account",
+          "writable": true
+        },
+        {
+          "name": "state_diff",
+          "writable": true
+        },
+        {
+          "name": "committed_state_record",
+          "writable": true
+        },
+        {
+          "name": "delegation_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  100,
+                  101,
+                  108,
+                  101,
+                  103,
+                  97,
+                  116,
+                  105,
+                  111,
+                  110
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "pda"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reimbursement"
+        },
+        {
+          "name": "system_program"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "undelegate",
+      "discriminator": [
+        3,
         0,
         0,
         0,

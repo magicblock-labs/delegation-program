@@ -70,13 +70,8 @@ pub mod test_delegation {
         if !ctx.accounts.buffer.is_signer {
             return Err(ProgramError::MissingRequiredSignature.into());
         }
-        msg!("Init account");
-        msg!("Account: {:?}", ctx.accounts.base_account.key());
         let mut data = ctx.accounts.base_account.try_borrow_mut_data()?;
-        msg!("Data: {:?}", data.len());
         let buffer_data = ctx.accounts.buffer.try_borrow_data()?;
-        msg!("Data buffer: {:?}", buffer_data.len());
-        msg!("Buffer is signer: {:?}", ctx.accounts.buffer.is_signer);
         (*data).copy_from_slice(&buffer_data);
         Ok(())
     }

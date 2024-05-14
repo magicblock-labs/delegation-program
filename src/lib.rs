@@ -1,3 +1,11 @@
+use solana_program::{
+    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult,
+    program_error::ProgramError, pubkey::Pubkey,
+};
+
+use instruction::*;
+use processor::*;
+
 pub mod consts;
 pub mod error;
 pub mod instruction;
@@ -5,13 +13,7 @@ mod loaders;
 mod processor;
 pub mod state;
 pub mod utils;
-
-use instruction::*;
-use processor::*;
-use solana_program::{
-    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
-    program_error::ProgramError, pubkey::Pubkey,
-};
+pub mod verify_state;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
@@ -46,12 +48,10 @@ pub fn process_instruction(
         .try_into()
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    msg!("Processing instruction: {:?}", tag);
-    msg!("data: {:?}", data);
-
     match DlpInstruction::try_from(tag_array).or(Err(ProgramError::InvalidInstructionData))? {
         DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
         DlpInstruction::CommitState => process_commit_state(program_id, accounts, data)?,
+        DlpInstruction::Finalize => process_finalize(program_id, accounts, data)?,
         DlpInstruction::Undelegate => process_undelegate(program_id, accounts, data)?,
     }
 
