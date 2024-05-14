@@ -1,4 +1,13 @@
-.DS_Store
-.idea
+*.DS_Store
+*.idea
 target
 test-ledger
+
+*.anchor
+*.bolt
+*.yarn
+tests/integration/target
+tests/integration/node_modules
+tests/integration/test-ledger
+**/*.rs.bk
+
