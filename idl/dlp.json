@@ -240,6 +240,10 @@
             "type": "i64"
           },
           {
+            "name": "updateFrequencyMs",
+            "type": "u64"
+          },
+          {
             "name": "commits",
             "type": "u64"
           }
