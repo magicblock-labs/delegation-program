@@ -1,5 +1,3 @@
-mod fixtures;
-
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
@@ -10,20 +8,22 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
+use dlp::consts::{COMMIT_RECORD, DELEGATION, STATE_DIFF};
+
 use crate::fixtures::{
-    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA_ID,
-    DELEGATED_PDA_OWNER_ID, DELEGATION_RECORD_ACCOUNT_DATA,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_AUTHORITY, COMMIT_STATE_RECORD_ACCOUNT_DATA,
+    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_RECORD_ACCOUNT_DATA,
 };
-use dlp::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
+
+mod fixtures;
 
 #[tokio::test]
-async fn test_undelegate() {
+async fn test_finalize() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
-    let buffer = Pubkey::find_program_address(&[BUFFER, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
-    let delegation_pda =
+    let delegation_record =
         Pubkey::find_program_address(&[DELEGATION, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
     let new_state_pda =
         Pubkey::find_program_address(&[STATE_DIFF, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
@@ -36,20 +36,18 @@ async fn test_undelegate() {
         &dlp::id(),
     );
 
-    // Save the new state data before undelegating
+    // Save the new state data before finalizing
     let new_state_before_finalize = banks.get_account(new_state_pda.0).await.unwrap().unwrap();
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the undelegate tx
-    let ix = dlp::instruction::undelegate(
+    let ix = dlp::instruction::finalize(
         payer.pubkey(),
         DELEGATED_PDA_ID,
-        DELEGATED_PDA_OWNER_ID,
-        buffer.0,
         new_state_pda.0,
         commit_state_record_pda.0,
-        delegation_pda.0,
-        payer.pubkey(),
+        delegation_record.0,
+        COMMIT_STATE_AUTHORITY,
     );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
@@ -60,17 +58,17 @@ async fn test_undelegate() {
     let new_state_account = banks.get_account(new_state_pda.0).await.unwrap();
     assert!(new_state_account.is_none());
 
-    // Assert the delegation_pda was closed
-    let delegation_account = banks.get_account(delegation_pda.0).await.unwrap();
-    assert!(delegation_account.is_none());
+    // Assert the delegation_record was not closed
+    let delegation_account = banks.get_account(delegation_record.0).await.unwrap();
+    assert!(delegation_account.is_some());
 
     // Assert the commit_state_record_pda was closed
     let commit_state_record_account = banks.get_account(commit_state_record_pda.0).await.unwrap();
     assert!(commit_state_record_account.is_none());
 
-    // Assert that the account owner is now set to the owner program
+    // Assert that the account owner is still the delegation program
     let pda_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert!(pda_account.owner.eq(&DELEGATED_PDA_OWNER_ID));
+    assert!(pda_account.owner.eq(&dlp::id()));
 
     // Assert the delegated account contains the data from the new state
     assert_eq!(new_state_data_before_finalize, pda_account.data);
@@ -116,7 +114,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup the committed state PDA
+    // Setup the commit state PDA
     program_test.add_account(
         Pubkey::find_program_address(&[STATE_DIFF, &DELEGATED_PDA_ID.to_bytes()], &dlp::id()).0,
         Account {

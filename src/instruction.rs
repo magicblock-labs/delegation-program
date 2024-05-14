@@ -49,6 +49,14 @@ pub enum DlpInstruction {
     CommitState = 1,
     #[account(0, name = "payer", desc = "The fees payer", signer)]
     #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
+    #[account(2, name = "new_state", desc = "The account that store the new account state", signer)]
+    #[account(3, name = "committed_state_record", desc = "Account that store the state commitment record")]
+    #[account(4, name = "delegation_record", desc = "The account delegation record")]
+    #[account(5, name = "reimbursement", desc = "The account to reimburse the fees after closing the records accounts")]
+    #[account(6, name = "system_program", desc = "The system program")]
+    Finalize = 2,
+    #[account(0, name = "payer", desc = "The fees payer", signer)]
+    #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
     #[account(2, name = "owner_program", desc = "The account owner program")]
     #[account(3, name = "buffer", desc = "Buffer to hold the account data during undelegation")]
     #[account(4, name = "new_state", desc = "The account that store the new account state", signer)]
@@ -56,7 +64,7 @@ pub enum DlpInstruction {
     #[account(6, name = "delegation_record", desc = "The account delegation record")]
     #[account(7, name = "reimbursement", desc = "The account to reimburse the fees after closing the records accounts")]
     #[account(8, name = "system_program", desc = "The system program")]
-    Undelegate = 2,
+    Undelegate = 3,
 }
 
 impl DlpInstruction {
@@ -72,7 +80,8 @@ impl TryFrom<[u8; 8]> for DlpInstruction {
         match bytes {
             [0x0, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Delegate),
             [0x1, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::CommitState),
-            [0x2, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Undelegate),
+            [0x2, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Finalize),
+            [0x3, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Undelegate),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -137,6 +146,31 @@ pub fn commit_state(
             AccountMeta::new(system_program, false),
         ],
         data: [DlpInstruction::CommitState.to_vec(), new_state].concat(),
+    }
+}
+
+/// Builds a finalize state instruction.
+#[allow(clippy::too_many_arguments)]
+pub fn finalize(
+    payer: Pubkey,
+    delegated_account: Pubkey,
+    new_state: Pubkey,
+    committed_state_record: Pubkey,
+    delegation_record: Pubkey,
+    reimbursement: Pubkey,
+) -> Instruction {
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(delegated_account, false),
+            AccountMeta::new(new_state, false),
+            AccountMeta::new(committed_state_record, false),
+            AccountMeta::new(delegation_record, false),
+            AccountMeta::new(reimbursement, false),
+            AccountMeta::new(system_program::id(), false),
+        ],
+        data: DlpInstruction::Finalize.to_vec(),
     }
 }
 

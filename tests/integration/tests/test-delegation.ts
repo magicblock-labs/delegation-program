@@ -23,23 +23,14 @@ describe("TestDelegation", () => {
 
     it("Delegate a PDA", async () => {
 
-        // Find program-derived address (PDA) for buffer
-        const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_TEST_PDA)],
-            testDelegation.programId
-        );
+        var {pda, delegationPda, ...newStatePda} = getAccounts(testDelegation);
+
         const pdaBytes = pda.toBytes();
 
         // Find program-derived address (PDA) for buffer
-        const [bufferPda] = anchor.web3.PublicKey.findProgramAddressSync(
+        var [bufferPda] = anchor.web3.PublicKey.findProgramAddressSync(
             [Buffer.from(SEED_BUFFER_PDA), pdaBytes],
             testDelegation.programId
-        );
-
-        // Find program-derived address (PDA) for authority
-        const [delegationPda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_DELEGATION_PDA), pdaBytes],
-            new anchor.web3.PublicKey(delegationProgram)
         );
 
         // Delegate, Close PDA, and Lock PDA in a single instruction
@@ -63,26 +54,7 @@ describe("TestDelegation", () => {
 
     it("Commit a new state to the PDA", async () => {
 
-        const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_TEST_PDA)],
-            testDelegation.programId
-        );
-        const pdaBytes = pda.toBytes();
-
-        const [delegationPda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_DELEGATION_PDA), pdaBytes],
-            new anchor.web3.PublicKey(delegationProgram)
-        );
-
-        const [commitStateRecordPda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_COMMIT_STATE_RECORD_PDA), new Uint8Array(8).fill(0), pdaBytes],
-            new anchor.web3.PublicKey(delegationProgram)
-        );
-
-        const [newStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_STATE_DIFF_PDA), pdaBytes],
-            new anchor.web3.PublicKey(delegationProgram)
-        );
+        const {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
 
         var tx = await dlpProgram.methods
             .commitState(Buffer.alloc(15).fill(5))
@@ -94,44 +66,55 @@ describe("TestDelegation", () => {
                 delegationPda: delegationPda,
                 systemProgram: anchor.web3.SystemProgram.programId,
             }).rpc({skipPreflight: true});
-        console.log("Commit state signature", tx);
 
+        console.log("Commit state signature", tx);
+    });
+
+    it("Finalize account state", async () => {
+
+        const {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
+
+        var tx = await dlpProgram.methods
+            .finalize()
+            .accounts({
+                payer: provider.wallet.publicKey,
+                delegatedAccount: pda,
+                stateDiff: newStatePda,
+                committedStateRecord: commitStateRecordPda,
+                delegationRecord: delegationPda,
+                reimbursement: provider.wallet.publicKey,
+                systemProgram: anchor.web3.SystemProgram.programId,
+            }).rpc({skipPreflight: true});
+        console.log("Finalize signature", tx);
+    });
+
+    it("Commit a new state to the PDA", async () => {
+
+        const {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
+
+        var tx = await dlpProgram.methods
+            .commitState(Buffer.alloc(15).fill(7))
+            .accounts({
+                authority: provider.wallet.publicKey,
+                originAccount: pda,
+                newStatePda: newStatePda,
+                commitStateRecordPda: commitStateRecordPda,
+                delegationPda: delegationPda,
+                systemProgram: anchor.web3.SystemProgram.programId,
+            }).rpc({skipPreflight: true});
+
+        console.log("Commit state signature", tx);
     });
 
     it("Undelegate account", async () => {
 
-        const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_TEST_PDA)],
-            testDelegation.programId
-        );
-        const pdaBytes = pda.toBytes();
-
-        const [delegationPda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_DELEGATION_PDA), pdaBytes],
-            new anchor.web3.PublicKey(delegationProgram)
-        );
-
-        const [bufferPda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_BUFFER_PDA), pdaBytes],
-            new anchor.web3.PublicKey(delegationProgram)
-        );
-
-        const [commitStateRecordPda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_COMMIT_STATE_RECORD_PDA), new Uint8Array(8).fill(0), pdaBytes],
-            new anchor.web3.PublicKey(delegationProgram)
-        );
-
-        const [newStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
-            [Buffer.from(SEED_STATE_DIFF_PDA), pdaBytes],
-            new anchor.web3.PublicKey(delegationProgram)
-        );
+        const {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
 
         var tx = await dlpProgram.methods
             .undelegate()
             .accounts({
                 payer: provider.wallet.publicKey,
                 delegatedAccount: pda,
-                authority: provider.wallet.publicKey,
                 ownerProgram: testDelegation.programId,
                 buffer: bufferPda,
                 stateDiff: newStatePda,
@@ -144,3 +127,32 @@ describe("TestDelegation", () => {
     });
 
 });
+
+function getAccounts(testDelegation: Program<TestDelegation>) {
+    const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from(SEED_TEST_PDA)],
+        testDelegation.programId
+    );
+    const pdaBytes = pda.toBytes();
+
+    const [delegationPda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from(SEED_DELEGATION_PDA), pdaBytes],
+        new anchor.web3.PublicKey(delegationProgram)
+    );
+
+    const [bufferPda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from(SEED_BUFFER_PDA), pdaBytes],
+        new anchor.web3.PublicKey(delegationProgram)
+    );
+
+    const [commitStateRecordPda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from(SEED_COMMIT_STATE_RECORD_PDA), new Uint8Array(8).fill(0), pdaBytes],
+        new anchor.web3.PublicKey(delegationProgram)
+    );
+
+    const [newStatePda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from(SEED_STATE_DIFF_PDA), pdaBytes],
+        new anchor.web3.PublicKey(delegationProgram)
+    );
+    return {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda};
+}

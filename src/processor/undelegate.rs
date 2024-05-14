@@ -8,12 +8,11 @@ use solana_program::{
     system_program, {self},
 };
 
-use crate::consts::BUFFER;
+use crate::consts::{BUFFER, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitState, Delegation};
 use crate::utils::{close_pda, create_pda, AccountDeserialize};
-
-const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
+use crate::verify_state::verify_state;
 
 /// Undelegate a delegated Pda
 ///
@@ -51,6 +50,12 @@ pub fn process_undelegate(
     let delegation_data = delegation_record.try_borrow_data()?;
     let delegation = Delegation::try_from_bytes(&delegation_data)?;
 
+    // Load committed state
+    let commit_record_data = committed_state_record.try_borrow_data()?;
+    let commit_record = CommitState::try_from_bytes(&commit_record_data)?;
+
+    verify_state(delegation, commit_record, new_state)?;
+
     let buffer_bump: u8 = load_uninitialized_pda(
         buffer,
         &[BUFFER, &delegated_account.key.to_bytes()],
@@ -67,10 +72,6 @@ pub fn process_undelegate(
         payer,
     )?;
 
-    // Load committed state
-    let commit_record_data = committed_state_record.try_borrow_data()?;
-    let commit_record = CommitState::try_from_bytes(&commit_record_data)?;
-
     if !delegation.origin.eq(owner_program.key) {
         return Err(ProgramError::InvalidAccountData);
     }
@@ -78,8 +79,6 @@ pub fn process_undelegate(
     if !commit_record.account.eq(delegated_account.key) {
         return Err(ProgramError::InvalidAccountData);
     }
-
-    // TODO: Add the logic to check the state diff, Authority and/or Fraud proofs
 
     let mut buffer_data = buffer.try_borrow_mut_data()?;
     let new_data = new_state.try_borrow_data()?;
