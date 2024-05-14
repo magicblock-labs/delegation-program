@@ -129,7 +129,9 @@
       "args": [
         {
           "name": "args",
-          "type": "bytes"
+          "type": {
+            "vec": "u8"
+          }
         }
       ]
     },
