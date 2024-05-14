@@ -8,13 +8,11 @@ use solana_program::{
     system_program, {self},
 };
 
-use crate::consts::BUFFER;
+use crate::consts::{BUFFER, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitState, Delegation};
 use crate::utils::{close_pda, create_pda, AccountDeserialize};
 use crate::verify_state::verify_state;
-
-const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
 
 /// Undelegate a delegated Pda
 ///
