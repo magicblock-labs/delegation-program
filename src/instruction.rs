@@ -1,12 +1,33 @@
+use crate::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
+use crate::{impl_instruction_from_bytes, impl_to_bytes};
+use bytemuck::{Pod, Zeroable};
 use num_enum::TryFromPrimitive;
 use shank::ShankInstruction;
+use solana_program::program_error::ProgramError;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,
 };
 
-use crate::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Pod, Zeroable)]
+pub struct DelegateArgs {
+    pub valid_until: i64,
+    pub update_frequency_ms: u64,
+}
+
+impl Default for DelegateArgs {
+    fn default() -> Self {
+        DelegateArgs {
+            valid_until: 0,
+            update_frequency_ms: 300000, // 5 minutes in milliseconds
+        }
+    }
+}
+
+impl_to_bytes!(DelegateArgs);
+impl_instruction_from_bytes!(DelegateArgs);
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ShankInstruction, TryFromPrimitive)]
@@ -40,7 +61,20 @@ pub enum DlpInstruction {
 
 impl DlpInstruction {
     pub fn to_vec(&self) -> Vec<u8> {
-        vec![*self as u8]
+        let num = *self as u64;
+        num.to_le_bytes().to_vec()
+    }
+}
+
+impl TryFrom<[u8; 8]> for DlpInstruction {
+    type Error = ProgramError;
+    fn try_from(bytes: [u8; 8]) -> Result<Self, Self::Error> {
+        match bytes {
+            [0x0, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Delegate),
+            [0x1, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::CommitState),
+            [0x2, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Undelegate),
+            _ => Err(ProgramError::InvalidInstructionData),
+        }
     }
 }
 
@@ -53,8 +87,10 @@ pub fn delegate(
     owner_program: Pubkey,
     discriminator: Vec<u8>,
 ) -> Instruction {
-    let buffer = Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner_program);
-    let delegation_record = Pubkey::find_program_address(&[DELEGATION, &delegate_account.to_bytes()], &crate::id());
+    let buffer =
+        Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner_program);
+    let delegation_record =
+        Pubkey::find_program_address(&[DELEGATION, &delegate_account.to_bytes()], &crate::id());
     Instruction {
         program_id: owner_program,
         accounts: vec![

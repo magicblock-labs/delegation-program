@@ -33,18 +33,23 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    if program_id.ne(&crate::id()) {
+    if program_id.ne(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    let (tag, data) = data
-        .split_first()
-        .ok_or(ProgramError::InvalidInstructionData)?;
+    if data.len() < 8 {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let (tag, data) = data.split_at(8);
+    let tag_array: [u8; 8] = tag
+        .try_into()
+        .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     msg!("Processing instruction: {:?}", tag);
     msg!("data: {:?}", data);
 
-    match DlpInstruction::try_from(*tag).or(Err(ProgramError::InvalidInstructionData))? {
+    match DlpInstruction::try_from(tag_array).or(Err(ProgramError::InvalidInstructionData))? {
         DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
         DlpInstruction::CommitState => process_commit_state(program_id, accounts, data)?,
         DlpInstruction::Undelegate => process_undelegate(program_id, accounts, data)?,

@@ -29,7 +29,6 @@ pub fn process_commit_state(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-
     let [authority, delegated_account, new_state, commit_state_record, delegation_record, system_program] =
         accounts
     else {
@@ -45,7 +44,6 @@ pub fn process_commit_state(
         &crate::id(),
         true,
     )?;
-
     let mut delegation_record = delegation_record.try_borrow_mut_data()?;
     let delegation_record = Delegation::try_from_bytes_mut(&mut delegation_record)?;
 

@@ -20,6 +20,9 @@ pub struct Delegation {
     /// The delegation validity
     pub valid_until: i64,
 
+    /// The state update frequency in milliseconds
+    pub update_frequency_ms: u64,
+
     /// The number of committed states for the delegated account
     pub commits: u64,
 }
