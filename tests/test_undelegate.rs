@@ -91,29 +91,17 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup a buffer for the delegated PDA
-    program_test.add_account(
-        Pubkey::find_program_address(&[BUFFER, &DELEGATED_PDA_ID.to_bytes()], &dlp::id()).0,
-        Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: vec![0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10],
-            owner: dlp::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
     // Setup the delegated record PDA
     program_test.add_account(
         Pubkey::find_program_address(&[DELEGATION, &DELEGATED_PDA_ID.to_bytes()], &dlp::id()).0,
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![
-                100, 0, 0, 0, 0, 0, 0, 0, 202, 37, 188, 175, 199, 216, 218, 84, 43, 75, 255, 157,
-                215, 202, 195, 114, 139, 194, 225, 131, 177, 111, 103, 238, 162, 225, 196, 178, 29,
-                219, 96, 127, 43, 85, 175, 207, 195, 148, 154, 129, 218, 62, 110, 177, 81, 112, 72,
-                172, 141, 157, 3, 211, 24, 26, 191, 79, 101, 191, 48, 19, 105, 181, 70, 132, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 85, 175, 207, 195, 148, 154, 129, 218,
+                62, 110, 177, 81, 112, 72, 172, 141, 157, 3, 211, 24, 26, 191, 79, 101, 191, 48,
+                19, 105, 181, 70, 132, 0, 0, 0, 0, 0, 0, 0, 0, 224, 147, 4, 0, 0, 0, 0, 0, 0, 0, 0,
+                0, 0, 0, 0, 0,
             ],
             owner: dlp::id(),
             executable: false,
@@ -160,7 +148,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup program to test undelegation
-    let data = read_file(&"tests/buffers/test_delegation.bpf");
+    let data = read_file(&"tests/buffers/test_delegation.so");
     program_test.add_account(
         DELEGATED_PDA_OWNER_ID,
         Account {

@@ -4,21 +4,20 @@ use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
 
 use crate::consts::BUFFER;
-use crate::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer};
+use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitState, Delegation};
-use crate::utils::{close_pda, AccountDeserialize};
+use crate::utils::{close_pda, create_pda, AccountDeserialize};
 
 const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 155, 237];
 
 /// Undelegate a delegated Pda
 ///
-/// 1. If the state diff is valid, copy the committed state to the buffer PDA
+/// 1. If the new state is valid, copy the committed state to the buffer PDA
 /// 2. Close the locked account
 /// 3. CPI to the original owner to re-open the PDA with the original owner and the new state
 /// - The CPI will be signed by the buffer PDA and will call the external program
@@ -30,12 +29,12 @@ const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [175, 175, 109, 31, 13, 152, 
 ///
 ///
 /// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
-pub fn process_undelegate<'a, 'info>(
+pub fn process_undelegate(
     _program_id: &Pubkey,
-    accounts: &'a [AccountInfo<'info>],
+    accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, buffer, state_diff, commit_state_record, delegation_record, reimbursement, system_program] =
+    let [payer, delegated_account, owner_program, buffer, new_state, committed_state_record, delegation_record, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -43,9 +42,8 @@ pub fn process_undelegate<'a, 'info>(
 
     load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_owned_pda(buffer, &crate::id())?;
-    load_owned_pda(state_diff, &crate::id())?;
-    load_owned_pda(commit_state_record, &crate::id())?;
+    load_owned_pda(new_state, &crate::id())?;
+    load_owned_pda(committed_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
     load_program(system_program, system_program::id())?;
 
@@ -53,15 +51,24 @@ pub fn process_undelegate<'a, 'info>(
     let delegation_data = delegation_record.try_borrow_data()?;
     let delegation = Delegation::try_from_bytes(&delegation_data)?;
 
-    let buffer_bump: u8 = load_initialized_pda(
+    let buffer_bump: u8 = load_uninitialized_pda(
         buffer,
         &[BUFFER, &delegated_account.key.to_bytes()],
         &crate::id(),
-        true,
+    )?;
+
+    // Initialize the buffer PDA
+    create_pda(
+        buffer,
+        &crate::id(),
+        new_state.data_len(),
+        &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
+        system_program,
+        payer,
     )?;
 
     // Load committed state
-    let commit_record_data = commit_state_record.try_borrow_data()?;
+    let commit_record_data = committed_state_record.try_borrow_data()?;
     let commit_record = CommitState::try_from_bytes(&commit_record_data)?;
 
     if !delegation.origin.eq(owner_program.key) {
@@ -72,16 +79,11 @@ pub fn process_undelegate<'a, 'info>(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // TODO: Add the logic to check the state diff, Authority and/or Fraud proof
-
-    buffer.realloc(state_diff.data_len(), false)?;
+    // TODO: Add the logic to check the state diff, Authority and/or Fraud proofs
 
     let mut buffer_data = buffer.try_borrow_mut_data()?;
-    let new_data = state_diff.try_borrow_data()?;
+    let new_data = new_state.try_borrow_data()?;
     (*buffer_data).copy_from_slice(&new_data);
-
-    msg!("Buffer PDA: {:?}", buffer.key.to_string());
-    msg!("Buffer Data: {:?}", buffer_data.to_vec());
 
     // Dropping references
     drop(commit_record_data);
@@ -104,9 +106,9 @@ pub fn process_undelegate<'a, 'info>(
     )?;
 
     // Closing accounts
-    close_pda(commit_state_record, reimbursement)?;
+    close_pda(committed_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
-    close_pda(state_diff, reimbursement)?;
+    close_pda(new_state, reimbursement)?;
     close_pda(buffer, reimbursement)?;
     Ok(())
 }

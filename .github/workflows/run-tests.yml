@@ -52,7 +52,7 @@ jobs:
       - name: Run fmt
         run: cargo fmt -- --check
       - name: Run clippy
-        run: cargo clippy
+        run: cargo clippy -- --deny=warnings
 
   test:
     needs: [install, lint]
@@ -83,3 +83,11 @@ jobs:
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           cargo test-sbf
+
+      - name: run integration tests
+        run: |
+          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+          npm install -g @magicblock-labs/bolt-cli
+          cd tests/integration 
+          npm install
+          bolt test
