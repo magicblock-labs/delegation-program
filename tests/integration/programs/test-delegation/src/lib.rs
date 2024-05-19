@@ -15,7 +15,8 @@ pub mod test_delegation {
 
     pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
         let pda_signer_seeds: &[&[&[u8]]] = &[&[TEST_PDA_SEED, &[ctx.bumps.pda]]];
-        let buffer_signer_seeds: &[&[&[u8]]] = &[&[BUFFER, ctx.accounts.pda.key.as_ref(), &[ctx.bumps.buffer]]];
+        let buffer_signer_seeds: &[&[&[u8]]] =
+            &[&[BUFFER, ctx.accounts.pda.key.as_ref(), &[ctx.bumps.buffer]]];
 
         let data_len = ctx.accounts.pda.data_len();
 
@@ -66,7 +67,7 @@ pub mod test_delegation {
     }
 
     // Init a new Account
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    pub fn process_undelegation(ctx: Context<InitializeAfterDelegation>) -> Result<()> {
         if !ctx.accounts.buffer.is_signer {
             return Err(ProgramError::MissingRequiredSignature.into());
         }
@@ -98,7 +99,7 @@ pub struct DelegateInput<'info> {
 }
 
 #[derive(Accounts)]
-pub struct Initialize<'info> {
+pub struct InitializeAfterDelegation<'info> {
     /// CHECK:`
     #[account(init, payer = user, space = buffer.data_len(), seeds = [TEST_PDA_SEED], bump)]
     pub base_account: AccountInfo<'info>,
@@ -110,7 +111,10 @@ pub struct Initialize<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn close_account<'info>(info: &AccountInfo<'info>, sol_destination: &AccountInfo<'info>) -> Result<()> {
+pub fn close_account<'info>(
+    info: &AccountInfo<'info>,
+    sol_destination: &AccountInfo<'info>,
+) -> Result<()> {
     // Transfer tokens from the account to the sol_destination.
     let dest_starting_lamports = sol_destination.lamports();
     **sol_destination.lamports.borrow_mut() =
