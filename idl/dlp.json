@@ -119,6 +119,72 @@
       }
     },
     {
+      "name": "Finalize",
+      "accounts": [
+        {
+          "name": "payer",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "The fees payer"
+          ]
+        },
+        {
+          "name": "delegatedAccount",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "The delegated account"
+          ]
+        },
+        {
+          "name": "newState",
+          "isMut": false,
+          "isSigner": true,
+          "docs": [
+            "The account that store the new account state"
+          ]
+        },
+        {
+          "name": "committedStateRecord",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "Account that store the state commitment record"
+          ]
+        },
+        {
+          "name": "delegationRecord",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The account delegation record"
+          ]
+        },
+        {
+          "name": "reimbursement",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The account to reimburse the fees after closing the records accounts"
+          ]
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false,
+          "docs": [
+            "The system program"
+          ]
+        }
+      ],
+      "args": [],
+      "discriminant": {
+        "type": "u8",
+        "value": 2
+      }
+    },
+    {
       "name": "Undelegate",
       "accounts": [
         {
@@ -197,7 +263,7 @@
       "args": [],
       "discriminant": {
         "type": "u8",
-        "value": 2
+        "value": 3
       }
     }
   ],
@@ -218,34 +284,6 @@
           {
             "name": "timestamp",
             "type": "i64"
-          }
-        ]
-      }
-    },
-    {
-      "name": "Delegation",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "publicKey"
-          },
-          {
-            "name": "origin",
-            "type": "publicKey"
-          },
-          {
-            "name": "validUntil",
-            "type": "i64"
-          },
-          {
-            "name": "updateFrequencyMs",
-            "type": "u64"
-          },
-          {
-            "name": "commits",
-            "type": "u64"
           }
         ]
       }
