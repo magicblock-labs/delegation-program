@@ -72,7 +72,7 @@ pub fn process_undelegate(
         payer,
     )?;
 
-    if !delegation.origin.eq(owner_program.key) {
+    if !delegation.owner.eq(owner_program.key) {
         return Err(ProgramError::InvalidAccountData);
     }
 

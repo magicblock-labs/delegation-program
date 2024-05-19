@@ -323,7 +323,7 @@
             "type": "pubkey"
           },
           {
-            "name": "origin",
+            "name": "owner",
             "type": "pubkey"
           },
           {

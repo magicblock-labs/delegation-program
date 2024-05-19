@@ -1,5 +1,4 @@
 use bytemuck::{Pod, Zeroable};
-use shank::ShankAccount;
 use solana_program::pubkey::Pubkey;
 
 use crate::{
@@ -9,13 +8,13 @@ use crate::{
 
 /// The Delegation Record
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, ShankAccount, Zeroable)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 pub struct Delegation {
     /// The delegated authority
     pub authority: Pubkey,
 
     /// The original owner of the account
-    pub origin: Pubkey,
+    pub owner: Pubkey,
 
     /// The delegation validity
     pub valid_until: i64,

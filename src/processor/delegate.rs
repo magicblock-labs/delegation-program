@@ -81,7 +81,7 @@ pub fn process_delegate(
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
     delegation_data[0] = Delegation::discriminator() as u8;
     let delegation = Delegation::try_from_bytes_mut(&mut delegation_data)?;
-    delegation.origin = *owner_program.key;
+    delegation.owner = *owner_program.key;
     delegation.authority = Pubkey::default();
     delegation.valid_until = args.valid_until;
     delegation.update_frequency_ms = args.update_frequency_ms;
