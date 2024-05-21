@@ -9,7 +9,7 @@ use solana_sdk::{
 };
 
 use dlp::consts::{COMMIT_RECORD, DELEGATION, STATE_DIFF};
-use dlp::state::CommitState;
+use dlp::state::CommitRecord;
 use dlp::utils::AccountDeserialize;
 
 pub const DELEGATED_PDA_ID: Pubkey = pubkey!("8k2V7EzQtNg38Gi9HK5ZtQYp1YpGKNGrMcuGa737gZX4");
@@ -54,7 +54,7 @@ async fn test_commit_new_state() {
         .unwrap()
         .unwrap();
     let state_commit_record =
-        CommitState::try_from_bytes(&state_commit_record_account.data).unwrap();
+        CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
     assert_eq!(state_commit_record.account, DELEGATED_PDA_ID);
     assert_eq!(state_commit_record.identity, payer.pubkey());
     assert!(state_commit_record.timestamp > 0);
@@ -66,7 +66,7 @@ async fn test_commit_new_state() {
     );
     let delegation_account = banks.get_account(delegation_pda.0).await.unwrap().unwrap();
     let delegation_record =
-        dlp::state::Delegation::try_from_bytes(&delegation_account.data).unwrap();
+        dlp::state::DelegationRecord::try_from_bytes(&delegation_account.data).unwrap();
     assert_eq!(delegation_record.commits, 1);
 }
 

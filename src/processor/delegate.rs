@@ -13,7 +13,7 @@ use crate::instruction::DelegateArgs;
 use crate::loaders::{
     load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
 };
-use crate::state::Delegation;
+use crate::state::DelegationRecord;
 use crate::utils::create_pda;
 use crate::utils::{AccountDeserialize, Discriminator};
 
@@ -62,7 +62,7 @@ pub fn process_delegate(
     create_pda(
         delegation_record,
         &crate::id(),
-        8 + size_of::<Delegation>(),
+        8 + size_of::<DelegationRecord>(),
         &[
             DELEGATION,
             &delegate_account.key.to_bytes(),
@@ -79,12 +79,12 @@ pub fn process_delegate(
 
     // Initialize the delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
-    delegation_data[0] = Delegation::discriminator() as u8;
-    let delegation = Delegation::try_from_bytes_mut(&mut delegation_data)?;
+    delegation_data[0] = DelegationRecord::discriminator() as u8;
+    let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
     delegation.owner = *owner_program.key;
     delegation.authority = Pubkey::default();
     delegation.valid_until = args.valid_until;
-    delegation.update_frequency_ms = args.update_frequency_ms;
+    delegation.commit_frequency_ms = args.update_frequency_ms;
     delegation.commits = 0;
     Ok(())
 }

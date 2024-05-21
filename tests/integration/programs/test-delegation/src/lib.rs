@@ -67,7 +67,7 @@ pub mod test_delegation {
     }
 
     // Init a new Account
-    pub fn process_undelegation(ctx: Context<InitializeAfterDelegation>) -> Result<()> {
+    pub fn process_undelegation(ctx: Context<InitializeAfterUndelegation>) -> Result<()> {
         if !ctx.accounts.buffer.is_signer {
             return Err(ProgramError::MissingRequiredSignature.into());
         }
@@ -99,7 +99,7 @@ pub struct DelegateInput<'info> {
 }
 
 #[derive(Accounts)]
-pub struct InitializeAfterDelegation<'info> {
+pub struct InitializeAfterUndelegation<'info> {
     /// CHECK:`
     #[account(init, payer = user, space = buffer.data_len(), seeds = [TEST_PDA_SEED], bump)]
     pub base_account: AccountInfo<'info>,

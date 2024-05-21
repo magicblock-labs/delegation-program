@@ -44,11 +44,11 @@ async fn test_undelegate() {
     let ix = dlp::instruction::undelegate(
         payer.pubkey(),
         DELEGATED_PDA_ID,
+        delegation_pda.0,
         DELEGATED_PDA_OWNER_ID,
         buffer.0,
         new_state_pda.0,
         commit_state_record_pda.0,
-        delegation_pda.0,
         payer.pubkey(),
     );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);

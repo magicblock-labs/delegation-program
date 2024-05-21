@@ -2,13 +2,15 @@ use crate::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
 use crate::{impl_instruction_from_bytes, impl_to_bytes};
 use bytemuck::{Pod, Zeroable};
 use num_enum::TryFromPrimitive;
-use shank::ShankInstruction;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,
 };
+
+#[cfg(not(feature = "no-entrypoint"))]
+use shank::ShankInstruction;
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -29,6 +31,7 @@ impl Default for DelegateArgs {
 impl_to_bytes!(DelegateArgs);
 impl_instruction_from_bytes!(DelegateArgs);
 
+#[cfg(not(feature = "no-entrypoint"))]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, ShankInstruction, TryFromPrimitive)]
 #[rustfmt::skip]
@@ -42,14 +45,14 @@ pub enum DlpInstruction {
     Delegate = 0,
     #[account(0, name = "authority", desc = "The authority that commit the new sate", signer)]
     #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
-    #[account(2, name = "new_state", desc = "The account to store the new account state", signer)]
+    #[account(2, name = "commit_state_account", desc = "The account to store the new account state", signer)]
     #[account(3, name = "commit_state_record", desc = "Account to store the state commitment record")]
     #[account(4, name = "delegation_record", desc = "The account delegation record")]
     #[account(5, name = "system_program", desc = "The system program")]
     CommitState = 1,
     #[account(0, name = "payer", desc = "The fees payer", signer)]
     #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
-    #[account(2, name = "new_state", desc = "The account that store the new account state", signer)]
+    #[account(2, name = "committed_state_account", desc = "The account that store the new account state", signer)]
     #[account(3, name = "committed_state_record", desc = "Account that store the state commitment record")]
     #[account(4, name = "delegation_record", desc = "The account delegation record")]
     #[account(5, name = "reimbursement", desc = "The account to reimburse the fees after closing the records accounts")]
@@ -59,11 +62,22 @@ pub enum DlpInstruction {
     #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
     #[account(2, name = "owner_program", desc = "The account owner program")]
     #[account(3, name = "buffer", desc = "Buffer to hold the account data during undelegation")]
-    #[account(4, name = "new_state", desc = "The account that store the new account state", signer)]
+    #[account(4, name = "committed_state_account", desc = "The account that store the new account state", signer)]
     #[account(5, name = "committed_state_record", desc = "Account that store the state commitment record")]
     #[account(6, name = "delegation_record", desc = "The account delegation record")]
     #[account(7, name = "reimbursement", desc = "The account to reimburse the fees after closing the records accounts")]
     #[account(8, name = "system_program", desc = "The system program")]
+    Undelegate = 3,
+}
+
+#[cfg(feature = "no-entrypoint")]
+#[repr(u8)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive)]
+#[rustfmt::skip]
+pub enum DlpInstruction {
+    Delegate = 0,
+    CommitState = 1,
+    Finalize = 2,
     Undelegate = 3,
 }
 
@@ -119,18 +133,18 @@ pub fn delegate(
 pub fn commit_state(
     authority: Pubkey,
     delegated_account: Pubkey,
-    commitment_idx: u64,
+    nonce: u64,
     system_program: Pubkey,
-    new_state: Vec<u8>,
+    committed_state_data: Vec<u8>,
 ) -> Instruction {
-    let delegation_pda =
+    let delegation_record_pda =
         Pubkey::find_program_address(&[DELEGATION, &delegated_account.to_bytes()], &crate::id());
-    let new_state_pda =
+    let commit_state_pda =
         Pubkey::find_program_address(&[STATE_DIFF, &delegated_account.to_bytes()], &crate::id());
     let commit_state_record_pda = Pubkey::find_program_address(
         &[
             COMMIT_RECORD,
-            &commitment_idx.to_be_bytes(),
+            &nonce.to_be_bytes(),
             &delegated_account.to_bytes(),
         ],
         &crate::id(),
@@ -140,12 +154,12 @@ pub fn commit_state(
         accounts: vec![
             AccountMeta::new(authority, true),
             AccountMeta::new(delegated_account, false),
-            AccountMeta::new(new_state_pda.0, false),
+            AccountMeta::new(commit_state_pda.0, false),
             AccountMeta::new(commit_state_record_pda.0, false),
-            AccountMeta::new(delegation_pda.0, false),
+            AccountMeta::new(delegation_record_pda.0, false),
             AccountMeta::new(system_program, false),
         ],
-        data: [DlpInstruction::CommitState.to_vec(), new_state].concat(),
+        data: [DlpInstruction::CommitState.to_vec(), committed_state_data].concat(),
     }
 }
 
@@ -154,9 +168,9 @@ pub fn commit_state(
 pub fn finalize(
     payer: Pubkey,
     delegated_account: Pubkey,
-    new_state: Pubkey,
-    committed_state_record: Pubkey,
     delegation_record: Pubkey,
+    committed_state_account: Pubkey,
+    committed_state_record: Pubkey,
     reimbursement: Pubkey,
 ) -> Instruction {
     Instruction {
@@ -164,7 +178,7 @@ pub fn finalize(
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegated_account, false),
-            AccountMeta::new(new_state, false),
+            AccountMeta::new(committed_state_account, false),
             AccountMeta::new(committed_state_record, false),
             AccountMeta::new(delegation_record, false),
             AccountMeta::new(reimbursement, false),
@@ -179,11 +193,11 @@ pub fn finalize(
 pub fn undelegate(
     payer: Pubkey,
     delegated_account: Pubkey,
+    delegation_record: Pubkey,
     owner_program: Pubkey,
     buffer: Pubkey,
-    new_state: Pubkey,
+    committed_state_account: Pubkey,
     committed_state_record: Pubkey,
-    delegation_record: Pubkey,
     reimbursement: Pubkey,
 ) -> Instruction {
     Instruction {
@@ -193,7 +207,7 @@ pub fn undelegate(
             AccountMeta::new(delegated_account, false),
             AccountMeta::new(owner_program, false),
             AccountMeta::new(buffer, false),
-            AccountMeta::new(new_state, false),
+            AccountMeta::new(committed_state_account, false),
             AccountMeta::new(committed_state_record, false),
             AccountMeta::new(delegation_record, false),
             AccountMeta::new(reimbursement, false),

@@ -662,15 +662,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
 
 [[package]]
-name = "bs58"
-version = "0.5.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bf88ba1141d185c399bee5288d850d63b8369520c1eafc32a0430b5b6c287bf4"
-dependencies = [
- "tinyvec",
-]
-
-[[package]]
 name = "bumpalo"
 version = "3.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1088,9 +1079,7 @@ name = "delegation-program"
 version = "0.1.0"
 dependencies = [
  "base64 0.22.0",
- "bs58 0.5.1",
  "bytemuck",
- "mpl-token-metadata",
  "num_enum 0.7.2",
  "rand 0.8.5",
  "shank",
@@ -1098,9 +1087,6 @@ dependencies = [
  "solana-program-test",
  "solana-sdk",
  "solana-security-txt",
- "spl-associated-token-account",
- "spl-token",
- "static_assertions",
  "thiserror",
  "tokio",
 ]
@@ -2227,19 +2213,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "mpl-token-metadata"
-version = "4.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "caf0f61b553e424a6234af1268456972ee66c2222e1da89079242251fa7479e5"
-dependencies = [
- "borsh 0.10.3",
- "num-derive 0.3.3",
- "num-traits",
- "solana-program",
- "thiserror",
 ]
 
 [[package]]
@@ -3543,7 +3516,7 @@ dependencies = [
  "Inflector",
  "base64 0.21.7",
  "bincode",
- "bs58 0.4.0",
+ "bs58",
  "bv",
  "lazy_static",
  "serde",
@@ -3853,7 +3826,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e5fa9c8e908d743fc4b446c675d15f8290b1a400d84640f7fae6256aeea4815d"
 dependencies = [
  "block-buffer 0.10.4",
- "bs58 0.4.0",
+ "bs58",
  "bv",
  "either",
  "generic-array",
@@ -4006,7 +3979,7 @@ dependencies = [
  "borsh 0.10.3",
  "borsh 0.9.3",
  "borsh 1.4.0",
- "bs58 0.4.0",
+ "bs58",
  "bv",
  "bytemuck",
  "cc",
@@ -4192,7 +4165,7 @@ dependencies = [
  "async-trait",
  "base64 0.21.7",
  "bincode",
- "bs58 0.4.0",
+ "bs58",
  "indicatif",
  "log",
  "reqwest",
@@ -4216,7 +4189,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "023317ad467034ac4bd4ea01a95c206018a123af97814c40a5035bf9e0c4f082"
 dependencies = [
  "base64 0.21.7",
- "bs58 0.4.0",
+ "bs58",
  "jsonrpc-core",
  "reqwest",
  "semver",
@@ -4332,7 +4305,7 @@ dependencies = [
  "bincode",
  "bitflags 2.5.0",
  "borsh 1.4.0",
- "bs58 0.4.0",
+ "bs58",
  "bytemuck",
  "byteorder",
  "chrono",
@@ -4382,7 +4355,7 @@ version = "1.18.10"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2a19fb7874415de034a3067a71447a376be204be8f0a84a2861a65bbdb2286dd"
 dependencies = [
- "bs58 0.4.0",
+ "bs58",
  "proc-macro2",
  "quote",
  "rustversion",
@@ -4521,7 +4494,7 @@ dependencies = [
  "base64 0.21.7",
  "bincode",
  "borsh 0.10.3",
- "bs58 0.4.0",
+ "bs58",
  "lazy_static",
  "log",
  "serde",

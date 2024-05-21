@@ -10,7 +10,7 @@ use solana_program::{
 };
 
 use crate::loaders::{load_owned_pda, load_program, load_signer};
-use crate::state::{CommitState, Delegation};
+use crate::state::{CommitRecord, DelegationRecord};
 use crate::utils::{close_pda, AccountDeserialize};
 use crate::verify_state::verify_state;
 
@@ -28,7 +28,7 @@ pub fn process_finalize(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, new_state, committed_state_record, delegation_record, reimbursement, system_program] =
+    let [payer, delegated_account, committed_state_account, committed_state_record, delegation_record, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -36,21 +36,21 @@ pub fn process_finalize(
 
     load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_owned_pda(new_state, &crate::id())?;
+    load_owned_pda(committed_state_account, &crate::id())?;
     load_owned_pda(committed_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
-    let delegation = Delegation::try_from_bytes_mut(&mut delegation_data)?;
+    let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
     delegation.commits -= 1;
 
     // Load committed state
     let commit_record_data = committed_state_record.try_borrow_data()?;
-    let commit_record = CommitState::try_from_bytes(&commit_record_data)?;
+    let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
 
-    verify_state(delegation, commit_record, new_state)?;
+    verify_state(delegation, commit_record, committed_state_account)?;
 
     if !commit_record.account.eq(delegated_account.key) {
         msg!("Delegated account does not match the expected account");
@@ -62,10 +62,10 @@ pub fn process_finalize(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let new_data = new_state.try_borrow_data()?;
+    let new_data = committed_state_account.try_borrow_data()?;
 
     // Make it rent exempt
-    resize_and_rent_exempt(delegated_account, new_state, new_data.len())?;
+    resize_and_rent_exempt(delegated_account, committed_state_account, new_data.len())?;
 
     // Copying the new state to the delegated account
     delegated_account.realloc(new_data.len(), false)?;
@@ -79,7 +79,7 @@ pub fn process_finalize(
 
     // Closing accounts
     close_pda(committed_state_record, reimbursement)?;
-    close_pda(new_state, reimbursement)?;
+    close_pda(committed_state_account, reimbursement)?;
     Ok(())
 }
 

@@ -1,5 +1,4 @@
 use bytemuck::{Pod, Zeroable};
-use shank::ShankAccount;
 use solana_program::pubkey::Pubkey;
 
 use crate::{
@@ -9,8 +8,8 @@ use crate::{
 
 /// The Commit State Record
 #[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, ShankAccount, Zeroable)]
-pub struct CommitState {
+#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
+pub struct CommitRecord {
     /// The identity committing the state
     pub identity: Pubkey,
 
@@ -21,11 +20,11 @@ pub struct CommitState {
     pub timestamp: i64,
 }
 
-impl Discriminator for CommitState {
+impl Discriminator for CommitRecord {
     fn discriminator() -> AccountDiscriminator {
         AccountDiscriminator::CommitState
     }
 }
 
-impl_to_bytes!(CommitState);
-impl_account_from_bytes!(CommitState);
+impl_to_bytes!(CommitRecord);
+impl_account_from_bytes!(CommitRecord);
