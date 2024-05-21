@@ -68,6 +68,10 @@ describe("TestDelegation", () => {
             }).rpc({skipPreflight: true});
 
         console.log("Commit state signature", tx);
+
+        // Print commit state record bytes
+        const account = await provider.connection.getAccountInfo(commitStateRecordPda);
+        console.log("Committed state record PDA", account.data.toJSON());
     });
 
     it("Finalize account state", async () => {
@@ -146,7 +150,7 @@ function getAccounts(testDelegation: Program<TestDelegation>) {
     );
 
     const [commitStateRecordPda] = anchor.web3.PublicKey.findProgramAddressSync(
-        [Buffer.from(SEED_COMMIT_STATE_RECORD_PDA), new Uint8Array(8).fill(0), pdaBytes],
+        [Buffer.from(SEED_COMMIT_STATE_RECORD_PDA), pdaBytes],
         new anchor.web3.PublicKey(delegationProgram)
     );
 

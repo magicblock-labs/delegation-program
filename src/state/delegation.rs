@@ -9,7 +9,7 @@ use crate::{
 /// The Delegation Record
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
-pub struct Delegation {
+pub struct DelegationRecord {
     /// The delegated authority
     pub authority: Pubkey,
 
@@ -20,17 +20,14 @@ pub struct Delegation {
     pub valid_until: i64,
 
     /// The state update frequency in milliseconds
-    pub update_frequency_ms: u64,
-
-    /// The number of committed states for the delegated account
-    pub commits: u64,
+    pub commit_frequency_ms: u64,
 }
 
-impl Discriminator for Delegation {
+impl Discriminator for DelegationRecord {
     fn discriminator() -> AccountDiscriminator {
         AccountDiscriminator::Delegation
     }
 }
 
-impl_to_bytes!(Delegation);
-impl_account_from_bytes!(Delegation);
+impl_to_bytes!(DelegationRecord);
+impl_account_from_bytes!(DelegationRecord);

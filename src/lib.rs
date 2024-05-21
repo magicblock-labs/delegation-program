@@ -10,6 +10,7 @@ pub mod consts;
 pub mod error;
 pub mod instruction;
 mod loaders;
+pub mod pda;
 mod processor;
 pub mod state;
 pub mod utils;

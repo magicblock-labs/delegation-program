@@ -267,28 +267,6 @@
       }
     }
   ],
-  "accounts": [
-    {
-      "name": "CommitState",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "identity",
-            "type": "publicKey"
-          },
-          {
-            "name": "account",
-            "type": "publicKey"
-          },
-          {
-            "name": "timestamp",
-            "type": "i64"
-          }
-        ]
-      }
-    }
-  ],
   "errors": [
     {
       "code": 0,

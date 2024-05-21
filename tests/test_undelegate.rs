@@ -1,6 +1,3 @@
-mod fixtures;
-
-use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
@@ -10,11 +7,17 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
+use dlp::pda::{
+    buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
+    committed_state_record_pda_from_pubkey, delegation_record_pda_from_pubkey,
+};
+
 use crate::fixtures::{
     COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA_ID,
     DELEGATED_PDA_OWNER_ID, DELEGATION_RECORD_ACCOUNT_DATA,
 };
-use dlp::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
+
+mod fixtures;
 
 #[tokio::test]
 async fn test_undelegate() {
@@ -22,33 +25,28 @@ async fn test_undelegate() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
-    let buffer = Pubkey::find_program_address(&[BUFFER, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
-    let delegation_pda =
-        Pubkey::find_program_address(&[DELEGATION, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
-    let new_state_pda =
-        Pubkey::find_program_address(&[STATE_DIFF, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
-    let commit_state_record_pda = Pubkey::find_program_address(
-        &[
-            COMMIT_RECORD,
-            &0u64.to_be_bytes(),
-            &DELEGATED_PDA_ID.to_bytes(),
-        ],
-        &dlp::id(),
-    );
+    let buffer = buffer_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let delegation_pda = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let commit_state_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
 
     // Save the new state data before undelegating
-    let new_state_before_finalize = banks.get_account(new_state_pda.0).await.unwrap().unwrap();
+    let new_state_before_finalize = banks
+        .get_account(committed_state_pda)
+        .await
+        .unwrap()
+        .unwrap();
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the undelegate tx
     let ix = dlp::instruction::undelegate(
         payer.pubkey(),
         DELEGATED_PDA_ID,
+        delegation_pda,
         DELEGATED_PDA_OWNER_ID,
-        buffer.0,
-        new_state_pda.0,
-        commit_state_record_pda.0,
-        delegation_pda.0,
+        buffer,
+        committed_state_pda,
+        commit_state_record_pda,
         payer.pubkey(),
     );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
@@ -57,15 +55,15 @@ async fn test_undelegate() {
     assert!(res.is_ok());
 
     // Assert the state_diff was closed
-    let new_state_account = banks.get_account(new_state_pda.0).await.unwrap();
+    let new_state_account = banks.get_account(committed_state_pda).await.unwrap();
     assert!(new_state_account.is_none());
 
     // Assert the delegation_pda was closed
-    let delegation_account = banks.get_account(delegation_pda.0).await.unwrap();
+    let delegation_account = banks.get_account(delegation_pda).await.unwrap();
     assert!(delegation_account.is_none());
 
     // Assert the commit_state_record_pda was closed
-    let commit_state_record_account = banks.get_account(commit_state_record_pda.0).await.unwrap();
+    let commit_state_record_account = banks.get_account(commit_state_record_pda).await.unwrap();
     assert!(commit_state_record_account.is_none());
 
     // Assert that the account owner is now set to the owner program
@@ -106,7 +104,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the delegated record PDA
     program_test.add_account(
-        Pubkey::find_program_address(&[DELEGATION, &DELEGATED_PDA_ID.to_bytes()], &dlp::id()).0,
+        delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: DELEGATION_RECORD_ACCOUNT_DATA.into(),
@@ -118,7 +116,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the committed state PDA
     program_test.add_account(
-        Pubkey::find_program_address(&[STATE_DIFF, &DELEGATED_PDA_ID.to_bytes()], &dlp::id()).0,
+        committed_state_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
@@ -130,15 +128,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the commit state record PDA
     program_test.add_account(
-        Pubkey::find_program_address(
-            &[
-                COMMIT_RECORD,
-                &0u64.to_be_bytes(),
-                &DELEGATED_PDA_ID.to_bytes(),
-            ],
-            &dlp::id(),
-        )
-        .0,
+        committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: COMMIT_STATE_RECORD_ACCOUNT_DATA.into(),

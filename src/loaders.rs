@@ -164,7 +164,7 @@ mod tests {
         let key = Pubkey::new_unique();
         let mut lamports = 1_000_000_000;
         let mut data = [];
-        let owner = spl_token::id();
+        let owner = crate::id();
         let info = AccountInfo::new(
             &key,
             false,

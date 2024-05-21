@@ -10,7 +10,7 @@ use solana_program::{
 
 use crate::consts::{BUFFER, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
-use crate::state::{CommitState, Delegation};
+use crate::state::{CommitRecord, DelegationRecord};
 use crate::utils::{close_pda, create_pda, AccountDeserialize};
 use crate::verify_state::verify_state;
 
@@ -33,7 +33,7 @@ pub fn process_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, buffer, new_state, committed_state_record, delegation_record, reimbursement, system_program] =
+    let [payer, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -41,20 +41,20 @@ pub fn process_undelegate(
 
     load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_owned_pda(new_state, &crate::id())?;
+    load_owned_pda(committed_state_account, &crate::id())?;
     load_owned_pda(committed_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
     let delegation_data = delegation_record.try_borrow_data()?;
-    let delegation = Delegation::try_from_bytes(&delegation_data)?;
+    let delegation = DelegationRecord::try_from_bytes(&delegation_data)?;
 
     // Load committed state
     let commit_record_data = committed_state_record.try_borrow_data()?;
-    let commit_record = CommitState::try_from_bytes(&commit_record_data)?;
+    let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
 
-    verify_state(delegation, commit_record, new_state)?;
+    verify_state(delegation, commit_record, committed_state_account)?;
 
     let buffer_bump: u8 = load_uninitialized_pda(
         buffer,
@@ -66,7 +66,7 @@ pub fn process_undelegate(
     create_pda(
         buffer,
         &crate::id(),
-        new_state.data_len(),
+        committed_state_account.data_len(),
         &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
         system_program,
         payer,
@@ -81,7 +81,7 @@ pub fn process_undelegate(
     }
 
     let mut buffer_data = buffer.try_borrow_mut_data()?;
-    let new_data = new_state.try_borrow_data()?;
+    let new_data = committed_state_account.try_borrow_data()?;
     (*buffer_data).copy_from_slice(&new_data);
 
     // Dropping references
@@ -107,7 +107,7 @@ pub fn process_undelegate(
     // Closing accounts
     close_pda(committed_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
-    close_pda(new_state, reimbursement)?;
+    close_pda(committed_state_account, reimbursement)?;
     close_pda(buffer, reimbursement)?;
     Ok(())
 }
