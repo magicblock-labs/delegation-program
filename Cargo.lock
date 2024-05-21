@@ -1081,6 +1081,7 @@ dependencies = [
  "base64 0.22.0",
  "bytemuck",
  "num_enum 0.7.2",
+ "paste",
  "rand 0.8.5",
  "shank",
  "solana-program",

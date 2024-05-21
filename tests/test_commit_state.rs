@@ -1,3 +1,7 @@
+use dlp::pda::{
+    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    delegation_record_pda_from_pubkey,
+};
 use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -8,7 +12,6 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
-use dlp::consts::{COMMIT_RECORD, DELEGATION, STATE_DIFF};
 use dlp::state::CommitRecord;
 use dlp::utils::AccountDeserialize;
 
@@ -24,7 +27,6 @@ async fn test_commit_new_state() {
     let ix = dlp::instruction::commit_state(
         payer.pubkey(),
         DELEGATED_PDA_ID,
-        0,
         system_program::id(),
         new_state.clone(),
     );
@@ -34,22 +36,18 @@ async fn test_commit_new_state() {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let new_state_pda =
-        Pubkey::find_program_address(&[STATE_DIFF, &DELEGATED_PDA_ID.to_bytes()], &dlp::id());
-    let new_state_account = banks.get_account(new_state_pda.0).await.unwrap().unwrap();
+    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let new_state_account = banks
+        .get_account(committed_state_pda)
+        .await
+        .unwrap()
+        .unwrap();
     assert_eq!(new_state_account.data, new_state.clone());
 
     // Assert the record about the commitment exists
-    let state_commit_record_pda = Pubkey::find_program_address(
-        &[
-            COMMIT_RECORD,
-            &0u64.to_be_bytes(),
-            &DELEGATED_PDA_ID.to_bytes(),
-        ],
-        &dlp::id(),
-    );
+    let state_commit_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
     let state_commit_record_account = banks
-        .get_account(state_commit_record_pda.0)
+        .get_account(state_commit_record_pda)
         .await
         .unwrap()
         .unwrap();
@@ -58,16 +56,6 @@ async fn test_commit_new_state() {
     assert_eq!(state_commit_record.account, DELEGATED_PDA_ID);
     assert_eq!(state_commit_record.identity, payer.pubkey());
     assert!(state_commit_record.timestamp > 0);
-
-    // Assert the delegation record commits counter is set to 1
-    let delegation_pda = Pubkey::find_program_address(
-        &[dlp::consts::DELEGATION, &DELEGATED_PDA_ID.to_bytes()],
-        &dlp::id(),
-    );
-    let delegation_account = banks.get_account(delegation_pda.0).await.unwrap().unwrap();
-    let delegation_record =
-        dlp::state::DelegationRecord::try_from_bytes(&delegation_account.data).unwrap();
-    assert_eq!(delegation_record.commits, 1);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
@@ -89,7 +77,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the delegated record PDA
     program_test.add_account(
-        Pubkey::find_program_address(&[DELEGATION, &DELEGATED_PDA_ID.to_bytes()], &dlp::id()).0,
+        delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![

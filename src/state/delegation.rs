@@ -21,9 +21,6 @@ pub struct DelegationRecord {
 
     /// The state update frequency in milliseconds
     pub commit_frequency_ms: u64,
-
-    /// The number of committed states for the delegated account
-    pub commits: u64,
 }
 
 impl Discriminator for DelegationRecord {

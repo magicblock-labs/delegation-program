@@ -10,9 +10,9 @@ use solana_program::{
     {self},
 };
 
-use crate::consts::{COMMIT_RECORD, DELEGATION, STATE_DIFF};
+use crate::consts::{COMMIT_RECORD, COMMIT_STATE, DELEGATION_RECORD};
 use crate::loaders::{load_initialized_pda, load_owned_pda, load_signer, load_uninitialized_pda};
-use crate::state::{CommitRecord, DelegationRecord};
+use crate::state::CommitRecord;
 use crate::utils::create_pda;
 use crate::utils::{AccountDeserialize, Discriminator};
 
@@ -40,26 +40,22 @@ pub fn process_commit_state(
     load_signer(authority)?;
     load_initialized_pda(
         delegation_record,
-        &[DELEGATION, &delegated_account.key.to_bytes()],
+        &[DELEGATION_RECORD, &delegated_account.key.to_bytes()],
         &crate::id(),
         true,
     )?;
-    let mut delegation_record = delegation_record.try_borrow_mut_data()?;
-    let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record)?;
+    //let mut delegation_record = delegation_record.try_borrow_mut_data()?;
+    //let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record)?;
 
     // Load the uninitialized PDAs
     let state_diff_bump = load_uninitialized_pda(
         commit_state_account,
-        &[STATE_DIFF, &delegated_account.key.to_bytes()],
+        &[COMMIT_STATE, &delegated_account.key.to_bytes()],
         &crate::id(),
     )?;
     let commit_state_bump = load_uninitialized_pda(
         commit_state_record,
-        &[
-            COMMIT_RECORD,
-            &delegation_record.commits.to_be_bytes(),
-            &delegated_account.key.to_bytes(),
-        ],
+        &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
         &crate::id(),
     )?;
 
@@ -69,7 +65,7 @@ pub fn process_commit_state(
         &crate::id(),
         data.len(),
         &[
-            STATE_DIFF,
+            COMMIT_STATE,
             &delegated_account.key.to_bytes(),
             &[state_diff_bump],
         ],
@@ -84,7 +80,6 @@ pub fn process_commit_state(
         8 + size_of::<CommitRecord>(),
         &[
             COMMIT_RECORD,
-            &delegation_record.commits.to_be_bytes(),
             &delegated_account.key.to_bytes(),
             &[commit_state_bump],
         ],
@@ -104,9 +99,6 @@ pub fn process_commit_state(
     // Copy the new state to the initialized PDA
     let mut buffer_data = commit_state_account.try_borrow_mut_data()?;
     (*buffer_data).copy_from_slice(data);
-
-    // Increase the number of commits in the delegation record
-    delegation_record.commits += 1;
 
     Ok(())
 }

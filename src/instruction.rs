@@ -1,7 +1,7 @@
-use crate::consts::{BUFFER, COMMIT_RECORD, DELEGATION, STATE_DIFF};
-use crate::{impl_instruction_from_bytes, impl_to_bytes};
 use bytemuck::{Pod, Zeroable};
 use num_enum::TryFromPrimitive;
+#[cfg(not(feature = "no-entrypoint"))]
+use shank::ShankInstruction;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
@@ -9,8 +9,12 @@ use solana_program::{
     system_program,
 };
 
-#[cfg(not(feature = "no-entrypoint"))]
-use shank::ShankInstruction;
+use crate::consts::BUFFER;
+use crate::pda::{
+    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    delegation_record_pda_from_pubkey,
+};
+use crate::{impl_instruction_from_bytes, impl_to_bytes};
 
 #[repr(C)]
 #[derive(Clone, Copy, Debug, Pod, Zeroable)]
@@ -112,8 +116,8 @@ pub fn delegate(
 ) -> Instruction {
     let buffer =
         Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner_program);
-    let delegation_record =
-        Pubkey::find_program_address(&[DELEGATION, &delegate_account.to_bytes()], &crate::id());
+    let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
+
     Instruction {
         program_id: owner_program,
         accounts: vec![
@@ -121,7 +125,7 @@ pub fn delegate(
             AccountMeta::new(delegate_account, false),
             AccountMeta::new(owner_program, false),
             AccountMeta::new(buffer.0, false),
-            AccountMeta::new(delegation_record.0, false),
+            AccountMeta::new(delegation_record, false),
             AccountMeta::new(delegation_program, false),
             AccountMeta::new(system_program, false),
         ],
@@ -133,30 +137,20 @@ pub fn delegate(
 pub fn commit_state(
     authority: Pubkey,
     delegated_account: Pubkey,
-    nonce: u64,
     system_program: Pubkey,
     committed_state_data: Vec<u8>,
 ) -> Instruction {
-    let delegation_record_pda =
-        Pubkey::find_program_address(&[DELEGATION, &delegated_account.to_bytes()], &crate::id());
-    let commit_state_pda =
-        Pubkey::find_program_address(&[STATE_DIFF, &delegated_account.to_bytes()], &crate::id());
-    let commit_state_record_pda = Pubkey::find_program_address(
-        &[
-            COMMIT_RECORD,
-            &nonce.to_be_bytes(),
-            &delegated_account.to_bytes(),
-        ],
-        &crate::id(),
-    );
+    let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
+    let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
+    let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(authority, true),
             AccountMeta::new(delegated_account, false),
-            AccountMeta::new(commit_state_pda.0, false),
-            AccountMeta::new(commit_state_record_pda.0, false),
-            AccountMeta::new(delegation_record_pda.0, false),
+            AccountMeta::new(commit_state_pda, false),
+            AccountMeta::new(commit_state_record_pda, false),
+            AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(system_program, false),
         ],
         data: [DlpInstruction::CommitState.to_vec(), committed_state_data].concat(),

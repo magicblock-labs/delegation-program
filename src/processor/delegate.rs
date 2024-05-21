@@ -8,7 +8,7 @@ use solana_program::{
     system_program, {self},
 };
 
-use crate::consts::{BUFFER, DELEGATION};
+use crate::consts::{BUFFER, DELEGATION_RECORD};
 use crate::instruction::DelegateArgs;
 use crate::loaders::{
     load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
@@ -50,7 +50,7 @@ pub fn process_delegate(
     )?;
     let authority_bump = load_uninitialized_pda(
         delegation_record,
-        &[DELEGATION, &delegate_account.key.to_bytes()],
+        &[DELEGATION_RECORD, &delegate_account.key.to_bytes()],
         &crate::id(),
     )?;
 
@@ -64,7 +64,7 @@ pub fn process_delegate(
         &crate::id(),
         8 + size_of::<DelegationRecord>(),
         &[
-            DELEGATION,
+            DELEGATION_RECORD,
             &delegate_account.key.to_bytes(),
             &[authority_bump],
         ],
@@ -85,6 +85,5 @@ pub fn process_delegate(
     delegation.authority = Pubkey::default();
     delegation.valid_until = args.valid_until;
     delegation.commit_frequency_ms = args.update_frequency_ms;
-    delegation.commits = 0;
     Ok(())
 }

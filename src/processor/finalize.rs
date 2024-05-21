@@ -44,7 +44,6 @@ pub fn process_finalize(
     // Load delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
     let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
-    delegation.commits -= 1;
 
     // Load committed state
     let commit_record_data = committed_state_record.try_borrow_data()?;
