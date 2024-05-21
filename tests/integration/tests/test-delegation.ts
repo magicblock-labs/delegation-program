@@ -60,18 +60,18 @@ describe("TestDelegation", () => {
             .commitState(Buffer.alloc(15).fill(5))
             .accounts({
                 authority: provider.wallet.publicKey,
-                originAccount: pda,
-                newStatePda: newStatePda,
-                commitStateRecordPda: commitStateRecordPda,
-                delegationPda: delegationPda,
+                delegatedAccount: pda,
+                commitStateAccount: newStatePda,
+                commitStateRecord: commitStateRecordPda,
+                delegationRecord: delegationPda,
                 systemProgram: anchor.web3.SystemProgram.programId,
             }).rpc({skipPreflight: true});
 
         console.log("Commit state signature", tx);
 
         // Print commit state record bytes
-        const account = await provider.connection.getAccountInfo(commitStateRecordPda);
-        console.log("Committed state record PDA", account.data.toJSON());
+        // const account = await provider.connection.getAccountInfo(commitStateRecordPda);
+        // console.log("Committed state record PDA", account.data.toJSON());
     });
 
     it("Finalize account state", async () => {
@@ -83,7 +83,7 @@ describe("TestDelegation", () => {
             .accounts({
                 payer: provider.wallet.publicKey,
                 delegatedAccount: pda,
-                stateDiff: newStatePda,
+                committedStateAccount: newStatePda,
                 committedStateRecord: commitStateRecordPda,
                 delegationRecord: delegationPda,
                 reimbursement: provider.wallet.publicKey,
@@ -100,10 +100,10 @@ describe("TestDelegation", () => {
             .commitState(Buffer.alloc(15).fill(7))
             .accounts({
                 authority: provider.wallet.publicKey,
-                originAccount: pda,
-                newStatePda: newStatePda,
-                commitStateRecordPda: commitStateRecordPda,
-                delegationPda: delegationPda,
+                delegatedAccount: pda,
+                commitStateAccount: newStatePda,
+                commitStateRecord: commitStateRecordPda,
+                delegationRecord: delegationPda,
                 systemProgram: anchor.web3.SystemProgram.programId,
             }).rpc({skipPreflight: true});
 
@@ -121,7 +121,7 @@ describe("TestDelegation", () => {
                 delegatedAccount: pda,
                 ownerProgram: testDelegation.programId,
                 buffer: bufferPda,
-                stateDiff: newStatePda,
+                committedStateAccount: newStatePda,
                 committedStateRecord: commitStateRecordPda,
                 delegationRecord: delegationPda,
                 reimbursement: provider.wallet.publicKey,

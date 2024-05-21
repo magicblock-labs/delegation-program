@@ -26,7 +26,7 @@
           "writable": true
         },
         {
-          "name": "pda",
+          "name": "delegate_account",
           "signer": true,
           "writable": true
         },
@@ -108,18 +108,18 @@
           "writable": true
         },
         {
-          "name": "origin_account"
+          "name": "delegated_account"
         },
         {
-          "name": "new_state_pda",
+          "name": "commit_state_account",
           "writable": true
         },
         {
-          "name": "commit_state_record_pda",
+          "name": "commit_state_record",
           "writable": true
         },
         {
-          "name": "delegation_pda",
+          "name": "delegation_record",
           "writable": true
         },
         {
@@ -158,7 +158,7 @@
           "writable": true
         },
         {
-          "name": "state_diff",
+          "name": "committed_state_account",
           "writable": true
         },
         {
@@ -250,7 +250,7 @@
           }
         },
         {
-          "name": "state_diff",
+          "name": "committed_state_account",
           "writable": true
         },
         {

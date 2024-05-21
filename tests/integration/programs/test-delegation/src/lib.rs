@@ -53,7 +53,7 @@ pub mod test_delegation {
             ctx.accounts.delegation_program.to_account_info(),
             delegation::cpi::accounts::Delegate {
                 payer: ctx.accounts.payer.to_account_info(),
-                pda: ctx.accounts.pda.to_account_info(),
+                delegate_account: ctx.accounts.pda.to_account_info(),
                 owner_program: ctx.accounts.owner_program.to_account_info(),
                 buffer: ctx.accounts.buffer.to_account_info(),
                 delegation_record: ctx.accounts.delegation_record.to_account_info(),
