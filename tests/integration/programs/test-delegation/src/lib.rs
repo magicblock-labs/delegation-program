@@ -18,23 +18,19 @@ pub mod test_delegation {
 
         let buffer_seeds: &[&[u8]] = &[BUFFER, ctx.accounts.pda.key.as_ref()];
 
-        let (_, delegate_account_bump) = Pubkey::find_program_address(
-            pda_seeds,
-            &id(),
-        );
+        let (_, delegate_account_bump) = Pubkey::find_program_address(pda_seeds, &id());
 
-        let (_, buffer_pda_bump) = Pubkey::find_program_address(
-            buffer_seeds,
-            &id(),
-        );
+        let (_, buffer_pda_bump) = Pubkey::find_program_address(buffer_seeds, &id());
 
         // Pda signer seeds
         let delegate_account_bump_slice: &[u8] = &[delegate_account_bump];
-        let pda_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(pda_seeds, delegate_account_bump_slice)];
+        let pda_signer_seeds: &[&[&[u8]]] =
+            &[&*seeds_with_bump(pda_seeds, delegate_account_bump_slice)];
 
         // Buffer signer seeds
         let buffer_bump_slice: &[u8] = &[buffer_pda_bump];
-        let buffer_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(buffer_seeds, buffer_bump_slice)];
+        let buffer_signer_seeds: &[&[&[u8]]] =
+            &[&*seeds_with_bump(buffer_seeds, buffer_bump_slice)];
 
         let data_len = ctx.accounts.pda.data_len();
 
@@ -60,7 +56,7 @@ pub mod test_delegation {
         // Re-create the PDA setting the delegation program as owner
         create_pda(
             &ctx.accounts.pda.to_account_info(),
-            &ctx.accounts.delegation_program.key,
+            ctx.accounts.delegation_program.key,
             data_len,
             pda_signer_seeds,
             &ctx.accounts.system_program.to_account_info(),
@@ -88,21 +84,24 @@ pub mod test_delegation {
     }
 
     // Init a new Account
-    pub fn process_undelegation(ctx: Context<InitializeAfterUndelegation>, account_seeds: Vec<Vec<u8>>) -> Result<()> {
+    pub fn process_undelegation(
+        ctx: Context<InitializeAfterUndelegation>,
+        account_seeds: Vec<Vec<u8>>,
+    ) -> Result<()> {
         if !ctx.accounts.buffer.is_signer {
             return Err(ProgramError::MissingRequiredSignature.into());
         }
 
         let account_seeds: Vec<&[u8]> = account_seeds.iter().map(|v| v.as_slice()).collect();
 
-        let (_, account_bump) = Pubkey::find_program_address(
-            account_seeds.as_ref(),
-            &id(),
-        );
+        let (_, account_bump) = Pubkey::find_program_address(account_seeds.as_ref(), &id());
 
         // Account signer seeds
         let account_bump_slice: &[u8] = &[account_bump];
-        let account_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(account_seeds.as_ref(), account_bump_slice)];
+        let account_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(
+            account_seeds.as_ref(),
+            account_bump_slice,
+        )];
 
         // Re-create the original PDA
         create_pda(
@@ -168,7 +167,6 @@ pub fn close_account<'info>(
     info: &AccountInfo<'info>,
     sol_destination: &AccountInfo<'info>,
 ) -> Result<()> {
-    // Transfer tokens from the account to the sol_destination.
     let dest_starting_lamports = sol_destination.lamports();
     **sol_destination.lamports.borrow_mut() =
         dest_starting_lamports.checked_add(info.lamports()).unwrap();
