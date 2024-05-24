@@ -13,6 +13,19 @@ pub const BUFFER: &[u8] = b"buffer";
 pub mod test_delegation {
     use super::*;
 
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let counter = &mut ctx.accounts.counter;
+        counter.count = 0;
+        Ok(())
+    }
+
+    pub fn increment(ctx: Context<Increment>) -> Result<()> {
+        let counter = &mut ctx.accounts.counter;
+        counter.count += 1;
+        Ok(())
+    }
+
+    /// Delegate the account to the delegation program, TODO: refactor to use an external crate
     pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
         let pda_seeds: &[&[u8]] = &[TEST_PDA_SEED];
 
@@ -83,7 +96,7 @@ pub mod test_delegation {
         Ok(())
     }
 
-    // Init a new Account
+    /// Undelegate the account, TODO: refactor to use an external crate
     pub fn process_undelegation(
         ctx: Context<InitializeAfterUndelegation>,
         account_seeds: Vec<Vec<u8>>,
@@ -154,6 +167,26 @@ pub struct InitializeAfterUndelegation<'info> {
     #[account(mut)]
     pub payer: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(init, payer = user, space = 8 + 8, seeds = [TEST_PDA_SEED], bump)]
+    pub counter: Account<'info, Counter>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Increment<'info> {
+    #[account(mut, seeds = [TEST_PDA_SEED], bump)]
+    pub counter: Account<'info, Counter>,
+}
+
+#[account]
+pub struct Counter {
+    pub count: u64,
 }
 
 fn seeds_with_bump<'a>(seeds: &'a [&'a [u8]], bump: &'a [u8]) -> Vec<&'a [u8]> {

@@ -22,6 +22,40 @@ describe("TestDelegation", () => {
     const idl = JSON.parse(require('fs').readFileSync(delegationProgramIdlPath, 'utf8'));
     const dlpProgram = new Program(idl, provider);
 
+    it('Initializes the counter', async () => {
+        const {pda, ...newStatePda} = getAccounts(testDelegation);
+
+        // Check if the counter is initialized
+        const counterAccountInfo = await provider.connection.getAccountInfo(pda);
+        if(counterAccountInfo === null) {
+            const tx = await testDelegation.methods
+                .initialize()
+                .accounts({
+                    counter: pda,
+                    user: provider.wallet.publicKey,
+                    systemProgram: anchor.web3.SystemProgram.programId,
+                }).rpc({skipPreflight: true});
+            console.log('Init Pda Tx: ', tx);
+        }
+
+        const counterAccount = await testDelegation.account.counter.fetch(pda);
+        console.log('Counter: ', counterAccount.count.toString());
+    });
+
+    it('Increase the counter', async () => {
+        var {pda, ...newStatePda} = getAccounts(testDelegation);
+
+        const tx = await testDelegation.methods
+            .increment()
+            .accounts({
+                counter: pda,
+            }).rpc({skipPreflight: true});
+        console.log('Increment Tx: ', tx);
+
+        const counterAccount = await testDelegation.account.counter.fetch(pda);
+        console.log('Counter: ', counterAccount.count.toString());
+    });
+
     it("Delegate a PDA", async () => {
 
         var {pda, delegationPda, delegatedAccountSeedsPda, ...newStatePda} = getAccounts(testDelegation);
@@ -63,6 +97,7 @@ describe("TestDelegation", () => {
 
         const {pda, delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
 
+        // @ts-ignore
         var tx = await dlpProgram.methods
             .commitState(Buffer.alloc(15).fill(5))
             .accounts({
