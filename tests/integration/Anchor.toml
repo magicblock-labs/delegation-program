@@ -29,7 +29,3 @@ upgradeable = false
 address = "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
 program = "../../target/deploy/dlp.so"
 upgradeable = true
-
-[[test.validator.account]]
-address = "8k2V7EzQtNg38Gi9HK5ZtQYp1YpGKNGrMcuGa737gZX4"
-filename = "tests/fixtures/test-pda.json"

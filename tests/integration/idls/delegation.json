@@ -58,36 +58,34 @@
         },
         {
           "name": "delegation_record",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  100,
-                  101,
-                  108,
-                  101,
-                  103,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "pda"
-              }
-            ]
-          }
+          "writable": true
+        },
+        {
+          "name": "delegate_account_seeds",
+          "writable": true
         },
         {
           "name": "system_program"
         }
       ],
-      "args": []
+      "args": [
+        {
+          "name": "valid_until",
+          "type": "i64"
+        },
+        {
+          "name": "commit_frequency_ms",
+          "type": "u32"
+        },
+        {
+          "name": "seeds",
+          "type": {
+            "vec": {
+              "vec": "u8"
+            }
+          }
+        }
+      ]
     },
     {
       "name": "commit_state",
@@ -270,6 +268,7 @@
                   108,
                   101,
                   103,
+                  103,
                   97,
                   116,
                   105,
@@ -285,6 +284,10 @@
           }
         },
         {
+          "name": "delegated_account_seeds",
+          "writable": true
+        },
+        {
           "name": "reimbursement"
         },
         {
@@ -294,44 +297,6 @@
       "args": []
     }
   ],
-  "accounts": [
-    {
-      "name": "Delegation",
-      "discriminator": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ]
-    }
-  ],
-  "types": [
-    {
-      "name": "Delegation",
-      "repr": {
-        "kind": "c"
-      },
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "authority",
-            "type": "pubkey"
-          },
-          {
-            "name": "owner",
-            "type": "pubkey"
-          },
-          {
-            "name": "valid_until",
-            "type": "pubkey"
-          }
-        ]
-      }
-    }
-  ]
+  "accounts": [],
+  "types": []
 }

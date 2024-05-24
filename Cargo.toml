@@ -16,7 +16,7 @@ name = "dlp"
 
 [features]
 no-entrypoint = []
-default = ["solana-security-txt", "shank"]
+default = ["solana-security-txt"]
 
 [dependencies]
 bytemuck = "^1.14.3"
@@ -25,7 +25,7 @@ solana-program = "^1.16"
 thiserror = "^1.0.57"
 paste = "^1.0"
 solana-security-txt = { version = "1.1.1", optional = true }
-shank = { version = "0.4.2", optional = true }
+borsh = "0.10.3"
 
 
 

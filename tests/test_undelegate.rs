@@ -9,12 +9,13 @@ use solana_sdk::{
 
 use dlp::pda::{
     buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
-    committed_state_record_pda_from_pubkey, delegation_record_pda_from_pubkey,
+    committed_state_record_pda_from_pubkey, delegated_account_seeds_pda_from_pubkey,
+    delegation_record_pda_from_pubkey,
 };
 
 use crate::fixtures::{
-    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA_ID,
-    DELEGATED_PDA_OWNER_ID, DELEGATION_RECORD_ACCOUNT_DATA,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_ACCOUNT_SEEDS_PDA,
+    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_RECORD_ACCOUNT_DATA,
 };
 
 mod fixtures;
@@ -29,6 +30,7 @@ async fn test_undelegate() {
     let delegation_pda = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
     let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let delegated_account_seeds_pda = delegated_account_seeds_pda_from_pubkey(&DELEGATED_PDA_ID);
 
     // Save the new state data before undelegating
     let new_state_before_finalize = banks
@@ -43,6 +45,7 @@ async fn test_undelegate() {
         payer.pubkey(),
         DELEGATED_PDA_ID,
         delegation_pda,
+        delegated_account_seeds_pda,
         DELEGATED_PDA_OWNER_ID,
         buffer,
         committed_state_pda,
@@ -62,9 +65,14 @@ async fn test_undelegate() {
     let delegation_account = banks.get_account(delegation_pda).await.unwrap();
     assert!(delegation_account.is_none());
 
-    // Assert the commit_state_record_pda was closed
-    let commit_state_record_account = banks.get_account(commit_state_record_pda).await.unwrap();
-    assert!(commit_state_record_account.is_none());
+    // Assert the delegation_pda was closed
+    let delegation_account = banks.get_account(delegation_pda).await.unwrap();
+    assert!(delegation_account.is_none());
+
+    // Assert the delegated account seeds pda was closed
+    let seeds_pda = delegated_account_seeds_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
+    assert!(seeds_pda_account.is_none());
 
     // Assert that the account owner is now set to the owner program
     let pda_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
@@ -108,6 +116,18 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: DELEGATION_RECORD_ACCOUNT_DATA.into(),
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the delegated account seeds PDA
+    program_test.add_account(
+        delegated_account_seeds_pda_from_pubkey(&DELEGATED_PDA_ID),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: DELEGATED_ACCOUNT_SEEDS_PDA.into(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

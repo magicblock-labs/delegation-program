@@ -13,10 +13,37 @@ pub const BUFFER: &[u8] = b"buffer";
 pub mod test_delegation {
     use super::*;
 
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let counter = &mut ctx.accounts.counter;
+        counter.count = 0;
+        Ok(())
+    }
+
+    pub fn increment(ctx: Context<Increment>) -> Result<()> {
+        let counter = &mut ctx.accounts.counter;
+        counter.count += 1;
+        Ok(())
+    }
+
+    /// Delegate the account to the delegation program, TODO: refactor to use an external crate
     pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
-        let pda_signer_seeds: &[&[&[u8]]] = &[&[TEST_PDA_SEED, &[ctx.bumps.pda]]];
+        let pda_seeds: &[&[u8]] = &[TEST_PDA_SEED];
+
+        let buffer_seeds: &[&[u8]] = &[BUFFER, ctx.accounts.pda.key.as_ref()];
+
+        let (_, delegate_account_bump) = Pubkey::find_program_address(pda_seeds, &id());
+
+        let (_, buffer_pda_bump) = Pubkey::find_program_address(buffer_seeds, &id());
+
+        // Pda signer seeds
+        let delegate_account_bump_slice: &[u8] = &[delegate_account_bump];
+        let pda_signer_seeds: &[&[&[u8]]] =
+            &[&*seeds_with_bump(pda_seeds, delegate_account_bump_slice)];
+
+        // Buffer signer seeds
+        let buffer_bump_slice: &[u8] = &[buffer_pda_bump];
         let buffer_signer_seeds: &[&[&[u8]]] =
-            &[&[BUFFER, ctx.accounts.pda.key.as_ref(), &[ctx.bumps.buffer]]];
+            &[&*seeds_with_bump(buffer_seeds, buffer_bump_slice)];
 
         let data_len = ctx.accounts.pda.data_len();
 
@@ -42,7 +69,7 @@ pub mod test_delegation {
         // Re-create the PDA setting the delegation program as owner
         create_pda(
             &ctx.accounts.pda.to_account_info(),
-            &ctx.accounts.delegation_program.key,
+            ctx.accounts.delegation_program.key,
             data_len,
             pda_signer_seeds,
             &ctx.accounts.system_program.to_account_info(),
@@ -57,20 +84,48 @@ pub mod test_delegation {
                 owner_program: ctx.accounts.owner_program.to_account_info(),
                 buffer: ctx.accounts.buffer.to_account_info(),
                 delegation_record: ctx.accounts.delegation_record.to_account_info(),
+                delegate_account_seeds: ctx.accounts.delegate_account_seeds.to_account_info(),
                 system_program: ctx.accounts.system_program.to_account_info(),
             },
             pda_signer_seeds,
         );
-        delegation::cpi::delegate(cpi_ctx)?;
+
+        let seeds_vec: Vec<Vec<u8>> = pda_seeds.iter().map(|&slice| slice.to_vec()).collect();
+        delegation::cpi::delegate(cpi_ctx, 0, 3000, seeds_vec)?;
         close_account(&ctx.accounts.buffer, &ctx.accounts.payer.to_account_info())?;
         Ok(())
     }
 
-    // Init a new Account
-    pub fn process_undelegation(ctx: Context<InitializeAfterUndelegation>) -> Result<()> {
+    /// Undelegate the account, TODO: refactor to use an external crate
+    pub fn process_undelegation(
+        ctx: Context<InitializeAfterUndelegation>,
+        account_seeds: Vec<Vec<u8>>,
+    ) -> Result<()> {
         if !ctx.accounts.buffer.is_signer {
             return Err(ProgramError::MissingRequiredSignature.into());
         }
+
+        let account_seeds: Vec<&[u8]> = account_seeds.iter().map(|v| v.as_slice()).collect();
+
+        let (_, account_bump) = Pubkey::find_program_address(account_seeds.as_ref(), &id());
+
+        // Account signer seeds
+        let account_bump_slice: &[u8] = &[account_bump];
+        let account_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(
+            account_seeds.as_ref(),
+            account_bump_slice,
+        )];
+
+        // Re-create the original PDA
+        create_pda(
+            &ctx.accounts.base_account.to_account_info(),
+            &id(),
+            ctx.accounts.buffer.data_len(),
+            account_signer_seeds,
+            &ctx.accounts.system_program.to_account_info(),
+            &ctx.accounts.payer.to_account_info(),
+        )?;
+
         let mut data = ctx.accounts.base_account.try_borrow_mut_data()?;
         let buffer_data = ctx.accounts.buffer.try_borrow_data()?;
         (*data).copy_from_slice(&buffer_data);
@@ -82,16 +137,19 @@ pub mod test_delegation {
 pub struct DelegateInput<'info> {
     pub payer: Signer<'info>,
     /// CHECK:
-    #[account(mut, seeds = [TEST_PDA_SEED], bump)]
+    #[account(mut)]
     pub pda: AccountInfo<'info>,
     /// CHECK:`
     pub owner_program: AccountInfo<'info>,
     /// CHECK:
-    #[account(mut, seeds = [BUFFER, pda.key().as_ref()], bump)]
+    #[account(mut)]
     pub buffer: AccountInfo<'info>,
     /// CHECK:`
     #[account(mut)]
     pub delegation_record: AccountInfo<'info>,
+    /// CHECK:`
+    #[account(mut)]
+    pub delegate_account_seeds: AccountInfo<'info>,
     /// CHECK:`
     pub delegation_program: AccountInfo<'info>,
     /// CHECK:`
@@ -101,21 +159,47 @@ pub struct DelegateInput<'info> {
 #[derive(Accounts)]
 pub struct InitializeAfterUndelegation<'info> {
     /// CHECK:`
-    #[account(init, payer = user, space = buffer.data_len(), seeds = [TEST_PDA_SEED], bump)]
+    #[account(mut)]
     pub base_account: AccountInfo<'info>,
     /// CHECK:`
     #[account()]
     pub buffer: Signer<'info>,
     #[account(mut)]
+    pub payer: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(init, payer = user, space = 8 + 8, seeds = [TEST_PDA_SEED], bump)]
+    pub counter: Account<'info, Counter>,
+    #[account(mut)]
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Increment<'info> {
+    #[account(mut, seeds = [TEST_PDA_SEED], bump)]
+    pub counter: Account<'info, Counter>,
+}
+
+#[account]
+pub struct Counter {
+    pub count: u64,
+}
+
+fn seeds_with_bump<'a>(seeds: &'a [&'a [u8]], bump: &'a [u8]) -> Vec<&'a [u8]> {
+    let mut combined: Vec<&'a [u8]> = Vec::with_capacity(seeds.len() + 1);
+    combined.extend_from_slice(seeds);
+    combined.push(bump);
+    combined
 }
 
 pub fn close_account<'info>(
     info: &AccountInfo<'info>,
     sol_destination: &AccountInfo<'info>,
 ) -> Result<()> {
-    // Transfer tokens from the account to the sol_destination.
     let dest_starting_lamports = sol_destination.lamports();
     **sol_destination.lamports.borrow_mut() =
         dest_starting_lamports.checked_add(info.lamports()).unwrap();
