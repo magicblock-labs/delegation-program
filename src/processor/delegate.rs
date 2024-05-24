@@ -37,7 +37,7 @@ pub fn process_delegate(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    let args = DelegateAccountArgs::try_from_slice(&data)?;
+    let args = DelegateAccountArgs::try_from_slice(data)?;
 
     load_program(system_program, system_program::id())?;
     load_owned_pda(delegate_account, &crate::id())?;

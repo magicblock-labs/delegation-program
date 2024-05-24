@@ -57,7 +57,8 @@ pub fn process_undelegate(
     let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
 
     // Load delegated account seeds
-    let account_seeds = DelegateAccountSeeds::deserialize(&mut &**delegated_account_seeds.data.borrow())?;
+    let account_seeds =
+        DelegateAccountSeeds::deserialize(&mut &**delegated_account_seeds.data.borrow())?;
 
     verify_state(delegation, commit_record, committed_state_account)?;
 
@@ -128,7 +129,6 @@ fn call_external_undelegate<'a, 'info>(
     delegated_account_seeds: DelegateAccountSeeds,
     signers_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-
     let mut data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
     let serialized_seeds = delegated_account_seeds.try_to_vec()?;
     data.extend_from_slice(&serialized_seeds);

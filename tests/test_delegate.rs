@@ -65,7 +65,11 @@ async fn test_delegate() {
     assert!(pda_account.owner.eq(&dlp::id()));
 
     // Assert that the delegation record exists and can be parsed
-    let delegation_record = banks.get_account(delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID)).await.unwrap().unwrap();
+    let delegation_record = banks
+        .get_account(delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID))
+        .await
+        .unwrap()
+        .unwrap();
     let delegation_record = DelegationRecord::try_from_bytes(&delegation_record.data).unwrap();
     assert!(delegation_record.valid_until >= 0);
     assert_eq!(delegation_record.owner, DELEGATED_PDA_OWNER_ID);

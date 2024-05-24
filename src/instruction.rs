@@ -1,7 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_enum::TryFromPrimitive;
-#[cfg(not(feature = "no-entrypoint"))]
-use shank::ShankInstruction;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     instruction::{AccountMeta, Instruction},
@@ -22,46 +20,6 @@ pub struct DelegateAccountArgs {
     pub seeds: Vec<Vec<u8>>,
 }
 
-#[cfg(not(feature = "no-entrypoint"))]
-#[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, ShankInstruction, TryFromPrimitive)]
-#[rustfmt::skip]
-pub enum DlpInstruction {
-    #[account(0, name = "payer", desc = "The fees payer", signer)]
-    #[account(1, name = "delegate_account", desc = "Account to delegate", signer)]
-    #[account(2, name = "owner_program", desc = "The account owner program")]
-    #[account(3, name = "buffer", desc = "Buffer to hold the account data during delegation")]
-    #[account(4, name = "delegation_record", desc = "The account delegation record")]
-    #[account(5, name = "system_program", desc = "The system program")]
-    Delegate = 0,
-    #[account(0, name = "authority", desc = "The authority that commit the new sate", signer)]
-    #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
-    #[account(2, name = "commit_state_account", desc = "The account to store the new account state", signer)]
-    #[account(3, name = "commit_state_record", desc = "Account to store the state commitment record")]
-    #[account(4, name = "delegation_record", desc = "The account delegation record")]
-    #[account(5, name = "system_program", desc = "The system program")]
-    CommitState = 1,
-    #[account(0, name = "payer", desc = "The fees payer", signer)]
-    #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
-    #[account(2, name = "committed_state_account", desc = "The account that store the new account state", signer)]
-    #[account(3, name = "committed_state_record", desc = "Account that store the state commitment record")]
-    #[account(4, name = "delegation_record", desc = "The account delegation record")]
-    #[account(5, name = "reimbursement", desc = "The account to reimburse the fees after closing the records accounts")]
-    #[account(6, name = "system_program", desc = "The system program")]
-    Finalize = 2,
-    #[account(0, name = "payer", desc = "The fees payer", signer)]
-    #[account(1, name = "delegated_account", desc = "The delegated account", signer)]
-    #[account(2, name = "owner_program", desc = "The account owner program")]
-    #[account(3, name = "buffer", desc = "Buffer to hold the account data during undelegation")]
-    #[account(4, name = "committed_state_account", desc = "The account that store the new account state", signer)]
-    #[account(5, name = "committed_state_record", desc = "Account that store the state commitment record")]
-    #[account(6, name = "delegation_record", desc = "The account delegation record")]
-    #[account(7, name = "reimbursement", desc = "The account to reimburse the fees after closing the records accounts")]
-    #[account(8, name = "system_program", desc = "The system program")]
-    Undelegate = 3,
-}
-
-#[cfg(feature = "no-entrypoint")]
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive)]
 #[rustfmt::skip]
