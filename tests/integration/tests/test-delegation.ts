@@ -6,6 +6,7 @@ import { TestDelegation } from "../target/types/test_delegation";
 const SEED_TEST_PDA = "test-pda";
 const SEED_BUFFER_PDA = "buffer";
 const SEED_DELEGATION_PDA = "delegation";
+const DELEGATED_ACCOUNT_SEEDS = "account-seeds";
 const SEED_COMMIT_STATE_RECORD_PDA = "commit-state-record";
 const SEED_STATE_DIFF_PDA = "state-diff";
 
@@ -23,7 +24,7 @@ describe("TestDelegation", () => {
 
     it("Delegate a PDA", async () => {
 
-        var {pda, delegationPda, ...newStatePda} = getAccounts(testDelegation);
+        var {pda, delegationPda, delegatedAccountSeedsPda, ...newStatePda} = getAccounts(testDelegation);
 
         const pdaBytes = pda.toBytes();
 
@@ -40,6 +41,7 @@ describe("TestDelegation", () => {
                 payer: provider.wallet.publicKey,
                 pda: pda,
                 ownerProgram: testDelegation.programId,
+                delegateAccountSeeds: delegatedAccountSeedsPda,
                 buffer: bufferPda,
                 delegationRecord: delegationPda,
                 delegationProgram: delegationProgram,
@@ -50,11 +52,16 @@ describe("TestDelegation", () => {
         // Print delegationPda account bytes
         // const account = await provider.connection.getAccountInfo(delegationPda);
         // console.log("Delegation record PDA", account.data.toJSON());
+
+        // Print delegateAccountSeeds account bytes
+        // const account = await provider.connection.getAccountInfo(delegatedAccountSeedsPda);
+        // console.log("Delegation account seeds PDA", account.data.toJSON());
+        // console.log("Delegation account seeds PDA: ", delegatedAccountSeedsPda.toBase58());
     });
 
     it("Commit a new state to the PDA", async () => {
 
-        const {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
+        const {pda, delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
 
         var tx = await dlpProgram.methods
             .commitState(Buffer.alloc(15).fill(5))
@@ -76,7 +83,7 @@ describe("TestDelegation", () => {
 
     it("Finalize account state", async () => {
 
-        const {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
+        const {pda, delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
 
         var tx = await dlpProgram.methods
             .finalize()
@@ -94,7 +101,7 @@ describe("TestDelegation", () => {
 
     it("Commit a new state to the PDA", async () => {
 
-        const {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
+        const {pda, delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
 
         var tx = await dlpProgram.methods
             .commitState(Buffer.alloc(15).fill(7))
@@ -112,7 +119,7 @@ describe("TestDelegation", () => {
 
     it("Undelegate account", async () => {
 
-        const {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
+        const {pda, delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, newStatePda} = getAccounts(testDelegation);
 
         var tx = await dlpProgram.methods
             .undelegate()
@@ -124,6 +131,7 @@ describe("TestDelegation", () => {
                 committedStateAccount: newStatePda,
                 committedStateRecord: commitStateRecordPda,
                 delegationRecord: delegationPda,
+                delegatedAccountSeeds: delegatedAccountSeedsPda,
                 reimbursement: provider.wallet.publicKey,
                 systemProgram: anchor.web3.SystemProgram.programId,
             }).rpc({skipPreflight: true});
@@ -144,6 +152,11 @@ function getAccounts(testDelegation: Program<TestDelegation>) {
         new anchor.web3.PublicKey(delegationProgram)
     );
 
+    const [delegatedAccountSeedsPda] = anchor.web3.PublicKey.findProgramAddressSync(
+        [Buffer.from(DELEGATED_ACCOUNT_SEEDS), pdaBytes],
+        new anchor.web3.PublicKey(delegationProgram)
+    );
+
     const [bufferPda] = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from(SEED_BUFFER_PDA), pdaBytes],
         new anchor.web3.PublicKey(delegationProgram)
@@ -158,5 +171,5 @@ function getAccounts(testDelegation: Program<TestDelegation>) {
         [Buffer.from(SEED_STATE_DIFF_PDA), pdaBytes],
         new anchor.web3.PublicKey(delegationProgram)
     );
-    return {pda, delegationPda, bufferPda, commitStateRecordPda, newStatePda};
+    return {pda, delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, newStatePda};
 }

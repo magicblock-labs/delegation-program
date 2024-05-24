@@ -22,7 +22,7 @@ Delegation module for https://arxiv.org/pdf/2311.02650.pdf
 
 ## State
 
-- [`CommitState`](src/state/commit_state.rs) – Commit state account state.
+- [`CommitState`](src/state/commit_record) – Commit state account state.
 - [`Delegator`](src/state/delegator.rs) – Delegator account state.
 
 ## Tests

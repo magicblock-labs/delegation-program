@@ -1,3 +1,4 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke_signed;
 use solana_program::program_error::ProgramError;
@@ -10,7 +11,7 @@ use solana_program::{
 
 use crate::consts::{BUFFER, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
-use crate::state::{CommitRecord, DelegationRecord};
+use crate::state::{CommitRecord, DelegateAccountSeeds, DelegationRecord};
 use crate::utils::{close_pda, create_pda, AccountDeserialize};
 use crate::verify_state::verify_state;
 
@@ -33,7 +34,7 @@ pub fn process_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, reimbursement, system_program] =
+    let [payer, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, delegated_account_seeds, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -44,6 +45,7 @@ pub fn process_undelegate(
     load_owned_pda(committed_state_account, &crate::id())?;
     load_owned_pda(committed_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
+    load_owned_pda(delegated_account_seeds, &crate::id())?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
@@ -53,6 +55,9 @@ pub fn process_undelegate(
     // Load committed state
     let commit_record_data = committed_state_record.try_borrow_data()?;
     let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
+
+    // Load delegated account seeds
+    let account_seeds = DelegateAccountSeeds::deserialize(&mut &**delegated_account_seeds.data.borrow())?;
 
     verify_state(delegation, commit_record, committed_state_account)?;
 
@@ -101,10 +106,12 @@ pub fn process_undelegate(
         buffer,
         system_program,
         owner_program.key,
+        account_seeds,
         signer_seeds,
     )?;
 
     // Closing accounts
+    close_pda(delegated_account_seeds, reimbursement)?;
     close_pda(committed_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
     close_pda(committed_state_account, reimbursement)?;
@@ -118,9 +125,13 @@ fn call_external_undelegate<'a, 'info>(
     buffer: &'a AccountInfo<'info>,
     system_program: &'a AccountInfo<'info>,
     program_id: &Pubkey,
+    delegated_account_seeds: DelegateAccountSeeds,
     signers_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
-    let instruction_data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
+
+    let mut data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
+    let serialized_seeds = delegated_account_seeds.try_to_vec()?;
+    data.extend_from_slice(&serialized_seeds);
 
     let close_instruction = Instruction {
         program_id: *program_id,
@@ -146,7 +157,7 @@ fn call_external_undelegate<'a, 'info>(
                 is_writable: false,
             },
         ],
-        data: instruction_data,
+        data,
     };
 
     invoke_signed(

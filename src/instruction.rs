@@ -1,4 +1,4 @@
-use bytemuck::{Pod, Zeroable};
+use borsh::{BorshDeserialize, BorshSerialize};
 use num_enum::TryFromPrimitive;
 #[cfg(not(feature = "no-entrypoint"))]
 use shank::ShankInstruction;
@@ -12,28 +12,15 @@ use solana_program::{
 use crate::consts::BUFFER;
 use crate::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
-    delegation_record_pda_from_pubkey,
+    delegated_account_seeds_pda_from_pubkey, delegation_record_pda_from_pubkey,
 };
-use crate::{impl_instruction_from_bytes, impl_to_bytes};
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, Pod, Zeroable)]
-pub struct DelegateArgs {
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct DelegateAccountArgs {
     pub valid_until: i64,
-    pub update_frequency_ms: u64,
+    pub commit_frequency_ms: u32,
+    pub seeds: Vec<Vec<u8>>,
 }
-
-impl Default for DelegateArgs {
-    fn default() -> Self {
-        DelegateArgs {
-            valid_until: 0,
-            update_frequency_ms: 300000, // 5 minutes in milliseconds
-        }
-    }
-}
-
-impl_to_bytes!(DelegateArgs);
-impl_instruction_from_bytes!(DelegateArgs);
 
 #[cfg(not(feature = "no-entrypoint"))]
 #[repr(u8)]
@@ -117,6 +104,7 @@ pub fn delegate(
     let buffer =
         Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner_program);
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
+    let delegate_accounts_seeds = delegated_account_seeds_pda_from_pubkey(&delegate_account);
 
     Instruction {
         program_id: owner_program,
@@ -126,6 +114,7 @@ pub fn delegate(
             AccountMeta::new(owner_program, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),
+            AccountMeta::new(delegate_accounts_seeds, false),
             AccountMeta::new(delegation_program, false),
             AccountMeta::new(system_program, false),
         ],
@@ -188,6 +177,7 @@ pub fn undelegate(
     payer: Pubkey,
     delegated_account: Pubkey,
     delegation_record: Pubkey,
+    delegate_account_seeds: Pubkey,
     owner_program: Pubkey,
     buffer: Pubkey,
     committed_state_account: Pubkey,
@@ -204,6 +194,7 @@ pub fn undelegate(
             AccountMeta::new(committed_state_account, false),
             AccountMeta::new(committed_state_record, false),
             AccountMeta::new(delegation_record, false),
+            AccountMeta::new(delegate_account_seeds, false),
             AccountMeta::new(reimbursement, false),
             AccountMeta::new(system_program::id(), false),
         ],

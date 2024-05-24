@@ -97,8 +97,9 @@ pub(crate) fn close_pda<'a, 'info>(
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, IntoPrimitive, TryFromPrimitive)]
 pub enum AccountDiscriminator {
-    Delegation = 100,
-    CommitState = 101,
+    DelegationRecord = 100,
+    CommitRecord = 101,
+    DelegatedAccountSeeds = 102,
 }
 
 pub trait Discriminator {

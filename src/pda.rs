@@ -1,6 +1,8 @@
 use paste::paste;
 
-use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_RECORD};
+use crate::consts::{
+    BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATED_ACCOUNT_SEEDS, DELEGATION_RECORD,
+};
 
 // -----------------
 // Seeds
@@ -68,6 +70,9 @@ macro_rules! pda {
 seeds! { delegation_record, DELEGATION_RECORD }
 pda! { delegation_record }
 
+seeds! { delegated_account_seeds, DELEGATED_ACCOUNT_SEEDS }
+pda! { delegated_account_seeds }
+
 seeds! { committed_state, COMMIT_STATE }
 pda! { committed_state }
 
@@ -76,25 +81,6 @@ pda! { committed_state_record }
 
 seeds! { buffer, BUFFER }
 pda! { buffer }
-
-// pub fn committed_state_record_seeds(committed_account: &[u8]) -> [&[u8]; 3] {
-//     const ZERO_BYTES: [u8; 8] = 0u64.to_be_bytes();
-//     [COMMIT_RECORD, &ZERO_BYTES, committed_account]
-// }
-//
-// pub fn committed_state_record_seeds_with_bump<'a>(committed_account: &'a [u8], bump: &'a [u8; 3]) -> [&'a [u8]; 4] {
-//     let mut seeds = committed_state_record_seeds(committed_account).to_vec();
-//     seeds.push(bump);
-//     seeds.try_into().unwrap()
-// }
-//
-// pub fn committed_state_record_pda_from_pubkey(committed_account: &::solana_program::pubkey::Pubkey) -> ::solana_program::pubkey::Pubkey {
-//     let seeds = committed_state_record_seeds(committed_account.as_ref());
-//     ::solana_program::pubkey::Pubkey::find_program_address(
-//         &seeds,
-//         &crate::id()
-//     ).0
-// }
 
 #[cfg(test)]
 mod tests {

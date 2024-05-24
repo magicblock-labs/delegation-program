@@ -18,6 +18,11 @@ pub const COMMIT_STATE_RECORD_ACCOUNT_DATA: [u8; 80] = [
 ];
 
 #[allow(dead_code)]
+pub const DELEGATED_ACCOUNT_SEEDS_PDA: [u8; 24] = [
+    1, 0, 0, 0, 8, 0, 0, 0, 116, 101, 115, 116, 45, 112, 100, 97, 0, 0, 0, 0, 0, 0, 0, 0,
+];
+
+#[allow(dead_code)]
 pub const COMMIT_STATE_AUTHORITY: Pubkey = pubkey!("Ec6jL2GVTzjfHz8RFP3mVyki9JRNmMu8E7YdNh45xNdk");
 
 #[allow(dead_code)]

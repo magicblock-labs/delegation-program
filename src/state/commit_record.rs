@@ -22,7 +22,7 @@ pub struct CommitRecord {
 
 impl Discriminator for CommitRecord {
     fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::CommitState
+        AccountDiscriminator::CommitRecord
     }
 }
 

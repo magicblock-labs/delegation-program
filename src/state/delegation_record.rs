@@ -25,7 +25,7 @@ pub struct DelegationRecord {
 
 impl Discriminator for DelegationRecord {
     fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::Delegation
+        AccountDiscriminator::DelegationRecord
     }
 }
 
