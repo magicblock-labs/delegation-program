@@ -175,7 +175,7 @@ describe("TestDelegation", () => {
 
 });
 
-function getAccounts(testDelegation: Program<TestDelegation>) {
+export function getAccounts(testDelegation: Program<TestDelegation>) {
     const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
         [Buffer.from(SEED_TEST_PDA)],
         testDelegation.programId
