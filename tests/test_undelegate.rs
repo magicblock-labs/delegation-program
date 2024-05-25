@@ -1,6 +1,6 @@
-use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_program::rent::Rent;
+use solana_program_test::{BanksClient, processor, ProgramTest, read_file};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -8,7 +8,7 @@ use solana_sdk::{
 };
 
 use dlp::pda::{
-    buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
+    committed_state_pda_from_pubkey,
     committed_state_record_pda_from_pubkey, delegated_account_seeds_pda_from_pubkey,
     delegation_record_pda_from_pubkey,
 };
@@ -26,11 +26,8 @@ async fn test_undelegate() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
-    let buffer = buffer_pda_from_pubkey(&DELEGATED_PDA_ID);
     let delegation_pda = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
     let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let commit_state_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let delegated_account_seeds_pda = delegated_account_seeds_pda_from_pubkey(&DELEGATED_PDA_ID);
 
     // Save the new state data before undelegating
     let new_state_before_finalize = banks
@@ -44,12 +41,7 @@ async fn test_undelegate() {
     let ix = dlp::instruction::undelegate(
         payer.pubkey(),
         DELEGATED_PDA_ID,
-        delegation_pda,
-        delegated_account_seeds_pda,
         DELEGATED_PDA_OWNER_ID,
-        buffer,
-        committed_state_pda,
-        commit_state_record_pda,
         payer.pubkey(),
     );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);

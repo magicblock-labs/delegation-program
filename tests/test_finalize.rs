@@ -40,9 +40,6 @@ async fn test_finalize() {
     let ix = dlp::instruction::finalize(
         payer.pubkey(),
         DELEGATED_PDA_ID,
-        delegation_record,
-        committed_state_pda,
-        commit_state_record_pda,
         COMMIT_STATE_AUTHORITY,
     );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);

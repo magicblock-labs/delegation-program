@@ -8,10 +8,7 @@ use solana_program::{
 };
 
 use crate::consts::BUFFER;
-use crate::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
-    delegated_account_seeds_pda_from_pubkey, delegation_record_pda_from_pubkey,
-};
+use crate::pda::{buffer_pda_from_pubkey, committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey, delegated_account_seeds_pda_from_pubkey, delegation_record_pda_from_pubkey};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateAccountArgs {
@@ -108,19 +105,19 @@ pub fn commit_state(
 pub fn finalize(
     payer: Pubkey,
     delegated_account: Pubkey,
-    delegation_record: Pubkey,
-    committed_state_account: Pubkey,
-    committed_state_record: Pubkey,
     reimbursement: Pubkey,
 ) -> Instruction {
+    let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
+    let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
+    let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegated_account, false),
-            AccountMeta::new(committed_state_account, false),
-            AccountMeta::new(committed_state_record, false),
-            AccountMeta::new(delegation_record, false),
+            AccountMeta::new(commit_state_pda, false),
+            AccountMeta::new(commit_state_record_pda, false),
+            AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(reimbursement, false),
             AccountMeta::new(system_program::id(), false),
         ],
@@ -133,24 +130,24 @@ pub fn finalize(
 pub fn undelegate(
     payer: Pubkey,
     delegated_account: Pubkey,
-    delegation_record: Pubkey,
-    delegate_account_seeds: Pubkey,
     owner_program: Pubkey,
-    buffer: Pubkey,
-    committed_state_account: Pubkey,
-    committed_state_record: Pubkey,
     reimbursement: Pubkey,
 ) -> Instruction {
+    let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
+    let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
+    let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
+    let delegate_account_seeds = delegated_account_seeds_pda_from_pubkey(&delegated_account);
+    let buffer_pda = buffer_pda_from_pubkey(&delegated_account);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegated_account, false),
             AccountMeta::new(owner_program, false),
-            AccountMeta::new(buffer, false),
-            AccountMeta::new(committed_state_account, false),
-            AccountMeta::new(committed_state_record, false),
-            AccountMeta::new(delegation_record, false),
+            AccountMeta::new(buffer_pda, false),
+            AccountMeta::new(commit_state_pda, false),
+            AccountMeta::new(commit_state_record_pda, false),
+            AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegate_account_seeds, false),
             AccountMeta::new(reimbursement, false),
             AccountMeta::new(system_program::id(), false),
