@@ -1,7 +1,9 @@
-[package]
-name = "delegation-program"
+[workspace]
+members = ["sdk"]
+
+[workspace.package]
 version = "0.1.0"
-description = "Delegation program for the Ephemeral Rollups"
+authors = ["Magicblock Labs <dev@magicblock.gg>"]
 edition = "2021"
 license = "MIT"
 homepage = "https://www.magicblock.gg/"
@@ -9,6 +11,23 @@ documentation = "https://docs.magicblock.gg/"
 repository = "https://github.com/magicblock-labs/delegation-program"
 readme = "./README.md"
 keywords = ["solana", "crypto", "delegation", "ephemeral-rollups", "magicblock"]
+
+[workspace.dependencies]
+solana-program = "^1.16"
+borsh = "0.10.3"
+
+[package]
+name = "delegation-program"
+description = "Delegation program for the Ephemeral Rollups"
+version = { workspace = true }
+authors = { workspace = true }
+repository = { workspace = true }
+documentation = { workspace = true }
+homepage = { workspace = true }
+keywords = { workspace = true }
+readme = { workspace = true }
+license = { workspace = true }
+edition = { workspace = true }
 
 [lib]
 crate-type = ["cdylib", "lib"]
@@ -19,15 +38,13 @@ no-entrypoint = []
 default = ["solana-security-txt"]
 
 [dependencies]
+solana-program = { workspace = true }
+borsh = { workspace = true }
 bytemuck = "^1.14.3"
 num_enum = "^0.7.2"
-solana-program = "^1.16"
 thiserror = "^1.0.57"
 paste = "^1.0"
 solana-security-txt = { version = "1.1.1", optional = true }
-borsh = "0.10.3"
-
-
 
 [dev-dependencies]
 base64 = "0.22.0"

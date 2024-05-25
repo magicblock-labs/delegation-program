@@ -12,7 +12,8 @@ use solana_program::{
 use crate::consts::{BUFFER, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitRecord, DelegateAccountSeeds, DelegationRecord};
-use crate::utils::{close_pda, create_pda, AccountDeserialize};
+use crate::utils::{close_pda, create_pda};
+use crate::utils_account::AccountDeserialize;
 use crate::verify_state::verify_state;
 
 /// Undelegate a delegated Pda
@@ -101,7 +102,7 @@ pub fn process_undelegate(
 
     // CPI to the owner program to re-open the PDA
     let signer_seeds: &[&[&[u8]]] = &[&[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]]];
-    call_external_undelegate(
+    cpi_external_undelegate(
         payer,
         delegated_account,
         buffer,
@@ -120,7 +121,7 @@ pub fn process_undelegate(
     Ok(())
 }
 
-fn call_external_undelegate<'a, 'info>(
+fn cpi_external_undelegate<'a, 'info>(
     payer: &'a AccountInfo<'info>,
     account_to_undelegate: &'a AccountInfo<'info>,
     buffer: &'a AccountInfo<'info>,
@@ -136,26 +137,10 @@ fn call_external_undelegate<'a, 'info>(
     let close_instruction = Instruction {
         program_id: *program_id,
         accounts: vec![
-            AccountMeta {
-                pubkey: *account_to_undelegate.key,
-                is_signer: false,
-                is_writable: true,
-            },
-            AccountMeta {
-                pubkey: *buffer.key,
-                is_signer: true,
-                is_writable: true,
-            },
-            AccountMeta {
-                pubkey: *payer.key,
-                is_signer: true,
-                is_writable: true,
-            },
-            AccountMeta {
-                pubkey: *system_program.key,
-                is_signer: false,
-                is_writable: false,
-            },
+            AccountMeta::new(*account_to_undelegate.key, false),
+            AccountMeta::new(*buffer.key, true),
+            AccountMeta::new(*payer.key, true),
+            AccountMeta::new_readonly(*system_program.key, false),
         ],
         data,
     };

@@ -14,7 +14,7 @@ use crate::consts::{COMMIT_RECORD, COMMIT_STATE, DELEGATION_RECORD};
 use crate::loaders::{load_initialized_pda, load_owned_pda, load_signer, load_uninitialized_pda};
 use crate::state::CommitRecord;
 use crate::utils::create_pda;
-use crate::utils::{AccountDeserialize, Discriminator};
+use crate::utils_account::{AccountDeserialize, Discriminator};
 
 /// Commit a new state of a delegated Pda
 ///

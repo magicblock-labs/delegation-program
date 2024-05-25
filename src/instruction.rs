@@ -105,7 +105,6 @@ pub fn commit_state(
 }
 
 /// Builds a finalize state instruction.
-#[allow(clippy::too_many_arguments)]
 pub fn finalize(
     payer: Pubkey,
     delegated_account: Pubkey,

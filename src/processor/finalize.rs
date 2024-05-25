@@ -11,7 +11,8 @@ use solana_program::{
 
 use crate::loaders::{load_owned_pda, load_program, load_signer};
 use crate::state::{CommitRecord, DelegationRecord};
-use crate::utils::{close_pda, AccountDeserialize};
+use crate::utils::close_pda;
+use crate::utils_account::AccountDeserialize;
 use crate::verify_state::verify_state;
 
 /// Finalize a committed state, after validation, to a delegated account

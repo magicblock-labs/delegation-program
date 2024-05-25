@@ -1093,6 +1093,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "delegation-program-sdk"
+version = "0.0.1"
+dependencies = [
+ "borsh 0.10.3",
+ "solana-program",
+]
+
+[[package]]
 name = "der"
 version = "0.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"

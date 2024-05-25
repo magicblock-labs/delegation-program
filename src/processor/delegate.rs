@@ -16,7 +16,7 @@ use crate::loaders::{
 };
 use crate::state::{DelegateAccountSeeds, DelegationRecord};
 use crate::utils::create_pda;
-use crate::utils::{AccountDeserialize, Discriminator};
+use crate::utils_account::{AccountDeserialize, Discriminator};
 
 /// Delegate an account
 ///

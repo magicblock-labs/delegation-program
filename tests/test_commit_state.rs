@@ -13,7 +13,7 @@ use solana_sdk::{
 };
 
 use dlp::state::CommitRecord;
-use dlp::utils::AccountDeserialize;
+use dlp::utils_account::AccountDeserialize;
 
 pub const DELEGATED_PDA_ID: Pubkey = pubkey!("8k2V7EzQtNg38Gi9HK5ZtQYp1YpGKNGrMcuGa737gZX4");
 
