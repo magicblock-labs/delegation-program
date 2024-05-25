@@ -1,10 +1,11 @@
-use anchor_lang::prelude::*;
-use anchor_lang::solana_program::system_program;
 use bolt_lang::solana_program;
+use bolt_lang::solana_program::entrypoint::ProgramResult;
+use bolt_lang::solana_program::instruction::Instruction;
+use bolt_lang::solana_program::system_program;
+use bolt_lang::*;
+use dlp::instruction::DelegateAccountArgs;
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
-
-declare_program!(delegation);
 
 pub const TEST_PDA_SEED: &[u8] = b"test-pda";
 pub const BUFFER: &[u8] = b"buffer";
@@ -29,70 +30,29 @@ pub mod test_delegation {
     pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
         let pda_seeds: &[&[u8]] = &[TEST_PDA_SEED];
 
-        let buffer_seeds: &[&[u8]] = &[BUFFER, ctx.accounts.pda.key.as_ref()];
+        let [payer, pda, owner_program, buffer, delegation_record, delegate_account_seeds, delegation_program, system_program] = [
+            &ctx.accounts.payer,
+            &ctx.accounts.pda,
+            &ctx.accounts.owner_program,
+            &ctx.accounts.buffer,
+            &ctx.accounts.delegation_record,
+            &ctx.accounts.delegate_account_seeds,
+            &ctx.accounts.delegation_program,
+            &ctx.accounts.system_program,
+        ];
 
-        let (_, delegate_account_bump) = Pubkey::find_program_address(pda_seeds, &id());
-
-        let (_, buffer_pda_bump) = Pubkey::find_program_address(buffer_seeds, &id());
-
-        // Pda signer seeds
-        let delegate_account_bump_slice: &[u8] = &[delegate_account_bump];
-        let pda_signer_seeds: &[&[&[u8]]] =
-            &[&*seeds_with_bump(pda_seeds, delegate_account_bump_slice)];
-
-        // Buffer signer seeds
-        let buffer_bump_slice: &[u8] = &[buffer_pda_bump];
-        let buffer_signer_seeds: &[&[&[u8]]] =
-            &[&*seeds_with_bump(buffer_seeds, buffer_bump_slice)];
-
-        let data_len = ctx.accounts.pda.data_len();
-
-        // Create the Buffer PDA
-        create_pda(
-            &ctx.accounts.buffer.to_account_info(),
-            &id(),
-            data_len,
-            buffer_signer_seeds,
-            &ctx.accounts.system_program.to_account_info(),
-            &ctx.accounts.payer.to_account_info(),
+        delegate_account(
+            payer,
+            pda,
+            owner_program,
+            buffer,
+            delegation_record,
+            delegate_account_seeds,
+            delegation_program,
+            system_program,
+            pda_seeds,
         )?;
 
-        // Copy the date to the buffer PDA
-        let mut buffer_data = ctx.accounts.buffer.try_borrow_mut_data()?;
-        let new_data = ctx.accounts.pda.try_borrow_data()?.to_vec().clone();
-        (*buffer_data).copy_from_slice(&new_data);
-        drop(buffer_data);
-
-        // Close the PDA account
-        close_account(&ctx.accounts.pda, &ctx.accounts.payer.to_account_info())?;
-
-        // Re-create the PDA setting the delegation program as owner
-        create_pda(
-            &ctx.accounts.pda.to_account_info(),
-            ctx.accounts.delegation_program.key,
-            data_len,
-            pda_signer_seeds,
-            &ctx.accounts.system_program.to_account_info(),
-            &ctx.accounts.payer.to_account_info(),
-        )?;
-
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.delegation_program.to_account_info(),
-            delegation::cpi::accounts::Delegate {
-                payer: ctx.accounts.payer.to_account_info(),
-                delegate_account: ctx.accounts.pda.to_account_info(),
-                owner_program: ctx.accounts.owner_program.to_account_info(),
-                buffer: ctx.accounts.buffer.to_account_info(),
-                delegation_record: ctx.accounts.delegation_record.to_account_info(),
-                delegate_account_seeds: ctx.accounts.delegate_account_seeds.to_account_info(),
-                system_program: ctx.accounts.system_program.to_account_info(),
-            },
-            pda_signer_seeds,
-        );
-
-        let seeds_vec: Vec<Vec<u8>> = pda_seeds.iter().map(|&slice| slice.to_vec()).collect();
-        delegation::cpi::delegate(cpi_ctx, 0, 3000, seeds_vec)?;
-        close_account(&ctx.accounts.buffer, &ctx.accounts.payer.to_account_info())?;
         Ok(())
     }
 
@@ -101,34 +61,21 @@ pub mod test_delegation {
         ctx: Context<InitializeAfterUndelegation>,
         account_seeds: Vec<Vec<u8>>,
     ) -> Result<()> {
-        if !ctx.accounts.buffer.is_signer {
-            return Err(ProgramError::MissingRequiredSignature.into());
-        }
+        let [delegated_account, buffer, payer, system_program] = [
+            &ctx.accounts.base_account,
+            &ctx.accounts.buffer,
+            &ctx.accounts.payer,
+            &ctx.accounts.system_program,
+        ];
 
-        let account_seeds: Vec<&[u8]> = account_seeds.iter().map(|v| v.as_slice()).collect();
-
-        let (_, account_bump) = Pubkey::find_program_address(account_seeds.as_ref(), &id());
-
-        // Account signer seeds
-        let account_bump_slice: &[u8] = &[account_bump];
-        let account_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(
-            account_seeds.as_ref(),
-            account_bump_slice,
-        )];
-
-        // Re-create the original PDA
-        create_pda(
-            &ctx.accounts.base_account.to_account_info(),
-            &id(),
-            ctx.accounts.buffer.data_len(),
-            account_signer_seeds,
-            &ctx.accounts.system_program.to_account_info(),
-            &ctx.accounts.payer.to_account_info(),
+        undelegate_account(
+            delegated_account,
+            buffer,
+            payer,
+            system_program,
+            account_seeds,
         )?;
 
-        let mut data = ctx.accounts.base_account.try_borrow_mut_data()?;
-        let buffer_data = ctx.accounts.buffer.try_borrow_data()?;
-        (*data).copy_from_slice(&buffer_data);
         Ok(())
     }
 }
@@ -163,10 +110,12 @@ pub struct InitializeAfterUndelegation<'info> {
     pub base_account: AccountInfo<'info>,
     /// CHECK:`
     #[account()]
-    pub buffer: Signer<'info>,
+    pub buffer: AccountInfo<'info>,
+    /// CHECK:
     #[account(mut)]
-    pub payer: Signer<'info>,
-    pub system_program: Program<'info, System>,
+    pub payer: AccountInfo<'info>,
+    /// CHECK:
+    pub system_program: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -187,6 +136,126 @@ pub struct Increment<'info> {
 #[account]
 pub struct Counter {
     pub count: u64,
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn delegate_account<'a, 'info>(
+    payer: &'a AccountInfo<'info>,
+    pda: &'a AccountInfo<'info>,
+    owner_program: &'a AccountInfo<'info>,
+    buffer: &'a AccountInfo<'info>,
+    delegation_record: &'a AccountInfo<'info>,
+    delegate_account_seeds: &'a AccountInfo<'info>,
+    delegation_program: &'a AccountInfo<'info>,
+    system_program: &'a AccountInfo<'info>,
+    pda_seeds: &[&[u8]],
+) -> ProgramResult {
+    let buffer_seeds: &[&[u8]] = &[BUFFER, pda.key.as_ref()];
+
+    let (_, delegate_account_bump) = Pubkey::find_program_address(pda_seeds, &id());
+
+    let (_, buffer_pda_bump) = Pubkey::find_program_address(buffer_seeds, &id());
+
+    // Pda signer seeds
+    let delegate_account_bump_slice: &[u8] = &[delegate_account_bump];
+    let pda_signer_seeds: &[&[&[u8]]] =
+        &[&*seeds_with_bump(pda_seeds, delegate_account_bump_slice)];
+
+    // Buffer signer seeds
+    let buffer_bump_slice: &[u8] = &[buffer_pda_bump];
+    let buffer_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(buffer_seeds, buffer_bump_slice)];
+
+    let data_len = pda.data_len();
+
+    // Create the Buffer PDA
+    create_pda(
+        buffer,
+        &id(),
+        data_len,
+        buffer_signer_seeds,
+        system_program,
+        payer,
+    )?;
+
+    // Copy the date to the buffer PDA
+    let mut buffer_data = buffer.try_borrow_mut_data()?;
+    let new_data = pda.try_borrow_data()?.to_vec().clone();
+    (*buffer_data).copy_from_slice(&new_data);
+    drop(buffer_data);
+
+    // Close the PDA account
+    close_account(pda, payer)?;
+
+    // Re-create the PDA setting the delegation program as owner
+    create_pda(
+        pda,
+        delegation_program.key,
+        data_len,
+        pda_signer_seeds,
+        system_program,
+        payer,
+    )?;
+
+    let seeds_vec: Vec<Vec<u8>> = pda_seeds.iter().map(|&slice| slice.to_vec()).collect();
+
+    let delegation_args = DelegateAccountArgs {
+        valid_until: 0,
+        commit_frequency_ms: 1000,
+        seeds: seeds_vec,
+    };
+
+    cpi_delegate(
+        payer,
+        pda,
+        owner_program,
+        buffer,
+        delegation_record,
+        delegate_account_seeds,
+        system_program,
+        pda_signer_seeds,
+        delegation_args,
+    )?;
+
+    close_account(buffer, payer)?;
+    Ok(())
+}
+
+pub fn undelegate_account<'a, 'info>(
+    delegated_account: &'a AccountInfo<'info>,
+    buffer: &'a AccountInfo<'info>,
+    payer: &'a AccountInfo<'info>,
+    system_program: &'a AccountInfo<'info>,
+    account_signer_seeds: Vec<Vec<u8>>,
+) -> ProgramResult {
+    if !buffer.is_signer {
+        return Err(ProgramError::MissingRequiredSignature);
+    }
+
+    let account_seeds: Vec<&[u8]> = account_signer_seeds.iter().map(|v| v.as_slice()).collect();
+
+    let (_, account_bump) = Pubkey::find_program_address(account_seeds.as_ref(), &id());
+
+    // Account signer seeds
+    let account_bump_slice: &[u8] = &[account_bump];
+    let account_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(
+        account_seeds.as_ref(),
+        account_bump_slice,
+    )];
+
+    // Re-create the original PDA
+    create_pda(
+        &delegated_account.to_account_info(),
+        &id(),
+        buffer.data_len(),
+        account_signer_seeds,
+        &system_program.to_account_info(),
+        &payer.to_account_info(),
+    )?;
+
+    let mut data = delegated_account.try_borrow_mut_data()?;
+    let buffer_data = buffer.try_borrow_data()?;
+    (*data).copy_from_slice(&buffer_data);
+    Ok(())
 }
 
 fn seeds_with_bump<'a>(seeds: &'a [&'a [u8]], bump: &'a [u8]) -> Vec<&'a [u8]> {
@@ -277,4 +346,78 @@ pub fn create_pda<'a, 'info>(
     }
 
     Ok(())
+}
+
+#[allow(clippy::too_many_arguments)]
+pub fn cpi_delegate<'a, 'info>(
+    payer: &'a AccountInfo<'info>,
+    delegate_account: &'a AccountInfo<'info>,
+    owner_program: &'a AccountInfo<'info>,
+    buffer: &'a AccountInfo<'info>,
+    delegation_record: &'a AccountInfo<'info>,
+    delegated_account_seeds: &'a AccountInfo<'info>,
+    system_program: &'a AccountInfo<'info>,
+    signers_seeds: &[&[&[u8]]],
+    args: DelegateAccountArgs,
+) -> ProgramResult {
+    let mut data: Vec<u8> = vec![0u8; 8];
+    let serialized_seeds = args.try_to_vec()?;
+    data.extend_from_slice(&serialized_seeds);
+    msg!("Data: {:?}", data);
+
+    let delegation_instruction = Instruction {
+        program_id: dlp::id(),
+        accounts: vec![
+            AccountMeta {
+                pubkey: *payer.key,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: *delegate_account.key,
+                is_signer: true,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: *owner_program.key,
+                is_signer: false,
+                is_writable: false,
+            },
+            AccountMeta {
+                pubkey: *buffer.key,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: *delegation_record.key,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: *delegated_account_seeds.key,
+                is_signer: false,
+                is_writable: true,
+            },
+            AccountMeta {
+                pubkey: *system_program.key,
+                is_signer: false,
+                is_writable: false,
+            },
+        ],
+        data,
+    };
+
+    solana_program::program::invoke_signed(
+        &delegation_instruction,
+        &[
+            payer.clone(),
+            delegate_account.clone(),
+            owner_program.clone(),
+            buffer.clone(),
+            delegation_record.clone(),
+            delegated_account_seeds.clone(),
+            system_program.clone(),
+        ],
+        signers_seeds,
+    )
 }

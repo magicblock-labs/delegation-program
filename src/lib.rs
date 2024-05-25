@@ -21,7 +21,7 @@ declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 #[cfg(not(feature = "no-entrypoint"))]
 solana_program::entrypoint!(process_instruction);
 
-#[cfg(not(feature = "no-entrypoint"))]
+#[cfg(all(not(feature = "no-entrypoint"), feature = "solana-security-txt"))]
 solana_security_txt::security_txt! {
     name: "MagicBlock Delegation Program",
     project_url: "https://magicblock.gg",
