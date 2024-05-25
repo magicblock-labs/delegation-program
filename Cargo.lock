@@ -1094,7 +1094,7 @@ dependencies = [
 
 [[package]]
 name = "delegation-program-sdk"
-version = "0.1.0"
+version = "0.0.1"
 dependencies = [
  "borsh 0.10.3",
  "solana-program",
