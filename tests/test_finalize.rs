@@ -25,7 +25,7 @@ async fn test_finalize() {
 
     // Retrieve the accounts
     let delegation_record = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let committed_state_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
 
     // Save the new state data before finalizing
@@ -37,14 +37,7 @@ async fn test_finalize() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the undelegate tx
-    let ix = dlp::instruction::finalize(
-        payer.pubkey(),
-        DELEGATED_PDA_ID,
-        delegation_record,
-        committed_state_pda,
-        commit_state_record_pda,
-        COMMIT_STATE_AUTHORITY,
-    );
+    let ix = dlp::instruction::finalize(payer.pubkey(), DELEGATED_PDA_ID, COMMIT_STATE_AUTHORITY);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
