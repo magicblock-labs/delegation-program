@@ -1,10 +1,7 @@
+use crate::utils_account::{AccountDiscriminator, Discriminator};
+use crate::{impl_account_from_bytes, impl_to_bytes};
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
-
-use crate::{
-    impl_account_from_bytes, impl_to_bytes,
-    utils::{AccountDiscriminator, Discriminator},
-};
 
 /// The Delegation Record
 #[repr(C)]

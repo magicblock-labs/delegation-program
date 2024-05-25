@@ -19,4 +19,4 @@ idl-build = ["anchor-lang/idl-build"]
 [dependencies]
 bolt-lang = "0.1.5"
 anchor-lang = "0.30.0"
-delegation-program = { path = "../../../..", default-features = false, features = ["no-entrypoint"] }
+delegation-program-sdk = { path = "../../../../sdk" }

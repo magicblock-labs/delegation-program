@@ -14,6 +14,7 @@ pub mod pda;
 mod processor;
 pub mod state;
 pub mod utils;
+pub mod utils_account;
 pub mod verify_state;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");

@@ -11,7 +11,7 @@ use solana_sdk::{
 use dlp::consts::BUFFER;
 use dlp::pda::{delegated_account_seeds_pda_from_pubkey, delegation_record_pda_from_pubkey};
 use dlp::state::DelegationRecord;
-use dlp::utils::AccountDeserialize;
+use dlp::utils_account::AccountDeserialize;
 
 use crate::fixtures::{
     DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR,
@@ -104,7 +104,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup program to test delegation
-    let data = read_file(&"tests/buffers/test_delegation.so");
+    let data = read_file("tests/buffers/test_delegation.so");
     program_test.add_account(
         DELEGATED_PDA_OWNER_ID,
         Account {

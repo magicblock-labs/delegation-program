@@ -5,11 +5,11 @@ use solana_program::{
 
 /// Creates a new pda
 #[inline(always)]
-pub(crate) fn create_pda<'a, 'info>(
+pub fn create_pda<'a, 'info>(
     target_account: &'a AccountInfo<'info>,
     owner: &Pubkey,
     space: usize,
-    pda_seeds: &[&[u8]],
+    pda_seeds: &[&[&[u8]]],
     system_program: &'a AccountInfo<'info>,
     payer: &'a AccountInfo<'info>,
 ) -> ProgramResult {
@@ -29,7 +29,7 @@ pub(crate) fn create_pda<'a, 'info>(
                 target_account.clone(),
                 system_program.clone(),
             ],
-            &[pda_seeds],
+            pda_seeds,
         )?;
     } else {
         // Otherwise, if balance is nonzero:
@@ -59,7 +59,7 @@ pub(crate) fn create_pda<'a, 'info>(
                 target_account.as_ref().clone(),
                 system_program.as_ref().clone(),
             ],
-            &[pda_seeds],
+            pda_seeds,
         )?;
 
         // 3) assign our program as the owner
@@ -69,7 +69,7 @@ pub(crate) fn create_pda<'a, 'info>(
                 target_account.as_ref().clone(),
                 system_program.as_ref().clone(),
             ],
-            &[pda_seeds],
+            pda_seeds,
         )?;
     }
 
@@ -78,7 +78,7 @@ pub(crate) fn create_pda<'a, 'info>(
 
 /// Close PDA
 #[inline(always)]
-pub(crate) fn close_pda<'a, 'info>(
+pub fn close_pda<'a, 'info>(
     target_account: &'a AccountInfo<'info>,
     destination: &'a AccountInfo<'info>,
 ) -> ProgramResult {
@@ -91,4 +91,13 @@ pub(crate) fn close_pda<'a, 'info>(
 
     target_account.assign(&solana_program::system_program::ID);
     target_account.realloc(0, false).map_err(Into::into)
+}
+
+/// Seeds with bump
+#[inline(always)]
+pub fn seeds_with_bump<'a>(seeds: &'a [&'a [u8]], bump: &'a [u8]) -> Vec<&'a [u8]> {
+    let mut combined: Vec<&'a [u8]> = Vec::with_capacity(seeds.len() + 1);
+    combined.extend_from_slice(seeds);
+    combined.push(bump);
+    combined
 }
