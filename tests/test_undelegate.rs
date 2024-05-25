@@ -1,6 +1,6 @@
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program::rent::Rent;
-use solana_program_test::{BanksClient, processor, ProgramTest, read_file};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -8,9 +8,8 @@ use solana_sdk::{
 };
 
 use dlp::pda::{
-    committed_state_pda_from_pubkey,
-    committed_state_record_pda_from_pubkey, delegated_account_seeds_pda_from_pubkey,
-    delegation_record_pda_from_pubkey,
+    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    delegated_account_seeds_pda_from_pubkey, delegation_record_pda_from_pubkey,
 };
 
 use crate::fixtures::{

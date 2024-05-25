@@ -1,9 +1,5 @@
-use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
-    delegation_record_pda_from_pubkey,
-};
 use solana_program::pubkey::Pubkey;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
@@ -12,6 +8,10 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
+use dlp::pda::{
+    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    delegation_record_pda_from_pubkey,
+};
 use dlp::state::CommitRecord;
 use dlp::utils_account::AccountDeserialize;
 
@@ -24,12 +24,7 @@ async fn test_commit_new_state() {
     let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(
-        payer.pubkey(),
-        DELEGATED_PDA_ID,
-        system_program::id(),
-        new_state.clone(),
-    );
+    let ix = dlp::instruction::commit_state(payer.pubkey(), DELEGATED_PDA_ID, new_state.clone());
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);

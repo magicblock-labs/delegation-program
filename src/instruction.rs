@@ -8,7 +8,11 @@ use solana_program::{
 };
 
 use crate::consts::BUFFER;
-use crate::pda::{buffer_pda_from_pubkey, committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey, delegated_account_seeds_pda_from_pubkey, delegation_record_pda_from_pubkey};
+use crate::pda::{
+    buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
+    committed_state_record_pda_from_pubkey, delegated_account_seeds_pda_from_pubkey,
+    delegation_record_pda_from_pubkey,
+};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateAccountArgs {
@@ -81,7 +85,6 @@ pub fn delegate(
 pub fn commit_state(
     authority: Pubkey,
     delegated_account: Pubkey,
-    system_program: Pubkey,
     committed_state_data: Vec<u8>,
 ) -> Instruction {
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
@@ -95,18 +98,14 @@ pub fn commit_state(
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
-            AccountMeta::new(system_program, false),
+            AccountMeta::new(system_program::id(), false),
         ],
         data: [DlpInstruction::CommitState.to_vec(), committed_state_data].concat(),
     }
 }
 
 /// Builds a finalize state instruction.
-pub fn finalize(
-    payer: Pubkey,
-    delegated_account: Pubkey,
-    reimbursement: Pubkey,
-) -> Instruction {
+pub fn finalize(payer: Pubkey, delegated_account: Pubkey, reimbursement: Pubkey) -> Instruction {
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
