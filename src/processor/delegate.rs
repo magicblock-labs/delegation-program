@@ -99,10 +99,12 @@ pub fn process_delegate(
     delegation.commit_frequency_ms = args.commit_frequency_ms as u64;
 
     // Initialize the account seeds PDA
+    let seeds_struct = DelegateAccountSeeds { seeds: args.seeds };
+    let serialized_seeds_struct = seeds_struct.try_to_vec()?;
     create_pda(
         delegate_account_seeds,
         &crate::id(),
-        size_of::<DelegateAccountSeeds>(),
+        serialized_seeds_struct.len(),
         &[
             DELEGATED_ACCOUNT_SEEDS,
             &delegate_account.key.to_bytes(),
@@ -113,8 +115,8 @@ pub fn process_delegate(
     )?;
 
     // Copy the seeds to the delegated account seeds PDA
-    let seeds_struct = DelegateAccountSeeds { seeds: args.seeds };
-    seeds_struct.serialize(&mut &mut delegate_account_seeds.try_borrow_mut_data()?.as_mut())?;
+    let mut seeds_data = delegate_account_seeds.try_borrow_mut_data()?;
+    (*seeds_data).copy_from_slice(serialized_seeds_struct.as_slice());
 
     // Copy the data from the buffer into the original account
     let mut account_data = delegate_account.try_borrow_mut_data()?;
