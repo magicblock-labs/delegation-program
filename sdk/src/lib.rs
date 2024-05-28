@@ -30,6 +30,8 @@ pub fn delegate_account<'a, 'info>(
     delegation_program: &'a AccountInfo<'info>,
     system_program: &'a AccountInfo<'info>,
     pda_seeds: &[&[u8]],
+    valid_until: i64,
+    commit_frequency_ms: u32,
 ) -> ProgramResult {
     let buffer_seeds: &[&[u8]] = &[BUFFER, pda.key.as_ref()];
 
@@ -80,8 +82,8 @@ pub fn delegate_account<'a, 'info>(
     let seeds_vec: Vec<Vec<u8>> = pda_seeds.iter().map(|&slice| slice.to_vec()).collect();
 
     let delegation_args = DelegateAccountArgs {
-        valid_until: 0,
-        commit_frequency_ms: 1000,
+        valid_until,
+        commit_frequency_ms,
         seeds: seeds_vec,
     };
 
