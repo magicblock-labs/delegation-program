@@ -46,6 +46,8 @@ pub mod test_delegation {
             delegation_program,
             system_program,
             pda_seeds,
+            0,
+            1000
         )?;
 
         Ok(())
