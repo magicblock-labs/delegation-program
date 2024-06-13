@@ -2,7 +2,7 @@ use proc_macro::TokenStream;
 
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
-use syn::{ItemMod, parse_macro_input};
+use syn::{parse_macro_input, ItemMod};
 
 /// This macro attribute is used to inject instructions and struct needed from the delegation program.
 ///
@@ -79,14 +79,12 @@ fn modify_component_module(mut module: ItemMod) -> ItemMod {
     let (imports, undelegate_fn, undelegate_struct) = generate_undelegate();
     module.content = module.content.map(|(brace, mut items)| {
         items.extend(
-            vec![
-                imports,
-                undelegate_fn,
-                undelegate_struct,
-            ]
-            .into_iter()
-            .map(|item| syn::parse2(item).unwrap_or_else(|e| panic!("Failed to parse item: {}", e)))
-            .collect::<Vec<_>>(),
+            vec![imports, undelegate_fn, undelegate_struct]
+                .into_iter()
+                .map(|item| {
+                    syn::parse2(item).unwrap_or_else(|e| panic!("Failed to parse item: {}", e))
+                })
+                .collect::<Vec<_>>(),
         );
         (brace, items)
     });
@@ -96,7 +94,7 @@ fn modify_component_module(mut module: ItemMod) -> ItemMod {
 /// Generates the undelegate function and struct.
 fn generate_undelegate() -> (TokenStream2, TokenStream2, TokenStream2) {
     (
-        quote!{
+        quote! {
             use delegation_program_sdk::undelegate_account;
         },
         quote! {
