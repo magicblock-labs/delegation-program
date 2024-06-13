@@ -92,6 +92,7 @@ jobs:
             NO_VERIFY_FLAG="--no-verify"
           fi      
 
+          cargo publish $DRY_RUN_FLAG --manifest-path=sdk/delegate/Cargo.toml --token $CRATES_TOKEN $NO_VERIFY_FLAG
           cargo publish $DRY_RUN_FLAG --manifest-path=sdk/Cargo.toml --token $CRATES_TOKEN $NO_VERIFY_FLAG
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
