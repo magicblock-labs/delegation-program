@@ -1,0 +1,2 @@
+export const DELEGATION_PROGRAM_ID =
+  "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh";

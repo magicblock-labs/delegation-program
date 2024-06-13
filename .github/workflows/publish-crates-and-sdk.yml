@@ -1,0 +1,114 @@
+name: Publish Crates & SDKs
+on:
+  release:
+    types: [ published ]
+  push:
+    branches:
+      - 'release/v*'
+  workflow_dispatch:
+
+env:
+  solana_version: v1.18.8
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        name: cache solana cli
+        id: cache-solana
+        with:
+          path: |
+            ~/.cache/solana/
+            ~/.local/share/solana/
+          key: solana-${{ runner.os }}-v0000-${{ env.solana_version }}
+
+      - name: install essentials
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config build-essential libudev-dev
+          npm install --global yarn
+
+      - name: install rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+
+      - name: Cache rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: install solana
+        if: steps.cache-solana.outputs.cache-hit != 'true'
+        run: |
+          sh -c "$(curl -sSfL https://release.solana.com/${{ env.solana_version }}/install)"
+          export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+          solana --version
+
+  lint:
+    needs: install
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run fmt
+        run: cargo fmt -- --check
+      - name: Run clippy
+        run: cargo clippy -- --deny=warnings
+
+  publish:
+    needs: [install, lint]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/cache@v4
+        name: cache solana cli
+        id: cache-solana
+        with:
+          path: |
+            ~/.cache/solana/
+            ~/.local/share/solana/
+          key: solana-${{ runner.os }}-v0000-${{ env.solana_version }}
+
+      - name: setup solana
+        run: |
+          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+          solana --version
+          solana-keygen new --silent --no-bip39-passphrase
+
+      - name: run build
+        run: |
+          cargo build
+
+      - name: cargo publish
+        run: |
+          DRY_RUN_FLAG=""
+          if [ "${DRY_RUN}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          
+          if [ "${DRY_RUN}" = "true" ]; then
+            NO_VERIFY_FLAG="--no-verify"
+          fi      
+
+          cargo publish $DRY_RUN_FLAG --manifest-path=sdk/Cargo.toml --token $CRATES_TOKEN $NO_VERIFY_FLAG
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+          DRY_RUN: ${{ env.DRY_RUN }}
+
+      - name: npm publish
+        run: |
+          npm install --global eslint@^8.33.0
+          npm install
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          npm set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
+          cd sdk/ts/ && npm run build && npm run lint:fix
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "Running npm publish in dry-run mode"
+            npm publish --access public --dry-run
+          else
+            npm publish --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

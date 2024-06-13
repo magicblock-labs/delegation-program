@@ -15,6 +15,7 @@ keywords = ["solana", "crypto", "delegation", "ephemeral-rollups", "magicblock"]
 [workspace.dependencies]
 solana-program = "^1.16"
 borsh = "0.10.3"
+delegation-sdk-attribute-delegate = { path = "sdk/delegate", version = "0.1.0" }
 
 [package]
 name = "delegation-program"

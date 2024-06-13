@@ -1,10 +1,11 @@
 use bolt_lang::*;
-use delegation_program_sdk::{delegate_account, undelegate_account};
+use delegation_program_sdk::{delegate_account, delegate};
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
 pub const TEST_PDA_SEED: &[u8] = b"test-pda";
 
+#[delegate]
 #[program]
 pub mod test_delegation {
     use super::*;
@@ -52,30 +53,6 @@ pub mod test_delegation {
 
         Ok(())
     }
-
-    /// Undelegate the account
-    pub fn process_undelegation(
-        ctx: Context<InitializeAfterUndelegation>,
-        account_seeds: Vec<Vec<u8>>,
-    ) -> Result<()> {
-        let [delegated_account, buffer, payer, system_program] = [
-            &ctx.accounts.base_account,
-            &ctx.accounts.buffer,
-            &ctx.accounts.payer,
-            &ctx.accounts.system_program,
-        ];
-
-        undelegate_account(
-            delegated_account,
-            &id(),
-            buffer,
-            payer,
-            system_program,
-            account_seeds,
-        )?;
-
-        Ok(())
-    }
 }
 
 #[derive(Accounts)]
@@ -98,21 +75,6 @@ pub struct DelegateInput<'info> {
     /// CHECK:`
     pub delegation_program: AccountInfo<'info>,
     /// CHECK:`
-    pub system_program: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct InitializeAfterUndelegation<'info> {
-    /// CHECK:`
-    #[account(mut)]
-    pub base_account: AccountInfo<'info>,
-    /// CHECK:`
-    #[account()]
-    pub buffer: AccountInfo<'info>,
-    /// CHECK:
-    #[account(mut)]
-    pub payer: AccountInfo<'info>,
-    /// CHECK:
     pub system_program: AccountInfo<'info>,
 }
 

@@ -11,3 +11,6 @@ tests/integration/node_modules
 tests/integration/test-ledger
 **/*.rs.bk
 
+sdk/ts/lib
+sdk/ts/node_modules
+
