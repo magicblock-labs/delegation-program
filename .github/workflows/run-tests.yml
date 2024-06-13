@@ -88,6 +88,7 @@ jobs:
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           npm install -g @magicblock-labs/bolt-cli
+          cd sdk/ts && npm install --legacy-peer-deps && npm run build && npm run lint:fix && cd ../..
           cd tests/integration 
           npm install
           bolt test
