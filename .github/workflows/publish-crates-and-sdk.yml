@@ -1,9 +1,11 @@
-name: Run Tests
+name: Publish Crates & SDKs
 on:
+  release:
+    types: [ published ]
   push:
     branches:
-      - main
-  pull_request:
+      - 'release/v*'
+  workflow_dispatch:
 
 env:
   solana_version: v1.18.8
@@ -54,7 +56,7 @@ jobs:
       - name: Run clippy
         run: cargo clippy -- --deny=warnings
 
-  test:
+  publish:
     needs: [install, lint]
     runs-on: ubuntu-latest
 
@@ -79,16 +81,35 @@ jobs:
         run: |
           cargo build
 
-      - name: run tests
+      - name: cargo publish
         run: |
-          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          cargo test-sbf
+          DRY_RUN_FLAG=""
+          if [ "${DRY_RUN}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+          fi
+          
+          if [ "${DRY_RUN}" = "true" ]; then
+            NO_VERIFY_FLAG="--no-verify"
+          fi      
 
-      - name: run integration tests
+          cargo publish $DRY_RUN_FLAG --manifest-path=sdk/delegate/Cargo.toml --token $CRATES_TOKEN $NO_VERIFY_FLAG
+          cargo publish $DRY_RUN_FLAG --manifest-path=sdk/Cargo.toml --token $CRATES_TOKEN $NO_VERIFY_FLAG
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+          DRY_RUN: ${{ env.DRY_RUN }}
+
+      - name: npm publish
         run: |
-          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          npm install -g @magicblock-labs/bolt-cli
-          cd sdk/ts && npm install --legacy-peer-deps && npm run build && npm run lint:fix && cd ../..
-          cd tests/integration 
+          npm install --global eslint@^8.33.0
           npm install
-          bolt test
+          echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
+          npm set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
+          cd sdk/ts/ && npm run build && npm run lint:fix
+          if [ "${DRY_RUN}" = "true" ]; then
+            echo "Running npm publish in dry-run mode"
+            npm publish --access public --dry-run
+          else
+            npm publish --access public
+          fi
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

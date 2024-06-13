@@ -5,6 +5,8 @@ use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
+pub use delegation_sdk_attribute_delegate::delegate;
+
 // TODO: import from the delegation program crate once open-sourced
 use crate::consts::BUFFER;
 use crate::types::DelegateAccountArgs;

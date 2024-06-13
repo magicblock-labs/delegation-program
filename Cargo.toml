@@ -13,6 +13,10 @@ readme = "./README.md"
 keywords = ["solana", "crypto", "delegation", "ephemeral-rollups", "magicblock"]
 
 [workspace.dependencies]
+
+delegation-sdk-attribute-delegate = { path = "sdk/delegate", version = "0.1.0" }
+
+## External crates
 solana-program = "^1.16"
 borsh = "0.10.3"
 
