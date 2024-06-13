@@ -19,6 +19,9 @@ case "$(uname)" in
   Darwin*) sedi=(-i '')
 esac
 
+# Update the version for all crates in the Cargo.toml workspace.dependencies section
+sed "${sedi[@]}" "/\[workspace.dependencies\]/,/\## External crates/s/version = \"=.*\"/version = \"=$version\"/" Cargo.toml
+
 # Update the version in clients/bolt-sdk/package.json
 jq --arg version "$version" '.version = $version' sdk/ts/package.json > temp.json && mv temp.json sdk/ts/package.json
 
