@@ -93,7 +93,10 @@ pub fn process_undelegate(
     create_pda(
         buffer,
         &crate::id(),
-        committed_state_account.data_len(),
+        match is_committed{
+            true  => committed_state_account.data_len(),
+            false => delegated_account.data_len()
+        },
         &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
         system_program,
         payer,

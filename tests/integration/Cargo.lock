@@ -893,7 +893,7 @@ dependencies = [
 
 [[package]]
 name = "delegation-program-sdk"
-version = "0.0.2"
+version = "0.1.0"
 dependencies = [
  "borsh 0.10.3",
  "delegation-sdk-attribute-delegate",
