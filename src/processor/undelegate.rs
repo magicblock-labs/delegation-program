@@ -9,12 +9,11 @@ use solana_program::{
     system_program, {self},
 };
 
-use crate::consts::{BUFFER, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
+use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitRecord, DelegateAccountSeeds, DelegationRecord};
 use crate::utils::{close_pda, create_pda};
 use crate::utils_account::AccountDeserialize;
-use crate::verify_state::verify_state;
 
 /// Undelegate a delegated Pda
 ///
@@ -24,8 +23,8 @@ use crate::verify_state::verify_state;
 /// - The CPI will be signed by the buffer PDA and will call the external program
 ///   using the discriminator EXTERNAL_UNDELEGATE_DISCRIMINATOR
 /// 4. Close the buffer PDA
-/// 5. Close the state diff account
-/// 6. Close the commit state record
+/// 5. Close the state diff account (if exists)
+/// 6. Close the commit state record (if exists)
 /// 7. Close the delegation record
 ///
 ///
@@ -43,25 +42,46 @@ pub fn process_undelegate(
 
     load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_owned_pda(committed_state_account, &crate::id())?;
-    load_owned_pda(committed_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
     load_owned_pda(delegated_account_seeds, &crate::id())?;
     load_program(system_program, system_program::id())?;
+
+    // Check if the committed state is owned by the system program => no committed state
+    let is_committed = if committed_state_account.owner.eq(&system_program::id())
+        && committed_state_record.owner.eq(&system_program::id())
+    {
+        load_uninitialized_pda(
+            committed_state_account,
+            &[COMMIT_STATE, &delegated_account.key.to_bytes()],
+            &crate::id(),
+        )?;
+        load_uninitialized_pda(
+            committed_state_record,
+            &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
+            &crate::id(),
+        )?;
+        false
+    } else {
+        load_owned_pda(committed_state_account, &crate::id())?;
+        load_owned_pda(committed_state_record, &crate::id())?;
+        true
+    };
 
     // Load delegation record
     let delegation_data = delegation_record.try_borrow_data()?;
     let delegation = DelegationRecord::try_from_bytes(&delegation_data)?;
 
-    // Load committed state
     let commit_record_data = committed_state_record.try_borrow_data()?;
-    let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
+    let commit_record = if is_committed {
+        let record = CommitRecord::try_from_bytes(&commit_record_data)?;
+        Some(record)
+    } else {
+        None
+    };
 
     // Load delegated account seeds
     let account_seeds =
         DelegateAccountSeeds::deserialize(&mut &**delegated_account_seeds.data.borrow())?;
-
-    verify_state(delegation, commit_record, committed_state_account)?;
 
     let buffer_bump: u8 = load_uninitialized_pda(
         buffer,
@@ -73,7 +93,10 @@ pub fn process_undelegate(
     create_pda(
         buffer,
         &crate::id(),
-        committed_state_account.data_len(),
+        match is_committed {
+            true => committed_state_account.data_len(),
+            false => delegated_account.data_len(),
+        },
         &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
         system_program,
         payer,
@@ -83,15 +106,20 @@ pub fn process_undelegate(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    if !commit_record.account.eq(delegated_account.key) {
-        return Err(ProgramError::InvalidAccountData);
+    if let Some(record) = commit_record {
+        if !record.account.eq(delegated_account.key) {
+            return Err(ProgramError::InvalidAccountData);
+        }
     }
 
     let mut buffer_data = buffer.try_borrow_mut_data()?;
-    let new_data = committed_state_account.try_borrow_data()?;
+    let new_data = match is_committed {
+        true => committed_state_account.try_borrow_data()?,
+        false => delegated_account.try_borrow_data()?,
+    };
     (*buffer_data).copy_from_slice(&new_data);
 
-    // Dropping references
+    // Dropping References
     drop(commit_record_data);
     drop(delegation_data);
     drop(buffer_data);
