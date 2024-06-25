@@ -32,7 +32,7 @@ pub mod test_delegation {
                 &ctx.accounts.counter,
                 &ctx.accounts.delegation_record,
                 &ctx.accounts.delegation_metadata,
-                &ctx.accounts.counter,
+                &ctx.accounts.buffer,
                 &ctx.accounts.delegation_program,
                 &id()
             )?;

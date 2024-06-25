@@ -1,4 +1,4 @@
-use solana_program::{self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey};
 
 use instruction::*;
 use processor::*;
