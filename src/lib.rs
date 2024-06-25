@@ -1,7 +1,4 @@
-use solana_program::{
-    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult,
-    program_error::ProgramError, pubkey::Pubkey,
-};
+use solana_program::{self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg, program_error::ProgramError, pubkey::Pubkey};
 
 use instruction::*;
 use processor::*;
@@ -37,6 +34,7 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+
     if program_id.ne(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
@@ -55,6 +53,7 @@ pub fn process_instruction(
         DlpInstruction::CommitState => process_commit_state(program_id, accounts, data)?,
         DlpInstruction::Finalize => process_finalize(program_id, accounts, data)?,
         DlpInstruction::Undelegate => process_undelegate(program_id, accounts, data)?,
+        DlpInstruction::AllowUndelegate => process_allow_undelegate(program_id, accounts, data)?,
     }
 
     Ok(())

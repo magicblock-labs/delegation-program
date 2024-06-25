@@ -1,9 +1,9 @@
 import { PublicKey } from "@solana/web3.js";
 import {
-  DELEGATED_ACCOUNT_SEEDS,
+  SEED_DELEGATION_METADATA,
   SEED_BUFFER_PDA,
   SEED_COMMIT_STATE_RECORD_PDA,
-  SEED_DELEGATION_PDA,
+  SEED_DELEGATION,
   SEED_STATE_DIFF_PDA,
 } from "./seeds";
 
@@ -43,12 +43,12 @@ function getAccounts(
   const pdaBytes = accountToDelegate.toBytes();
 
   const [delegationPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from(SEED_DELEGATION_PDA), pdaBytes],
+    [Buffer.from(SEED_DELEGATION), pdaBytes],
     new PublicKey(DELEGATION_PROGRAM_ID),
   );
 
-  const [delegatedAccountSeedsPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from(DELEGATED_ACCOUNT_SEEDS), pdaBytes],
+  const [delegationMetadata] = PublicKey.findProgramAddressSync(
+    [Buffer.from(SEED_DELEGATION_METADATA), pdaBytes],
     new PublicKey(DELEGATION_PROGRAM_ID),
   );
 
@@ -70,7 +70,7 @@ function getAccounts(
   );
   return {
     delegationPda,
-    delegatedAccountSeedsPda,
+    delegationMetadata,
     bufferPda,
     commitStateRecordPda,
     commitStatePda,

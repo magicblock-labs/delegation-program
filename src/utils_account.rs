@@ -6,7 +6,7 @@ use solana_program::program_error::ProgramError;
 pub enum AccountDiscriminator {
     DelegationRecord = 100,
     CommitRecord = 101,
-    DelegatedAccountSeeds = 102,
+    DelegatedMetadata = 102,
 }
 
 pub trait Discriminator {

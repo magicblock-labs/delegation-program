@@ -13,9 +13,6 @@ pub struct DelegationRecord {
     /// The original owner of the account
     pub owner: Pubkey,
 
-    /// The delegation validity
-    pub valid_until: i64,
-
     /// The state update frequency in milliseconds
     pub commit_frequency_ms: u64,
 }

@@ -14,13 +14,14 @@ use syn::{parse_macro_input, ItemMod};
 /// pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
 ///     let pda_seeds: &[&[u8]] = &[TEST_PDA_SEED];
 ///
-///     let [payer, pda, owner_program, buffer, delegation_record, delegate_account_seeds, delegation_program, system_program] = [
+///     let [payer, pda, owner_program, buffer, delegation_record, delegation_metadata, delegation_program, system_program] = [
 ///         &ctx.accounts.payer,
 ///         &ctx.accounts.pda,
 ///         &ctx.accounts.owner_program,
 ///         &ctx.accounts.buffer,
+///         &ctx.accounts.buffer,
 ///         &ctx.accounts.delegation_record,
-///         &ctx.accounts.delegate_account_seeds,
+///         &ctx.accounts.delegation_metadata,
 ///         &ctx.accounts.delegation_program,
 ///         &ctx.accounts.system_program,
 ///     ];
@@ -31,7 +32,7 @@ use syn::{parse_macro_input, ItemMod};
 ///         owner_program,
 ///         buffer,
 ///         delegation_record,
-///         delegate_account_seeds,
+///         delegation_metadata,
 ///         delegation_program,
 ///         system_program,
 ///         pda_seeds,
@@ -58,7 +59,7 @@ use syn::{parse_macro_input, ItemMod};
 ///     pub delegation_record: AccountInfo<'info>,
 ///     /// CHECK: The delegation account seeds
 ///     #[account(mut)]
-///     pub delegate_account_seeds: AccountInfo<'info>,
+///     pub delegation_metadata: AccountInfo<'info>,
 ///     /// CHECK: The delegation program
 ///     pub delegation_program: AccountInfo<'info>,
 ///     /// CHECK: The system program

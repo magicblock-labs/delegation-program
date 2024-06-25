@@ -57,7 +57,7 @@ describe("TestDelegation", () => {
 
     it("Delegate a PDA", async () => {
 
-        const { delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         // Delegate, Close PDA, and Lock PDA in a single instruction
         const tx = await testDelegation.methods
@@ -66,7 +66,7 @@ describe("TestDelegation", () => {
                 payer: provider.wallet.publicKey,
                 pda: pda,
                 ownerProgram: testDelegation.programId,
-                delegateAccountSeeds: delegatedAccountSeedsPda,
+                delegationMetadata: delegationMetadata,
                 buffer: bufferPda,
                 delegationRecord: delegationPda,
                 delegationProgram: DELEGATION_PROGRAM_ID,
@@ -78,15 +78,15 @@ describe("TestDelegation", () => {
         // const account = await provider.connection.getAccountInfo(delegationPda);
         // console.log("Delegation record PDA", account.data.toJSON());
 
-        // Print delegateAccountSeeds account bytes
-        // const account = await provider.connection.getAccountInfo(delegatedAccountSeedsPda);
-        // console.log("Delegation account seeds PDA", account.data.toJSON());
-        // console.log("Delegation account seeds PDA: ", delegatedAccountSeedsPda.toBase58());
+        // Print delegateAccountMetadata account bytes
+        // const account = await provider.connection.getAccountInfo(delegationMetadata);
+        // console.log("Delegation account metadata", account.data.toJSON());
+        // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
     });
 
     it("Commit a new state to the PDA", async () => {
 
-        const { delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         // @ts-ignore
         var tx = await dlpProgram.methods
@@ -109,7 +109,7 @@ describe("TestDelegation", () => {
 
     it("Finalize account state", async () => {
 
-        const { delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         var tx = await dlpProgram.methods
             .finalize()
@@ -127,7 +127,7 @@ describe("TestDelegation", () => {
 
     it("Commit a new state to the PDA", async () => {
 
-        const { delegationPda, delegatedAccountSeedsPda, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         var tx = await dlpProgram.methods
             .commitState(Buffer.alloc(15).fill(7))
@@ -141,6 +141,20 @@ describe("TestDelegation", () => {
             }).rpc({skipPreflight: true});
 
         console.log("Commit state signature", tx);
+    });
+
+    it("Allow Undelegation", async () => {
+        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const txSign = await testDelegation.methods
+            .allowUndelegation()
+            .accounts({
+                counter: pda,
+                delegationRecord: delegationPda,
+                delegationMetadata: delegationMetadata,
+                buffer: bufferPda,
+                delegationProgram: DELEGATION_PROGRAM_ID,
+            }).rpc({skipPreflight: true});
+        console.log("Allow Undelegation signature", txSign);
     });
 
     it("Undelegate account", async () => {

@@ -1,7 +1,7 @@
 mod commit_record;
-mod delegated_account_seeds;
+mod delegated_metadata;
 mod delegation_record;
 
 pub use commit_record::*;
-pub use delegated_account_seeds::*;
+pub use delegated_metadata::*;
 pub use delegation_record::*;

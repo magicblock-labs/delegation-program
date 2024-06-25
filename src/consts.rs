@@ -4,7 +4,7 @@ use solana_program::pubkey::Pubkey;
 pub const DELEGATION_RECORD: &[u8] = b"delegation";
 
 /// The account to store the delegated account seeds.
-pub const DELEGATED_ACCOUNT_SEEDS: &[u8] = b"account-seeds";
+pub const DELEGATION_METADATA: &[u8] = b"delegation-metadata";
 
 /// The seed of the buffer account PDA.
 pub const BUFFER: &[u8] = b"buffer";

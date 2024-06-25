@@ -10,7 +10,7 @@ use solana_program::{
 use crate::consts::BUFFER;
 use crate::pda::{
     buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
-    committed_state_record_pda_from_pubkey, delegated_account_seeds_pda_from_pubkey,
+    committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
     delegation_record_pda_from_pubkey,
 };
 
@@ -29,6 +29,7 @@ pub enum DlpInstruction {
     CommitState = 1,
     Finalize = 2,
     Undelegate = 3,
+    AllowUndelegate = 4,
 }
 
 impl DlpInstruction {
@@ -46,6 +47,7 @@ impl TryFrom<[u8; 8]> for DlpInstruction {
             [0x1, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::CommitState),
             [0x2, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Finalize),
             [0x3, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Undelegate),
+            [0x4, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::AllowUndelegate),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -63,7 +65,7 @@ pub fn delegate(
     let buffer =
         Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner_program);
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
-    let delegate_accounts_seeds = delegated_account_seeds_pda_from_pubkey(&delegate_account);
+    let delegate_accounts_seeds = delegation_metadata_pda_from_pubkey(&delegate_account);
 
     Instruction {
         program_id: owner_program,
@@ -124,6 +126,24 @@ pub fn finalize(payer: Pubkey, delegated_account: Pubkey, reimbursement: Pubkey)
     }
 }
 
+/// Builds an allow_undelegate account instruction.
+// pub fn allow_undelegate(delegated_account: Pubkey, owner_program: Pubkey) -> Instruction {
+//     let delegation_record = delegation_record_pda_from_pubkey(&delegated_account);
+//     let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegated_account);
+//     let buffer =
+//         Pubkey::find_program_address(&[BUFFER, &delegated_account.to_bytes()], &owner_program).0;
+//     Instruction {
+//         program_id: owner_program,
+//         accounts: vec![
+//             AccountMeta::new(delegated_account, false),
+//             AccountMeta::new(delegation_record, false),
+//             AccountMeta::new(delegation_metadata, false),
+//             AccountMeta::new(buffer, true),
+//         ],
+//         data: DlpInstruction::AllowUndelegate.to_vec(),
+//     }
+// }
+
 /// Builds a commit state instruction.
 #[allow(clippy::too_many_arguments)]
 pub fn undelegate(
@@ -135,7 +155,7 @@ pub fn undelegate(
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
-    let delegate_account_seeds = delegated_account_seeds_pda_from_pubkey(&delegated_account);
+    let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegated_account);
     let buffer_pda = buffer_pda_from_pubkey(&delegated_account);
     Instruction {
         program_id: crate::id(),
@@ -147,7 +167,7 @@ pub fn undelegate(
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
-            AccountMeta::new(delegate_account_seeds, false),
+            AccountMeta::new(delegation_metadata, false),
             AccountMeta::new(reimbursement, false),
             AccountMeta::new(system_program::id(), false),
         ],

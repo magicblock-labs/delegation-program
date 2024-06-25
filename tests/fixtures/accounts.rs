@@ -2,11 +2,11 @@ use solana_program::pubkey::Pubkey;
 use solana_sdk::pubkey;
 
 #[allow(dead_code)]
-pub const DELEGATION_RECORD_ACCOUNT_DATA: [u8; 88] = [
+pub const DELEGATION_RECORD_ACCOUNT_DATA: [u8; 80] = [
     100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 85, 175, 207, 195, 148, 154, 129, 218, 62, 110, 177, 81, 112,
-    72, 172, 141, 157, 3, 211, 24, 26, 191, 79, 101, 191, 48, 19, 105, 181, 70, 132, 0, 0, 0, 0, 0,
-    0, 0, 0, 224, 147, 4, 0, 0, 0, 0, 0,
+    72, 172, 141, 157, 3, 211, 24, 26, 191, 79, 101, 191, 48, 19, 105, 181, 70, 132, 48, 117, 0, 0,
+    0, 0, 0, 0,
 ];
 
 #[allow(dead_code)]
@@ -18,8 +18,9 @@ pub const COMMIT_STATE_RECORD_ACCOUNT_DATA: [u8; 80] = [
 ];
 
 #[allow(dead_code)]
-pub const DELEGATED_ACCOUNT_SEEDS_PDA: [u8; 24] = [
-    1, 0, 0, 0, 8, 0, 0, 0, 116, 101, 115, 116, 45, 112, 100, 97, 0, 0, 0, 0, 0, 0, 0, 0,
+pub const DELEGATED_ACCOUNT_SEEDS_PDA: [u8; 33] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 116, 101, 115, 116,
+    45, 112, 100, 97,
 ];
 
 #[allow(dead_code)]
