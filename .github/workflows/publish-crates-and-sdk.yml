@@ -100,6 +100,7 @@ jobs:
 
       - name: npm publish
         run: |
+          cd sdk/ts/
           npm install --global eslint@^8.33.0
           npm install
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
