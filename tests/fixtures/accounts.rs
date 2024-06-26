@@ -2,11 +2,11 @@ use solana_program::pubkey::Pubkey;
 use solana_sdk::pubkey;
 
 #[allow(dead_code)]
-pub const DELEGATION_RECORD_ACCOUNT_DATA: [u8; 88] = [
+pub const DELEGATION_RECORD_ACCOUNT_DATA: [u8; 80] = [
     100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 85, 175, 207, 195, 148, 154, 129, 218, 62, 110, 177, 81, 112,
-    72, 172, 141, 157, 3, 211, 24, 26, 191, 79, 101, 191, 48, 19, 105, 181, 70, 132, 0, 0, 0, 0, 0,
-    0, 0, 0, 224, 147, 4, 0, 0, 0, 0, 0,
+    72, 172, 141, 157, 3, 211, 24, 26, 191, 79, 101, 191, 48, 19, 105, 181, 70, 132, 48, 117, 0, 0,
+    0, 0, 0, 0,
 ];
 
 #[allow(dead_code)]
@@ -18,8 +18,15 @@ pub const COMMIT_STATE_RECORD_ACCOUNT_DATA: [u8; 80] = [
 ];
 
 #[allow(dead_code)]
-pub const DELEGATED_ACCOUNT_SEEDS_PDA: [u8; 24] = [
-    1, 0, 0, 0, 8, 0, 0, 0, 116, 101, 115, 116, 45, 112, 100, 97, 0, 0, 0, 0, 0, 0, 0, 0,
+pub const DELEGATION_METADATA_PDA: [u8; 33] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 116, 101, 115, 116,
+    45, 112, 100, 97,
+];
+
+#[allow(dead_code)]
+pub const DELEGATION_METADATA_UNDELEGATABLE_PDA: [u8; 33] = [
+    0, 0, 0, 0, 0, 0, 0, 0, 5, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 8, 0, 0, 0, 116, 101, 115, 116,
+    45, 112, 100, 97,
 ];
 
 #[allow(dead_code)]
@@ -30,8 +37,16 @@ pub const COMMIT_NEW_STATE_ACCOUNT_DATA: [u8; 11] = [10, 11, 12, 13, 14, 15, 16,
 
 #[allow(dead_code)]
 pub const DELEGATED_PDA_ID: Pubkey = pubkey!("8k2V7EzQtNg38Gi9HK5ZtQYp1YpGKNGrMcuGa737gZX4");
+
+#[allow(dead_code)]
+pub const DELEGATED_PDA: [u8; 19] = [15, 0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
+
 #[allow(dead_code)]
 pub const DELEGATED_PDA_OWNER_ID: Pubkey = pubkey!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
 #[allow(dead_code)]
 pub const EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR: [u8; 8] = [90, 147, 75, 178, 85, 88, 4, 137];
+
+#[allow(dead_code)]
+pub const EXTERNAL_ALLOW_UNDELEGATION_INSTRUCTION_DISCRIMINATOR: [u8; 8] =
+    [255, 66, 82, 208, 247, 5, 210, 126];

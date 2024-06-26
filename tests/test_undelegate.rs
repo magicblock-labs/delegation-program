@@ -9,12 +9,12 @@ use solana_sdk::{
 
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
-    delegated_account_seeds_pda_from_pubkey, delegation_record_pda_from_pubkey,
+    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
 };
 
 use crate::fixtures::{
-    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_ACCOUNT_SEEDS_PDA,
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_RECORD_ACCOUNT_DATA,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA_ID,
+    DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_UNDELEGATABLE_PDA, DELEGATION_RECORD_ACCOUNT_DATA,
 };
 
 mod fixtures;
@@ -56,12 +56,8 @@ async fn test_undelegate() {
     let delegation_account = banks.get_account(delegation_pda).await.unwrap();
     assert!(delegation_account.is_none());
 
-    // Assert the delegation_pda was closed
-    let delegation_account = banks.get_account(delegation_pda).await.unwrap();
-    assert!(delegation_account.is_none());
-
     // Assert the delegated account seeds pda was closed
-    let seeds_pda = delegated_account_seeds_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let seeds_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
     let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
     assert!(seeds_pda_account.is_none());
 
@@ -115,10 +111,10 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the delegated account seeds PDA
     program_test.add_account(
-        delegated_account_seeds_pda_from_pubkey(&DELEGATED_PDA_ID),
+        delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: DELEGATED_ACCOUNT_SEEDS_PDA.into(),
+            data: DELEGATION_METADATA_UNDELEGATABLE_PDA.into(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

@@ -10,10 +10,12 @@ use solana_program::{
 };
 
 use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
+use crate::error::DlpError;
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
-use crate::state::{CommitRecord, DelegateAccountSeeds, DelegationRecord};
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use crate::utils::{close_pda, create_pda};
 use crate::utils_account::AccountDeserialize;
+use solana_program::sysvar::Sysvar;
 
 /// Undelegate a delegated Pda
 ///
@@ -34,7 +36,7 @@ pub fn process_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, delegated_account_seeds, reimbursement, system_program] =
+    let [payer, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -43,7 +45,7 @@ pub fn process_undelegate(
     load_signer(payer)?;
     load_owned_pda(delegated_account, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
-    load_owned_pda(delegated_account_seeds, &crate::id())?;
+    load_owned_pda(delegation_metadata, &crate::id())?;
     load_program(system_program, system_program::id())?;
 
     // Check if the committed state is owned by the system program => no committed state
@@ -79,9 +81,14 @@ pub fn process_undelegate(
         None
     };
 
-    // Load delegated account seeds
-    let account_seeds =
-        DelegateAccountSeeds::deserialize(&mut &**delegated_account_seeds.data.borrow())?;
+    // Load delegated account metadata
+    let metadata = DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
+
+    if !metadata.is_undelegatable
+        && metadata.valid_until < solana_program::clock::Clock::get()?.unix_timestamp
+    {
+        return Err(DlpError::Undelegatable.into());
+    }
 
     let buffer_bump: u8 = load_uninitialized_pda(
         buffer,
@@ -136,12 +143,12 @@ pub fn process_undelegate(
         buffer,
         system_program,
         owner_program.key,
-        account_seeds,
+        metadata,
         signer_seeds,
     )?;
 
     // Closing accounts
-    close_pda(delegated_account_seeds, reimbursement)?;
+    close_pda(delegation_metadata, reimbursement)?;
     close_pda(committed_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
     close_pda(committed_state_account, reimbursement)?;
@@ -155,11 +162,11 @@ fn cpi_external_undelegate<'a, 'info>(
     buffer: &'a AccountInfo<'info>,
     system_program: &'a AccountInfo<'info>,
     program_id: &Pubkey,
-    delegated_account_seeds: DelegateAccountSeeds,
+    delegation_metadata: DelegationMetadata,
     signers_seeds: &[&[&[u8]]],
 ) -> ProgramResult {
     let mut data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
-    let serialized_seeds = delegated_account_seeds.try_to_vec()?;
+    let serialized_seeds = delegation_metadata.seeds.try_to_vec()?;
     data.extend_from_slice(&serialized_seeds);
 
     let close_instruction = Instruction {

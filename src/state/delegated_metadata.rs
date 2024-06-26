@@ -1,15 +1,19 @@
 use crate::utils_account::{AccountDiscriminator, Discriminator};
 use borsh::{BorshDeserialize, BorshSerialize};
 
-/// The Delegated Account Seeds
+/// The Delegated Metadata, includes Account Seeds, max delegation time,
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
-pub struct DelegateAccountSeeds {
+pub struct DelegationMetadata {
+    /// The delegation validity
+    pub valid_until: i64,
+    pub slot: u64,
+    pub is_undelegatable: bool,
     pub seeds: Vec<Vec<u8>>,
 }
 
-impl Discriminator for DelegateAccountSeeds {
+impl Discriminator for DelegationMetadata {
     fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::DelegationRecord
+        AccountDiscriminator::DelegatedMetadata
     }
 }
 
@@ -19,7 +23,7 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let seeds = DelegateAccountSeeds {
+        let seeds = DelegationMetadata {
             seeds: vec![
                 vec![],
                 vec![
@@ -27,14 +31,17 @@ mod tests {
                     82, 254, 106, 161, 35, 74, 146, 30, 211, 164, 97, 139, 136, 136, 77,
                 ],
             ],
+            is_undelegatable: false,
+            slot: 0,
+            valid_until: 0,
         };
 
         // Serialize
         let serialized = seeds.try_to_vec().expect("Serialization failed");
 
         // Deserialize
-        let deserialized: DelegateAccountSeeds =
-            DelegateAccountSeeds::try_from_slice(&serialized).expect("Deserialization failed");
+        let deserialized: DelegationMetadata =
+            DelegationMetadata::try_from_slice(&serialized).expect("Deserialization failed");
 
         assert_eq!(deserialized.seeds, seeds.seeds);
     }

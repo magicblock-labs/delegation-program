@@ -23,7 +23,7 @@ export interface UndelegateInstructionAccounts {
   commitStatePda?: web3.PublicKey;
   commitStateRecordPda?: web3.PublicKey;
   delegationRecord?: web3.PublicKey;
-  delegateAccountSeeds?: web3.PublicKey;
+  delegationMetadata?: web3.PublicKey;
   reimbursement: web3.PublicKey;
   systemProgram?: web3.PublicKey;
 }
@@ -45,7 +45,7 @@ export function createUndelegateInstruction(
 
   const {
     delegationPda,
-    delegatedAccountSeedsPda,
+    delegationMetadata,
     bufferPda,
     commitStateRecordPda,
     commitStatePda,
@@ -88,7 +88,7 @@ export function createUndelegateInstruction(
       isSigner: false,
     },
     {
-      pubkey: accounts.delegateAccountSeeds ?? delegatedAccountSeedsPda,
+      pubkey: accounts.delegationMetadata ?? delegationMetadata,
       isWritable: true,
       isSigner: false,
     },

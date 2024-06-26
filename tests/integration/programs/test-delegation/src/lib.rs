@@ -1,5 +1,5 @@
 use bolt_lang::*;
-use delegation_program_sdk::{delegate_account, delegate};
+use delegation_program_sdk::{delegate, delegate_account};
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
@@ -22,17 +22,35 @@ pub mod test_delegation {
         Ok(())
     }
 
+    pub fn allow_undelegation(ctx: Context<AllowUndelegation>) -> Result<()> {
+        let counter =
+            Counter::try_deserialize_unchecked(&mut (&**ctx.accounts.counter.try_borrow_data()?))?;
+        msg!("Counter: {:?}", counter.count);
+        if counter.count > 0 {
+            msg!("Counter is greater than 0, undelegation is allowed");
+            delegation_program_sdk::allow_undelegation(
+                &ctx.accounts.counter,
+                &ctx.accounts.delegation_record,
+                &ctx.accounts.delegation_metadata,
+                &ctx.accounts.buffer,
+                &ctx.accounts.delegation_program,
+                &id(),
+            )?;
+        }
+        Ok(())
+    }
+
     /// Delegate the account to the delegation program
     pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
         let pda_seeds: &[&[u8]] = &[TEST_PDA_SEED];
 
-        let [payer, pda, owner_program, buffer, delegation_record, delegate_account_seeds, delegation_program, system_program] = [
+        let [payer, pda, owner_program, buffer, delegation_record, delegation_metadata, delegation_program, system_program] = [
             &ctx.accounts.payer,
             &ctx.accounts.pda,
             &ctx.accounts.owner_program,
             &ctx.accounts.buffer,
             &ctx.accounts.delegation_record,
-            &ctx.accounts.delegate_account_seeds,
+            &ctx.accounts.delegation_metadata,
             &ctx.accounts.delegation_program,
             &ctx.accounts.system_program,
         ];
@@ -43,12 +61,12 @@ pub mod test_delegation {
             owner_program,
             buffer,
             delegation_record,
-            delegate_account_seeds,
+            delegation_metadata,
             delegation_program,
             system_program,
             pda_seeds,
             0,
-            30000
+            30000,
         )?;
 
         Ok(())
@@ -71,7 +89,7 @@ pub struct DelegateInput<'info> {
     pub delegation_record: AccountInfo<'info>,
     /// CHECK:`
     #[account(mut)]
-    pub delegate_account_seeds: AccountInfo<'info>,
+    pub delegation_metadata: AccountInfo<'info>,
     /// CHECK:`
     pub delegation_program: AccountInfo<'info>,
     /// CHECK:`
@@ -91,6 +109,25 @@ pub struct Initialize<'info> {
 pub struct Increment<'info> {
     #[account(mut, seeds = [TEST_PDA_SEED], bump)]
     pub counter: Account<'info, Counter>,
+}
+
+#[derive(Accounts)]
+pub struct AllowUndelegation<'info> {
+    #[account(seeds = [TEST_PDA_SEED], bump)]
+    /// CHECK: The counter pda
+    pub counter: AccountInfo<'info>,
+    #[account()]
+    /// CHECK: delegation record
+    pub delegation_record: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK: delegation metadata
+    pub delegation_metadata: AccountInfo<'info>,
+    #[account()]
+    /// CHECK: singer buffer to enforce CPI
+    pub buffer: AccountInfo<'info>,
+    #[account()]
+    /// CHECK:`
+    pub delegation_program: AccountInfo<'info>,
 }
 
 #[account]

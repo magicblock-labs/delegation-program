@@ -2,6 +2,7 @@ use std::mem::size_of;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
+use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
@@ -9,12 +10,12 @@ use solana_program::{
     system_program, {self},
 };
 
-use crate::consts::{BUFFER, DELEGATED_ACCOUNT_SEEDS, DELEGATION_RECORD};
+use crate::consts::{BUFFER, DELEGATION_METADATA, DELEGATION_RECORD};
 use crate::instruction::DelegateAccountArgs;
 use crate::loaders::{
     load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
 };
-use crate::state::{DelegateAccountSeeds, DelegationRecord};
+use crate::state::{DelegationMetadata, DelegationRecord};
 use crate::utils::create_pda;
 use crate::utils_account::{AccountDeserialize, Discriminator};
 
@@ -31,7 +32,7 @@ pub fn process_delegate(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegate_account, owner_program, buffer, delegation_record, delegate_account_seeds, system_program] =
+    let [payer, delegate_account, owner_program, buffer, delegation_record, delegation_metadata, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -65,9 +66,9 @@ pub fn process_delegate(
         &crate::id(),
     )?;
 
-    let delegate_account_seeds_bump = load_uninitialized_pda(
-        delegate_account_seeds,
-        &[DELEGATED_ACCOUNT_SEEDS, &delegate_account.key.to_bytes()],
+    let delegation_metadata_bump = load_uninitialized_pda(
+        delegation_metadata,
+        &[DELEGATION_METADATA, &delegate_account.key.to_bytes()],
         &crate::id(),
     )?;
 
@@ -95,28 +96,33 @@ pub fn process_delegate(
     let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
     delegation.owner = *owner_program.key;
     delegation.authority = Pubkey::default();
-    delegation.valid_until = args.valid_until;
     delegation.commit_frequency_ms = args.commit_frequency_ms as u64;
 
     // Initialize the account seeds PDA
-    let seeds_struct = DelegateAccountSeeds { seeds: args.seeds };
-    let serialized_seeds_struct = seeds_struct.try_to_vec()?;
+    let delegation_metadata_struct = DelegationMetadata {
+        seeds: args.seeds,
+        valid_until: args.valid_until,
+        slot: solana_program::clock::Clock::get()?.slot,
+        is_undelegatable: false,
+    };
+
+    let serialized_metadata_struct = delegation_metadata_struct.try_to_vec()?;
     create_pda(
-        delegate_account_seeds,
+        delegation_metadata,
         &crate::id(),
-        serialized_seeds_struct.len(),
+        serialized_metadata_struct.len(),
         &[
-            DELEGATED_ACCOUNT_SEEDS,
+            DELEGATION_METADATA,
             &delegate_account.key.to_bytes(),
-            &[delegate_account_seeds_bump],
+            &[delegation_metadata_bump],
         ],
         system_program,
         payer,
     )?;
 
     // Copy the seeds to the delegated account seeds PDA
-    let mut seeds_data = delegate_account_seeds.try_borrow_mut_data()?;
-    (*seeds_data).copy_from_slice(serialized_seeds_struct.as_slice());
+    let mut seeds_data = delegation_metadata.try_borrow_mut_data()?;
+    (*seeds_data).copy_from_slice(serialized_metadata_struct.as_slice());
 
     // Copy the data from the buffer into the original account
     let mut account_data = delegate_account.try_borrow_mut_data()?;

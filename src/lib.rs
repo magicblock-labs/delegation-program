@@ -55,6 +55,7 @@ pub fn process_instruction(
         DlpInstruction::CommitState => process_commit_state(program_id, accounts, data)?,
         DlpInstruction::Finalize => process_finalize(program_id, accounts, data)?,
         DlpInstruction::Undelegate => process_undelegate(program_id, accounts, data)?,
+        DlpInstruction::AllowUndelegate => process_allow_undelegate(program_id, accounts, data)?,
     }
 
     Ok(())

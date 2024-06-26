@@ -28,7 +28,7 @@ pub fn delegate_account<'a, 'info>(
     owner_program: &'a AccountInfo<'info>,
     buffer: &'a AccountInfo<'info>,
     delegation_record: &'a AccountInfo<'info>,
-    delegate_account_seeds: &'a AccountInfo<'info>,
+    delegation_metadata: &'a AccountInfo<'info>,
     delegation_program: &'a AccountInfo<'info>,
     system_program: &'a AccountInfo<'info>,
     pda_seeds: &[&[u8]],
@@ -95,7 +95,7 @@ pub fn delegate_account<'a, 'info>(
         owner_program,
         buffer,
         delegation_record,
-        delegate_account_seeds,
+        delegation_metadata,
         system_program,
         pda_signer_seeds,
         delegation_args,
@@ -155,7 +155,7 @@ pub fn cpi_delegate<'a, 'info>(
     owner_program: &'a AccountInfo<'info>,
     buffer: &'a AccountInfo<'info>,
     delegation_record: &'a AccountInfo<'info>,
-    delegated_account_seeds: &'a AccountInfo<'info>,
+    delegation_metadata: &'a AccountInfo<'info>,
     system_program: &'a AccountInfo<'info>,
     signers_seeds: &[&[&[u8]]],
     args: DelegateAccountArgs,
@@ -172,7 +172,7 @@ pub fn cpi_delegate<'a, 'info>(
             AccountMeta::new_readonly(*owner_program.key, false),
             AccountMeta::new(*buffer.key, false),
             AccountMeta::new(*delegation_record.key, false),
-            AccountMeta::new(*delegated_account_seeds.key, false),
+            AccountMeta::new(*delegation_metadata.key, false),
             AccountMeta::new_readonly(*system_program.key, false),
         ],
         data,
@@ -186,9 +186,47 @@ pub fn cpi_delegate<'a, 'info>(
             owner_program.clone(),
             buffer.clone(),
             delegation_record.clone(),
-            delegated_account_seeds.clone(),
+            delegation_metadata.clone(),
             system_program.clone(),
         ],
         signers_seeds,
+    )
+}
+
+/// CPI to the delegation program to allow undelegation
+#[inline(always)]
+pub fn allow_undelegation<'a, 'info>(
+    delegated_account: &'a AccountInfo<'info>,
+    delegation_record: &'a AccountInfo<'info>,
+    delegation_metedata: &'a AccountInfo<'info>,
+    buffer: &'a AccountInfo<'info>,
+    delegation_program: &'a AccountInfo<'info>,
+    owner_program: &Pubkey,
+) -> ProgramResult {
+    let buffer_seeds: &[&[u8]] = &[BUFFER, delegated_account.key.as_ref()];
+    let (_, buffer_pda_bump) = Pubkey::find_program_address(buffer_seeds, owner_program);
+    let buffer_bump_slice: &[u8] = &[buffer_pda_bump];
+    let buffer_signer_seeds: &[&[&[u8]]] = &[&*seeds_with_bump(buffer_seeds, buffer_bump_slice)];
+
+    let allow_undelegation_instruction = Instruction {
+        program_id: *delegation_program.key,
+        accounts: vec![
+            AccountMeta::new_readonly(*delegated_account.key, false),
+            AccountMeta::new_readonly(*delegation_record.key, false),
+            AccountMeta::new(*delegation_metedata.key, false),
+            AccountMeta::new_readonly(*buffer.key, true),
+        ],
+        data: vec![0x4, 0, 0, 0, 0, 0, 0, 0],
+    };
+
+    solana_program::program::invoke_signed(
+        &allow_undelegation_instruction,
+        &[
+            delegated_account.clone(),
+            delegation_record.clone(),
+            delegation_metedata.clone(),
+            buffer.clone(),
+        ],
+        buffer_signer_seeds,
     )
 }

@@ -1,8 +1,6 @@
 use paste::paste;
 
-use crate::consts::{
-    BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATED_ACCOUNT_SEEDS, DELEGATION_RECORD,
-};
+use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD};
 
 // -----------------
 // Seeds
@@ -70,8 +68,8 @@ macro_rules! pda {
 seeds! { delegation_record, DELEGATION_RECORD }
 pda! { delegation_record }
 
-seeds! { delegated_account_seeds, DELEGATED_ACCOUNT_SEEDS }
-pda! { delegated_account_seeds }
+seeds! { delegation_metadata, DELEGATION_METADATA }
+pda! { delegation_metadata }
 
 seeds! { committed_state, COMMIT_STATE }
 pda! { committed_state }
