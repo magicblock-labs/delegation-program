@@ -2,7 +2,7 @@
 members = ["sdk"]
 
 [workspace.package]
-version = "0.1.1"
+version = "0.1.2"
 authors = ["Magicblock Labs <dev@magicblock.gg>"]
 edition = "2021"
 license = "MIT"

@@ -2,7 +2,12 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke_signed;
 use solana_program::program_error::ProgramError;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program, {self}};
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    pubkey::Pubkey,
+    system_program, {self},
+};
 
 use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
 use crate::error::DlpError;
@@ -77,12 +82,10 @@ pub fn process_undelegate(
     };
 
     // Load delegated account metadata
-    let metadata =
-        DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
+    let metadata = DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
 
     if !metadata.is_undelegatable
-        && metadata.valid_until
-            < solana_program::clock::Clock::get()?.unix_timestamp
+        && metadata.valid_until < solana_program::clock::Clock::get()?.unix_timestamp
     {
         return Err(DlpError::Undelegatable.into());
     }

@@ -13,8 +13,8 @@ use dlp::pda::{
 };
 
 use crate::fixtures::{
-    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_ACCOUNT_SEEDS_PDA,
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_RECORD_ACCOUNT_DATA,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA_ID,
+    DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_UNDELEGATABLE_PDA, DELEGATION_RECORD_ACCOUNT_DATA,
 };
 
 mod fixtures;
@@ -51,10 +51,6 @@ async fn test_undelegate() {
     // Assert the state_diff was closed
     let new_state_account = banks.get_account(committed_state_pda).await.unwrap();
     assert!(new_state_account.is_none());
-
-    // Assert the delegation_pda was closed
-    let delegation_account = banks.get_account(delegation_pda).await.unwrap();
-    assert!(delegation_account.is_none());
 
     // Assert the delegation_pda was closed
     let delegation_account = banks.get_account(delegation_pda).await.unwrap();
@@ -118,7 +114,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: DELEGATED_ACCOUNT_SEEDS_PDA.into(),
+            data: DELEGATION_METADATA_UNDELEGATABLE_PDA.into(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

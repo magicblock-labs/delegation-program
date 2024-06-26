@@ -8,66 +8,38 @@ use solana_sdk::{
 };
 
 use dlp::pda::{
-    committed_state_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
-    delegation_record_pda_from_pubkey,
+    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
 };
 
 use crate::fixtures::{
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_UNDELEGATABLE_PDA,
-    DELEGATION_RECORD_ACCOUNT_DATA,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA,
+    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_PDA,
+    DELEGATION_RECORD_ACCOUNT_DATA, EXTERNAL_ALLOW_UNDELEGATION_INSTRUCTION_DISCRIMINATOR,
 };
 
 mod fixtures;
 
 #[tokio::test]
-async fn test_undelegate_without_commit() {
+async fn test_allow_undelegate() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    // Retrieve the accounts
-    let delegation_pda = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+    // // Assert the delegated account seeds pda was closed
+    // let seeds_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
+    // let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
+    // assert!(seeds_pda_account.is_none());
 
-    // Save the new state data before undelegating
-    let delegated_pda_state_before_undelegation =
-        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    let new_state_data_before_finalize = delegated_pda_state_before_undelegation.data.clone();
-
-    // Submit the undelegate tx
-    let ix = dlp::instruction::undelegate(
-        payer.pubkey(),
+    // Submit the allow undelegation tx
+    let ix = dlp::instruction::allow_undelegate(
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
-        payer.pubkey(),
+        EXTERNAL_ALLOW_UNDELEGATION_INSTRUCTION_DISCRIMINATOR.to_vec(),
     );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
     assert!(res.is_ok());
-
-    // Assert the state_diff was closed
-    let new_state_account = banks.get_account(committed_state_pda).await.unwrap();
-    assert!(new_state_account.is_none());
-
-    // Assert the delegation_pda was closed
-    let delegation_account = banks.get_account(delegation_pda).await.unwrap();
-    assert!(delegation_account.is_none());
-
-    // Assert the delegation_pda was closed
-    let delegation_account = banks.get_account(delegation_pda).await.unwrap();
-    assert!(delegation_account.is_none());
-
-    // Assert the delegated account seeds pda was closed
-    let seeds_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
-    assert!(seeds_pda_account.is_none());
-
-    // Assert that the account owner is now set to the owner program
-    let pda_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert!(pda_account.owner.eq(&DELEGATED_PDA_OWNER_ID));
-
-    // Assert the delegated account contains the data from the new state
-    assert_eq!(new_state_data_before_finalize, pda_account.data);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
@@ -91,7 +63,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         DELEGATED_PDA_ID,
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![],
+            data: DELEGATED_PDA.into(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -115,7 +87,31 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_METADATA_UNDELEGATABLE_PDA.into(),
+            data: DELEGATION_METADATA_PDA.into(),
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the committed state PDA
+    program_test.add_account(
+        committed_state_pda_from_pubkey(&DELEGATED_PDA_ID),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the commit state record PDA
+    program_test.add_account(
+        committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: COMMIT_STATE_RECORD_ACCOUNT_DATA.into(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

@@ -1,9 +1,14 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::{{self}, account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 use solana_program::program_error::ProgramError;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    pubkey::Pubkey,
+    {self},
+};
 
 use crate::consts::{BUFFER, DELEGATION_METADATA, DELEGATION_RECORD};
-use crate::loaders::{load_initialized_pda, load_owned_pda};
+use crate::loaders::{load_initialized_pda, load_owned_pda, load_signer};
 use crate::state::{DelegationMetadata, DelegationRecord};
 use crate::utils_account::AccountDeserialize;
 
@@ -14,12 +19,12 @@ pub fn process_allow_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-
-    let [delegated_account, delegation_record, delegation_metadata, buffer] =
-        accounts
-    else {
+    let [delegated_account, delegation_record, delegation_metadata, buffer] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
+
+    // Check the buffer PDA is a signer, to ensure this instruction is called from CPI
+    load_signer(buffer)?;
 
     // Check that the account is owned by the delegation program
     load_owned_pda(delegated_account, &crate::id())?;
@@ -44,14 +49,16 @@ pub fn process_allow_undelegate(
     let delegation = DelegationRecord::try_from_bytes(&delegation_data)?;
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
-    let pda = Pubkey::find_program_address(&[BUFFER, &delegated_account.key.to_bytes()], &delegation.owner);
+    let pda = Pubkey::find_program_address(
+        &[BUFFER, &delegated_account.key.to_bytes()],
+        &delegation.owner,
+    );
     if buffer.key.ne(&pda.0) {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // Load delegated account metadata
-    let mut metadata =
-        DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
+    let mut metadata = DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
     metadata.is_undelegatable = true;
     metadata.serialize(&mut &mut delegation_metadata.try_borrow_mut_data()?.as_mut())?;
 

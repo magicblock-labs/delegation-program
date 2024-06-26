@@ -1,4 +1,7 @@
-use solana_program::{self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, program_error::ProgramError, pubkey::Pubkey};
+use solana_program::{
+    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult,
+    program_error::ProgramError, pubkey::Pubkey,
+};
 
 use instruction::*;
 use processor::*;
@@ -34,7 +37,6 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-
     if program_id.ne(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }

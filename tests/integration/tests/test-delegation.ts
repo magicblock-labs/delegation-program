@@ -155,6 +155,10 @@ describe("TestDelegation", () => {
                 delegationProgram: DELEGATION_PROGRAM_ID,
             }).rpc({skipPreflight: true});
         console.log("Allow Undelegation signature", txSign);
+
+        // Print delegateAccountMetadata account bytes
+        // const account = await provider.connection.getAccountInfo(delegationMetadata);
+        // console.log("Delegation account metadata", account.data.toJSON());
     });
 
     it("Undelegate account", async () => {

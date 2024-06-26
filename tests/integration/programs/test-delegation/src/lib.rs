@@ -34,7 +34,7 @@ pub mod test_delegation {
                 &ctx.accounts.delegation_metadata,
                 &ctx.accounts.buffer,
                 &ctx.accounts.delegation_program,
-                &id()
+                &id(),
             )?;
         }
         Ok(())

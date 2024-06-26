@@ -214,7 +214,7 @@ pub fn allow_undelegation<'a, 'info>(
             AccountMeta::new_readonly(*delegated_account.key, false),
             AccountMeta::new_readonly(*delegation_record.key, false),
             AccountMeta::new(*delegation_metedata.key, false),
-            AccountMeta::new_readonly(*buffer.key, false),
+            AccountMeta::new_readonly(*buffer.key, true),
         ],
         data: vec![0x4, 0, 0, 0, 0, 0, 0, 0],
     };
@@ -230,4 +230,3 @@ pub fn allow_undelegation<'a, 'info>(
         buffer_signer_seeds,
     )
 }
-

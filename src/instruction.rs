@@ -79,7 +79,7 @@ pub fn delegate(
             AccountMeta::new(delegation_program, false),
             AccountMeta::new(system_program, false),
         ],
-        data: [discriminator].concat(),
+        data: discriminator,
     }
 }
 
@@ -127,22 +127,27 @@ pub fn finalize(payer: Pubkey, delegated_account: Pubkey, reimbursement: Pubkey)
 }
 
 /// Builds an allow_undelegate account instruction.
-// pub fn allow_undelegate(delegated_account: Pubkey, owner_program: Pubkey) -> Instruction {
-//     let delegation_record = delegation_record_pda_from_pubkey(&delegated_account);
-//     let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegated_account);
-//     let buffer =
-//         Pubkey::find_program_address(&[BUFFER, &delegated_account.to_bytes()], &owner_program).0;
-//     Instruction {
-//         program_id: owner_program,
-//         accounts: vec![
-//             AccountMeta::new(delegated_account, false),
-//             AccountMeta::new(delegation_record, false),
-//             AccountMeta::new(delegation_metadata, false),
-//             AccountMeta::new(buffer, true),
-//         ],
-//         data: DlpInstruction::AllowUndelegate.to_vec(),
-//     }
-// }
+pub fn allow_undelegate(
+    delegated_account: Pubkey,
+    owner_program: Pubkey,
+    discriminator: Vec<u8>,
+) -> Instruction {
+    let delegation_record = delegation_record_pda_from_pubkey(&delegated_account);
+    let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegated_account);
+    let buffer =
+        Pubkey::find_program_address(&[BUFFER, &delegated_account.to_bytes()], &owner_program).0;
+    Instruction {
+        program_id: owner_program,
+        accounts: vec![
+            AccountMeta::new_readonly(delegated_account, false),
+            AccountMeta::new_readonly(delegation_record, false),
+            AccountMeta::new(delegation_metadata, false),
+            AccountMeta::new_readonly(buffer, false),
+            AccountMeta::new_readonly(crate::id(), false),
+        ],
+        data: discriminator,
+    }
+}
 
 /// Builds a commit state instruction.
 #[allow(clippy::too_many_arguments)]
