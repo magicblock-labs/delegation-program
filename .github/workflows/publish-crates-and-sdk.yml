@@ -102,7 +102,7 @@ jobs:
         run: |
           cd sdk/ts/
           npm install --global eslint@^8.33.0
-          npm install
+          npm install --legacy-peer-deps
           echo "//registry.npmjs.org/:_authToken=${{ secrets.NPM_TOKEN }}" > ~/.npmrc
           npm set //registry.npmjs.org/:_authToken ${{ secrets.NPM_TOKEN }}
           cd sdk/ts/ && npm run build && npm run lint:fix
