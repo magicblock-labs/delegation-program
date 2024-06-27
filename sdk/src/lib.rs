@@ -230,3 +230,25 @@ pub fn allow_undelegation<'a, 'info>(
         buffer_signer_seeds,
     )
 }
+
+/// CPI to trigger a commit of an account in the ER
+#[inline(always)]
+pub fn trigger_commit<'a, 'info>(
+    payer: &'a AccountInfo<'info>,
+    delegated_account: &'a AccountInfo<'info>,
+    magic_program: &'a AccountInfo<'info>,
+) -> ProgramResult {
+    let allow_undelegation_instruction = Instruction {
+        program_id: *magic_program.key,
+        accounts: vec![
+            AccountMeta::new_readonly(*payer.key, true),
+            AccountMeta::new_readonly(*delegated_account.key, false),
+        ],
+        data: vec![0x1, 0, 0, 0],
+    };
+
+    solana_program::program::invoke(
+        &allow_undelegation_instruction,
+        &[payer.clone(), delegated_account.clone()],
+    )
+}
