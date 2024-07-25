@@ -12,6 +12,7 @@ license = { workspace = true }
 edition = { workspace = true }
 
 [dependencies]
-solana-program = { workspace = true }
 borsh = { workspace = true }
 delegation-sdk-attribute-delegate = { workspace = true }
+paste = { workspace = true }
+solana-program = { workspace = true }

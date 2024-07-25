@@ -12,6 +12,8 @@ use crate::consts::BUFFER;
 use crate::types::DelegateAccountArgs;
 use crate::utils::{close_pda, create_pda, seeds_with_bump};
 pub mod consts;
+pub mod delegate_args;
+pub mod pda;
 pub mod types;
 pub mod utils;
 
