@@ -67,8 +67,8 @@ macro_rules! pda {
 
 seeds! { delegation_record, DELEGATION_RECORD }
 pda! { delegation_record }
-seeds! { delegation_metadata, DELEGATION_METADATA }
 
+seeds! { delegation_metadata, DELEGATION_METADATA }
 pda! { delegation_metadata }
 
 seeds! { committed_state, COMMIT_STATE }
