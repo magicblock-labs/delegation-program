@@ -134,12 +134,12 @@ pub fn undelegate_account<'a, 'info>(
 
     // Re-create the original PDA
     create_pda(
-        &delegated_account,
+        delegated_account,
         owner_program,
         buffer.data_len(),
         account_signer_seeds,
-        &system_program,
-        &payer,
+        system_program,
+        payer,
     )?;
 
     let mut data = delegated_account.try_borrow_mut_data()?;
