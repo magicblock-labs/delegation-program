@@ -5,6 +5,7 @@ use crate::{
     pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey},
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DelegateAccounts {
     pub delegate_account: Pubkey,
     pub buffer: Pubkey,
@@ -34,6 +35,7 @@ impl DelegateAccounts {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct DelegateAccountMetas {
     pub payer: AccountMeta,
     pub delegate_account: AccountMeta,
