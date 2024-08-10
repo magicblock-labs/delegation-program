@@ -4,7 +4,7 @@ import { TestDelegation } from "../target/types/test_delegation";
 import {
     createUndelegateInstruction,
     DelegateAccounts, DELEGATION_PROGRAM_ID, UndelegateAccounts
-} from "delegation-program";
+} from "@magicblock-labs/delegation-program";
 
 const SEED_TEST_PDA = "test-pda";
 
@@ -148,6 +148,7 @@ describe("TestDelegation", () => {
         const txSign = await testDelegation.methods
             .allowUndelegation()
             .accounts({
+                // @ts-ignore
                 counter: pda,
                 delegationRecord: delegationPda,
                 delegationMetadata: delegationMetadata,
