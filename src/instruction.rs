@@ -21,6 +21,13 @@ pub struct DelegateAccountArgs {
     pub seeds: Vec<Vec<u8>>,
 }
 
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct CommitAccountArgs {
+    pub slot: u64,
+    pub allow_undelegation: bool,
+    pub data: Vec<u8>,
+}
+
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive)]
 #[rustfmt::skip]
@@ -87,22 +94,24 @@ pub fn delegate(
 pub fn commit_state(
     authority: Pubkey,
     delegated_account: Pubkey,
-    committed_state_data: Vec<u8>,
+    committed_account_args: Vec<u8>,
 ) -> Instruction {
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
+    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&delegated_account);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new(authority, true),
-            AccountMeta::new(delegated_account, false),
+            AccountMeta::new_readonly(authority, true),
+            AccountMeta::new_readonly(delegated_account, false),
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
-            AccountMeta::new(system_program::id(), false),
+            AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: [DlpInstruction::CommitState.to_vec(), committed_state_data].concat(),
+        data: [DlpInstruction::CommitState.to_vec(), committed_account_args].concat(),
     }
 }
 
