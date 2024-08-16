@@ -50,7 +50,7 @@ async fn test_commit_new_state() {
         CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
     assert_eq!(state_commit_record.account, DELEGATED_PDA_ID);
     assert_eq!(state_commit_record.identity, payer.pubkey());
-    assert!(state_commit_record.timestamp > 0);
+    assert!(state_commit_record.slot > 0);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

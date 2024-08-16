@@ -92,7 +92,7 @@ pub fn process_commit_state(
     let commit_record = CommitRecord::try_from_bytes_mut(&mut commit_record_data)?;
     commit_record.identity = *authority.key;
     commit_record.account = *delegated_account.key;
-    commit_record.timestamp = Clock::get()?.unix_timestamp;
+    commit_record.slot = Clock::get()?.slot;
 
     // TODO: here we can add a stake deposit to the state commit record
 

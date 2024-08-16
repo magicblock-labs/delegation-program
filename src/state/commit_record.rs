@@ -14,8 +14,8 @@ pub struct CommitRecord {
     /// The account for which the state is committed
     pub account: Pubkey,
 
-    /// The timestamp of the commit. NB: This is not used a reliable source of time.
-    pub timestamp: i64,
+    /// The external slot of the commit. This is used to enforce sequential commits
+    pub slot: u64,
 }
 
 impl Discriminator for CommitRecord {

@@ -75,13 +75,13 @@ describe("TestDelegation", () => {
         console.log("Your transaction signature", tx);
 
         // Print delegationPda account bytes
-        // const account = await provider.connection.getAccountInfo(delegationPda);
+        // let account = await provider.connection.getAccountInfo(delegationPda);
         // console.log("Delegation record PDA", account.data.toJSON());
 
         // Print delegateAccountMetadata account bytes
-        // const account = await provider.connection.getAccountInfo(delegationMetadata);
-        // console.log("Delegation account metadata", account.data.toJSON());
-        // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
+        const account = await provider.connection.getAccountInfo(delegationMetadata);
+        console.log("Delegation account metadata", account.data.toJSON());
+        console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
     });
 
     it("Commit a new state to the PDA", async () => {

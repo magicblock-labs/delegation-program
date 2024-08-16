@@ -6,7 +6,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 pub struct DelegationMetadata {
     /// The delegation validity
     pub valid_until: i64,
-    pub slot: u64,
+    pub delegation_slot: u64,
+    pub last_update_external_slot: u64,
     pub is_undelegatable: bool,
     pub seeds: Vec<Vec<u8>>,
 }
@@ -32,7 +33,8 @@ mod tests {
                 ],
             ],
             is_undelegatable: false,
-            slot: 0,
+            delegation_slot: 0,
+            last_update_external_slot: 0,
             valid_until: 0,
         };
 
