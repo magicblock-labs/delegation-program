@@ -1,7 +1,5 @@
-use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
-    delegation_record_pda_from_pubkey,
-};
+use borsh::BorshDeserialize;
+use dlp::pda::{committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
@@ -10,11 +8,10 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use dlp::state::{CommitRecord, DelegationMetadata};
+use dlp::utils_account::AccountDeserialize;
 
-use crate::fixtures::{
-    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_AUTHORITY, COMMIT_STATE_RECORD_ACCOUNT_DATA,
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_RECORD_ACCOUNT_DATA,
-};
+use crate::fixtures::{COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_AUTHORITY, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_PDA, DELEGATION_RECORD_ACCOUNT_DATA};
 
 mod fixtures;
 
@@ -27,6 +24,10 @@ async fn test_finalize() {
     let delegation_record = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
     let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
+
+    // Commit state record data
+    let commit_state_record = banks.get_account(commit_state_record_pda).await.unwrap().unwrap();
+    let commit_state_record = CommitRecord::try_from_bytes(&commit_state_record.data).unwrap();
 
     // Save the new state data before finalizing
     let new_state_before_finalize = banks
@@ -48,8 +49,8 @@ async fn test_finalize() {
     assert!(committed_state_account.is_none());
 
     // Assert the delegation_record was not closed
-    let delegation_account = banks.get_account(delegation_record).await.unwrap();
-    assert!(delegation_account.is_some());
+    let delegation_record = banks.get_account(delegation_record).await.unwrap();
+    assert!(delegation_record.is_some());
 
     // Assert the commit_state_record_pda was closed
     let commit_state_record_account = banks.get_account(commit_state_record_pda).await.unwrap();
@@ -61,6 +62,17 @@ async fn test_finalize() {
 
     // Assert the delegated account contains the data from the new state
     assert_eq!(new_state_data_before_finalize, pda_account.data);
+
+    // Assert the delegation metadata contains the correct slot of the commitment
+    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let delegation_metadata_account = banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_metadata =
+        DelegationMetadata::try_from_slice(&delegation_metadata_account.data).unwrap();
+    assert_eq!(commit_state_record.slot, delegation_metadata.last_update_external_slot);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
@@ -97,6 +109,18 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: DELEGATION_RECORD_ACCOUNT_DATA.into(),
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the delegated account metadata PDA
+    program_test.add_account(
+        delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: DELEGATION_METADATA_PDA.into(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

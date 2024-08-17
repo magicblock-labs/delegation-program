@@ -118,6 +118,7 @@ pub fn commit_state(
 /// Builds a finalize state instruction.
 pub fn finalize(payer: Pubkey, delegated_account: Pubkey, reimbursement: Pubkey) -> Instruction {
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
+    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
     Instruction {
@@ -128,6 +129,7 @@ pub fn finalize(payer: Pubkey, delegated_account: Pubkey, reimbursement: Pubkey)
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
+            AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new(reimbursement, false),
             AccountMeta::new(system_program::id(), false),
         ],

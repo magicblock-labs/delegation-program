@@ -1,3 +1,4 @@
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::sysvar::Sysvar;
@@ -10,7 +11,7 @@ use solana_program::{
 };
 
 use crate::loaders::{load_owned_pda, load_program, load_signer};
-use crate::state::{CommitRecord, DelegationRecord};
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use crate::utils::close_pda;
 use crate::utils_account::AccountDeserialize;
 use crate::verify_state::verify_state;
@@ -29,7 +30,7 @@ pub fn process_finalize(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, committed_state_account, committed_state_record, delegation_record, reimbursement, system_program] =
+    let [payer, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -40,11 +41,16 @@ pub fn process_finalize(
     load_owned_pda(committed_state_account, &crate::id())?;
     load_owned_pda(committed_state_record, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
+    load_owned_pda(delegation_metadata, &crate::id())?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
     let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
+
+    // Load delegation metadata
+    let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
+    let mut delegation_metadata = DelegationMetadata::try_from_slice(&mut delegation_metadata_data)?;
 
     // Load committed state
     let commit_record_data = committed_state_record.try_borrow_data()?;
@@ -71,6 +77,9 @@ pub fn process_finalize(
     delegated_account.realloc(new_data.len(), false)?;
     let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
     (*delegated_account_data).copy_from_slice(&new_data);
+
+    delegation_metadata.last_update_external_slot = commit_record.slot;
+    delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
 
     // Dropping references
     drop(delegated_account_data);

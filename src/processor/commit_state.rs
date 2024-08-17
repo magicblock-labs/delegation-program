@@ -1,6 +1,6 @@
 use std::mem::size_of;
 
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
@@ -56,8 +56,8 @@ pub fn process_commit_state(
         &crate::id(),
         true,
     )?;
-    let mut delegation_metadata = delegation_metadata.try_borrow_mut_data()?;
-    let mut delegation_metadata = DelegationMetadata::try_from_slice(&mut delegation_metadata)?;
+    let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
+    let mut delegation_metadata = DelegationMetadata::try_from_slice(&mut delegation_metadata_data)?;
 
     // Load the uninitialized PDAs
     let state_diff_bump = load_uninitialized_pda(
@@ -107,6 +107,7 @@ pub fn process_commit_state(
     commit_record.slot = args.slot;
 
     delegation_metadata.is_undelegatable = args.allow_undelegation;
+    delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
 
     // Copy the new state to the initialized PDA
     let mut buffer_data = commit_state_account.try_borrow_mut_data()?;
