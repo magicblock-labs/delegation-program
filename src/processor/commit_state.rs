@@ -1,18 +1,19 @@
 use std::mem::size_of;
 
-use solana_program::clock::Clock;
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
-use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
+    msg,
     pubkey::Pubkey,
     {self},
 };
 
-use crate::consts::{COMMIT_RECORD, COMMIT_STATE, DELEGATION_RECORD};
+use crate::consts::{COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD};
+use crate::instruction::CommitAccountArgs;
 use crate::loaders::{load_initialized_pda, load_owned_pda, load_signer, load_uninitialized_pda};
-use crate::state::CommitRecord;
+use crate::state::{CommitRecord, DelegationMetadata};
 use crate::utils::create_pda;
 use crate::utils_account::{AccountDeserialize, Discriminator};
 
@@ -29,7 +30,11 @@ pub fn process_commit_state(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let [authority, delegated_account, commit_state_account, commit_state_record, delegation_record, system_program] =
+    msg!("Processing CommitState");
+    let args = CommitAccountArgs::try_from_slice(data)?;
+    let data: &[u8] = args.data.as_ref();
+
+    let [authority, delegated_account, commit_state_account, commit_state_record, delegation_record, delegation_metadata, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -44,8 +49,16 @@ pub fn process_commit_state(
         &crate::id(),
         true,
     )?;
-    //let mut delegation_record = delegation_record.try_borrow_mut_data()?;
-    //let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record)?;
+    // Check that the delegation_metadata account
+    load_owned_pda(delegation_metadata, &crate::id())?;
+    load_initialized_pda(
+        delegation_metadata,
+        &[DELEGATION_METADATA, &delegated_account.key.to_bytes()],
+        &crate::id(),
+        true,
+    )?;
+    let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
+    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
 
     // Load the uninitialized PDAs
     let state_diff_bump = load_uninitialized_pda(
@@ -92,9 +105,10 @@ pub fn process_commit_state(
     let commit_record = CommitRecord::try_from_bytes_mut(&mut commit_record_data)?;
     commit_record.identity = *authority.key;
     commit_record.account = *delegated_account.key;
-    commit_record.timestamp = Clock::get()?.unix_timestamp;
+    commit_record.slot = args.slot;
 
-    // TODO: here we can add a stake deposit to the state commit record
+    delegation_metadata.is_undelegatable = args.allow_undelegation;
+    delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
 
     // Copy the new state to the initialized PDA
     let mut buffer_data = commit_state_account.try_borrow_mut_data()?;

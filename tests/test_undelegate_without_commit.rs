@@ -13,7 +13,7 @@ use dlp::pda::{
 };
 
 use crate::fixtures::{
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_UNDELEGATABLE_PDA,
+    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_PDA,
     DELEGATION_RECORD_ACCOUNT_DATA,
 };
 
@@ -115,7 +115,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_METADATA_UNDELEGATABLE_PDA.into(),
+            data: DELEGATION_METADATA_PDA.into(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

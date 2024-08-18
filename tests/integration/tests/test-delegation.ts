@@ -1,5 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
+import {Program, web3} from "@coral-xyz/anchor";
+import * as beet from "@metaplex-foundation/beet";
 import { TestDelegation } from "../target/types/test_delegation";
 import {
     createUndelegateInstruction,
@@ -75,7 +76,7 @@ describe("TestDelegation", () => {
         console.log("Your transaction signature", tx);
 
         // Print delegationPda account bytes
-        // const account = await provider.connection.getAccountInfo(delegationPda);
+        // let account = await provider.connection.getAccountInfo(delegationPda);
         // console.log("Delegation record PDA", account.data.toJSON());
 
         // Print delegateAccountMetadata account bytes
@@ -85,22 +86,34 @@ describe("TestDelegation", () => {
     });
 
     it("Commit a new state to the PDA", async () => {
-
         const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
-        // @ts-ignore
-        var tx = await dlpProgram.methods
-            .commitState(Buffer.alloc(15).fill(5))
-            .accounts({
-                authority: provider.wallet.publicKey,
-                delegatedAccount: pda,
-                commitStateAccount: commitStatePda,
-                commitStateRecord: commitStateRecordPda,
-                delegationRecord: delegationPda,
-                systemProgram: anchor.web3.SystemProgram.programId,
-            }).rpc({skipPreflight: true});
+        let account = await provider.connection.getAccountInfo(pda);
+        let new_data = account.data;
+        new_data[-1] = (new_data[-1] + 1) % 256
 
-        console.log("Commit state signature", tx);
+        const args: CommitAccountInstructionArgs = {
+            slot: new anchor.BN(40),
+            allow_undelegation: false,
+            data: new_data
+        }
+
+        const ix = createCommitAccountInstruction({
+            authority: provider.wallet.publicKey,
+            delegatedAccount: pda,
+            commitStatePda: commitStatePda,
+            commitStateRecordPda: commitStateRecordPda,
+            delegationRecordPda: delegationPda,
+            delegationMetadataPda: delegationMetadata,
+        }, args);
+
+        let tx = new anchor.web3.Transaction().add(ix);
+        tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+        tx.feePayer = provider.wallet.publicKey;
+        tx = await provider.wallet.signTransaction(tx);
+        const txSign = await provider.sendAndConfirm(tx);
+
+        console.log("Commit state signature", txSign);
 
         // Print commit state record bytes
         // const account = await provider.connection.getAccountInfo(commitStateRecordPda);
@@ -111,7 +124,8 @@ describe("TestDelegation", () => {
 
         const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
-        var tx = await dlpProgram.methods
+        // @ts-ignore
+        const tx = await dlpProgram.methods
             .finalize()
             .accounts({
                 payer: provider.wallet.publicKey,
@@ -119,6 +133,7 @@ describe("TestDelegation", () => {
                 committedStateAccount: commitStatePda,
                 committedStateRecord: commitStateRecordPda,
                 delegationRecord: delegationPda,
+                delegationMetadata: delegationMetadata,
                 reimbursement: provider.wallet.publicKey,
                 systemProgram: anchor.web3.SystemProgram.programId,
             }).rpc({skipPreflight: true});
@@ -126,21 +141,34 @@ describe("TestDelegation", () => {
     });
 
     it("Commit a new state to the PDA", async () => {
-
         const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
-        var tx = await dlpProgram.methods
-            .commitState(Buffer.alloc(15).fill(7))
-            .accounts({
-                authority: provider.wallet.publicKey,
-                delegatedAccount: pda,
-                commitStateAccount: commitStatePda,
-                commitStateRecord: commitStateRecordPda,
-                delegationRecord: delegationPda,
-                systemProgram: anchor.web3.SystemProgram.programId,
-            }).rpc({skipPreflight: true});
+        let account = await provider.connection.getAccountInfo(pda);
+        let new_data = account.data;
+        new_data[-1] = (new_data[-1] + 1) % 256
 
-        console.log("Commit state signature", tx);
+        const args: CommitAccountInstructionArgs = {
+            slot: new anchor.BN(40),
+            allow_undelegation: true,
+            data: new_data
+        }
+
+        const ix = createCommitAccountInstruction({
+            authority: provider.wallet.publicKey,
+            delegatedAccount: pda,
+            commitStatePda: commitStatePda,
+            commitStateRecordPda: commitStateRecordPda,
+            delegationRecordPda: delegationPda,
+            delegationMetadataPda: delegationMetadata,
+        }, args);
+
+        let tx = new anchor.web3.Transaction().add(ix);
+        tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+        tx.feePayer = provider.wallet.publicKey;
+        tx = await provider.wallet.signTransaction(tx);
+        const txSign = await provider.sendAndConfirm(tx);
+
+        console.log("Commit state signature", txSign);
     });
 
     it("Allow Undelegation", async () => {
@@ -148,8 +176,6 @@ describe("TestDelegation", () => {
         const txSign = await testDelegation.methods
             .allowUndelegation()
             .accounts({
-                // @ts-ignore
-                counter: pda,
                 delegationRecord: delegationPda,
                 delegationMetadata: delegationMetadata,
                 buffer: bufferPda,
@@ -176,5 +202,61 @@ describe("TestDelegation", () => {
 
         console.log("Undelegate signature", txSign);
     });
+
+    interface AddEntityInstructionAccounts {
+        authority: web3.PublicKey;
+        delegatedAccount: web3.PublicKey;
+        commitStatePda: web3.PublicKey;
+        commitStateRecordPda: web3.PublicKey;
+        delegationRecordPda: web3.PublicKey;
+        delegationMetadataPda: web3.PublicKey;
+    }
+
+    interface CommitAccountInstructionArgs {
+        slot: beet.bignum,
+        allow_undelegation: boolean,
+        data: Uint8Array,
+    }
+
+    const commitAccountStruct = new beet.FixableBeetArgsStruct<
+        CommitAccountInstructionArgs & {
+        instructionDiscriminator: number[] /* size: 8 */;
+    }
+    >(
+        [
+            ["instructionDiscriminator", beet.uniformFixedSizeArray(beet.u8, 8)],
+            ["slot", beet.u64],
+            ["allow_undelegation", beet.bool],
+            ["data", beet.bytes],
+        ],
+        "AddEntityInstructionArgs"
+    );
+
+    function createCommitAccountInstruction(
+        accounts: AddEntityInstructionAccounts,
+        args: CommitAccountInstructionArgs,
+        programId = dlpProgram.programId
+    ) {
+        const [data] = commitAccountStruct.serialize({
+            instructionDiscriminator: [1, 0, 0, 0, 0, 0, 0, 0],
+            ...args,
+        });
+        const keys = [
+            { pubkey: accounts.authority, isSigner: true, isWritable: false },
+            { pubkey: accounts.delegatedAccount, isSigner: false, isWritable: false },
+            { pubkey: accounts.commitStatePda, isSigner: false, isWritable: true },
+            { pubkey: accounts.commitStateRecordPda, isSigner: false, isWritable: true },
+            { pubkey: accounts.delegationRecordPda, isSigner: false, isWritable: true },
+            { pubkey: accounts.delegationMetadataPda, isSigner: false, isWritable: true },
+            { pubkey: web3.SystemProgram.programId, isSigner: false, isWritable: false },
+        ];
+
+        const ix = new web3.TransactionInstruction({
+            programId,
+            keys,
+            data,
+        });
+        return ix;
+    }
 
 });

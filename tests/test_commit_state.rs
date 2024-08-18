@@ -1,21 +1,22 @@
-use solana_program::pubkey::Pubkey;
+use borsh::{BorshDeserialize, BorshSerialize};
+use dlp::instruction::CommitAccountArgs;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
-    pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
 
+use crate::fixtures::{DELEGATED_PDA_ID, DELEGATION_METADATA_PDA, DELEGATION_RECORD_ACCOUNT_DATA};
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
-    delegation_record_pda_from_pubkey,
+    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
 };
-use dlp::state::CommitRecord;
+use dlp::state::{CommitRecord, DelegationMetadata};
 use dlp::utils_account::AccountDeserialize;
 
-pub const DELEGATED_PDA_ID: Pubkey = pubkey!("8k2V7EzQtNg38Gi9HK5ZtQYp1YpGKNGrMcuGa737gZX4");
+mod fixtures;
 
 #[tokio::test]
 async fn test_commit_new_state() {
@@ -23,8 +24,18 @@ async fn test_commit_new_state() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
     let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
 
+    let commit_args = CommitAccountArgs {
+        data: new_state.clone(),
+        slot: 100,
+        allow_undelegation: true,
+    };
+
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(payer.pubkey(), DELEGATED_PDA_ID, new_state.clone());
+    let ix = dlp::instruction::commit_state(
+        payer.pubkey(),
+        DELEGATED_PDA_ID,
+        commit_args.try_to_vec().unwrap(),
+    );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
@@ -50,7 +61,17 @@ async fn test_commit_new_state() {
         CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
     assert_eq!(state_commit_record.account, DELEGATED_PDA_ID);
     assert_eq!(state_commit_record.identity, payer.pubkey());
-    assert!(state_commit_record.timestamp > 0);
+    assert_eq!(state_commit_record.slot, 100);
+
+    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let delegation_metadata_account = banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_metadata =
+        DelegationMetadata::try_from_slice(&delegation_metadata_account.data).unwrap();
+    assert_eq!(delegation_metadata.is_undelegatable, true);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
@@ -70,18 +91,24 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
+    // Setup the delegated account metadata PDA
+    program_test.add_account(
+        delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: DELEGATION_METADATA_PDA.into(),
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
     // Setup the delegated record PDA
     program_test.add_account(
         delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![
-                100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 85, 175, 207, 195, 148, 154, 129, 218,
-                62, 110, 177, 81, 112, 72, 172, 141, 157, 3, 211, 24, 26, 191, 79, 101, 191, 48,
-                19, 105, 181, 70, 132, 0, 0, 0, 0, 0, 0, 0, 0, 224, 147, 4, 0, 0, 0, 0, 0, 0, 0, 0,
-                0, 0, 0, 0, 0,
-            ],
+            data: DELEGATION_RECORD_ACCOUNT_DATA.into(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

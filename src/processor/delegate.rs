@@ -102,7 +102,8 @@ pub fn process_delegate(
     let delegation_metadata_struct = DelegationMetadata {
         seeds: args.seeds,
         valid_until: args.valid_until,
-        slot: solana_program::clock::Clock::get()?.slot,
+        delegation_slot: solana_program::clock::Clock::get()?.slot,
+        last_update_external_slot: 0,
         is_undelegatable: false,
     };
 
