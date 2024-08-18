@@ -5,7 +5,6 @@ use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
@@ -85,11 +84,6 @@ pub fn process_undelegate(
     // Load delegated account metadata
     let metadata = DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
 
-    msg!("Metadata: {:?}", metadata.valid_until);
-    msg!(
-        "Clock: {:?}",
-        solana_program::clock::Clock::get()?.unix_timestamp
-    );
     if !metadata.is_undelegatable
         && metadata.valid_until < solana_program::clock::Clock::get()?.unix_timestamp
     {
