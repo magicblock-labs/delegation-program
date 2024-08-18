@@ -28,14 +28,14 @@ pub mod test_delegation {
         msg!("Counter: {:?}", counter.count);
         if counter.count > 0 {
             msg!("Counter is greater than 0, undelegation is allowed");
-            // delegation_program_sdk::allow_undelegation(
-            //     &ctx.accounts.counter,
-            //     &ctx.accounts.delegation_record,
-            //     &ctx.accounts.delegation_metadata,
-            //     &ctx.accounts.buffer,
-            //     &ctx.accounts.delegation_program,
-            //     &id(),
-            // )?;
+            delegation_program_sdk::allow_undelegation(
+                &ctx.accounts.counter,
+                &ctx.accounts.delegation_record,
+                &ctx.accounts.delegation_metadata,
+                &ctx.accounts.buffer,
+                &ctx.accounts.delegation_program,
+                &id(),
+            )?;
         }
         Ok(())
     }
