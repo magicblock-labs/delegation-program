@@ -1,4 +1,5 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use dlp::instruction::CommitAccountArgs;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -6,12 +7,14 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use dlp::instruction::CommitAccountArgs;
 
-use dlp::pda::{committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
+use crate::fixtures::{DELEGATED_PDA_ID, DELEGATION_METADATA_PDA, DELEGATION_RECORD_ACCOUNT_DATA};
+use dlp::pda::{
+    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
+};
 use dlp::state::{CommitRecord, DelegationMetadata};
 use dlp::utils_account::AccountDeserialize;
-use crate::fixtures::{DELEGATED_PDA_ID, DELEGATION_METADATA_PDA, DELEGATION_RECORD_ACCOUNT_DATA};
 
 mod fixtures;
 
@@ -21,14 +24,18 @@ async fn test_commit_new_state() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
     let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
 
-    let commit_args = CommitAccountArgs{
+    let commit_args = CommitAccountArgs {
         data: new_state.clone(),
         slot: 100,
         allow_undelegation: true,
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(payer.pubkey(), DELEGATED_PDA_ID, commit_args.try_to_vec().unwrap());
+    let ix = dlp::instruction::commit_state(
+        payer.pubkey(),
+        DELEGATED_PDA_ID,
+        commit_args.try_to_vec().unwrap(),
+    );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);

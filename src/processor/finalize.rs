@@ -50,7 +50,7 @@ pub fn process_finalize(
 
     // Load delegation metadata
     let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
-    let mut delegation_metadata = DelegationMetadata::try_from_slice(&mut delegation_metadata_data)?;
+    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
 
     // Load committed state
     let commit_record_data = committed_state_record.try_borrow_data()?;

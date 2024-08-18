@@ -5,6 +5,7 @@ use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
+    msg,
     pubkey::Pubkey,
     {self},
 };
@@ -29,7 +30,7 @@ pub fn process_commit_state(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-
+    msg!("Processing CommitState");
     let args = CommitAccountArgs::try_from_slice(data)?;
     let data: &[u8] = args.data.as_ref();
 
@@ -57,7 +58,7 @@ pub fn process_commit_state(
         true,
     )?;
     let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
-    let mut delegation_metadata = DelegationMetadata::try_from_slice(&mut delegation_metadata_data)?;
+    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
 
     // Load the uninitialized PDAs
     let state_diff_bump = load_uninitialized_pda(

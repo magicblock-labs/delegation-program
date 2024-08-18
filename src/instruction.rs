@@ -124,14 +124,14 @@ pub fn finalize(payer: Pubkey, delegated_account: Pubkey, reimbursement: Pubkey)
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new(payer, true),
+            AccountMeta::new_readonly(payer, true),
             AccountMeta::new(delegated_account, false),
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new(reimbursement, false),
-            AccountMeta::new(system_program::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpInstruction::Finalize.to_vec(),
     }

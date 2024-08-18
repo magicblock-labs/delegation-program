@@ -121,12 +121,24 @@
           "writable": true
         },
         {
+          "name": "delegation_metadata",
+          "writable": true
+        },
+        {
           "name": "system_program"
         }
       ],
       "args": [
         {
-          "name": "args",
+        "name": "slot",
+        "type": "u64"
+        },
+        {
+          "name": "allow_undelegation",
+          "type": "bool"
+        },
+        {
+          "name": "data",
           "type": {
             "vec": "u8"
           }
@@ -165,30 +177,11 @@
         },
         {
           "name": "delegation_record",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  100,
-                  101,
-                  108,
-                  101,
-                  103,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "pda"
-              }
-            ]
-          }
+          "writable": true
+        },
+        {
+          "name": "delegation_metadata",
+          "writable": true
         },
         {
           "name": "reimbursement"
