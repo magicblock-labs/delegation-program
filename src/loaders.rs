@@ -1,6 +1,4 @@
-use solana_program::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
-};
+use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar};
 
 /// Errors if:
 /// - Account is not owned by expected program.
@@ -66,6 +64,32 @@ pub fn load_initialized_pda(
 }
 
 /// Errors if:
+/// - Address does not match PDA derived from provided seeds.
+/// - Owner is not system_program or the expected program.
+/// - Account is not writable if set to writable.
+pub fn load_pda(
+    info: &AccountInfo,
+    seeds: &[&[u8]],
+    is_writable: bool,
+) -> Result<u8, ProgramError> {
+    let pda = Pubkey::find_program_address(seeds, &crate::id());
+
+    if info.key.ne(&pda.0) {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    if !info.owner.eq(&crate::id()) && !info.owner.eq(&system_program::id()) {
+        return Err(ProgramError::InvalidAccountOwner);
+    }
+
+    if is_writable && !info.is_writable {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    Ok(pda.1)
+}
+
+/// Errors if:
 /// - Owner is not the system program.
 /// - Data is not empty.
 /// - Account is not writable.
@@ -85,6 +109,7 @@ pub fn load_uninitialized_account(info: &AccountInfo) -> Result<(), ProgramError
 
     Ok(())
 }
+
 
 /// Errors if:
 /// - Owner is not the sysvar address.

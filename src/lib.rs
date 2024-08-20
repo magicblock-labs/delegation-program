@@ -34,11 +34,13 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/magicblock-labs/Kamikaze-Joe"
 }
 
+
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+
     if program_id.ne(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
@@ -58,6 +60,8 @@ pub fn process_instruction(
         DlpInstruction::Finalize => process_finalize(program_id, accounts, data)?,
         DlpInstruction::Undelegate => process_undelegate(program_id, accounts, data)?,
         DlpInstruction::AllowUndelegate => process_allow_undelegate(program_id, accounts, data)?,
+        DlpInstruction::InitFeesVault => process_init_fees_vault(program_id, accounts, data)?,
+        DlpInstruction::TopUpEphemeralBalance => process_top_up_ephemeral(program_id, accounts, data)?,
     }
 
     Ok(())

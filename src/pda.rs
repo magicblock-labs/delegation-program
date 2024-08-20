@@ -1,6 +1,6 @@
 use paste::paste;
 
-use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD};
+use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, EPHEMERAL_BALANCE};
 
 // -----------------
 // Seeds
@@ -76,6 +76,9 @@ pda! { committed_state }
 
 seeds! { committed_state_record, COMMIT_RECORD }
 pda! { committed_state_record }
+
+seeds! { ephemeral_balance, EPHEMERAL_BALANCE }
+pda! { ephemeral_balance }
 
 seeds! { buffer, BUFFER }
 pda! { buffer }
