@@ -1,5 +1,10 @@
-use solana_program::{{self}, account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 use solana_program::program_error::ProgramError;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    pubkey::Pubkey,
+    {self},
+};
 
 use crate::consts::FEES_VAULT;
 use crate::loaders::{load_signer, load_uninitialized_pda};
@@ -14,11 +19,8 @@ pub fn process_init_fees_vault(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-
     // Load Accounts
-    let [payer, fees_vault,  system_program] =
-        accounts
-    else {
+    let [payer, fees_vault, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -31,7 +33,7 @@ pub fn process_init_fees_vault(
         &crate::id(),
         8,
         &[FEES_VAULT, &[bump_fees_vault]],
-        &system_program,
+        system_program,
         payer,
     )?;
 

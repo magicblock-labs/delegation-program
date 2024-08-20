@@ -1,12 +1,12 @@
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use dlp::consts::FEES_VAULT;
 use solana_program::pubkey::Pubkey;
-use solana_program_test::{BanksClient, processor, ProgramTest};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use dlp::consts::FEES_VAULT;
 
 mod fixtures;
 
@@ -15,12 +15,8 @@ async fn test_undelegate() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
-
     // Submit the undelegate tx
-    let ix = dlp::instruction::top_up_ephemeral_balance(
-        payer.pubkey(),
-        100000,
-    );
+    let ix = dlp::instruction::top_up_ephemeral_balance(payer.pubkey(), 100000);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());

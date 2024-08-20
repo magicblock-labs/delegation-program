@@ -1,10 +1,15 @@
 use std::mem::size_of;
 
 use borsh::BorshDeserialize;
-use solana_program::{{self}, account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    pubkey::Pubkey,
+    system_program, {self},
+};
 
 use crate::consts::{EPHEMERAL_BALANCE, FEES_VAULT};
 use crate::instruction::TopUpEphemeralArgs;
@@ -25,9 +30,7 @@ pub fn process_top_up_ephemeral(
     let args = TopUpEphemeralArgs::try_from_slice(data)?;
 
     // Load Accounts
-    let [payer, ephemeral_balance_pda, fees_vault,  system_program] =
-        accounts
-    else {
+    let [payer, ephemeral_balance_pda, fees_vault, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
     let seeds_ephemeral_balance_pda = [EPHEMERAL_BALANCE, &payer.key.to_bytes()];
@@ -41,8 +44,12 @@ pub fn process_top_up_ephemeral(
             ephemeral_balance_pda,
             &crate::id(),
             8 + size_of::<EphemeralBalance>(),
-            &[EPHEMERAL_BALANCE, &payer.key.to_bytes(), &[bump_receipt_pda]],
-            &system_program,
+            &[
+                EPHEMERAL_BALANCE,
+                &payer.key.to_bytes(),
+                &[bump_receipt_pda],
+            ],
+            system_program,
             payer,
         )?;
     }
@@ -52,11 +59,7 @@ pub fn process_top_up_ephemeral(
 
     invoke(
         &transfer_instruction,
-        &[
-            payer.clone(),
-            fees_vault.clone(),
-            system_program.clone(),
-        ],
+        &[payer.clone(), fees_vault.clone(), system_program.clone()],
     )?;
 
     Ok(())

@@ -8,7 +8,11 @@ use solana_program::{
 };
 
 use crate::consts::{BUFFER, FEES_VAULT};
-use crate::pda::{buffer_pda_from_pubkey, committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey, ephemeral_balance_pda_from_pubkey};
+use crate::pda::{
+    buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
+    committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
+    delegation_record_pda_from_pubkey, ephemeral_balance_pda_from_pubkey,
+};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateAccountArgs {
@@ -228,9 +232,7 @@ pub fn undelegate(
 }
 
 /// Initialize the fees vault PDA.
-pub fn initialize_fees_vault(
-    payer: Pubkey,
-) -> Instruction {
+pub fn initialize_fees_vault(payer: Pubkey) -> Instruction {
     let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
     Instruction {
         program_id: crate::id(),
@@ -244,13 +246,8 @@ pub fn initialize_fees_vault(
 }
 
 /// Builds a top-up ephemeral balance instruction.
-pub fn top_up_ephemeral_balance(
-    payer: Pubkey,
-    amount: u64,
-) -> Instruction {
-    let args = TopUpEphemeralArgs {
-        amount,
-    };
+pub fn top_up_ephemeral_balance(payer: Pubkey, amount: u64) -> Instruction {
+    let args = TopUpEphemeralArgs { amount };
     let receipt_pda = ephemeral_balance_pda_from_pubkey(&payer);
     let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
     Instruction {
@@ -261,6 +258,10 @@ pub fn top_up_ephemeral_balance(
             AccountMeta::new(fees_vault, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: [DlpInstruction::TopUpEphemeralBalance.to_vec(), args.try_to_vec().unwrap()].concat(),
+        data: [
+            DlpInstruction::TopUpEphemeralBalance.to_vec(),
+            args.try_to_vec().unwrap(),
+        ]
+        .concat(),
     }
 }

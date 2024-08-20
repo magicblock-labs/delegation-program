@@ -1,5 +1,5 @@
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{BanksClient, processor, ProgramTest};
+use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -13,9 +13,7 @@ async fn test_undelegate() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction::initialize_fees_vault(
-        payer.pubkey(),
-    );
+    let ix = dlp::instruction::initialize_fees_vault(payer.pubkey());
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());

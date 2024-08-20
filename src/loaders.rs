@@ -1,4 +1,6 @@
-use solana_program::{account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar};
+use solana_program::{
+    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
+};
 
 /// Errors if:
 /// - Account is not owned by expected program.
@@ -109,7 +111,6 @@ pub fn load_uninitialized_account(info: &AccountInfo) -> Result<(), ProgramError
 
     Ok(())
 }
-
 
 /// Errors if:
 /// - Owner is not the sysvar address.
