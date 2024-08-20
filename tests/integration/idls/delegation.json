@@ -288,35 +288,6 @@
         }
       ],
       "args": []
-    },
-    {
-      "name": "init_fees_vault",
-      "discriminator": [
-        6,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "accounts": [
-        {
-          "name": "payer",
-          "signer": true,
-          "writable": true
-        },
-        {
-          "name": "fees_vault",
-          "signer": false,
-          "writable": true
-        },
-        {
-          "name": "system_program"
-        }
-      ],
-      "args": []
     }
   ],
   "accounts": [],

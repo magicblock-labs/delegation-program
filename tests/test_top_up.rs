@@ -11,15 +11,29 @@ use solana_sdk::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_undelegate() {
+async fn test_top_up() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+
+    let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0;
+
+    let init_lamports = banks
+        .get_account(fees_vault)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     // Submit the undelegate tx
     let ix = dlp::instruction::top_up_ephemeral_balance(payer.pubkey(), 100000);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
+
+    // Assert the fees vault was created
+    let fees_vault_account = banks.get_account(fees_vault).await.unwrap();
+    assert!(fees_vault_account.is_some());
+    assert_eq!(fees_vault_account.unwrap().lamports, init_lamports + 100000);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

@@ -1,5 +1,5 @@
 use solana_program::{
-    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult,
+    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey,
 };
 
@@ -39,6 +39,10 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+    msg!("Data: {:?}", data);
+    msg!("Accounts: {:?}", accounts);
+    msg!("Program ID: {:?}", program_id);
+
     if program_id.ne(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }

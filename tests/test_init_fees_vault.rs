@@ -1,3 +1,5 @@
+use dlp::consts::FEES_VAULT;
+use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -9,7 +11,7 @@ use solana_sdk::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_undelegate() {
+async fn test_init_fees_vault() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
@@ -17,6 +19,11 @@ async fn test_undelegate() {
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
+
+    // Assert the fees vault was created
+    let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0;
+    let fees_vault_account = banks.get_account(fees_vault).await.unwrap();
+    assert!(fees_vault_account.is_some());
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

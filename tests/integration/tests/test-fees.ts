@@ -32,10 +32,11 @@ describe("TestFees", () => {
             const ix = createInitializeFeesVaultInstruction(provider.wallet.publicKey);
             let tx = new anchor.web3.Transaction().add(ix);
             tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+            tx.lastValidBlockHeight = (await provider.connection.getLatestBlockhash()).lastValidBlockHeight;
             tx.feePayer = provider.wallet.publicKey;
             tx = await provider.wallet.signTransaction(tx);
-            console.log(tx);
-            const txSign = await provider.sendAndConfirm(tx, [], {skipPreflight: true, commitment: 'confirmed'});
+            //console.log(tx);
+            const txSign = await provider.sendAndConfirm(tx, [], {skipPreflight: true});
             console.log('Init Fees Vault Tx: ', txSign);
         }
 
@@ -62,7 +63,7 @@ describe("TestFees", () => {
             instructionDiscriminator: [6, 0, 0, 0, 0, 0, 0, 0],
         });
         const keys = [
-            { pubkey: payer, isSigner: true, isWritable: false },
+            { pubkey: payer, isSigner: true, isWritable: true },
             { pubkey: feesVaultPda, isSigner: false, isWritable: true },
             { pubkey: web3.SystemProgram.programId, isSigner: false, isWritable: false },
         ];
