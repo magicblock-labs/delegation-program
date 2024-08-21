@@ -35,7 +35,7 @@ describe("TestFees", () => {
             tx.lastValidBlockHeight = (await provider.connection.getLatestBlockhash()).lastValidBlockHeight;
             tx.feePayer = provider.wallet.publicKey;
             tx = await provider.wallet.signTransaction(tx);
-            //console.log(tx);
+            console.log(tx.serializeMessage().toString("base64"));
             const txSign = await provider.sendAndConfirm(tx, [], {skipPreflight: true});
             console.log('Init Fees Vault Tx: ', txSign);
         }
