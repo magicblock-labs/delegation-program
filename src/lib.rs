@@ -39,7 +39,6 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-
     if program_id.ne(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
