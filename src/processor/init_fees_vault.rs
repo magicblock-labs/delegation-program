@@ -19,6 +19,7 @@ pub fn process_init_fees_vault(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
+
     // Load Accounts
     let [payer, fees_vault, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);

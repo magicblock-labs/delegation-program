@@ -1,3 +1,4 @@
+use solana_program::pubkey;
 use solana_program::pubkey::Pubkey;
 
 /// The seed of the authority account PDA.
@@ -17,6 +18,7 @@ pub const COMMIT_RECORD: &[u8] = b"commit-state-record";
 
 /// The account to store lamports deposited for paying fees.
 pub const FEES_VAULT: &[u8] = b"fees-vault";
+pub const WHITELIST: &[u8] = b"whitelist";
 
 /// The account to store ephemeral lamports deposited for a user.
 pub const EPHEMERAL_BALANCE: &[u8] = b"ephemeral-balance";
@@ -26,3 +28,6 @@ pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37
 
 /// The program ID of the delegation program.
 pub const DELEGATION_PROGRAM_ID: Pubkey = crate::id();
+
+/// The admin Pubkey of the authority allowed to whitelist validators.
+pub const ADMIN_PUBKEY: Pubkey = pubkey!("3FwNxjbCqdD7G6MkrAdwTd5Zf6R3tHoapam4Pv1X2KBB");
