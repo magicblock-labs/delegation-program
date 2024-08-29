@@ -30,7 +30,7 @@ Delegation module for https://arxiv.org/pdf/2311.02650.pdf
 To run the test suite, use the Solana toolchain: 
 
 ```
-cargo test-sbf
+RUSTFLAGS="--cfg unit_test_config" cargo test-sbf
 ```
 
 For line coverage, use llvm-cov:

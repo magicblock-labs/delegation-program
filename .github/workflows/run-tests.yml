@@ -82,7 +82,7 @@ jobs:
       - name: run tests
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          cargo test-sbf
+          RUSTFLAGS="--cfg unit_test_config" cargo test-sbf
 
       - name: run integration tests
         run: |

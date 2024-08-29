@@ -12,6 +12,7 @@ use crate::pda::{
     buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
     committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
     delegation_record_pda_from_pubkey, ephemeral_balance_pda_from_pubkey,
+    whitelist_record_pda_from_pubkey,
 };
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
@@ -44,6 +45,7 @@ pub enum DlpInstruction {
     AllowUndelegate = 4,
     TopUpEphemeralBalance = 5,
     InitFeesVault = 6,
+    WhitelistValidator = 7,
 }
 
 impl DlpInstruction {
@@ -64,6 +66,7 @@ impl TryFrom<[u8; 8]> for DlpInstruction {
             [0x4, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::AllowUndelegate),
             [0x5, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::TopUpEphemeralBalance),
             [0x6, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitFeesVault),
+            [0x7, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::WhitelistValidator),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -228,6 +231,26 @@ pub fn undelegate(
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpInstruction::Undelegate.to_vec(),
+    }
+}
+
+/// Whitelist a validator identity.
+pub fn whitelist_validator(
+    payer: Pubkey,
+    admin: Pubkey,
+    validator_identity: Pubkey,
+) -> Instruction {
+    let whitelist_record_pda = whitelist_record_pda_from_pubkey(&validator_identity);
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(admin, true),
+            AccountMeta::new(validator_identity, false),
+            AccountMeta::new(whitelist_record_pda, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: DlpInstruction::WhitelistValidator.to_vec(),
     }
 }
 

@@ -58,6 +58,7 @@ pub fn process_instruction(
         DlpInstruction::Finalize => process_finalize(program_id, accounts, data)?,
         DlpInstruction::Undelegate => process_undelegate(program_id, accounts, data)?,
         DlpInstruction::AllowUndelegate => process_allow_undelegate(program_id, accounts, data)?,
+        DlpInstruction::WhitelistValidator => process_whitelist(program_id, accounts, data)?,
         DlpInstruction::InitFeesVault => process_init_fees_vault(program_id, accounts, data)?,
         DlpInstruction::TopUpEphemeralBalance => {
             process_top_up_ephemeral(program_id, accounts, data)?

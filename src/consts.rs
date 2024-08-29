@@ -29,5 +29,8 @@ pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37
 /// The program ID of the delegation program.
 pub const DELEGATION_PROGRAM_ID: Pubkey = crate::id();
 
-/// The admin Pubkey of the authority allowed to whitelist validators.
+/// The admin pubkey of the authority allowed to whitelist validators.
+#[cfg(not(any(unit_test_config)))]
 pub const ADMIN_PUBKEY: Pubkey = pubkey!("3FwNxjbCqdD7G6MkrAdwTd5Zf6R3tHoapam4Pv1X2KBB");
+#[cfg(unit_test_config)]
+pub const ADMIN_PUBKEY: Pubkey = pubkey!("tstp2WEvNF7UATHSPBZCSrNC4cqV2Wr6yhtXveouCWn");

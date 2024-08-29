@@ -1,10 +1,10 @@
+use solana_program::program_error::ProgramError;
 use solana_program::{
-    {self},
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     pubkey::Pubkey,
+    {self},
 };
-use solana_program::program_error::ProgramError;
 
 use crate::consts::{ADMIN_PUBKEY, WHITELIST};
 use crate::error::DlpError::Unauthorized;
@@ -19,9 +19,8 @@ pub fn process_whitelist(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-
     // Load Accounts
-    let [payer, admin, validator_identify, white_list_record, system_program] = accounts else {
+    let [payer, admin, validator_identity, whitelist_record, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -34,14 +33,22 @@ pub fn process_whitelist(
         return Err(Unauthorized.into());
     }
 
-    let bump_white_list_record = load_uninitialized_pda(white_list_record, &[WHITELIST, validator_identify.key.as_ref()], &crate::id())?;
+    let bump_white_list_record = load_uninitialized_pda(
+        whitelist_record,
+        &[WHITELIST, validator_identity.key.as_ref()],
+        &crate::id(),
+    )?;
 
     // Create the whitelist record
     create_pda(
-        white_list_record,
+        whitelist_record,
         &crate::id(),
         8,
-        &[WHITELIST, validator_identify.key.as_ref(), &[bump_white_list_record]],
+        &[
+            WHITELIST,
+            validator_identity.key.as_ref(),
+            &[bump_white_list_record],
+        ],
         system_program,
         payer,
     )?;
