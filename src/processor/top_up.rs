@@ -17,7 +17,7 @@ use crate::loaders::{load_initialized_pda, load_pda, load_signer};
 use crate::state::EphemeralBalance;
 use crate::utils::create_pda;
 
-/// Process top up ephemeral
+/// Process top up ephemeral balance
 ///
 /// 1. Transfer lamports from payer to fees_vault PDA
 /// 2. Create a user receipt account if it does not exist. Increase the receipt balance by the transferred amount
@@ -26,6 +26,7 @@ pub fn process_top_up_ephemeral(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+
     // Parse args.
     let args = TopUpEphemeralArgs::try_from_slice(data)?;
 
