@@ -1,12 +1,13 @@
 use crate::utils_account::{AccountDiscriminator, Discriminator};
 use borsh::{BorshDeserialize, BorshSerialize};
 
-/// The Delegated Metadata, includes Account Seeds, max delegation time,
+/// The Delegated Metadata includes Account Seeds, max delegation time, seeds
+/// and other meta information about the delegated account.
+/// * Everything necessary at cloning time is instead stored in the delegation record.
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct DelegationMetadata {
     /// The delegation validity
     pub valid_until: i64,
-    pub delegation_slot: u64,
     pub last_update_external_slot: u64,
     pub is_undelegatable: bool,
     pub seeds: Vec<Vec<u8>>,
@@ -33,7 +34,6 @@ mod tests {
                 ],
             ],
             is_undelegatable: false,
-            delegation_slot: 0,
             last_update_external_slot: 0,
             valid_until: 0,
         };
