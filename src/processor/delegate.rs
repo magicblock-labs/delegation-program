@@ -97,12 +97,12 @@ pub fn process_delegate(
     delegation.owner = *owner_program.key;
     delegation.authority = Pubkey::default();
     delegation.commit_frequency_ms = args.commit_frequency_ms as u64;
+    delegation.delegation_slot = solana_program::clock::Clock::get()?.slot;
 
     // Initialize the account seeds PDA
     let delegation_metadata_struct = DelegationMetadata {
         seeds: args.seeds,
         valid_until: args.valid_until,
-        delegation_slot: solana_program::clock::Clock::get()?.slot,
         last_update_external_slot: 0,
         is_undelegatable: false,
     };

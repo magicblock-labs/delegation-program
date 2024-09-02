@@ -80,7 +80,7 @@ describe("TestDelegation", () => {
         // console.log("Delegation record PDA", account.data.toJSON());
 
         // Print delegateAccountMetadata account bytes
-        // const account = await provider.connection.getAccountInfo(delegationMetadata);
+        // account = await provider.connection.getAccountInfo(delegationMetadata);
         // console.log("Delegation account metadata", account.data.toJSON());
         // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
     });
