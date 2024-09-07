@@ -18,6 +18,7 @@ name = "dlp"
 [features]
 no-entrypoint = []
 default = ["solana-security-txt"]
+unit_test_config = []
 
 [dependencies]
 borsh = "0.10.3"
@@ -35,3 +36,4 @@ rand = "0.8.5"
 solana-program-test = "^1.18.25"
 solana-sdk = "^1.18.25"
 tokio = { version = "1.40.0", features = ["full"] }
+delegation-program = { path = ".", features = ["unit_test_config"] }
