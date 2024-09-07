@@ -291,27 +291,27 @@ pub fn top_up_ephemeral_balance(payer: Pubkey, amount: u64) -> Instruction {
         data: [
             DlpInstruction::TopUpEphemeralBalance.to_vec(),
             args.try_to_vec().unwrap(),
-        ].concat(),
+        ]
+        .concat(),
     }
 }
 
 /// Withdraw ephemeral balance instruction.
 pub fn withdraw_ephemeral_balance(payer: Pubkey, amount: Option<u64>) -> Instruction {
     let args = WithdrawArgs { amount };
-    let receipt_pda = ephemeral_balance_pda_from_pubkey(&payer);
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_pubkey(&payer);
     let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(receipt_pda, false),
+            AccountMeta::new(ephemeral_balance_pda, false),
             AccountMeta::new(fees_vault, false),
-            AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
             DlpInstruction::WithdrawEphemeralBalance.to_vec(),
             args.try_to_vec().unwrap(),
-        ].concat(),
+        ]
+        .concat(),
     }
 }
-

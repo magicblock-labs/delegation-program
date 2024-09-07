@@ -44,6 +44,15 @@ describe("TestFees", () => {
         tx = await provider.wallet.signTransaction(tx);
         const txSign = await provider.sendAndConfirm(tx, [], {skipPreflight: true});
         console.log('TopUp Tx: ', txSign);
+
+        // Check if the ephemeral balance is updated
+        const [ephemeralBalancePda] = anchor.web3.PublicKey.findProgramAddressSync(
+            [Buffer.from(EPHEMERAL_BALANCE), provider.wallet.publicKey.toBuffer()],
+            dlpProgram.programId
+        );
+        let ephemeralBalanceAccountInfo = await provider.connection.getAccountInfo(ephemeralBalancePda);
+        console.log('Ephemeral Balance Account Info: ', ephemeralBalanceAccountInfo.data.toJSON());
+        console.log('Ephemeral Balance Account Info: ', ephemeralBalanceAccountInfo.data.toJSON());
     });
 
     // Transaction building functions

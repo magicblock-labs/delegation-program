@@ -42,6 +42,9 @@ pub const DELEGATION_METADATA_UNDELEGATABLE_PDA: [u8; 33] = [
 ];
 
 #[allow(dead_code)]
+pub const EPHEMERAL_BALANCE_PDA: [u8; 16] = [103, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0];
+
+#[allow(dead_code)]
 pub const COMMIT_STATE_AUTHORITY: Pubkey = pubkey!("Ec6jL2GVTzjfHz8RFP3mVyki9JRNmMu8E7YdNh45xNdk");
 
 #[allow(dead_code)]
