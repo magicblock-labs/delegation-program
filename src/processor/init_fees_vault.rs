@@ -10,10 +10,9 @@ use crate::consts::FEES_VAULT;
 use crate::loaders::{load_signer, load_uninitialized_pda};
 use crate::utils::create_pda;
 
-/// Process top up ephemeral
+/// Initialize the fees vault
 ///
-/// 1. Transfer lamports from payer to fees_vault PDA
-/// 2. Create a user receipt account if it does not exist. Increase the receipt balance by the transferred amount
+/// 1. Create the fees vault PDA
 pub fn process_init_fees_vault(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],

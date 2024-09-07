@@ -11,7 +11,7 @@ pub enum DlpError {
         "Account cannot be undelegated, is_delegatable is false and valid_until isn't reached"
     )]
     Undelegatable = 1,
-    #[error("Unathorized Operation")]
+    #[error("Unauthorized Operation")]
     Unauthorized = 2,
     #[error("Invalid Authority for the current target program")]
     InvalidAuthorityForProgram = 3,

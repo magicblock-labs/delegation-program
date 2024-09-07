@@ -22,6 +22,7 @@ pub fn process_withdraw(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+
     // Parse args.
     let args = WithdrawArgs::try_from_slice(data)?;
 
