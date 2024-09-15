@@ -126,7 +126,6 @@ pub fn process_undelegate(
         false => delegated_account.try_borrow_data()?,
     };
     (*buffer_data).copy_from_slice(&new_data);
-    let expected_data = (**new_data).to_vec().clone();
 
     // Dropping References
     drop(commit_record_data);
@@ -151,16 +150,18 @@ pub fn process_undelegate(
 
     // Verify that delegated_account contains the expected data after CPI
     let delegated_data = delegated_account.try_borrow_data()?;
-    if delegated_data.to_vec() != expected_data.to_vec() {
+    let buffer_data = buffer.try_borrow_data()?;
+    if delegated_data.as_ref() != buffer_data.as_ref() {
         return Err(ProgramError::InvalidAccountData);
     }
+    drop(buffer_data);
 
     // Closing accounts
     close_pda(delegation_metadata, reimbursement)?;
     close_pda(committed_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
     close_pda(committed_state_account, reimbursement)?;
-    close_pda(buffer, reimbursement)?;
+    close_pda(buffer, payer)?;
     Ok(())
 }
 
