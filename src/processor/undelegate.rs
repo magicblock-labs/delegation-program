@@ -24,10 +24,11 @@ use solana_program::sysvar::Sysvar;
 /// 3. CPI to the original owner to re-open the PDA with the original owner and the new state
 /// - The CPI will be signed by the buffer PDA and will call the external program
 ///   using the discriminator EXTERNAL_UNDELEGATE_DISCRIMINATOR
-/// 4. Close the buffer PDA
-/// 5. Close the state diff account (if exists)
-/// 6. Close the commit state record (if exists)
-/// 7. Close the delegation record
+/// 4. Verify that the new state is the same as the committed state
+/// 5. Close the buffer PDA
+/// 6. Close the state diff account (if exists)
+/// 7. Close the commit state record (if exists)
+/// 8. Close the delegation record
 ///
 ///
 /// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
@@ -125,6 +126,7 @@ pub fn process_undelegate(
         false => delegated_account.try_borrow_data()?,
     };
     (*buffer_data).copy_from_slice(&new_data);
+    let expected_data = (**new_data).to_vec().clone();
 
     // Dropping References
     drop(commit_record_data);
@@ -146,6 +148,12 @@ pub fn process_undelegate(
         metadata,
         signer_seeds,
     )?;
+
+    // Verify that delegated_account contains the expected data after CPI
+    let delegated_data = delegated_account.try_borrow_data()?;
+    if delegated_data.to_vec() != expected_data.to_vec() {
+        return Err(ProgramError::InvalidAccountData);
+    }
 
     // Closing accounts
     close_pda(delegation_metadata, reimbursement)?;
