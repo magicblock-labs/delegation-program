@@ -178,7 +178,7 @@ pub fn undelegate(
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegated_account, false),
-            AccountMeta::new(owner_program, false),
+            AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(buffer_pda, false),
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
