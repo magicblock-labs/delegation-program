@@ -79,12 +79,12 @@ pub fn delegate(
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegate_account, false),
-            AccountMeta::new(owner_program, false),
+            AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),
             AccountMeta::new(delegate_accounts_seeds, false),
-            AccountMeta::new(delegation_program, false),
-            AccountMeta::new(system_program, false),
+            AccountMeta::new_readonly(delegation_program, false),
+            AccountMeta::new_readonly(system_program, false),
         ],
         data: discriminator,
     }
@@ -178,14 +178,14 @@ pub fn undelegate(
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegated_account, false),
-            AccountMeta::new(owner_program, false),
+            AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(buffer_pda, false),
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata, false),
             AccountMeta::new(reimbursement, false),
-            AccountMeta::new(system_program::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpInstruction::Undelegate.to_vec(),
     }
