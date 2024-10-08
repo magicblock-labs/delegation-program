@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use dlp::instruction::CommitAccountArgs;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -31,11 +31,7 @@ async fn test_commit_new_state() {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(
-        payer.pubkey(),
-        DELEGATED_PDA_ID,
-        commit_args.try_to_vec().unwrap(),
-    );
+    let ix = dlp::instruction::commit_state(payer.pubkey(), DELEGATED_PDA_ID, commit_args);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);

@@ -44,11 +44,13 @@ pub fn process_delegate(
     load_owned_pda(delegate_account, &crate::id())?;
 
     // Validate the seeds
-    let seeds_to_validate: Vec<&[u8]> = args.seeds.iter().map(|v| v.as_slice()).collect();
-    let (derived_pda, _) =
-        Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);
-    if derived_pda.ne(delegate_account.key) {
-        return Err(ProgramError::InvalidSeeds);
+    if !owner_program.key.eq(&system_program::id()) {
+        let seeds_to_validate: Vec<&[u8]> = args.seeds.iter().map(|v| v.as_slice()).collect();
+        let (derived_pda, _) =
+            Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);
+        if derived_pda.ne(delegate_account.key) {
+            return Err(ProgramError::InvalidSeeds);
+        }
     }
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
