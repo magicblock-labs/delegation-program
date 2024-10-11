@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -7,10 +8,11 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
+use crate::fixtures::ON_CURVE_ACCOUNT_BYTES;
 use dlp::consts::BUFFER;
 use dlp::instruction::DelegateAccountArgs;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
-use dlp::state::DelegationRecord;
+use dlp::state::{DelegationMetadata, DelegationRecord};
 use dlp::utils_account::AccountDeserialize;
 
 mod fixtures;
@@ -53,7 +55,7 @@ async fn test_delegate_on_curve() {
         system_program::id(),
         DelegateAccountArgs {
             valid_until: 0,
-            commit_frequency_ms: 0,
+            commit_frequency_ms: u32::MAX,
             seeds: vec![],
         },
     );
@@ -98,12 +100,23 @@ async fn test_delegate_on_curve() {
         .unwrap();
     let delegation_record = DelegationRecord::try_from_bytes(&delegation_record.data).unwrap();
     assert_eq!(delegation_record.owner, system_program::id());
+
+    // Assert that the delegation metadata exists and can be parsed
+    let delegation_metadata = banks
+        .get_account(delegation_metadata_pda_from_pubkey(&accounts_to_delegate))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(delegation_metadata.owner.eq(&dlp::id()));
+    let delegation_metadata =
+        DelegationMetadata::try_from_slice(&delegation_metadata.data).unwrap();
+    assert_eq!(delegation_metadata.is_undelegatable, false);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::new();
+    let payer_alt = Keypair::from_bytes(&ON_CURVE_ACCOUNT_BYTES).unwrap();
 
     program_test.add_account(
         payer_alt.pubkey(),

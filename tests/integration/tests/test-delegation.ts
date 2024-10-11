@@ -3,9 +3,11 @@ import {Program, web3} from "@coral-xyz/anchor";
 import * as beet from "@metaplex-foundation/beet";
 import { TestDelegation } from "../target/types/test_delegation";
 import {
-    createUndelegateInstruction,
-    DelegateAccounts, DELEGATION_PROGRAM_ID, UndelegateAccounts
-} from "@magicblock-labs/delegation-program";
+    createDelegateInstruction, createUndelegateInstruction,
+    DelegateAccounts,
+    DELEGATION_PROGRAM_ID
+} from "@magicblock-labs/ephemeral-rollups-sdk";
+import {ON_CURVE_ACCOUNT} from "./fixtures/consts";
 
 const SEED_TEST_PDA = "test-pda";
 
@@ -58,7 +60,7 @@ describe("TestDelegation", () => {
 
     it("Delegate a PDA", async () => {
 
-        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationRecord, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         // Delegate, Close PDA, and Lock PDA in a single instruction
         const tx = await testDelegation.methods
@@ -69,7 +71,7 @@ describe("TestDelegation", () => {
                 ownerProgram: testDelegation.programId,
                 delegationMetadata: delegationMetadata,
                 buffer: bufferPda,
-                delegationRecord: delegationPda,
+                delegationRecord: delegationRecord,
                 delegationProgram: DELEGATION_PROGRAM_ID,
                 systemProgram: anchor.web3.SystemProgram.programId,
             }).rpc({skipPreflight: true});
@@ -85,8 +87,51 @@ describe("TestDelegation", () => {
         // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
     });
 
+    it("Delegate an on-curve account", async () => {
+        const delegateOnCurve = ON_CURVE_ACCOUNT;
+        const { delegationRecord, delegationMetadata} = DelegateAccounts(delegateOnCurve.publicKey, web3.SystemProgram.programId);
+
+        // Airdrop SOL to create the account
+        const airdropSignature = await provider.connection.requestAirdrop(
+            delegateOnCurve.publicKey,
+            web3.LAMPORTS_PER_SOL
+        );
+        await provider.connection.confirmTransaction(airdropSignature);
+
+        let tx = new web3.Transaction()
+            .add(web3.SystemProgram.assign({
+                accountPubkey: delegateOnCurve.publicKey,
+                programId: new web3.PublicKey(DELEGATION_PROGRAM_ID)
+            }))
+            .add(
+                createDelegateInstruction({
+                    payer: provider.wallet.publicKey,
+                    delegateAccount: delegateOnCurve.publicKey,
+                    ownerProgram: web3.SystemProgram.programId,
+                }
+            )
+        );
+        tx.recentBlockhash = (await provider.connection.getLatestBlockhash()).blockhash;
+        tx.feePayer = provider.wallet.publicKey;
+        tx.partialSign(delegateOnCurve);
+        tx = await provider.wallet.signTransaction(tx);
+        const txSign = await provider.sendAndConfirm(tx, [], {skipPreflight: true});
+
+        console.log("Your transaction signature", txSign);
+
+        // Print delegationPda account bytes
+        // let account = await provider.connection.getAccountInfo(delegationRecord);
+        // console.log("Delegation record", account.data.toJSON());
+        // console.log("Delegation record PDA", delegationRecord.toBase58());
+
+        // Print delegateAccountMetadata account bytes
+        // account = await provider.connection.getAccountInfo(delegationMetadata);
+        // console.log("Delegation account metadata", account.data.toJSON());
+        // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
+    });
+
     it("Commit a new state to the PDA", async () => {
-        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationRecord, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         let account = await provider.connection.getAccountInfo(pda);
         let new_data = account.data;
@@ -103,7 +148,7 @@ describe("TestDelegation", () => {
             delegatedAccount: pda,
             commitStatePda: commitStatePda,
             commitStateRecordPda: commitStateRecordPda,
-            delegationRecordPda: delegationPda,
+            delegationRecordPda: delegationRecord,
             delegationMetadataPda: delegationMetadata,
         }, args);
 
@@ -122,7 +167,7 @@ describe("TestDelegation", () => {
 
     it("Finalize account state", async () => {
 
-        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationRecord, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         // @ts-ignore
         const tx = await dlpProgram.methods
@@ -132,7 +177,7 @@ describe("TestDelegation", () => {
                 delegatedAccount: pda,
                 committedStateAccount: commitStatePda,
                 committedStateRecord: commitStateRecordPda,
-                delegationRecord: delegationPda,
+                delegationRecord: delegationRecord,
                 delegationMetadata: delegationMetadata,
                 reimbursement: provider.wallet.publicKey,
                 systemProgram: anchor.web3.SystemProgram.programId,
@@ -141,7 +186,7 @@ describe("TestDelegation", () => {
     });
 
     it("Commit a new state to the PDA", async () => {
-        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationRecord, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         let account = await provider.connection.getAccountInfo(pda);
         let new_data = account.data;
@@ -158,7 +203,7 @@ describe("TestDelegation", () => {
             delegatedAccount: pda,
             commitStatePda: commitStatePda,
             commitStateRecordPda: commitStateRecordPda,
-            delegationRecordPda: delegationPda,
+            delegationRecordPda: delegationRecord,
             delegationMetadataPda: delegationMetadata,
         }, args);
 
@@ -172,11 +217,11 @@ describe("TestDelegation", () => {
     });
 
     it("Allow Undelegation", async () => {
-        const { delegationPda, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
+        const { delegationRecord, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
         const txSign = await testDelegation.methods
             .allowUndelegation()
             .accounts({
-                delegationRecord: delegationPda,
+                delegationRecord: delegationRecord,
                 delegationMetadata: delegationMetadata,
                 buffer: bufferPda,
                 delegationProgram: DELEGATION_PROGRAM_ID,
@@ -189,7 +234,6 @@ describe("TestDelegation", () => {
     });
 
     it("Undelegate account", async () => {
-
         const ixUndelegate = createUndelegateInstruction({
             payer: provider.wallet.publicKey,
             delegatedAccount: pda,
