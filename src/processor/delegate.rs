@@ -43,6 +43,7 @@ pub fn process_delegate(
     load_program(system_program, system_program::id())?;
     load_owned_pda(delegate_account, &crate::id())?;
 
+    // Validate seeds if the delegate account is not on curve, i.e. is a PDA
     if !delegate_account.is_on_curve() {
         let seeds_to_validate: Vec<&[u8]> = args.seeds.iter().map(|v| v.as_slice()).collect();
         let (derived_pda, _) =
@@ -67,6 +68,7 @@ pub fn process_delegate(
         &crate::id(),
     )?;
 
+    // Check that the delegation metadata PDA is uninitialized
     let delegation_metadata_bump = load_uninitialized_pda(
         delegation_metadata,
         &[DELEGATION_METADATA, &delegate_account.key.to_bytes()],
