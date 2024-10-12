@@ -22,15 +22,16 @@ default = ["solana-security-txt"]
 [dependencies]
 borsh = "0.10.3"
 paste = "^1.0"
-solana-program = "^1.16"
+solana-program = "^1.18.25"
 bytemuck = "^1.14.3"
 num_enum = "^0.7.2"
 thiserror = "^1.0.57"
 solana-security-txt = { version = "1.1.1", optional = true }
+solana-curve25519 = "2.0.13"
 
 [dev-dependencies]
 base64 = "0.22.0"
 rand = "0.8.5"
-solana-program-test = "^1.16"
-solana-sdk = "^1.16"
-tokio = { version = "1.37", features = ["full"] }
+solana-program-test = "^1.18.25"
+solana-sdk = "^1.18.25"
+tokio = { version = "1.40.0", features = ["full"] }

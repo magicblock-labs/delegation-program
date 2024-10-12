@@ -13,7 +13,7 @@ use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DIS
 use crate::error::DlpError;
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use crate::utils::{close_pda, create_pda};
+use crate::utils::{close_pda, create_pda, ValidateEdwards};
 use crate::utils_account::AccountDeserialize;
 use solana_program::sysvar::Sysvar;
 
@@ -134,7 +134,7 @@ pub fn process_undelegate(
     drop(buffer_data);
     drop(new_data);
 
-    if owner_program.key == &system_program::id() || buffer.try_borrow_data()?.is_empty() {
+    if delegated_account.is_on_curve() || buffer.try_borrow_data()?.is_empty() {
         delegated_account.assign(owner_program.key);
     } else {
         let delegated_account_lamports = delegated_account.lamports.clone();

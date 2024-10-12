@@ -1,3 +1,4 @@
+use solana_curve25519::edwards::{validate_edwards, PodEdwardsPoint};
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, rent::Rent,
     sysvar::Sysvar,
@@ -91,4 +92,16 @@ pub(crate) fn close_pda<'a, 'info>(
 
     target_account.assign(&solana_program::system_program::ID);
     target_account.realloc(0, false).map_err(Into::into)
+}
+
+/// Define a trait to add is_on_curve method to AccountInfo
+pub trait ValidateEdwards {
+    fn is_on_curve(&self) -> bool;
+}
+
+/// Implement the trait for AccountInfo
+impl ValidateEdwards for AccountInfo<'_> {
+    fn is_on_curve(&self) -> bool {
+        validate_edwards(&PodEdwardsPoint(self.key.to_bytes()))
+    }
 }

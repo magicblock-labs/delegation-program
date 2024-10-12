@@ -16,7 +16,7 @@ use crate::loaders::{
     load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
 };
 use crate::state::{DelegationMetadata, DelegationRecord};
-use crate::utils::create_pda;
+use crate::utils::{create_pda, ValidateEdwards};
 use crate::utils_account::{AccountDeserialize, Discriminator};
 
 /// Delegate an account
@@ -43,8 +43,7 @@ pub fn process_delegate(
     load_program(system_program, system_program::id())?;
     load_owned_pda(delegate_account, &crate::id())?;
 
-    // Validate the seeds
-    if !owner_program.key.eq(&system_program::id()) {
+    if !delegate_account.is_on_curve() {
         let seeds_to_validate: Vec<&[u8]> = args.seeds.iter().map(|v| v.as_slice()).collect();
         let (derived_pda, _) =
             Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);
