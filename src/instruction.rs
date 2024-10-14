@@ -61,7 +61,7 @@ impl TryFrom<[u8; 8]> for DlpInstruction {
 }
 
 /// Builds a delegate instruction.
-pub fn delegate(
+pub fn delegate_from_wrapper_program(
     payer: Pubkey,
     delegate_account: Pubkey,
     system_program: Pubkey,
@@ -90,12 +90,43 @@ pub fn delegate(
     }
 }
 
+/// Builds a delegate instruction for an on-curve account.
+pub fn delegate_on_curve(
+    payer: Pubkey,
+    delegate_account: Pubkey,
+    system_program: Pubkey,
+    args: DelegateAccountArgs,
+) -> Instruction {
+    let buffer = Pubkey::find_program_address(
+        &[BUFFER, &delegate_account.to_bytes()],
+        &system_program::id(),
+    );
+    let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
+    let delegate_accounts_seeds = delegation_metadata_pda_from_pubkey(&delegate_account);
+    let mut data = DlpInstruction::Delegate.to_vec();
+    data.extend_from_slice(&args.try_to_vec().unwrap());
+
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(delegate_account, true),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new(buffer.0, false),
+            AccountMeta::new(delegation_record, false),
+            AccountMeta::new(delegate_accounts_seeds, false),
+            AccountMeta::new_readonly(system_program, false),
+        ],
+        data,
+    }
+}
 /// Builds a commit state instruction.
 pub fn commit_state(
     authority: Pubkey,
     delegated_account: Pubkey,
-    committed_account_args: Vec<u8>,
+    commit_args: CommitAccountArgs,
 ) -> Instruction {
+    let commit_args = commit_args.try_to_vec().unwrap();
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
@@ -111,7 +142,7 @@ pub fn commit_state(
             AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: [DlpInstruction::CommitState.to_vec(), committed_account_args].concat(),
+        data: [DlpInstruction::CommitState.to_vec(), commit_args].concat(),
     }
 }
 

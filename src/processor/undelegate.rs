@@ -13,7 +13,7 @@ use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DIS
 use crate::error::DlpError;
 use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitialized_pda};
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use crate::utils::{close_pda, create_pda};
+use crate::utils::{close_pda, create_pda, ValidateEdwards};
 use crate::utils_account::AccountDeserialize;
 use solana_program::sysvar::Sysvar;
 
@@ -32,6 +32,7 @@ use solana_program::sysvar::Sysvar;
 ///
 ///
 /// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
+/// TODO: Remove using commit record account, always assume finalize is called before undelegate
 pub fn process_undelegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -133,28 +134,37 @@ pub fn process_undelegate(
     drop(buffer_data);
     drop(new_data);
 
-    // Closing delegated account before reopening it with the original owner
-    close_pda(delegated_account, reimbursement)?;
+    if delegated_account.is_on_curve() || buffer.try_borrow_data()?.is_empty() {
+        delegated_account.assign(owner_program.key);
+    } else {
+        let delegated_account_lamports = delegated_account.lamports.clone();
 
-    // CPI to the owner program to re-open the PDA
-    let signer_seeds: &[&[&[u8]]] = &[&[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]]];
-    cpi_external_undelegate(
-        payer,
-        delegated_account,
-        buffer,
-        system_program,
-        owner_program.key,
-        metadata,
-        signer_seeds,
-    )?;
+        // Closing delegated account before reopening it with the original owner
+        close_pda(delegated_account, reimbursement)?;
 
-    // Verify that delegated_account contains the expected data after CPI
-    let delegated_data = delegated_account.try_borrow_data()?;
-    let buffer_data = buffer.try_borrow_data()?;
-    if delegated_data.as_ref() != buffer_data.as_ref() {
-        return Err(ProgramError::InvalidAccountData);
+        // CPI to the owner program to re-open the PDA under the original owner
+        let signer_seeds: &[&[&[u8]]] =
+            &[&[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]]];
+        cpi_external_undelegate(
+            payer,
+            delegated_account,
+            buffer,
+            system_program,
+            owner_program.key,
+            metadata,
+            signer_seeds,
+        )?;
+
+        // Verify that delegated_account contains the expected data after CPI
+        let delegated_data = delegated_account.try_borrow_data()?;
+        let buffer_data = buffer.try_borrow_data()?;
+        if delegated_data.as_ref() != buffer_data.as_ref()
+            || delegated_account.lamports != delegated_account_lamports
+        {
+            return Err(ProgramError::InvalidAccountData);
+        }
+        drop(buffer_data);
     }
-    drop(buffer_data);
 
     // Closing accounts
     close_pda(delegation_metadata, reimbursement)?;

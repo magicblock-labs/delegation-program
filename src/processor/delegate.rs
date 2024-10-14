@@ -16,7 +16,7 @@ use crate::loaders::{
     load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
 };
 use crate::state::{DelegationMetadata, DelegationRecord};
-use crate::utils::create_pda;
+use crate::utils::{create_pda, ValidateEdwards};
 use crate::utils_account::{AccountDeserialize, Discriminator};
 
 /// Delegate an account
@@ -43,12 +43,14 @@ pub fn process_delegate(
     load_program(system_program, system_program::id())?;
     load_owned_pda(delegate_account, &crate::id())?;
 
-    // Validate the seeds
-    let seeds_to_validate: Vec<&[u8]> = args.seeds.iter().map(|v| v.as_slice()).collect();
-    let (derived_pda, _) =
-        Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);
-    if derived_pda.ne(delegate_account.key) {
-        return Err(ProgramError::InvalidSeeds);
+    // Validate seeds if the delegate account is not on curve, i.e. is a PDA
+    if !delegate_account.is_on_curve() {
+        let seeds_to_validate: Vec<&[u8]> = args.seeds.iter().map(|v| v.as_slice()).collect();
+        let (derived_pda, _) =
+            Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);
+        if derived_pda.ne(delegate_account.key) {
+            return Err(ProgramError::InvalidSeeds);
+        }
     }
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
@@ -66,6 +68,7 @@ pub fn process_delegate(
         &crate::id(),
     )?;
 
+    // Check that the delegation metadata PDA is uninitialized
     let delegation_metadata_bump = load_uninitialized_pda(
         delegation_metadata,
         &[DELEGATION_METADATA, &delegate_account.key.to_bytes()],
