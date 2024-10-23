@@ -1,6 +1,6 @@
 use borsh::BorshDeserialize;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{BanksClient, processor, ProgramTest};
+use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -16,8 +16,7 @@ use dlp::state::{CommitRecord, DelegationMetadata};
 use dlp::utils_account::AccountDeserialize;
 
 use crate::fixtures::{
-    DELEGATED_PDA_ID, DELEGATION_METADATA_PDA, DELEGATION_RECORD_ACCOUNT_DATA
-    , TEST_AUTHORITY,
+    DELEGATED_PDA_ID, DELEGATION_METADATA_PDA, DELEGATION_RECORD_ACCOUNT_DATA, TEST_AUTHORITY,
 };
 
 mod fixtures;

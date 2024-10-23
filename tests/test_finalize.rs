@@ -1,7 +1,7 @@
 use borsh::BorshDeserialize;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program::rent::Rent;
-use solana_program_test::{BanksClient, processor, ProgramTest, read_file};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
