@@ -1,3 +1,4 @@
+use crate::error::DlpError;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -5,7 +6,6 @@ use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
@@ -30,13 +30,13 @@ pub fn process_finalize(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, system_program] =
+    let [authority, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(payer)?;
+    load_signer(authority)?;
     load_owned_pda(delegated_account, &crate::id())?;
     load_owned_pda(committed_state_account, &crate::id())?;
     load_owned_pda(committed_state_record, &crate::id())?;
@@ -56,16 +56,19 @@ pub fn process_finalize(
     let commit_record_data = committed_state_record.try_borrow_data()?;
     let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
 
-    verify_state(delegation, commit_record, committed_state_account)?;
+    verify_state(
+        authority,
+        delegation,
+        commit_record,
+        committed_state_account,
+    )?;
 
     if !commit_record.account.eq(delegated_account.key) {
-        msg!("Delegated account does not match the expected account");
-        return Err(ProgramError::InvalidAccountData);
+        return Err(DlpError::InvalidDelegatedAccount.into());
     }
 
     if !commit_record.identity.eq(reimbursement.key) {
-        msg!("Reimbursement account does not match the expected account");
-        return Err(ProgramError::InvalidAccountData);
+        return Err(DlpError::InvalidReimbursementAccount.into());
     }
 
     let new_data = committed_state_account.try_borrow_data()?;

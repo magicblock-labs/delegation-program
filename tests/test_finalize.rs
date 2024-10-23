@@ -1,23 +1,24 @@
 use borsh::BorshDeserialize;
-use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-};
-use dlp::state::{CommitRecord, DelegationMetadata};
-use dlp::utils_account::AccountDeserialize;
-use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_program::rent::Rent;
+use solana_program_test::{BanksClient, processor, ProgramTest, read_file};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
 
+use dlp::pda::{
+    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
+};
+use dlp::state::{CommitRecord, DelegationMetadata};
+use dlp::utils_account::AccountDeserialize;
+
 use crate::fixtures::{
     COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_AUTHORITY, COMMIT_STATE_RECORD_ACCOUNT_DATA,
     DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_PDA,
-    DELEGATION_RECORD_ACCOUNT_DATA,
+    DELEGATION_RECORD_ACCOUNT_DATA, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -25,7 +26,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_finalize() {
     // Setup
-    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+    let (mut banks, _, authority, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
     let delegation_record = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
@@ -49,8 +50,14 @@ async fn test_finalize() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the undelegate tx
-    let ix = dlp::instruction::finalize(payer.pubkey(), DELEGATED_PDA_ID, COMMIT_STATE_AUTHORITY);
-    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let ix =
+        dlp::instruction::finalize(authority.pubkey(), DELEGATED_PDA_ID, COMMIT_STATE_AUTHORITY);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
     assert!(res.is_ok());
@@ -92,7 +99,8 @@ async fn test_finalize() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::new();
+
+    let payer_alt = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 
     program_test.add_account(
         payer_alt.pubkey(),

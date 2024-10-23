@@ -15,6 +15,7 @@ use dlp::pda::{
 use crate::fixtures::{
     COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA_ID,
     DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_PDA, DELEGATION_RECORD_ACCOUNT_DATA,
+    TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -22,7 +23,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_undelegate() {
     // Setup
-    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+    let (mut banks, _, authority, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
     let delegation_pda = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
@@ -38,12 +39,17 @@ async fn test_undelegate() {
 
     // Submit the undelegate tx
     let ix = dlp::instruction::undelegate(
-        payer.pubkey(),
+        authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
-        payer.pubkey(),
+        authority.pubkey(),
     );
-    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
     assert!(res.is_ok());
@@ -72,7 +78,7 @@ async fn test_undelegate() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::new();
+    let payer_alt = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 
     program_test.add_account(
         payer_alt.pubkey(),
