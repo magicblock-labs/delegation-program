@@ -58,3 +58,9 @@ or:
 ```
 cd tests/integration && anchor test
 ```
+
+## Build for Mainnet
+
+```
+RUSTFLAGS="--cfg mainnet" cargo build-sbf
+```

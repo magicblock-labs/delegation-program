@@ -5,7 +5,6 @@ use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     {self},
 };
@@ -13,9 +12,10 @@ use solana_program::{
 use crate::consts::{COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD};
 use crate::instruction::CommitAccountArgs;
 use crate::loaders::{load_initialized_pda, load_owned_pda, load_signer, load_uninitialized_pda};
-use crate::state::{CommitRecord, DelegationMetadata};
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use crate::utils::create_pda;
 use crate::utils_account::{AccountDeserialize, Discriminator};
+use crate::verify_commitment::verify_commitment;
 
 /// Commit a new state of a delegated Pda
 ///
@@ -30,7 +30,6 @@ pub fn process_commit_state(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    msg!("Processing CommitState");
     let args = CommitAccountArgs::try_from_slice(data)?;
     let data: &[u8] = args.data.as_ref();
 
@@ -57,6 +56,11 @@ pub fn process_commit_state(
         &crate::id(),
         true,
     )?;
+
+    // Load delegation record
+    let mut delegation_data = delegation_record.try_borrow_mut_data()?;
+    let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
+
     let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
     let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
 
@@ -113,6 +117,8 @@ pub fn process_commit_state(
     // Copy the new state to the initialized PDA
     let mut buffer_data = commit_state_account.try_borrow_mut_data()?;
     (*buffer_data).copy_from_slice(data);
+
+    verify_commitment(authority, delegation, commit_record, commit_state_account)?;
 
     Ok(())
 }

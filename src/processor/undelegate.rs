@@ -15,6 +15,7 @@ use crate::loaders::{load_owned_pda, load_program, load_signer, load_uninitializ
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use crate::utils::{close_pda, create_pda, ValidateEdwards};
 use crate::utils_account::AccountDeserialize;
+use crate::verify_state::verify_state;
 use solana_program::sysvar::Sysvar;
 
 /// Undelegate a delegated Pda
@@ -38,13 +39,13 @@ pub fn process_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, system_program] =
+    let [authority, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(payer)?;
+    load_signer(authority)?;
     load_owned_pda(delegated_account, &crate::id())?;
     load_owned_pda(delegation_record, &crate::id())?;
     load_owned_pda(delegation_metadata, &crate::id())?;
@@ -83,6 +84,16 @@ pub fn process_undelegate(
         None
     };
 
+    // If there is a committed state, verify the state
+    if commit_record.is_some() {
+        verify_state(
+            authority,
+            delegation,
+            commit_record.unwrap(),
+            committed_state_account,
+        )?;
+    }
+
     // Load delegated account metadata
     let metadata = DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
 
@@ -108,7 +119,7 @@ pub fn process_undelegate(
         },
         &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
         system_program,
-        payer,
+        authority,
     )?;
 
     if !delegation.owner.eq(owner_program.key) {
@@ -146,7 +157,7 @@ pub fn process_undelegate(
         let signer_seeds: &[&[&[u8]]] =
             &[&[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]]];
         cpi_external_undelegate(
-            payer,
+            authority,
             delegated_account,
             buffer,
             system_program,
@@ -171,7 +182,7 @@ pub fn process_undelegate(
     close_pda(committed_state_record, reimbursement)?;
     close_pda(delegation_record, reimbursement)?;
     close_pda(committed_state_account, reimbursement)?;
-    close_pda(buffer, payer)?;
+    close_pda(buffer, authority)?;
     Ok(())
 }
 
