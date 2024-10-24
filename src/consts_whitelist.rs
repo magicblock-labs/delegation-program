@@ -37,6 +37,7 @@ const WHITELISTED_IDENTITIES: &[(Pubkey, Vec<Pubkey>)] = &[
     ),
 ];
 
+/// Get the whitelisted identities
 pub fn get_whitelisted_identities() -> HashMap<Pubkey, Vec<Pubkey>> {
     WHITELISTED_IDENTITIES.iter().cloned().collect()
 }

@@ -5,7 +5,6 @@ use crate::state::{CommitRecord, DelegationRecord};
 use crate::verify_state::verify_state;
 
 /// Verify the committed state
-#[inline(always)]
 pub(crate) fn verify_commitment(
     authority: &AccountInfo,
     delegation_record: &DelegationRecord,
