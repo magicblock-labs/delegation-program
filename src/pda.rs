@@ -2,7 +2,7 @@ use paste::paste;
 
 use crate::consts::{
     BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, EPHEMERAL_BALANCE,
-    WHITELIST,
+    VALIDATOR_FEES_VAULT,
 };
 
 // -----------------
@@ -83,8 +83,8 @@ pda! { committed_state_record }
 seeds! { ephemeral_balance, EPHEMERAL_BALANCE }
 pda! { ephemeral_balance }
 
-seeds! { whitelist_record, WHITELIST }
-pda! { whitelist_record }
+seeds! { validator_fees_vault, VALIDATOR_FEES_VAULT }
+pda! { validator_fees_vault }
 
 seeds! { buffer, BUFFER }
 pda! { buffer }

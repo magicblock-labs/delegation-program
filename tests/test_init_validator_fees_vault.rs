@@ -1,3 +1,5 @@
+use crate::fixtures::ADMIN_KEYPAIR_BYTES;
+use dlp::pda::validator_fees_vault_pda_from_pubkey;
 use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -7,20 +9,19 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
-use dlp::pda::whitelist_record_pda_from_pubkey;
-
-use crate::fixtures::ADMIN_KEYPAIR_BYTES;
-
 mod fixtures;
 
 #[tokio::test]
-async fn test_validator_whitelisting() {
+async fn test_init_validator_fees_vault() {
     // Setup
     let (mut banks, payer, admin, blockhash) = setup_program_test_env().await;
 
     let validator_identity = Pubkey::new_unique();
-    let ix =
-        dlp::instruction::whitelist_validator(payer.pubkey(), admin.pubkey(), validator_identity);
+    let ix = dlp::instruction::initialize_validator_fees_vault(
+        payer.pubkey(),
+        admin.pubkey(),
+        validator_identity,
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -30,15 +31,18 @@ async fn test_validator_whitelisting() {
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
-    // Assert the whitelist record was created successfully
-    let whitelist_record = whitelist_record_pda_from_pubkey(&validator_identity);
-    let whitelist_record_account = banks.get_account(whitelist_record).await.unwrap();
-    assert!(whitelist_record_account.is_some());
+    // Assert the fees vault was created successfully
+    let fees_vault = validator_fees_vault_pda_from_pubkey(&validator_identity);
+    let fees_vault_account = banks.get_account(fees_vault).await.unwrap();
+    assert!(fees_vault_account.is_some());
 
     // Assert record cannot be created if the admin is not the correct one
     let validator_identity = Pubkey::new_unique();
-    let ix =
-        dlp::instruction::whitelist_validator(payer.pubkey(), payer.pubkey(), validator_identity);
+    let ix = dlp::instruction::initialize_validator_fees_vault(
+        payer.pubkey(),
+        payer.pubkey(),
+        validator_identity,
+    );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_err());

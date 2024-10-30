@@ -12,7 +12,7 @@ use crate::pda::{
     buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
     committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
     delegation_record_pda_from_pubkey, ephemeral_balance_pda_from_pubkey,
-    whitelist_record_pda_from_pubkey,
+    validator_fees_vault_pda_from_pubkey,
 };
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
@@ -25,6 +25,7 @@ pub struct DelegateAccountArgs {
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct CommitAccountArgs {
     pub slot: u64,
+    pub lamports: u64,
     pub allow_undelegation: bool,
     pub data: Vec<u8>,
 }
@@ -50,7 +51,7 @@ pub enum DlpInstruction {
     AllowUndelegate = 4,
     TopUpEphemeralBalance = 5,
     InitFeesVault = 6,
-    WhitelistValidator = 7,
+    InitValidatorFeesVault = 7,
     WithdrawEphemeralBalance = 8,
 }
 
@@ -72,7 +73,7 @@ impl TryFrom<[u8; 8]> for DlpInstruction {
             [0x4, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::AllowUndelegate),
             [0x5, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::TopUpEphemeralBalance),
             [0x6, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitFeesVault),
-            [0x7, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::WhitelistValidator),
+            [0x7, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitValidatorFeesVault),
             [0x8, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::WithdrawEphemeralBalance),
             _ => Err(ProgramError::InvalidInstructionData),
         }
@@ -141,7 +142,7 @@ pub fn delegate_on_curve(
 }
 /// Builds a commit state instruction.
 pub fn commit_state(
-    authority: Pubkey,
+    validator: Pubkey,
     delegated_account: Pubkey,
     commit_args: CommitAccountArgs,
 ) -> Instruction {
@@ -149,16 +150,18 @@ pub fn commit_state(
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator);
     let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&delegated_account);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new_readonly(authority, true),
+            AccountMeta::new_readonly(validator, true),
             AccountMeta::new_readonly(delegated_account, false),
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [DlpInstruction::CommitState.to_vec(), commit_args].concat(),
@@ -241,23 +244,23 @@ pub fn undelegate(
     }
 }
 
-/// Whitelist a validator identity.
-pub fn whitelist_validator(
+/// Initialize a validator fees vault PDA.
+pub fn initialize_validator_fees_vault(
     payer: Pubkey,
     admin: Pubkey,
     validator_identity: Pubkey,
 ) -> Instruction {
-    let whitelist_record_pda = whitelist_record_pda_from_pubkey(&validator_identity);
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator_identity);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(admin, true),
             AccountMeta::new(validator_identity, false),
-            AccountMeta::new(whitelist_record_pda, false),
+            AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpInstruction::WhitelistValidator.to_vec(),
+        data: DlpInstruction::InitValidatorFeesVault.to_vec(),
     }
 }
 

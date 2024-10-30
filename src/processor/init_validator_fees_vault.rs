@@ -6,21 +6,22 @@ use solana_program::{
     {self},
 };
 
-use crate::consts::{ADMIN_PUBKEY, WHITELIST};
+use crate::consts::{ADMIN_PUBKEY, VALIDATOR_FEES_VAULT};
 use crate::error::DlpError::Unauthorized;
 use crate::loaders::{load_signer, load_uninitialized_pda};
 use crate::utils::create_pda;
 
-/// Process whitelisting a validator
+/// Process the initialization of the validator fees vault
 ///
-/// 1. Create a whitelisting record for a validator identity
-pub fn process_whitelist(
+/// 1. Create the validator fees vault PDA
+/// 2. Currently, the existence of the validator fees vault also act as a flag to indicate that the validator is whitelisted (only the admin can create the vault)
+pub fn process_init_validator_fees_vault(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
     // Load Accounts
-    let [payer, admin, validator_identity, whitelist_record, system_program] = accounts else {
+    let [payer, admin, validator_identity, validator_fees_vault, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -33,21 +34,21 @@ pub fn process_whitelist(
         return Err(Unauthorized.into());
     }
 
-    let bump_white_list_record = load_uninitialized_pda(
-        whitelist_record,
-        &[WHITELIST, validator_identity.key.as_ref()],
+    let bump_fees_vault_record = load_uninitialized_pda(
+        validator_fees_vault,
+        &[VALIDATOR_FEES_VAULT, validator_identity.key.as_ref()],
         &crate::id(),
     )?;
 
-    // Create the whitelist record
+    // Create the fees vault PDA
     create_pda(
-        whitelist_record,
+        validator_fees_vault,
         &crate::id(),
         8,
         &[
-            WHITELIST,
+            VALIDATOR_FEES_VAULT,
             validator_identity.key.as_ref(),
-            &[bump_white_list_record],
+            &[bump_fees_vault_record],
         ],
         system_program,
         payer,

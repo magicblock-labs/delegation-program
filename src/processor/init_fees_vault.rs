@@ -10,7 +10,7 @@ use crate::consts::FEES_VAULT;
 use crate::loaders::{load_signer, load_uninitialized_pda};
 use crate::utils::create_pda;
 
-/// Initialize the fees vault
+/// Initialize the global fees vault
 ///
 /// 1. Create the fees vault PDA
 pub fn process_init_fees_vault(

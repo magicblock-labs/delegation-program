@@ -18,7 +18,7 @@ pub const COMMIT_RECORD: &[u8] = b"commit-state-record";
 
 /// The account to store lamports deposited for paying fees.
 pub const FEES_VAULT: &[u8] = b"fees-vault";
-pub const WHITELIST: &[u8] = b"whitelist";
+pub const VALIDATOR_FEES_VAULT: &[u8] = b"v-fees-vault";
 
 /// The account to store ephemeral lamports deposited for a user.
 pub const EPHEMERAL_BALANCE: &[u8] = b"ephemeral-balance";

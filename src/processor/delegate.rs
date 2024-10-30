@@ -108,6 +108,8 @@ pub fn process_delegate(
         valid_until: args.valid_until,
         last_update_external_slot: 0,
         is_undelegatable: false,
+        init_lamports: delegate_account.lamports(),
+        rent_payer: *payer.key,
     };
 
     let serialized_metadata_struct = delegation_metadata_struct.try_to_vec()?;

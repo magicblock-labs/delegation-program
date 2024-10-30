@@ -27,7 +27,7 @@ describe("TestDelegation", () => {
         testDelegation.programId
     );
 
-    it('Initializes the counter', async () => {
+    it.only('Initializes the counter', async () => {
         // Check if the counter is initialized
         const counterAccountInfo = await provider.connection.getAccountInfo(pda);
         if(counterAccountInfo === null) {
@@ -46,7 +46,7 @@ describe("TestDelegation", () => {
         console.log('Counter: ', counterAccount.count.toString());
     });
 
-    it('Increase the counter', async () => {
+    it.only('Increase the counter', async () => {
         const tx = await testDelegation.methods
             .increment()
             .accounts({
@@ -58,7 +58,7 @@ describe("TestDelegation", () => {
         console.log('Counter: ', counterAccount.count.toString());
     });
 
-    it("Delegate a PDA", async () => {
+    it.only("Delegate a PDA", async () => {
 
         const { delegationRecord, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
@@ -82,12 +82,12 @@ describe("TestDelegation", () => {
         // console.log("Delegation record PDA", account.data.toJSON());
 
         // Print delegateAccountMetadata account bytes
-        // account = await provider.connection.getAccountInfo(delegationMetadata);
-        // console.log("Delegation account metadata", account.data.toJSON());
-        // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
+        let account = await provider.connection.getAccountInfo(delegationMetadata);
+        console.log("Delegation account metadata", account.data.toJSON());
+        console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
     });
 
-    it("Delegate an on-curve account", async () => {
+    it.only("Delegate an on-curve account", async () => {
         const delegateOnCurve = ON_CURVE_ACCOUNT;
         const { delegationRecord, delegationMetadata} = DelegateAccounts(delegateOnCurve.publicKey, web3.SystemProgram.programId);
 
@@ -125,9 +125,9 @@ describe("TestDelegation", () => {
         // console.log("Delegation record PDA", delegationRecord.toBase58());
 
         // Print delegateAccountMetadata account bytes
-        // account = await provider.connection.getAccountInfo(delegationMetadata);
-        // console.log("Delegation account metadata", account.data.toJSON());
-        // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
+        const account = await provider.connection.getAccountInfo(delegationMetadata);
+        console.log("Delegation account metadata", account.data.toJSON());
+        console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
     });
 
     it("Commit a new state to the PDA", async () => {

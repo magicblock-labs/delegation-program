@@ -16,6 +16,9 @@ pub struct CommitRecord {
 
     /// The external slot of the commit. This is used to enforce sequential commits
     pub slot: u64,
+
+    /// The account committed lamports
+    pub lamports: u64,
 }
 
 impl Discriminator for CommitRecord {
