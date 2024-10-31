@@ -13,8 +13,8 @@ use dlp::pda::{
 };
 
 use crate::fixtures::{
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_PDA,
-    DELEGATION_RECORD_ACCOUNT_DATA,
+    get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
+    DELEGATED_PDA_OWNER_ID,
 };
 
 mod fixtures;
@@ -99,23 +99,25 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
+    let data = get_delegation_record_data(payer_alt.pubkey());
     program_test.add_account(
         delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_RECORD_ACCOUNT_DATA.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
         },
     );
 
-    // Setup the delegated account seeds PDA
+    // Setup the delegated account metadata PDA
+    let data = get_delegation_metadata_data(None, Some(true));
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_METADATA_PDA.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

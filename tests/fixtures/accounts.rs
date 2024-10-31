@@ -1,49 +1,19 @@
+use borsh::BorshSerialize;
+use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord};
+use dlp::utils_account::Discriminator;
+use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
+use solana_program::rent::Rent;
+use solana_program::system_program;
 use solana_sdk::pubkey;
 
-#[allow(dead_code)]
-pub const DELEGATION_RECORD_ACCOUNT_DATA: [u8; 88] = [
-    100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 43, 85, 175, 207, 195, 148, 154, 129, 218, 62, 110, 177, 81, 112,
-    72, 172, 141, 157, 3, 211, 24, 26, 191, 79, 101, 191, 48, 19, 105, 181, 70, 132, 4, 0, 0, 0, 0,
-    0, 0, 0, 48, 117, 0, 0, 0, 0, 0, 0,
-];
-
-#[allow(dead_code)]
-pub const DELEGATION_RECORD_ON_CURVE_ACCOUNT_DATA: [u8; 88] = [
-    100, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 0, 255, 255, 255, 255, 0, 0, 0, 0,
-];
-
-#[allow(dead_code)]
-pub const DELEGATION_METADATA_ON_CURVE: [u8; 61] = [
-    0, 202, 154, 59, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 13,
-    32, 77, 204, 244, 56, 166, 172, 66, 113, 150, 218, 112, 42, 110, 181, 98, 158, 222, 194, 130,
-    93, 175, 100, 190, 106, 9, 69, 156, 80, 96, 72,
-];
-
-#[allow(dead_code)]
-pub const COMMIT_STATE_RECORD_ACCOUNT_DATA: [u8; 80] = [
-    101, 0, 0, 0, 0, 0, 0, 0, 202, 37, 188, 175, 199, 216, 218, 84, 43, 75, 255, 157, 215, 202,
-    195, 114, 139, 194, 225, 131, 177, 111, 103, 238, 162, 225, 196, 178, 29, 219, 96, 127, 115, 7,
-    118, 65, 61, 170, 109, 216, 57, 214, 57, 150, 28, 32, 145, 234, 70, 215, 243, 242, 145, 103,
-    150, 11, 142, 149, 177, 109, 222, 157, 148, 7, 26, 0, 0, 0, 0, 0, 0, 0,
-];
-
-#[allow(dead_code)]
-pub const DELEGATION_METADATA_PDA: [u8; 73] = [
-    0, 75, 15, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 8, 0,
-    0, 0, 116, 101, 115, 116, 45, 112, 100, 97, 13, 32, 77, 204, 244, 56, 166, 172, 66, 113, 150,
-    218, 112, 42, 110, 181, 98, 158, 222, 194, 130, 93, 175, 100, 190, 106, 9, 69, 156, 80, 96, 72,
-];
-
-#[allow(dead_code)]
-pub const DELEGATION_METADATA_UNDELEGATABLE_PDA: [u8; 33] = [
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 8, 0, 0, 0, 116, 101, 115, 116,
-    45, 112, 100, 97,
-];
-
+// Constants for default values
+const DEFAULT_DELEGATION_SLOT: u64 = 0;
+const DEFAULT_COMMIT_FREQUENCY_MS: u64 = 0;
+const DEFAULT_VALID_UNTIL: i64 = 0;
+const DEFAULT_LAST_UPDATE_EXTERNAL_SLOT: u64 = 0;
+const DEFAULT_IS_UNDELEGATABLE: bool = false;
+const DEFAULT_SEEDS: &[&[u8]] = &[&[116, 101, 115, 116, 45, 112, 100, 97]];
 #[allow(dead_code)]
 pub const EPHEMERAL_BALANCE_PDA: [u8; 16] = [103, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0];
 
@@ -70,15 +40,7 @@ pub const EXTERNAL_ALLOW_UNDELEGATION_INSTRUCTION_DISCRIMINATOR: [u8; 8] =
     [255, 66, 82, 208, 247, 5, 210, 126];
 
 #[allow(dead_code)]
-pub const ADMIN_KEYPAIR_BYTES: [u8; 64] = [
-    129, 22, 253, 131, 1, 16, 255, 7, 21, 176, 144, 21, 25, 231, 103, 157, 160, 37, 209, 160, 129,
-    61, 233, 99, 56, 132, 253, 155, 50, 107, 139, 244, 13, 74, 42, 159, 1, 143, 205, 88, 24, 73,
-    103, 42, 156, 251, 158, 188, 218, 87, 252, 50, 78, 62, 50, 246, 108, 59, 23, 83, 19, 99, 97,
-    171,
-];
-
-#[allow(dead_code)]
-pub const ON_CURVE_ACCOUNT_BYTES: [u8; 64] = [
+pub const ON_CURVE_KEYPAIR: [u8; 64] = [
     74, 198, 48, 104, 119, 57, 255, 80, 67, 181, 191, 189, 85, 21, 235, 45, 185, 175, 48, 143, 13,
     202, 92, 81, 211, 108, 61, 237, 183, 116, 207, 45, 170, 118, 238, 247, 128, 91, 3, 41, 33, 10,
     241, 163, 185, 198, 228, 172, 200, 220, 225, 192, 149, 94, 106, 209, 65, 79, 210, 54, 191, 49,
@@ -92,3 +54,82 @@ pub const TEST_AUTHORITY: [u8; 64] = [
     113, 150, 218, 112, 42, 110, 181, 98, 158, 222, 194, 130, 93, 175, 100, 190, 106, 9, 69, 156,
     80, 96, 72,
 ];
+
+#[allow(dead_code)]
+pub fn get_delegation_record_data(authority: Pubkey) -> Vec<u8> {
+    create_delegation_record_data(authority, DELEGATED_PDA_OWNER_ID)
+}
+
+#[allow(dead_code)]
+pub fn get_delegation_record_on_curve_data(authority: Pubkey) -> Vec<u8> {
+    create_delegation_record_data(authority, system_program::id())
+}
+
+fn create_delegation_record_data(authority: Pubkey, owner: Pubkey) -> Vec<u8> {
+    let delegation_record = DelegationRecord {
+        authority,
+        owner,
+        delegation_slot: DEFAULT_DELEGATION_SLOT,
+        commit_frequency_ms: DEFAULT_COMMIT_FREQUENCY_MS,
+    };
+    [
+        &DelegationRecord::discriminator().to_bytes(),
+        DelegationRecord::to_bytes(&delegation_record),
+    ]
+    .concat()
+}
+
+#[allow(dead_code)]
+pub fn get_delegation_metadata_data_on_curve(
+    last_update_lamports: Option<u64>,
+    is_undelegatable: Option<bool>,
+) -> Vec<u8> {
+    create_delegation_metadata_data(
+        last_update_lamports,
+        vec![],
+        is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
+    )
+}
+
+#[allow(dead_code)]
+pub fn get_delegation_metadata_data(
+    last_update_lamports: Option<u64>,
+    is_undelegatable: Option<bool>,
+) -> Vec<u8> {
+    create_delegation_metadata_data(
+        last_update_lamports,
+        DEFAULT_SEEDS.iter().map(|s| s.to_vec()).collect(),
+        is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
+    )
+}
+
+fn create_delegation_metadata_data(
+    last_update_lamports: Option<u64>,
+    seeds: Vec<Vec<u8>>,
+    is_undelegatable: bool,
+) -> Vec<u8> {
+    let delegation_metadata = DelegationMetadata {
+        last_update_lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500)),
+        valid_until: DEFAULT_VALID_UNTIL,
+        last_update_external_slot: DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
+        is_undelegatable,
+        seeds: seeds.clone(),
+        rent_payer: Default::default(),
+    };
+    delegation_metadata.try_to_vec().unwrap()
+}
+
+#[allow(dead_code)]
+pub fn get_commit_state_record_account_data(authority: Pubkey) -> Vec<u8> {
+    let commit_record = CommitRecord {
+        slot: 100,
+        identity: authority,
+        account: DELEGATED_PDA_ID,
+        lamports: LAMPORTS_PER_SOL,
+    };
+    [
+        &CommitRecord::discriminator().to_bytes(),
+        CommitRecord::to_bytes(&commit_record),
+    ]
+    .concat()
+}

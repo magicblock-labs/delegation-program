@@ -9,7 +9,7 @@ use solana_sdk::{
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
 
 use crate::fixtures::{
-    DELEGATION_METADATA_ON_CURVE, DELEGATION_RECORD_ON_CURVE_ACCOUNT_DATA, ON_CURVE_ACCOUNT_BYTES,
+    get_delegation_metadata_data_on_curve, get_delegation_record_on_curve_data, ON_CURVE_KEYPAIR,
 };
 
 mod fixtures;
@@ -55,7 +55,7 @@ async fn test_undelegate_on_curve() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::from_bytes(&ON_CURVE_ACCOUNT_BYTES).unwrap();
+    let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
 
     // Setup a delegated on curve account
     program_test.add_account(
@@ -70,11 +70,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
+    let data = get_delegation_record_on_curve_data(payer_alt.pubkey());
     program_test.add_account(
         delegation_record_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_RECORD_ON_CURVE_ACCOUNT_DATA.into(),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -82,11 +83,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
+    let data = get_delegation_metadata_data_on_curve(Some(LAMPORTS_PER_SOL), Some(true));
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_METADATA_ON_CURVE.into(),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

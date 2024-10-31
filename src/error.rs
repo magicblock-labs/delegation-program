@@ -17,8 +17,10 @@ pub enum DlpError {
     InvalidAuthorityForProgram = 3,
     #[error("Delegated account does not match the expected account")]
     InvalidDelegatedAccount = 4,
+    #[error("Delegated account is not in a valid state")]
+    InvalidDelegatedState = 5,
     #[error("Reimbursement account does not match the expected account")]
-    InvalidReimbursementAccount = 5,
+    InvalidReimbursementAccount = 6,
 }
 
 impl From<DlpError> for ProgramError {

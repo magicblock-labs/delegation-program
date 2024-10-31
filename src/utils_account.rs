@@ -10,6 +10,14 @@ pub enum AccountDiscriminator {
     EphemeralBalance = 103,
 }
 
+impl AccountDiscriminator {
+    pub fn to_bytes(&self) -> [u8; 8] {
+        let mut bytes = [0u8; 8];
+        bytes[0] = (*self).into();
+        bytes
+    }
+}
+
 pub trait Discriminator {
     fn discriminator() -> AccountDiscriminator;
 }

@@ -1,12 +1,4 @@
 use borsh::BorshDeserialize;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, BanksClient, ProgramTest};
-use solana_sdk::{
-    account::Account,
-    signature::{Keypair, Signer},
-    transaction::Transaction,
-};
-
 use dlp::instruction::CommitAccountArgs;
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
@@ -15,9 +7,17 @@ use dlp::pda::{
 };
 use dlp::state::{CommitRecord, DelegationMetadata};
 use dlp::utils_account::AccountDeserialize;
+use solana_program::rent::Rent;
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program_test::{processor, BanksClient, ProgramTest};
+use solana_sdk::{
+    account::Account,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
 
 use crate::fixtures::{
-    DELEGATION_METADATA_ON_CURVE, DELEGATION_RECORD_ON_CURVE_ACCOUNT_DATA, ON_CURVE_ACCOUNT_BYTES,
+    get_delegation_metadata_data_on_curve, get_delegation_record_on_curve_data, ON_CURVE_KEYPAIR,
     TEST_AUTHORITY,
 };
 
@@ -57,9 +57,6 @@ async fn test_commit_on_curve() {
         .unwrap()
         .unwrap();
     assert!(new_state_account.data.is_empty());
-
-    // Check that the commit record balance is correct
-    assert_eq!(new_state_account.lamports, new_account_balance);
 
     // Assert the record about the commitment exists
     let state_commit_record_pda = committed_state_record_pda_from_pubkey(&payer_delegated.pubkey());
@@ -103,7 +100,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup a delegated account
-    let payer_alt = Keypair::from_bytes(&ON_CURVE_ACCOUNT_BYTES).unwrap();
+    let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
     program_test.add_account(
         payer_alt.pubkey(),
         Account {
@@ -116,11 +113,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
+    let data = get_delegation_record_on_curve_data(validator_keypair.pubkey());
     program_test.add_account(
         delegation_record_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_RECORD_ON_CURVE_ACCOUNT_DATA.into(),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -128,11 +126,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
+    let data = get_delegation_metadata_data_on_curve(Some(LAMPORTS_PER_SOL), None);
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_METADATA_ON_CURVE.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

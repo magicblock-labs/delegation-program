@@ -6,6 +6,7 @@ use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
+    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
@@ -108,9 +109,14 @@ pub fn process_delegate(
         valid_until: args.valid_until,
         last_update_external_slot: 0,
         is_undelegatable: false,
-        init_lamports: delegate_account.lamports(),
+        last_update_lamports: delegate_account.lamports(),
         rent_payer: *payer.key,
     };
+
+    msg!(
+        "Delegation Metadata Seeds: {:?}",
+        delegation_metadata_struct.seeds
+    );
 
     let serialized_metadata_struct = delegation_metadata_struct.try_to_vec()?;
     create_pda(

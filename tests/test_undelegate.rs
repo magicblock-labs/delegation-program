@@ -13,9 +13,8 @@ use dlp::pda::{
 };
 
 use crate::fixtures::{
-    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_RECORD_ACCOUNT_DATA, DELEGATED_PDA_ID,
-    DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_PDA, DELEGATION_RECORD_ACCOUNT_DATA,
-    TEST_AUTHORITY,
+    get_commit_state_record_account_data, get_delegation_metadata_data, get_delegation_record_data,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -78,10 +77,10 @@ async fn test_undelegate() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let authority = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 
     program_test.add_account(
-        payer_alt.pubkey(),
+        authority.pubkey(),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
@@ -104,23 +103,25 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
+    let data = get_delegation_record_data(authority.pubkey());
     program_test.add_account(
         delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_RECORD_ACCOUNT_DATA.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
         },
     );
 
-    // Setup the delegated account metadata PDA
+    // Setup the delegated metadata PDA
+    let data = get_delegation_metadata_data(None, Some(true));
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_METADATA_PDA.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -140,11 +141,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the commit state record PDA
+    let data = get_commit_state_record_account_data(authority.pubkey());
     program_test.add_account(
         committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: COMMIT_STATE_RECORD_ACCOUNT_DATA.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -165,5 +167,5 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, payer_alt, blockhash)
+    (banks, payer, authority, blockhash)
 }

@@ -122,13 +122,22 @@ pub fn process_commit_state(
         validator,
     )?;
 
-    // If committed lamports are more than rent, deposit the difference in the commitment account
     msg!("Committed lamports: {}", args.lamports);
     msg!("Account lamports: {}", commit_state_account.lamports());
-    msg!("Init Lamports: {}", delegation_metadata.init_lamports);
+    msg!(
+        "Init Lamports: {}",
+        delegation_metadata.last_update_lamports
+    );
+    msg!("Delegated account: {}", delegated_account.lamports());
 
-    if args.lamports > commit_state_account.lamports() {
-        let difference = args.lamports - commit_state_account.lamports();
+    if delegated_account.lamports() < delegation_metadata.last_update_lamports {
+        return Err(DlpError::InvalidDelegatedState.into());
+    }
+
+    // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
+    // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
+    if args.lamports > delegation_metadata.last_update_lamports {
+        let difference = args.lamports - delegation_metadata.last_update_lamports;
         // Transfer lamports from validator to commit account PDA (with a system program call)
         let transfer_instruction = transfer(validator.key, commit_state_account.key, difference);
         invoke(
@@ -141,7 +150,6 @@ pub fn process_commit_state(
         )?;
         msg!("Transferred {} lamports to commit account", difference);
     }
-    // TODO: handle non PDA
 
     let mut commit_record_data = commit_state_record.try_borrow_mut_data()?;
     commit_record_data[0] = CommitRecord::discriminator() as u8;
