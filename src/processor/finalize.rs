@@ -1,11 +1,10 @@
 use crate::error::DlpError;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
-use solana_program::rent::Rent;
-use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
+    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
@@ -30,7 +29,7 @@ pub fn process_finalize(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [authority, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, system_program] =
+    let [authority, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, validator_fees_vault, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -73,8 +72,21 @@ pub fn process_finalize(
 
     let new_data = committed_state_account.try_borrow_data()?;
 
-    // Make it rent exempt
-    resize_and_rent_exempt(delegated_account, committed_state_account, new_data.len())?;
+    // Balance lamports
+    let lamports_difference =
+        delegation_metadata.last_update_lamports as i64 - commit_record.lamports as i64;
+    msg!("Commit lamports: {}", commit_record.lamports);
+    msg!(
+        "Delegation metadata lamports: {}",
+        delegation_metadata.last_update_lamports
+    );
+    msg!("Lamports difference: {}", lamports_difference);
+    balance_lamports(
+        delegated_account,
+        committed_state_account,
+        lamports_difference,
+        validator_fees_vault,
+    )?;
 
     // Copying the new state to the delegated account
     delegated_account.realloc(new_data.len(), false)?;
@@ -95,28 +107,38 @@ pub fn process_finalize(
     Ok(())
 }
 
-/// Resize the account to hold data_size and make it rent exempt,
-/// subtracting the rent_exempt_balance from the payer
-fn resize_and_rent_exempt(
+/// Balance the lamports of the delegated account
+fn balance_lamports(
     target_account: &AccountInfo,
-    payer: &AccountInfo,
-    data_size: usize,
+    commited_state_account: &AccountInfo,
+    lamports_difference: i64,
+    validator_fees_vault: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    let rent_exempt_balance = Rent::get()?
-        .minimum_balance(data_size)
-        .saturating_sub(target_account.lamports());
-    if rent_exempt_balance.gt(&0) {
-        let new_lamports = payer
-            .try_borrow_mut_lamports()?
-            .checked_sub(rent_exempt_balance)
+    // If the lamports difference is positive, we transfer the lamports from the target account to the validator fees vault
+    if lamports_difference > 0 {
+        let new_lamports = target_account
+            .try_borrow_lamports()?
+            .checked_sub(lamports_difference.unsigned_abs())
             .ok_or(ProgramError::InvalidAccountData)?;
-        **payer.try_borrow_mut_lamports()? = new_lamports;
-
-        let delegated_lamports = target_account
-            .try_borrow_mut_lamports()?
-            .checked_add(rent_exempt_balance)
+        **target_account.try_borrow_mut_lamports()? = new_lamports;
+        let new_lamports = validator_fees_vault
+            .try_borrow_lamports()?
+            .checked_add(lamports_difference.unsigned_abs())
             .ok_or(ProgramError::InvalidAccountData)?;
-        **target_account.try_borrow_mut_lamports()? = delegated_lamports;
+        **validator_fees_vault.try_borrow_mut_lamports()? = new_lamports;
+    }
+    // If the lamports difference is negative, we transfer the lamports from the commited state account to the target account
+    if lamports_difference < 0 {
+        let new_lamports = target_account
+            .try_borrow_lamports()?
+            .checked_add(lamports_difference.unsigned_abs())
+            .ok_or(ProgramError::InvalidAccountData)?;
+        **target_account.try_borrow_mut_lamports()? = new_lamports;
+        let new_lamports = commited_state_account
+            .try_borrow_lamports()?
+            .checked_sub(lamports_difference.unsigned_abs())
+            .ok_or(ProgramError::InvalidAccountData)?;
+        **commited_state_account.try_borrow_mut_lamports()? = new_lamports;
     }
     Ok(())
 }
