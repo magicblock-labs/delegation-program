@@ -27,7 +27,7 @@ describe("TestDelegation", () => {
         testDelegation.programId
     );
 
-    it.only("Initialize validator fee vault", async () => {
+    it("Initialize validator fee vault", async () => {
             const ix = createInitializeValidatorFeesVaultInstruction(
                 provider.wallet.publicKey,
                 provider.wallet.publicKey,
@@ -41,7 +41,7 @@ describe("TestDelegation", () => {
         });
 
 
-    it.only('Initializes the counter', async () => {
+    it('Initializes the counter', async () => {
         // Check if the counter is initialized
         const counterAccountInfo = await provider.connection.getAccountInfo(pda);
         if(counterAccountInfo === null) {
@@ -60,7 +60,7 @@ describe("TestDelegation", () => {
         console.log('Counter: ', counterAccount.count.toString());
     });
 
-    it.only('Increase the counter', async () => {
+    it('Increase the counter', async () => {
         const tx = await testDelegation.methods
             .increment()
             .accounts({
@@ -74,7 +74,7 @@ describe("TestDelegation", () => {
 
 
 
-    it.only("Delegate a PDA", async () => {
+    it("Delegate a PDA", async () => {
 
         const { delegationRecord, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
@@ -103,7 +103,7 @@ describe("TestDelegation", () => {
         // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
     });
 
-    it.only("Delegate an on-curve account", async () => {
+    it("Delegate an on-curve account", async () => {
         const delegateOnCurve = ON_CURVE_ACCOUNT;
         const { delegationRecord, delegationMetadata} = DelegateAccounts(delegateOnCurve.publicKey, web3.SystemProgram.programId);
 
@@ -146,7 +146,7 @@ describe("TestDelegation", () => {
         // console.log("Delegation account metadata PDA: ", delegationMetadata.toBase58());
     });
 
-    it.only("Commit a new state to the PDA", async () => {
+    it("Commit a new state to the PDA", async () => {
         const { delegationRecord, delegationMetadata, bufferPda, commitStateRecordPda, commitStatePda} = DelegateAccounts(pda, testDelegation.programId);
 
         let account = await provider.connection.getAccountInfo(pda);
