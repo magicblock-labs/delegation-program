@@ -1,17 +1,18 @@
 use crate::fixtures::{
     get_commit_state_record_account_data, get_delegation_metadata_data, get_delegation_record_data,
-    COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID, TEST_AUTHORITY,
 };
 use borsh::BorshDeserialize;
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
+    validator_fees_vault_pda_from_pubkey,
 };
 use dlp::state::{CommitRecord, DelegationMetadata};
-use dlp::utils_account::AccountDeserialize;
+use dlp::utils::utils_account::AccountDeserialize;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -171,15 +172,14 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup program to test undelegation
-    let data = read_file("tests/buffers/test_delegation.so");
+    // Setup the validator fees vault
     program_test.add_account(
-        DELEGATED_PDA_OWNER_ID,
+        validator_fees_vault_pda_from_pubkey(&authority.pubkey()),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data,
-            owner: solana_sdk::bpf_loader::id(),
-            executable: true,
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: dlp::id(),
+            executable: false,
             rent_epoch: 0,
         },
     );

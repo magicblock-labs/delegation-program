@@ -1,6 +1,6 @@
 use crate::fixtures::EPHEMERAL_BALANCE_PDA;
 use dlp::consts::FEES_VAULT;
-use dlp::utils_account::AccountDeserialize;
+use dlp::utils::utils_account::AccountDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};

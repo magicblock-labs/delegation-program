@@ -9,9 +9,9 @@ use solana_program::{
 
 use crate::consts::{EPHEMERAL_BALANCE, FEES_VAULT};
 use crate::instruction::WithdrawArgs;
-use crate::loaders::{load_initialized_pda, load_signer};
 use crate::state::EphemeralBalance;
-use crate::utils_account::AccountDeserialize;
+use crate::utils::loaders::{load_initialized_pda, load_signer};
+use crate::utils::utils_account::AccountDeserialize;
 
 /// Process withdraw from ephemeral balance
 ///

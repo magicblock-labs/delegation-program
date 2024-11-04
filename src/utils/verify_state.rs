@@ -1,4 +1,3 @@
-/// TODO: Temporary relying on the assumption than the validator fees vault exists (as it was created by the admin)
 /// Add the logic to check the state diff, Authority and/or Fraud proofs
 use crate::state::{CommitRecord, DelegationRecord};
 use solana_program::account_info::AccountInfo;

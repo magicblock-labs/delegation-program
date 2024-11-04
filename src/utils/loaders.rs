@@ -162,7 +162,9 @@ pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError>
 mod tests {
     use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
 
-    use crate::loaders::{load_account, load_signer, load_sysvar, load_uninitialized_account};
+    use crate::utils::loaders::{
+        load_account, load_signer, load_sysvar, load_uninitialized_account,
+    };
 
     use super::load_program;
 

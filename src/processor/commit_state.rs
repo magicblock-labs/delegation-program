@@ -5,12 +5,14 @@ use crate::consts::{
 };
 use crate::error::DlpError;
 use crate::instruction::CommitAccountArgs;
-use crate::loaders::{load_initialized_pda, load_owned_pda, load_signer, load_uninitialized_pda};
 use crate::pda::validator_fees_vault_pda_from_pubkey;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use crate::utils::create_pda;
-use crate::utils_account::{AccountDeserialize, Discriminator};
-use crate::verify_commitment::verify_commitment;
+use crate::utils::loaders::{
+    load_initialized_pda, load_owned_pda, load_signer, load_uninitialized_pda,
+};
+use crate::utils::utils_account::{AccountDeserialize, Discriminator};
+use crate::utils::utils_pda::create_pda;
+use crate::utils::verify_commitment::verify_commitment;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;

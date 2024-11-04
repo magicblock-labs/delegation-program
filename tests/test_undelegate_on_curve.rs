@@ -6,10 +6,14 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
-use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
+use dlp::pda::{
+    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
+    validator_fees_vault_pda_from_pubkey,
+};
 
 use crate::fixtures::{
     get_delegation_metadata_data_on_curve, get_delegation_record_on_curve_data, ON_CURVE_KEYPAIR,
+    TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -17,19 +21,24 @@ mod fixtures;
 #[tokio::test]
 async fn test_undelegate_on_curve() {
     // Setup
-    let (mut banks, payer, delegated_on_curve, blockhash) = setup_program_test_env().await;
+    let (mut banks, validator, delegated_on_curve, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
     let delegation_pda = delegation_record_pda_from_pubkey(&delegated_on_curve.pubkey());
 
     // Submit the undelegate tx
     let ix = dlp::instruction::undelegate(
-        payer.pubkey(),
+        validator.pubkey(),
         delegated_on_curve.pubkey(),
         system_program::id(),
-        payer.pubkey(),
+        validator.pubkey(),
     );
-    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
     assert!(res.is_ok());
@@ -55,6 +64,7 @@ async fn test_undelegate_on_curve() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
+    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
     let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
 
     // Setup a delegated on curve account
@@ -95,6 +105,30 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, payer_alt, blockhash)
+    // Setup the validator keypair
+    program_test.add_account(
+        validator.pubkey(),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the validator fees vault
+    program_test.add_account(
+        validator_fees_vault_pda_from_pubkey(&validator.pubkey()),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    let (banks, _, blockhash) = program_test.start().await;
+    (banks, validator, payer_alt, blockhash)
 }

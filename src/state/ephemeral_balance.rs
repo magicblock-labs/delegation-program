@@ -1,6 +1,6 @@
 use bytemuck::{Pod, Zeroable};
 
-use crate::utils_account::{AccountDiscriminator, Discriminator};
+use crate::utils::utils_account::{AccountDiscriminator, Discriminator};
 use crate::{impl_account_from_bytes, impl_to_bytes};
 
 /// The Ephemeral Balance

@@ -1,4 +1,4 @@
-use crate::utils_account::{AccountDiscriminator, Discriminator};
+use crate::utils::utils_account::{AccountDiscriminator, Discriminator};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 

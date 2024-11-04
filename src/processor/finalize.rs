@@ -1,4 +1,12 @@
+use crate::consts::VALIDATOR_FEES_VAULT;
 use crate::error::DlpError;
+use crate::pda::validator_fees_vault_pda_from_pubkey;
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
+use crate::utils::balance_lamports::settle_lamports_balance;
+use crate::utils::loaders::{load_initialized_pda, load_owned_pda, load_program, load_signer};
+use crate::utils::utils_account::AccountDeserialize;
+use crate::utils::utils_pda::close_pda;
+use crate::utils::verify_state::verify_state;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::{
@@ -7,12 +15,6 @@ use solana_program::{
     pubkey::Pubkey,
     system_program, {self},
 };
-
-use crate::loaders::{load_owned_pda, load_program, load_signer};
-use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use crate::utils::close_pda;
-use crate::utils_account::AccountDeserialize;
-use crate::verify_state::verify_state;
 
 /// Finalize a committed state, after validation, to a delegated account
 ///
@@ -28,13 +30,13 @@ pub fn process_finalize(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [authority, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, validator_fees_vault, system_program] =
+    let [validator, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, validator_fees_vault, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(authority)?;
+    load_signer(validator)?;
     load_owned_pda(delegated_account, &crate::id())?;
     load_owned_pda(committed_state_account, &crate::id())?;
     load_owned_pda(committed_state_record, &crate::id())?;
@@ -54,84 +56,64 @@ pub fn process_finalize(
     let commit_record_data = committed_state_record.try_borrow_data()?;
     let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
 
-    verify_state(
-        authority,
-        delegation,
-        commit_record,
-        committed_state_account,
-    )?;
-
-    if !commit_record.account.eq(delegated_account.key) {
-        return Err(DlpError::InvalidDelegatedAccount.into());
+    // Check that the validator fees vault account is correct and initialized
+    if !validator_fees_vault_pda_from_pubkey(validator.key).eq(validator_fees_vault.key) {
+        return Err(DlpError::InvalidAuthority.into());
     }
-
-    if !commit_record.identity.eq(reimbursement.key) {
-        return Err(DlpError::InvalidReimbursementAccount.into());
-    }
-
-    let new_data = committed_state_account.try_borrow_data()?;
-
-    // Balance lamports
-    let lamports_difference =
-        delegation_metadata.last_update_lamports as i64 - commit_record.lamports as i64;
-    balance_lamports(
-        delegated_account,
-        committed_state_account,
-        lamports_difference,
+    load_initialized_pda(
         validator_fees_vault,
+        &[VALIDATOR_FEES_VAULT, &validator.key.to_bytes()],
+        &crate::id(),
+        true,
     )?;
 
-    // Copying the new state to the delegated account
-    delegated_account.realloc(new_data.len(), false)?;
-    let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
-    (*delegated_account_data).copy_from_slice(&new_data);
+    // If the commit slot is greater than the last update slot, we verify and finalize the state
+    // If slot is equal or less, we simply close the commitment accounts
+    if commit_record.slot > delegation_metadata.last_update_external_slot {
+        verify_state(
+            validator,
+            delegation,
+            commit_record,
+            committed_state_account,
+        )?;
 
-    delegation_metadata.last_update_external_slot = commit_record.slot;
-    delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
+        if !commit_record.account.eq(delegated_account.key) {
+            return Err(DlpError::InvalidDelegatedAccount.into());
+        }
 
-    // Dropping references
-    drop(delegated_account_data);
-    drop(commit_record_data);
-    drop(new_data);
+        if !commit_record.identity.eq(reimbursement.key) {
+            return Err(DlpError::InvalidReimbursementAccount.into());
+        }
+
+        let new_data = committed_state_account.try_borrow_data()?;
+
+        // Balance lamports
+        let lamports_difference =
+            delegation_metadata.last_update_lamports as i64 - commit_record.lamports as i64;
+        settle_lamports_balance(
+            delegated_account,
+            committed_state_account,
+            lamports_difference,
+            validator_fees_vault,
+        )?;
+
+        // Copying the new state to the delegated account
+        delegated_account.realloc(new_data.len(), false)?;
+        let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
+        (*delegated_account_data).copy_from_slice(&new_data);
+
+        delegation_metadata.last_update_external_slot = commit_record.slot;
+        delegation_metadata.last_update_lamports = delegated_account.lamports();
+        delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
+
+        // Dropping references
+        drop(delegated_account_data);
+        drop(commit_record_data);
+        drop(new_data);
+    }
 
     // Closing accounts
     close_pda(committed_state_record, reimbursement)?;
     close_pda(committed_state_account, reimbursement)?;
-    Ok(())
-}
-
-/// Balance the lamports of the delegated account
-fn balance_lamports(
-    target_account: &AccountInfo,
-    commited_state_account: &AccountInfo,
-    lamports_difference: i64,
-    validator_fees_vault: &AccountInfo,
-) -> Result<(), ProgramError> {
-    // If the lamports difference is positive, we transfer the lamports from the target account to the validator fees vault
-    if lamports_difference > 0 {
-        let new_lamports = target_account
-            .try_borrow_lamports()?
-            .checked_sub(lamports_difference.unsigned_abs())
-            .ok_or(ProgramError::InvalidAccountData)?;
-        **target_account.try_borrow_mut_lamports()? = new_lamports;
-        let new_lamports = validator_fees_vault
-            .try_borrow_lamports()?
-            .checked_add(lamports_difference.unsigned_abs())
-            .ok_or(ProgramError::InvalidAccountData)?;
-        **validator_fees_vault.try_borrow_mut_lamports()? = new_lamports;
-    }
-    // If the lamports difference is negative, we transfer the lamports from the commited state account to the target account
-    if lamports_difference < 0 {
-        let new_lamports = target_account
-            .try_borrow_lamports()?
-            .checked_add(lamports_difference.unsigned_abs())
-            .ok_or(ProgramError::InvalidAccountData)?;
-        **target_account.try_borrow_mut_lamports()? = new_lamports;
-        let new_lamports = commited_state_account
-            .try_borrow_lamports()?
-            .checked_sub(lamports_difference.unsigned_abs())
-            .ok_or(ProgramError::InvalidAccountData)?;
-        **commited_state_account.try_borrow_mut_lamports()? = new_lamports;
-    }
     Ok(())
 }

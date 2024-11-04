@@ -6,19 +6,18 @@ use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
 
 use crate::consts::{BUFFER, DELEGATION_METADATA, DELEGATION_RECORD};
 use crate::instruction::DelegateAccountArgs;
-use crate::loaders::{
+use crate::state::{DelegationMetadata, DelegationRecord};
+use crate::utils::loaders::{
     load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
 };
-use crate::state::{DelegationMetadata, DelegationRecord};
-use crate::utils::{create_pda, ValidateEdwards};
-use crate::utils_account::{AccountDeserialize, Discriminator};
+use crate::utils::utils_account::{AccountDeserialize, Discriminator};
+use crate::utils::utils_pda::{create_pda, ValidateEdwards};
 
 /// Delegate an account
 ///
@@ -112,11 +111,6 @@ pub fn process_delegate(
         last_update_lamports: delegate_account.lamports(),
         rent_payer: *payer.key,
     };
-
-    msg!(
-        "Delegation Metadata Seeds: {:?}",
-        delegation_metadata_struct.seeds
-    );
 
     let serialized_metadata_struct = delegation_metadata_struct.try_to_vec()?;
     create_pda(

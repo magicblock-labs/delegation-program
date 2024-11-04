@@ -13,10 +13,10 @@ use std::mem::size_of;
 
 use crate::consts::{EPHEMERAL_BALANCE, FEES_VAULT};
 use crate::instruction::TopUpEphemeralArgs;
-use crate::loaders::{load_initialized_pda, load_pda, load_signer};
 use crate::state::EphemeralBalance;
-use crate::utils::create_pda;
-use crate::utils_account::{AccountDeserialize, Discriminator};
+use crate::utils::loaders::{load_initialized_pda, load_pda, load_signer};
+use crate::utils::utils_account::{AccountDeserialize, Discriminator};
+use crate::utils::utils_pda::create_pda;
 
 /// Process top up ephemeral balance
 ///

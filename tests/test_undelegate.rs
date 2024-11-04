@@ -10,6 +10,7 @@ use solana_sdk::{
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
+    validator_fees_vault_pda_from_pubkey,
 };
 
 use crate::fixtures::{
@@ -158,10 +159,22 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.add_account(
         DELEGATED_PDA_OWNER_ID,
         Account {
-            lamports: Rent::default().minimum_balance(data.len()).max(1),
+            lamports: Rent::default().minimum_balance(data.len()),
             data,
             owner: solana_sdk::bpf_loader::id(),
             executable: true,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the validator fees vault
+    program_test.add_account(
+        validator_fees_vault_pda_from_pubkey(&authority.pubkey()),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: dlp::id(),
+            executable: false,
             rent_epoch: 0,
         },
     );

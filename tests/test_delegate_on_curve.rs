@@ -13,7 +13,7 @@ use dlp::consts::BUFFER;
 use dlp::instruction::DelegateAccountArgs;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
 use dlp::state::{DelegationMetadata, DelegationRecord};
-use dlp::utils_account::AccountDeserialize;
+use dlp::utils::utils_account::AccountDeserialize;
 
 mod fixtures;
 

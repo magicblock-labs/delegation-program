@@ -222,7 +222,7 @@ pub fn allow_undelegate(
 /// Builds a commit state instruction.
 #[allow(clippy::too_many_arguments)]
 pub fn undelegate(
-    payer: Pubkey,
+    validator: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
     reimbursement: Pubkey,
@@ -232,10 +232,11 @@ pub fn undelegate(
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
     let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegated_account);
     let buffer_pda = buffer_pda_from_pubkey(&delegated_account);
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new(payer, true),
+            AccountMeta::new(validator, true),
             AccountMeta::new(delegated_account, false),
             AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(buffer_pda, false),
@@ -244,6 +245,7 @@ pub fn undelegate(
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata, false),
             AccountMeta::new(reimbursement, false),
+            AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpInstruction::Undelegate.to_vec(),
