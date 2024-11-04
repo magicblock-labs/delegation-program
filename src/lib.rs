@@ -1,5 +1,5 @@
 use solana_program::{
-    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult,
+    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey,
 };
 
@@ -30,7 +30,7 @@ solana_security_txt::security_txt! {
     contacts: "email:dev@magicblock.gg,twitter:@magicblock",
     policy: "https://github.com/magicblock-labs/delegation-program/blob/master/LICENSE.md",
     preferred_languages: "en",
-    source_code: "https://github.com/magicblock-labs/Kamikaze-Joe"
+    source_code: "https://github.com/magicblock-labs/delegation-program"
 }
 
 pub fn process_instruction(
@@ -51,7 +51,9 @@ pub fn process_instruction(
         .try_into()
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    match DlpInstruction::try_from(tag_array).or(Err(ProgramError::InvalidInstructionData))? {
+    let ix = DlpInstruction::try_from(tag_array).or(Err(ProgramError::InvalidInstructionData))?;
+    msg!("Processing instruction: {:?}", ix);
+    match ix {
         DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
         DlpInstruction::CommitState => process_commit_state(program_id, accounts, data)?,
         DlpInstruction::Finalize => process_finalize(program_id, accounts, data)?,
@@ -66,6 +68,5 @@ pub fn process_instruction(
         }
         DlpInstruction::WithdrawEphemeralBalance => process_withdraw(program_id, accounts, data)?,
     }
-
     Ok(())
 }

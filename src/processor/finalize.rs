@@ -4,7 +4,6 @@ use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     system_program, {self},
 };
@@ -75,12 +74,6 @@ pub fn process_finalize(
     // Balance lamports
     let lamports_difference =
         delegation_metadata.last_update_lamports as i64 - commit_record.lamports as i64;
-    msg!("Commit lamports: {}", commit_record.lamports);
-    msg!(
-        "Delegation metadata lamports: {}",
-        delegation_metadata.last_update_lamports
-    );
-    msg!("Lamports difference: {}", lamports_difference);
     balance_lamports(
         delegated_account,
         committed_state_account,

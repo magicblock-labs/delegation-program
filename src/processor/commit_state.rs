@@ -18,7 +18,6 @@ use solana_program::system_instruction::transfer;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     {self},
 };
@@ -122,14 +121,6 @@ pub fn process_commit_state(
         validator,
     )?;
 
-    msg!("Committed lamports: {}", args.lamports);
-    msg!("Account lamports: {}", commit_state_account.lamports());
-    msg!(
-        "Init Lamports: {}",
-        delegation_metadata.last_update_lamports
-    );
-    msg!("Delegated account: {}", delegated_account.lamports());
-
     if delegated_account.lamports() < delegation_metadata.last_update_lamports {
         return Err(DlpError::InvalidDelegatedState.into());
     }
@@ -148,7 +139,6 @@ pub fn process_commit_state(
                 system_program.clone(),
             ],
         )?;
-        msg!("Transferred {} lamports to commit account", difference);
     }
 
     let mut commit_record_data = commit_state_record.try_borrow_mut_data()?;

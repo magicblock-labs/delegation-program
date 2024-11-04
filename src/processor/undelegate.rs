@@ -186,6 +186,7 @@ pub fn process_undelegate(
     Ok(())
 }
 
+/// CPI to the original owner program to re-open the PDA with the new state
 fn cpi_external_undelegate<'a, 'info>(
     payer: &'a AccountInfo<'info>,
     account_to_undelegate: &'a AccountInfo<'info>,

@@ -119,6 +119,57 @@ async fn test_commit_finalize_system_account_after_balance_increase() {
     assert!(validator_vault.lamports >= Rent::default().minimum_balance(0));
 }
 
+#[tokio::test]
+async fn test_commit_finalize_system_account_after_balance_decrease_and_increase_mainchain() {
+    // Setup
+    let delegated_account = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
+    let (mut banks, _, authority, blockhash) = setup_program_test_env(SetupProgramTestEnvArgs {
+        delegated_account_init_lamports: LAMPORTS_PER_SOL,
+        delegated_account_current_lamports: LAMPORTS_PER_SOL + 9000, // Simulate someone transferring lamports to the delegated account
+        validator_vault_init_lamports: Rent::default().minimum_balance(0),
+        delegated_account: delegated_account.pubkey(),
+    })
+    .await;
+
+    let new_delegated_account_lamports = LAMPORTS_PER_SOL - 100;
+
+    commit_new_state(CommitNewStateArgs {
+        banks: &mut banks,
+        authority: &authority,
+        blockhash,
+        new_delegated_account_lamports,
+        delegate_account: delegated_account.pubkey(),
+    })
+    .await;
+
+    finalize_new_state(FinalizeNewStateArgs {
+        banks: &mut banks,
+        authority: &authority,
+        blockhash,
+        delegate_account: delegated_account.pubkey(),
+    })
+    .await;
+
+    // Assert finalized lamports balance is correct
+    let delegated_account = banks
+        .get_account(delegated_account.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        delegated_account.lamports,
+        new_delegated_account_lamports + 9000
+    );
+
+    // Assert the vault own the difference
+    let validator_vault = banks
+        .get_account(validator_fees_vault_pda_from_pubkey(&authority.pubkey()))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(validator_vault.lamports >= Rent::default().minimum_balance(0));
+}
+
 struct FinalizeNewStateArgs<'a> {
     banks: &'a mut BanksClient,
     authority: &'a Keypair,
