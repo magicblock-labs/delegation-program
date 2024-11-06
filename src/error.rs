@@ -21,6 +21,10 @@ pub enum DlpError {
     InvalidDelegatedState = 5,
     #[error("Reimbursement account does not match the expected account")]
     InvalidReimbursementAccount = 6,
+    #[error("Invalid account data after CPI")]
+    InvalidAccountDataAfterCPI = 7,
+    #[error("Invalid validator balance after CPI")]
+    InvalidValidatorBalanceAfterCPI = 8,
 }
 
 impl From<DlpError> for ProgramError {

@@ -1,18 +1,10 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program::invoke_signed;
-use solana_program::program_error::ProgramError;
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    system_program, {self},
-};
-
 use crate::consts::{
     BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR, VALIDATOR_FEES_VAULT,
 };
-use crate::error::DlpError;
+use crate::error::DlpError::{
+    InvalidAccountDataAfterCPI, InvalidAuthority, InvalidDelegatedAccount,
+    InvalidValidatorBalanceAfterCPI, Undelegatable,
+};
 use crate::pda::validator_fees_vault_pda_from_pubkey;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use crate::utils::balance_lamports::settle_lamports_balance;
@@ -22,24 +14,37 @@ use crate::utils::loaders::{
 use crate::utils::utils_account::AccountDeserialize;
 use crate::utils::utils_pda::{close_pda, create_pda, ValidateEdwards};
 use crate::utils::verify_state::verify_state;
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::instruction::{AccountMeta, Instruction};
+use solana_program::program::{invoke, invoke_signed};
+use solana_program::program_error::ProgramError;
+use solana_program::rent::Rent;
+use solana_program::system_instruction::transfer;
 use solana_program::sysvar::Sysvar;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    pubkey::Pubkey,
+    system_program, {self},
+};
 
-/// Undelegate a delegated Pda
+/// Undelegate a delegated account
 ///
-/// 1. If the new state is valid, copy the committed state to the buffer PDA
+/// 1. If the new state is valid, copy the committed state to the buffer
 /// 2. Close the locked account
-/// 3. CPI to the original owner to re-open the PDA with the original owner and the new state
+/// 3a. If on curve account or no data, close and reopen with prev owner
+/// 3b. CPI to the original owner to re-open the PDA with the original owner and the new state
 /// - The CPI will be signed by the buffer PDA and will call the external program
 ///   using the discriminator EXTERNAL_UNDELEGATE_DISCRIMINATOR
 /// 4. Verify that the new state is the same as the committed state
 /// 5. Close the buffer PDA
-/// 6. Close the state diff account (if exists)
-/// 7. Close the commit state record (if exists)
-/// 8. Close the delegation record
+/// 6. Settle the lamports balance
+/// 7. Close the state diff account (if exists)
+/// 8. Close the commit state record (if exists)
+/// 9. Close the delegation record
 ///
 ///
 /// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
-/// TODO: Remove using commit record account, always assume finalize is called before undelegate
 pub fn process_undelegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -59,7 +64,7 @@ pub fn process_undelegate(
 
     // Check that the validator fees vault account is correct and initialized
     if !validator_fees_vault_pda_from_pubkey(validator.key).eq(validator_fees_vault.key) {
-        return Err(DlpError::InvalidAuthority.into());
+        return Err(InvalidAuthority.into());
     }
     load_initialized_pda(
         validator_fees_vault,
@@ -107,7 +112,7 @@ pub fn process_undelegate(
     if !metadata.is_undelegatable
         && metadata.valid_until < solana_program::clock::Clock::get()?.unix_timestamp
     {
-        return Err(DlpError::Undelegatable.into());
+        return Err(Undelegatable.into());
     }
 
     let buffer_bump: u8 = load_uninitialized_pda(
@@ -130,14 +135,14 @@ pub fn process_undelegate(
     )?;
 
     if !delegation.owner.eq(owner_program.key) {
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramError::InvalidAccountOwner);
     }
 
     // If there is a committed state, verify the state
     let mut lamports_difference = 0;
     if let Some(record) = commit_record {
         if !record.account.eq(delegated_account.key) {
-            return Err(ProgramError::InvalidAccountData);
+            return Err(InvalidDelegatedAccount.into());
         }
         verify_state(validator, delegation, record, committed_state_account)?;
         lamports_difference = metadata.last_update_lamports as i64 - record.lamports as i64;
@@ -158,13 +163,21 @@ pub fn process_undelegate(
 
     if delegated_account.is_on_curve() || buffer.try_borrow_data()?.is_empty() {
         delegated_account.assign(owner_program.key);
-    } else {
-        let delegated_account_lamports = delegated_account.lamports.clone();
 
+        // Settle lamports balance
+        settle_lamports_balance(
+            delegated_account,
+            committed_state_account,
+            lamports_difference,
+            validator_fees_vault,
+        )?;
+    } else {
         // Closing delegated account before reopening it with the original owner
-        close_pda(delegated_account, reimbursement)?;
+        let delegated_account_balance_before_cpi = delegated_account.lamports();
+        close_pda(delegated_account, validator)?;
 
         // CPI to the owner program to re-open the PDA under the original owner
+        let validator_balance_before_cpi = validator.lamports();
         let signer_seeds: &[&[&[u8]]] =
             &[&[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]]];
         cpi_external_undelegate(
@@ -177,24 +190,71 @@ pub fn process_undelegate(
             signer_seeds,
         )?;
 
+        // Asserts the validator was only charged for min rent to reopen the account
+        let min_rent = Rent::default().minimum_balance(delegated_account.data_len());
+        if validator_balance_before_cpi != validator.lamports() + min_rent {
+            return Err(InvalidValidatorBalanceAfterCPI.into());
+        }
+
         // Verify that delegated_account contains the expected data after CPI
         let delegated_data = delegated_account.try_borrow_data()?;
         let buffer_data = buffer.try_borrow_data()?;
-        if delegated_data.as_ref() != buffer_data.as_ref()
-            || delegated_account.lamports != delegated_account_lamports
-        {
-            return Err(ProgramError::InvalidAccountData);
+        if delegated_data.as_ref() != buffer_data.as_ref() {
+            return Err(InvalidAccountDataAfterCPI.into());
         }
         drop(buffer_data);
-    }
+        drop(delegated_data);
 
-    // Settle lamports balance
-    settle_lamports_balance(
-        delegated_account,
-        committed_state_account,
-        lamports_difference,
-        validator_fees_vault,
-    )?;
+        // Settle lamports: Transfer missing lamports from the validator to the delegated account
+        let mut delegated_account_lamports_difference = delegated_account_balance_before_cpi
+            .checked_sub(min_rent)
+            .ok_or(InvalidDelegatedAccount)?;
+        if lamports_difference > 0 {
+            delegated_account_lamports_difference = delegated_account_lamports_difference
+                .checked_sub(lamports_difference.unsigned_abs())
+                .ok_or(InvalidDelegatedAccount)?;
+
+            // Transfer lamports from the validator to the validator fees vault
+            let transfer_instruction = transfer(
+                validator.key,
+                validator_fees_vault.key,
+                lamports_difference.unsigned_abs(),
+            );
+            invoke(
+                &transfer_instruction,
+                &[
+                    validator.clone(),
+                    validator_fees_vault.clone(),
+                    system_program.clone(),
+                ],
+            )?;
+        }
+        if delegated_account_lamports_difference > 0 {
+            let transfer_instruction = transfer(
+                validator.key,
+                delegated_account.key,
+                delegated_account_lamports_difference,
+            );
+            invoke(
+                &transfer_instruction,
+                &[
+                    validator.clone(),
+                    delegated_account.clone(),
+                    system_program.clone(),
+                ],
+            )?;
+        }
+
+        // Settle lamports balance
+        if lamports_difference < 0 {
+            settle_lamports_balance(
+                delegated_account,
+                committed_state_account,
+                lamports_difference,
+                validator_fees_vault,
+            )?;
+        }
+    }
 
     // Closing accounts
     close_pda(delegation_metadata, reimbursement)?;

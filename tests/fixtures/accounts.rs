@@ -65,7 +65,8 @@ pub fn get_delegation_record_on_curve_data(authority: Pubkey) -> Vec<u8> {
     create_delegation_record_data(authority, system_program::id())
 }
 
-fn create_delegation_record_data(authority: Pubkey, owner: Pubkey) -> Vec<u8> {
+#[allow(dead_code)]
+pub fn create_delegation_record_data(authority: Pubkey, owner: Pubkey) -> Vec<u8> {
     let delegation_record = DelegationRecord {
         authority,
         owner,

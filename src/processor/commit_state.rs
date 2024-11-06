@@ -20,6 +20,7 @@ use solana_program::system_instruction::transfer;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
+    msg,
     pubkey::Pubkey,
     {self},
 };
@@ -39,6 +40,8 @@ pub fn process_commit_state(
 ) -> ProgramResult {
     let args = CommitAccountArgs::try_from_slice(data)?;
     let data: &[u8] = args.data.as_ref();
+
+    msg!("Data length: {}", data.len());
 
     let [validator, delegated_account, commit_state_account, commit_state_record, delegation_record, delegation_metadata, validator_fees_vault, system_program] =
         accounts
