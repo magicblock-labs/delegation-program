@@ -548,9 +548,9 @@ async fn setup_program_for_commit_test_env(
 
     // Setup the delegated account metadata PDA
     let data = if args.owner_program.eq(&DELEGATED_PDA_OWNER_ID) {
-        get_delegation_metadata_data(Some(args.delegated_account_init_lamports), None)
+        get_delegation_metadata_data(None)
     } else {
-        get_delegation_metadata_data_on_curve(Some(args.delegated_account_init_lamports), None)
+        get_delegation_metadata_data_on_curve(None)
     };
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&args.delegated_account),
@@ -564,7 +564,7 @@ async fn setup_program_for_commit_test_env(
     );
 
     // Setup the delegated record PDA
-    let data = create_delegation_record_data(validator_keypair.pubkey(), args.owner_program);
+    let data = create_delegation_record_data(validator_keypair.pubkey(), args.owner_program, Some(args.delegated_account_init_lamports));
     program_test.add_account(
         delegation_record_pda_from_pubkey(&args.delegated_account),
         Account {

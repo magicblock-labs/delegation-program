@@ -108,7 +108,6 @@ pub fn process_delegate(
         valid_until: args.valid_until,
         last_update_external_slot: 0,
         is_undelegatable: false,
-        last_update_lamports: delegate_account.lamports(),
         rent_payer: *payer.key,
     };
 

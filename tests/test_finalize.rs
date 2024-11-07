@@ -123,7 +123,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegation record PDA
-    let data = get_delegation_record_data(authority.pubkey());
+    let data = get_delegation_record_data(authority.pubkey(), None);
     program_test.add_account(
         delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
@@ -136,7 +136,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let data = get_delegation_metadata_data(None, None);
+    let data = get_delegation_metadata_data(None);
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {

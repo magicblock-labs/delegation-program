@@ -7,8 +7,6 @@ use solana_program::pubkey::Pubkey;
 /// * Everything necessary at cloning time is instead stored in the delegation record.
 #[derive(BorshSerialize, BorshDeserialize, Debug)]
 pub struct DelegationMetadata {
-    /// The lamports at the time of delegation or from the last state finalization, stored as lamports can be received even if the account is delegated
-    pub last_update_lamports: u64,
     /// The delegation validity
     pub valid_until: i64,
     /// The last slot at which the delegation was updated
@@ -44,7 +42,6 @@ mod tests {
             is_undelegatable: false,
             last_update_external_slot: 0,
             valid_until: 0,
-            last_update_lamports: 0,
             rent_payer: Pubkey::default(),
         };
 

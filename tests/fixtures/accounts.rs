@@ -56,22 +56,23 @@ pub const TEST_AUTHORITY: [u8; 64] = [
 ];
 
 #[allow(dead_code)]
-pub fn get_delegation_record_data(authority: Pubkey) -> Vec<u8> {
-    create_delegation_record_data(authority, DELEGATED_PDA_OWNER_ID)
+pub fn get_delegation_record_data(authority: Pubkey, last_update_lamports: Option<u64>) -> Vec<u8> {
+    create_delegation_record_data(authority, DELEGATED_PDA_OWNER_ID, last_update_lamports)
 }
 
 #[allow(dead_code)]
-pub fn get_delegation_record_on_curve_data(authority: Pubkey) -> Vec<u8> {
-    create_delegation_record_data(authority, system_program::id())
+pub fn get_delegation_record_on_curve_data(authority: Pubkey, last_update_lamports: Option<u64>) -> Vec<u8> {
+    create_delegation_record_data(authority, system_program::id(), last_update_lamports)
 }
 
 #[allow(dead_code)]
-pub fn create_delegation_record_data(authority: Pubkey, owner: Pubkey) -> Vec<u8> {
+pub fn create_delegation_record_data(authority: Pubkey, owner: Pubkey, last_update_lamports: Option<u64>) -> Vec<u8> {
     let delegation_record = DelegationRecord {
         authority,
         owner,
         delegation_slot: DEFAULT_DELEGATION_SLOT,
         commit_frequency_ms: DEFAULT_COMMIT_FREQUENCY_MS,
+        lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500))
     };
     [
         &DelegationRecord::discriminator().to_bytes(),
@@ -82,11 +83,9 @@ pub fn create_delegation_record_data(authority: Pubkey, owner: Pubkey) -> Vec<u8
 
 #[allow(dead_code)]
 pub fn get_delegation_metadata_data_on_curve(
-    last_update_lamports: Option<u64>,
     is_undelegatable: Option<bool>,
 ) -> Vec<u8> {
     create_delegation_metadata_data(
-        last_update_lamports,
         vec![],
         is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
     )
@@ -94,23 +93,19 @@ pub fn get_delegation_metadata_data_on_curve(
 
 #[allow(dead_code)]
 pub fn get_delegation_metadata_data(
-    last_update_lamports: Option<u64>,
     is_undelegatable: Option<bool>,
 ) -> Vec<u8> {
     create_delegation_metadata_data(
-        last_update_lamports,
         DEFAULT_SEEDS.iter().map(|s| s.to_vec()).collect(),
         is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
     )
 }
 
 fn create_delegation_metadata_data(
-    last_update_lamports: Option<u64>,
     seeds: Vec<Vec<u8>>,
     is_undelegatable: bool,
 ) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
-        last_update_lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500)),
         valid_until: DEFAULT_VALID_UNTIL,
         last_update_external_slot: DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
         is_undelegatable,

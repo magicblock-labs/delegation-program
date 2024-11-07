@@ -1,14 +1,12 @@
 use std::mem::size_of;
 
-use crate::consts::{
-    COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, VALIDATOR_FEES_VAULT,
-};
+use crate::consts::{COMMIT_RECORD, COMMIT_STATE};
 use crate::error::DlpError;
 use crate::instruction::CommitAccountArgs;
-use crate::pda::validator_fees_vault_pda_from_pubkey;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use crate::utils::loaders::{
-    load_initialized_pda, load_owned_pda, load_signer, load_uninitialized_pda,
+    load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
+    load_signer, load_uninitialized_pda, load_validator_fees_vault,
 };
 use crate::utils::utils_account::{AccountDeserialize, Discriminator};
 use crate::utils::utils_pda::create_pda;
@@ -20,7 +18,6 @@ use solana_program::system_instruction::transfer;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
-    msg,
     pubkey::Pubkey,
     {self},
 };
@@ -41,8 +38,6 @@ pub fn process_commit_state(
     let args = CommitAccountArgs::try_from_slice(data)?;
     let data: &[u8] = args.data.as_ref();
 
-    msg!("Data length: {}", data.len());
-
     let [validator, delegated_account, commit_state_account, commit_state_record, delegation_record, delegation_metadata, validator_fees_vault, system_program] =
         accounts
     else {
@@ -52,32 +47,9 @@ pub fn process_commit_state(
     // Check that the origin account is delegated
     load_owned_pda(delegated_account, &crate::id())?;
     load_signer(validator)?;
-    load_initialized_pda(
-        delegation_record,
-        &[DELEGATION_RECORD, &delegated_account.key.to_bytes()],
-        &crate::id(),
-        true,
-    )?;
-
-    // Check that the delegation_metadata account
-    load_owned_pda(delegation_metadata, &crate::id())?;
-    load_initialized_pda(
-        delegation_metadata,
-        &[DELEGATION_METADATA, &delegated_account.key.to_bytes()],
-        &crate::id(),
-        true,
-    )?;
-
-    // Check that the validator fees vault account is correct and initialized
-    if !validator_fees_vault_pda_from_pubkey(validator.key).eq(validator_fees_vault.key) {
-        return Err(DlpError::InvalidAuthority.into());
-    }
-    load_initialized_pda(
-        validator_fees_vault,
-        &[VALIDATOR_FEES_VAULT, &validator.key.to_bytes()],
-        &crate::id(),
-        true,
-    )?;
+    load_initialized_delegation_record(delegated_account, delegation_record)?;
+    load_initialized_delegation_metadata(delegated_account, delegation_metadata)?;
+    load_validator_fees_vault(validator, validator_fees_vault)?;
 
     // Load delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
@@ -126,15 +98,14 @@ pub fn process_commit_state(
         validator,
     )?;
 
-    if delegated_account.lamports() < delegation_metadata.last_update_lamports {
+    if delegated_account.lamports() < delegation.lamports {
         return Err(DlpError::InvalidDelegatedState.into());
     }
 
     // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
     // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
-    if args.lamports > delegation_metadata.last_update_lamports {
-        let difference = args.lamports - delegation_metadata.last_update_lamports;
-        // Transfer lamports from validator to commit account PDA (with a system program call)
+    if args.lamports > delegation.lamports {
+        let difference = args.lamports - delegation.lamports;
         let transfer_instruction = transfer(validator.key, commit_state_account.key, difference);
         invoke(
             &transfer_instruction,
