@@ -25,6 +25,8 @@ pub enum DlpError {
     InvalidAccountDataAfterCPI = 7,
     #[error("Invalid validator balance after CPI")]
     InvalidValidatorBalanceAfterCPI = 8,
+    #[error("Invalid reimbursement address for delegation rent")]
+    InvalidReimbursementAddressForDelegationRent = 9,
 }
 
 impl From<DlpError> for ProgramError {

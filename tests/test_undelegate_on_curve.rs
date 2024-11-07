@@ -1,14 +1,16 @@
+use dlp::consts::FEES_VAULT;
+use dlp::pda::{
+    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
+    validator_fees_vault_pda_from_pubkey,
+};
+use solana_program::pubkey::Pubkey;
+use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
-};
-
-use dlp::pda::{
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-    validator_fees_vault_pda_from_pubkey,
 };
 
 use crate::fixtures::{
@@ -93,7 +95,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let data = get_delegation_metadata_data_on_curve(Some(true));
+    let data = get_delegation_metadata_data_on_curve(validator.pubkey(), Some(true));
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
@@ -112,6 +114,18 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
             owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the protocol fees vault
+    program_test.add_account(
+        Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0,
+        Account {
+            lamports: Rent::default().minimum_balance(0),
+            data: vec![],
+            owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
         },

@@ -115,7 +115,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let data = get_delegation_metadata_data(None);
+    let data = get_delegation_metadata_data(validator_keypair.pubkey(), None);
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {

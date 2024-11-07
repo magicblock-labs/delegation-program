@@ -4,6 +4,7 @@ use crate::fixtures::{
     DELEGATED_PDA_OWNER_ID, ON_CURVE_KEYPAIR, TEST_AUTHORITY,
 };
 use borsh::BorshDeserialize;
+use dlp::consts::FEES_VAULT;
 use dlp::instruction::CommitAccountArgs;
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
@@ -548,9 +549,9 @@ async fn setup_program_for_commit_test_env(
 
     // Setup the delegated account metadata PDA
     let data = if args.owner_program.eq(&DELEGATED_PDA_OWNER_ID) {
-        get_delegation_metadata_data(None)
+        get_delegation_metadata_data(validator_keypair.pubkey(), None)
     } else {
-        get_delegation_metadata_data_on_curve(None)
+        get_delegation_metadata_data_on_curve(validator_keypair.pubkey(), None)
     };
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&args.delegated_account),
@@ -564,12 +565,28 @@ async fn setup_program_for_commit_test_env(
     );
 
     // Setup the delegated record PDA
-    let data = create_delegation_record_data(validator_keypair.pubkey(), args.owner_program, Some(args.delegated_account_init_lamports));
+    let data = create_delegation_record_data(
+        validator_keypair.pubkey(),
+        args.owner_program,
+        Some(args.delegated_account_init_lamports),
+    );
     program_test.add_account(
         delegation_record_pda_from_pubkey(&args.delegated_account),
         Account {
             lamports: Rent::default().minimum_balance(data.len()),
             data,
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the protocol fees vault
+    program_test.add_account(
+        Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0,
+        Account {
+            lamports: Rent::default().minimum_balance(0),
+            data: vec![],
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

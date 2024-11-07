@@ -113,7 +113,8 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
-    let data = get_delegation_record_on_curve_data(validator_keypair.pubkey(), Some(LAMPORTS_PER_SOL));
+    let data =
+        get_delegation_record_on_curve_data(validator_keypair.pubkey(), Some(LAMPORTS_PER_SOL));
     program_test.add_account(
         delegation_record_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
@@ -126,7 +127,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let data = get_delegation_metadata_data_on_curve(None);
+    let data = get_delegation_metadata_data_on_curve(validator_keypair.pubkey(), None);
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&payer_alt.pubkey()),
         Account {

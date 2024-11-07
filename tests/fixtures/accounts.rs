@@ -61,18 +61,25 @@ pub fn get_delegation_record_data(authority: Pubkey, last_update_lamports: Optio
 }
 
 #[allow(dead_code)]
-pub fn get_delegation_record_on_curve_data(authority: Pubkey, last_update_lamports: Option<u64>) -> Vec<u8> {
+pub fn get_delegation_record_on_curve_data(
+    authority: Pubkey,
+    last_update_lamports: Option<u64>,
+) -> Vec<u8> {
     create_delegation_record_data(authority, system_program::id(), last_update_lamports)
 }
 
 #[allow(dead_code)]
-pub fn create_delegation_record_data(authority: Pubkey, owner: Pubkey, last_update_lamports: Option<u64>) -> Vec<u8> {
+pub fn create_delegation_record_data(
+    authority: Pubkey,
+    owner: Pubkey,
+    last_update_lamports: Option<u64>,
+) -> Vec<u8> {
     let delegation_record = DelegationRecord {
         authority,
         owner,
         delegation_slot: DEFAULT_DELEGATION_SLOT,
         commit_frequency_ms: DEFAULT_COMMIT_FREQUENCY_MS,
-        lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500))
+        lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500)),
     };
     [
         &DelegationRecord::discriminator().to_bytes(),
@@ -83,25 +90,27 @@ pub fn create_delegation_record_data(authority: Pubkey, owner: Pubkey, last_upda
 
 #[allow(dead_code)]
 pub fn get_delegation_metadata_data_on_curve(
+    rent_payer: Pubkey,
     is_undelegatable: Option<bool>,
 ) -> Vec<u8> {
     create_delegation_metadata_data(
+        rent_payer,
         vec![],
         is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
     )
 }
 
 #[allow(dead_code)]
-pub fn get_delegation_metadata_data(
-    is_undelegatable: Option<bool>,
-) -> Vec<u8> {
+pub fn get_delegation_metadata_data(rent_payer: Pubkey, is_undelegatable: Option<bool>) -> Vec<u8> {
     create_delegation_metadata_data(
+        rent_payer,
         DEFAULT_SEEDS.iter().map(|s| s.to_vec()).collect(),
         is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
     )
 }
 
 fn create_delegation_metadata_data(
+    rent_payer: Pubkey,
     seeds: Vec<Vec<u8>>,
     is_undelegatable: bool,
 ) -> Vec<u8> {
@@ -110,7 +119,7 @@ fn create_delegation_metadata_data(
         last_update_external_slot: DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
         is_undelegatable,
         seeds: seeds.clone(),
-        rent_payer: Default::default(),
+        rent_payer,
     };
     delegation_metadata.try_to_vec().unwrap()
 }

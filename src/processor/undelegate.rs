@@ -1,16 +1,18 @@
-use crate::consts::{BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR};
+use crate::consts::{
+    BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR, FEE_SESSION,
+};
 use crate::error::DlpError::{
-    InvalidAccountDataAfterCPI, InvalidDelegatedAccount, InvalidValidatorBalanceAfterCPI,
-    Undelegatable,
+    InvalidAccountDataAfterCPI, InvalidAuthority, InvalidDelegatedAccount,
+    InvalidReimbursementAddressForDelegationRent, InvalidValidatorBalanceAfterCPI, Undelegatable,
 };
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use crate::utils::balance_lamports::settle_lamports_balance;
 use crate::utils::loaders::{
-    load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
-    load_program, load_signer, load_uninitialized_pda, load_validator_fees_vault,
+    load_fees_vault, load_initialized_delegation_metadata, load_initialized_delegation_record,
+    load_owned_pda, load_program, load_signer, load_uninitialized_pda, load_validator_fees_vault,
 };
 use crate::utils::utils_account::AccountDeserialize;
-use crate::utils::utils_pda::{close_pda, create_pda, ValidateEdwards};
+use crate::utils::utils_pda::{close_pda, close_pda_with_fees, create_pda, ValidateEdwards};
 use crate::utils::verify_state::verify_state;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::instruction::{AccountMeta, Instruction};
@@ -48,19 +50,20 @@ pub fn process_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [authority, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, validator_fees_vault, system_program] =
+    let [validator, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, delegation_metadata, delegation_rent_reimbursement, fees_vault, validator_fees_vault, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     // Check accounts
-    load_signer(authority)?;
+    load_signer(validator)?;
     load_owned_pda(delegated_account, &crate::id())?;
     load_initialized_delegation_record(delegated_account, delegation_record)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata)?;
     load_program(system_program, system_program::id())?;
-    load_validator_fees_vault(authority, validator_fees_vault)?;
+    load_fees_vault(fees_vault)?;
+    load_validator_fees_vault(validator, validator_fees_vault)?;
 
     // Check if there is a committed state
     let is_committed = is_state_committed(
@@ -89,6 +92,11 @@ pub fn process_undelegate(
         return Err(Undelegatable.into());
     }
 
+    // Check if the delegated account is undelegatable
+    if !metadata.rent_payer.eq(delegation_rent_reimbursement.key) {
+        return Err(InvalidReimbursementAddressForDelegationRent.into());
+    }
+
     let buffer_bump: u8 = load_uninitialized_pda(
         buffer,
         &[BUFFER, &delegated_account.key.to_bytes()],
@@ -105,7 +113,7 @@ pub fn process_undelegate(
         },
         &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
         system_program,
-        authority,
+        validator,
     )?;
 
     // Check passed owner and owner stored in the delegation record match
@@ -118,7 +126,10 @@ pub fn process_undelegate(
         if !record.account.eq(delegated_account.key) {
             return Err(InvalidDelegatedAccount.into());
         }
-        verify_state(authority, delegation, record, committed_state_account)?;
+        if !record.identity.eq(validator.key) {
+            return Err(InvalidAuthority.into());
+        }
+        verify_state(validator, delegation, record, committed_state_account)?;
         delegation.lamports as i64 - record.lamports as i64
     } else {
         0
@@ -144,7 +155,7 @@ pub fn process_undelegate(
         delegated_account.assign(owner_program.key);
     } else {
         process_undelegation_with_cpi(
-            authority,
+            validator,
             delegated_account,
             owner_program,
             buffer,
@@ -158,11 +169,21 @@ pub fn process_undelegate(
     }
 
     // Closing accounts
-    close_pda(delegation_metadata, reimbursement)?;
-    close_pda(committed_state_record, reimbursement)?;
-    close_pda(delegation_record, reimbursement)?;
-    close_pda(committed_state_account, reimbursement)?;
-    close_pda(buffer, authority)?;
+    close_pda_with_fees(
+        delegation_record,
+        delegation_rent_reimbursement,
+        &[fees_vault, validator_fees_vault],
+        FEE_SESSION,
+    )?;
+    close_pda_with_fees(
+        delegation_metadata,
+        delegation_rent_reimbursement,
+        &[fees_vault, validator_fees_vault],
+        FEE_SESSION,
+    )?;
+    close_pda(committed_state_record, validator)?;
+    close_pda(committed_state_account, validator)?;
+    close_pda(buffer, validator)?;
     Ok(())
 }
 

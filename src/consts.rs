@@ -1,6 +1,9 @@
 use solana_program::pubkey;
 use solana_program::pubkey::Pubkey;
 
+/// The delegation session fees (extracted in percentage from the delegation PDAs rent on closure).
+pub const FEE_SESSION: u8 = 30;
+
 /// The seed of the authority account PDA.
 pub const DELEGATION_RECORD: &[u8] = b"delegation";
 

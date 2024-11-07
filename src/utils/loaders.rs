@@ -1,4 +1,7 @@
-use crate::consts::{COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, VALIDATOR_FEES_VAULT};
+use crate::consts::{
+    COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, FEES_VAULT,
+    VALIDATOR_FEES_VAULT,
+};
 use crate::error::DlpError::InvalidAuthority;
 use crate::pda::validator_fees_vault_pda_from_pubkey;
 use solana_program::{
@@ -161,6 +164,13 @@ pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError>
     Ok(())
 }
 
+/// Load fee vault PDA
+/// - Protocol fees vault PDA
+pub fn load_fees_vault(fees_vault: &AccountInfo) -> Result<(), ProgramError> {
+    load_initialized_pda(fees_vault, &[FEES_VAULT], &crate::id(), true)?;
+    Ok(())
+}
+
 /// Load validator fee vault PDA
 /// - Validator fees vault PDA must be derived from the validator pubkey
 /// - Validator fees vault PDA must be initialized with the expected seeds and owner
@@ -239,7 +249,6 @@ pub fn load_initialized_commit_record(
     )?;
     Ok(())
 }
-
 
 #[cfg(test)]
 mod tests {

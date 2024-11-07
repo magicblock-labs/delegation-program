@@ -233,6 +233,7 @@ pub fn undelegate(
     let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegated_account);
     let buffer_pda = buffer_pda_from_pubkey(&delegated_account);
     let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator);
+    let fees_vault_pda = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
     Instruction {
         program_id: crate::id(),
         accounts: vec![
@@ -245,6 +246,7 @@ pub fn undelegate(
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata, false),
             AccountMeta::new(reimbursement, false),
+            AccountMeta::new(fees_vault_pda, false),
             AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
