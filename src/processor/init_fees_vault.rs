@@ -26,7 +26,7 @@ pub fn process_init_fees_vault(
     load_signer(payer)?;
     let bump_fees_vault = load_uninitialized_pda(fees_vault, &[FEES_VAULT], &crate::id())?;
 
-    // Crete the receipt account if it does not exist
+    // Crete the fees vault account
     create_pda(
         fees_vault,
         &crate::id(),

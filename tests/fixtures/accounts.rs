@@ -14,8 +14,6 @@ const DEFAULT_VALID_UNTIL: i64 = 0;
 const DEFAULT_LAST_UPDATE_EXTERNAL_SLOT: u64 = 0;
 const DEFAULT_IS_UNDELEGATABLE: bool = false;
 const DEFAULT_SEEDS: &[&[u8]] = &[&[116, 101, 115, 116, 45, 112, 100, 97]];
-#[allow(dead_code)]
-pub const EPHEMERAL_BALANCE_PDA: [u8; 16] = [103, 0, 0, 0, 0, 0, 0, 0, 64, 66, 15, 0, 0, 0, 0, 0];
 
 #[allow(dead_code)]
 pub const COMMIT_STATE_AUTHORITY: Pubkey = pubkey!("Ec6jL2GVTzjfHz8RFP3mVyki9JRNmMu8E7YdNh45xNdk");

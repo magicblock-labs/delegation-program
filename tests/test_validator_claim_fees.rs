@@ -1,6 +1,6 @@
-use crate::fixtures::EPHEMERAL_BALANCE_PDA;
-use dlp::consts::FEES_VAULT;
-use dlp::utils::utils_account::AccountDeserialize;
+use crate::fixtures::TEST_AUTHORITY;
+use dlp::consts::{FEES_VAULT, FEES_VOLUME};
+use dlp::pda::validator_fees_vault_pda_from_pubkey;
 use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -13,75 +13,77 @@ use solana_sdk::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_withdraw() {
+async fn test_validator_claim_fees() {
     // Setup
-    let (mut banks, _, payer_alt, blockhash) = setup_program_test_env().await;
+    let (mut banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0;
-
-    let init_lamports = banks
+    let fees_vault_init_lamports = banks
         .get_account(fees_vault)
         .await
         .unwrap()
         .unwrap()
         .lamports;
 
-    let init_ephemeral_balance = banks
-        .get_account(dlp::pda::ephemeral_balance_pda_from_pubkey(
-            &payer_alt.pubkey(),
-        ))
+    let validator_fees_vault = validator_fees_vault_pda_from_pubkey(&validator.pubkey());
+    let validator_fees_vault_init_lamports = banks
+        .get_account(validator_fees_vault)
         .await
         .unwrap()
-        .unwrap();
-    let init_ephemeral_balance_data =
-        dlp::state::EphemeralBalance::try_from_bytes(&init_ephemeral_balance.data).unwrap();
-    let init_ephemeral_balance_lamports = init_ephemeral_balance_data.lamports;
+        .unwrap()
+        .lamports;
+
+    let validator_init_lamports = banks
+        .get_account(validator.pubkey())
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
 
     // Submit the undelegate tx
     let withdrawal_amount = 100000;
-    let ix =
-        dlp::instruction::withdraw_ephemeral_balance(payer_alt.pubkey(), Some(withdrawal_amount));
+    let ix = dlp::instruction::validator_claim_fees(validator.pubkey(), Some(withdrawal_amount));
     let tx = Transaction::new_signed_with_payer(
         &[ix],
-        Some(&payer_alt.pubkey()),
-        &[&payer_alt],
+        Some(&payer.pubkey()),
+        &[&payer, &validator],
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
-    // Assert the fees vault now has less lamports
+    // Assert the validator fees vault now has less lamports
+    let validator_fees_vault_account = banks.get_account(validator_fees_vault).await.unwrap();
+    assert!(validator_fees_vault_account.is_some());
+    assert_eq!(
+        validator_fees_vault_account.unwrap().lamports,
+        validator_fees_vault_init_lamports - withdrawal_amount
+    );
+
+    // Assert the fees vault now has prev lamports + fees
+    let fees = (withdrawal_amount * u64::from(FEES_VOLUME)) / 100;
     let fees_vault_account = banks.get_account(fees_vault).await.unwrap();
     assert!(fees_vault_account.is_some());
     assert_eq!(
         fees_vault_account.unwrap().lamports,
-        init_lamports - withdrawal_amount
+        fees_vault_init_lamports + fees
     );
 
-    // Assert the ephemeral balance account now has less lamports
-    let ephemeral_balance_account = banks
-        .get_account(dlp::pda::ephemeral_balance_pda_from_pubkey(
-            &payer_alt.pubkey(),
-        ))
-        .await
-        .unwrap();
-    assert!(ephemeral_balance_account.is_some());
-    let ephemeral_balance_account = ephemeral_balance_account.unwrap();
-    let ephemeral_balance_data =
-        dlp::state::EphemeralBalance::try_from_bytes(&ephemeral_balance_account.data).unwrap();
+    let claim_amount = withdrawal_amount.saturating_sub(fees);
+    let validator_account = banks.get_account(validator.pubkey()).await.unwrap();
     assert_eq!(
-        ephemeral_balance_data.lamports,
-        init_ephemeral_balance_lamports - withdrawal_amount
+        validator_account.unwrap().lamports,
+        validator_init_lamports + claim_amount
     );
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::new();
+    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 
     program_test.add_account(
-        payer_alt.pubkey(),
+        validator.pubkey(),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
@@ -103,12 +105,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup the ephemeral balance account
+    // Setup the validator fees vault
     program_test.add_account(
-        dlp::pda::ephemeral_balance_pda_from_pubkey(&payer_alt.pubkey()),
+        validator_fees_vault_pda_from_pubkey(&validator.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: EPHEMERAL_BALANCE_PDA.to_vec(),
+            data: vec![],
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -116,5 +118,5 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, payer_alt, blockhash)
+    (banks, payer, validator, blockhash)
 }

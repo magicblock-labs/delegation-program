@@ -401,11 +401,7 @@ struct FinalizeNewStateArgs<'a> {
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = dlp::instruction::finalize(
-        args.authority.pubkey(),
-        args.delegate_account,
-        args.authority.pubkey(),
-    );
+    let ix = dlp::instruction::finalize(args.authority.pubkey(), args.delegate_account);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&args.authority.pubkey()),

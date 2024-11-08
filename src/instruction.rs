@@ -11,8 +11,7 @@ use crate::consts::{BUFFER, FEES_VAULT};
 use crate::pda::{
     buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
     committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
-    delegation_record_pda_from_pubkey, ephemeral_balance_pda_from_pubkey,
-    validator_fees_vault_pda_from_pubkey,
+    delegation_record_pda_from_pubkey, validator_fees_vault_pda_from_pubkey,
 };
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
@@ -31,12 +30,7 @@ pub struct CommitAccountArgs {
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct TopUpEphemeralArgs {
-    pub amount: u64,
-}
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct WithdrawArgs {
+pub struct ClaimFeesArgs {
     pub amount: Option<u64>,
 }
 
@@ -49,10 +43,9 @@ pub enum DlpInstruction {
     Finalize = 2,
     Undelegate = 3,
     AllowUndelegate = 4,
-    TopUpEphemeralBalance = 5,
-    InitFeesVault = 6,
-    InitValidatorFeesVault = 7,
-    WithdrawEphemeralBalance = 8,
+    InitFeesVault = 5,
+    InitValidatorFeesVault = 6,
+    ValidatorClaimFees = 7,
 }
 
 impl DlpInstruction {
@@ -71,10 +64,9 @@ impl TryFrom<[u8; 8]> for DlpInstruction {
             [0x2, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Finalize),
             [0x3, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Undelegate),
             [0x4, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::AllowUndelegate),
-            [0x5, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::TopUpEphemeralBalance),
-            [0x6, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitFeesVault),
-            [0x7, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitValidatorFeesVault),
-            [0x8, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::WithdrawEphemeralBalance),
+            [0x5, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitFeesVault),
+            [0x6, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitValidatorFeesVault),
+            [0x7, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::ValidatorClaimFees),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -169,11 +161,7 @@ pub fn commit_state(
 }
 
 /// Builds a finalize state instruction.
-pub fn finalize(
-    validator: Pubkey,
-    delegated_account: Pubkey,
-    reimbursement: Pubkey,
-) -> Instruction {
+pub fn finalize(validator: Pubkey, delegated_account: Pubkey) -> Instruction {
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
@@ -188,7 +176,6 @@ pub fn finalize(
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
-            AccountMeta::new(reimbursement, false),
             AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
@@ -225,7 +212,7 @@ pub fn undelegate(
     validator: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
-    reimbursement: Pubkey,
+    rent_reimbursement: Pubkey,
 ) -> Instruction {
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
@@ -245,7 +232,7 @@ pub fn undelegate(
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata, false),
-            AccountMeta::new(reimbursement, false),
+            AccountMeta::new(rent_reimbursement, false),
             AccountMeta::new(fees_vault_pda, false),
             AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
@@ -288,41 +275,20 @@ pub fn initialize_fees_vault(payer: Pubkey) -> Instruction {
     }
 }
 
-/// Builds a top-up ephemeral balance instruction.
-pub fn top_up_ephemeral_balance(payer: Pubkey, amount: u64) -> Instruction {
-    let args = TopUpEphemeralArgs { amount };
-    let receipt_pda = ephemeral_balance_pda_from_pubkey(&payer);
+/// Claim the accrued fees from the fees vault.
+pub fn validator_claim_fees(validator: Pubkey, amount: Option<u64>) -> Instruction {
+    let args = ClaimFeesArgs { amount };
     let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
+    let validator_fees_vault = validator_fees_vault_pda_from_pubkey(&validator);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new(payer, true),
-            AccountMeta::new(receipt_pda, false),
+            AccountMeta::new(validator, true),
             AccountMeta::new(fees_vault, false),
-            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new(validator_fees_vault, false),
         ],
         data: [
-            DlpInstruction::TopUpEphemeralBalance.to_vec(),
-            args.try_to_vec().unwrap(),
-        ]
-        .concat(),
-    }
-}
-
-/// Withdraw ephemeral balance instruction.
-pub fn withdraw_ephemeral_balance(payer: Pubkey, amount: Option<u64>) -> Instruction {
-    let args = WithdrawArgs { amount };
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_pubkey(&payer);
-    let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
-    Instruction {
-        program_id: crate::id(),
-        accounts: vec![
-            AccountMeta::new(payer, true),
-            AccountMeta::new(ephemeral_balance_pda, false),
-            AccountMeta::new(fees_vault, false),
-        ],
-        data: [
-            DlpInstruction::WithdrawEphemeralBalance.to_vec(),
+            DlpInstruction::ValidatorClaimFees.to_vec(),
             args.try_to_vec().unwrap(),
         ]
         .concat(),

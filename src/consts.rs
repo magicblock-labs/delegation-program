@@ -2,7 +2,10 @@ use solana_program::pubkey;
 use solana_program::pubkey::Pubkey;
 
 /// The delegation session fees (extracted in percentage from the delegation PDAs rent on closure).
-pub const FEE_SESSION: u8 = 30;
+pub const FEES_SESSION: u8 = 30;
+
+/// The fees extracted from the validator earnings (extracted in percentage from the validator fees claims).
+pub const FEES_VOLUME: u8 = 10;
 
 /// The seed of the authority account PDA.
 pub const DELEGATION_RECORD: &[u8] = b"delegation";
@@ -22,9 +25,6 @@ pub const COMMIT_RECORD: &[u8] = b"commit-state-record";
 /// The account to store lamports deposited for paying fees.
 pub const FEES_VAULT: &[u8] = b"fees-vault";
 pub const VALIDATOR_FEES_VAULT: &[u8] = b"v-fees-vault";
-
-/// The account to store ephemeral lamports deposited for a user.
-pub const EPHEMERAL_BALANCE: &[u8] = b"ephemeral-balance";
 
 /// The discriminator for the external undelegate instruction.
 pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37, 51, 167];

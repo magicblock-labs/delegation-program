@@ -32,7 +32,7 @@ pub fn process_finalize(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [validator, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, reimbursement, validator_fees_vault, system_program] =
+    let [validator, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, validator_fees_vault, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -73,7 +73,7 @@ pub fn process_finalize(
             return Err(DlpError::InvalidDelegatedAccount.into());
         }
 
-        if !commit_record.identity.eq(reimbursement.key) {
+        if !commit_record.identity.eq(validator.key) {
             return Err(DlpError::InvalidReimbursementAccount.into());
         }
 
@@ -104,7 +104,7 @@ pub fn process_finalize(
     }
 
     // Closing accounts
-    close_pda(committed_state_record, reimbursement)?;
-    close_pda(committed_state_account, reimbursement)?;
+    close_pda(committed_state_record, validator)?;
+    close_pda(committed_state_account, validator)?;
     Ok(())
 }

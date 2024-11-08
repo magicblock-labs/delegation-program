@@ -48,7 +48,7 @@ async fn test_finalize() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the finalize tx
-    let ix = dlp::instruction::finalize(authority.pubkey(), DELEGATED_PDA_ID, authority.pubkey());
+    let ix = dlp::instruction::finalize(authority.pubkey(), DELEGATED_PDA_ID);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&authority.pubkey()),

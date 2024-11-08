@@ -1,5 +1,5 @@
 use crate::consts::{
-    BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR, FEE_SESSION,
+    BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR, FEES_SESSION,
 };
 use crate::error::DlpError::{
     InvalidAccountDataAfterCPI, InvalidAuthority, InvalidDelegatedAccount,
@@ -173,13 +173,13 @@ pub fn process_undelegate(
         delegation_record,
         delegation_rent_reimbursement,
         &[fees_vault, validator_fees_vault],
-        FEE_SESSION,
+        FEES_SESSION,
     )?;
     close_pda_with_fees(
         delegation_metadata,
         delegation_rent_reimbursement,
         &[fees_vault, validator_fees_vault],
-        FEE_SESSION,
+        FEES_SESSION,
     )?;
     close_pda(committed_state_record, validator)?;
     close_pda(committed_state_account, validator)?;

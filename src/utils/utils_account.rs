@@ -7,7 +7,6 @@ pub enum AccountDiscriminator {
     DelegationRecord = 100,
     CommitRecord = 101,
     DelegatedMetadata = 102,
-    EphemeralBalance = 103,
 }
 
 impl AccountDiscriminator {

@@ -59,10 +59,9 @@ pub fn process_instruction(
             process_init_validator_fees_vault(program_id, accounts, data)?
         }
         DlpInstruction::InitFeesVault => process_init_fees_vault(program_id, accounts, data)?,
-        DlpInstruction::TopUpEphemeralBalance => {
-            process_top_up_ephemeral(program_id, accounts, data)?
+        DlpInstruction::ValidatorClaimFees => {
+            process_validator_claim_fees(program_id, accounts, data)?
         }
-        DlpInstruction::WithdrawEphemeralBalance => process_withdraw(program_id, accounts, data)?,
     }
     Ok(())
 }
