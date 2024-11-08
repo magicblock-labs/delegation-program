@@ -1,3 +1,9 @@
+use crate::consts::{
+    COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, FEES_VAULT,
+    VALIDATOR_FEES_VAULT,
+};
+use crate::error::DlpError::InvalidAuthority;
+use crate::pda::validator_fees_vault_pda_from_pubkey;
 use solana_program::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
 };
@@ -132,11 +138,99 @@ pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError>
     Ok(())
 }
 
+/// Load fee vault PDA
+/// - Protocol fees vault PDA
+pub fn load_fees_vault(fees_vault: &AccountInfo) -> Result<(), ProgramError> {
+    load_initialized_pda(fees_vault, &[FEES_VAULT], &crate::id(), true)?;
+    Ok(())
+}
+
+/// Load validator fee vault PDA
+/// - Validator fees vault PDA must be derived from the validator pubkey
+/// - Validator fees vault PDA must be initialized with the expected seeds and owner
+pub fn load_validator_fees_vault(
+    validator: &AccountInfo,
+    validator_fees_vault: &AccountInfo,
+) -> Result<(), ProgramError> {
+    if !validator_fees_vault_pda_from_pubkey(validator.key).eq(validator_fees_vault.key) {
+        return Err(InvalidAuthority.into());
+    }
+    load_initialized_pda(
+        validator_fees_vault,
+        &[VALIDATOR_FEES_VAULT, &validator.key.to_bytes()],
+        &crate::id(),
+        true,
+    )?;
+    Ok(())
+}
+
+/// Load initialized delegation record
+/// - Delegation record must be derived from the delegated account
+pub fn load_initialized_delegation_record(
+    delegated_account: &AccountInfo,
+    delegation_record: &AccountInfo,
+) -> Result<(), ProgramError> {
+    load_initialized_pda(
+        delegation_record,
+        &[DELEGATION_RECORD, &delegated_account.key.to_bytes()],
+        &crate::id(),
+        true,
+    )?;
+    Ok(())
+}
+
+/// Load initialized delegation metadata
+/// - Delegation metadata must be derived from the delegated account
+pub fn load_initialized_delegation_metadata(
+    delegated_account: &AccountInfo,
+    delegation_metadata: &AccountInfo,
+) -> Result<(), ProgramError> {
+    load_initialized_pda(
+        delegation_metadata,
+        &[DELEGATION_METADATA, &delegated_account.key.to_bytes()],
+        &crate::id(),
+        true,
+    )?;
+    Ok(())
+}
+
+/// Load initialized commit state account
+/// - Commit state account must be derived from the delegated account pubkey
+pub fn load_initialized_commit_state(
+    delegated_account: &AccountInfo,
+    commit_state: &AccountInfo,
+) -> Result<(), ProgramError> {
+    load_initialized_pda(
+        commit_state,
+        &[COMMIT_STATE, &delegated_account.key.to_bytes()],
+        &crate::id(),
+        true,
+    )?;
+    Ok(())
+}
+
+/// Load initialized commit state record
+/// - Commit record account must be derived from the delegated account pubkey
+pub fn load_initialized_commit_record(
+    delegated_account: &AccountInfo,
+    commit_record: &AccountInfo,
+) -> Result<(), ProgramError> {
+    load_initialized_pda(
+        commit_record,
+        &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
+        &crate::id(),
+        true,
+    )?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
 
-    use crate::loaders::{load_account, load_signer, load_sysvar, load_uninitialized_account};
+    use crate::utils::loaders::{
+        load_account, load_signer, load_sysvar, load_uninitialized_account,
+    };
 
     use super::load_program;
 

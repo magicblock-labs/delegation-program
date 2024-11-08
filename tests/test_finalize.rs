@@ -1,24 +1,22 @@
+use crate::fixtures::{
+    get_commit_state_record_account_data, get_delegation_metadata_data, get_delegation_record_data,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID, TEST_AUTHORITY,
+};
 use borsh::BorshDeserialize;
+use dlp::pda::{
+    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
+    validator_fees_vault_pda_from_pubkey,
+};
+use dlp::state::{CommitRecord, DelegationMetadata};
+use dlp::utils::utils_account::AccountDeserialize;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
-};
-
-use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-};
-use dlp::state::{CommitRecord, DelegationMetadata};
-use dlp::utils_account::AccountDeserialize;
-
-use crate::fixtures::{
-    COMMIT_NEW_STATE_ACCOUNT_DATA, COMMIT_STATE_AUTHORITY, COMMIT_STATE_RECORD_ACCOUNT_DATA,
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATION_METADATA_PDA,
-    DELEGATION_RECORD_ACCOUNT_DATA, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -49,9 +47,8 @@ async fn test_finalize() {
         .unwrap();
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
-    // Submit the undelegate tx
-    let ix =
-        dlp::instruction::finalize(authority.pubkey(), DELEGATED_PDA_ID, COMMIT_STATE_AUTHORITY);
+    // Submit the finalize tx
+    let ix = dlp::instruction::finalize(authority.pubkey(), DELEGATED_PDA_ID);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&authority.pubkey()),
@@ -100,10 +97,10 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
 
-    let payer_alt = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let authority = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 
     program_test.add_account(
-        payer_alt.pubkey(),
+        authority.pubkey(),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
@@ -125,12 +122,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup the delegated record PDA
+    // Setup the delegation record PDA
+    let data = get_delegation_record_data(authority.pubkey(), None);
     program_test.add_account(
         delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_RECORD_ACCOUNT_DATA.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data: data.clone(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -138,11 +136,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
+    let data = get_delegation_metadata_data(authority.pubkey(), None);
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: DELEGATION_METADATA_PDA.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -161,31 +160,30 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup the commit state record PDA
+    let data = get_commit_state_record_account_data(authority.pubkey());
     program_test.add_account(
         committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: COMMIT_STATE_RECORD_ACCOUNT_DATA.into(),
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
         },
     );
 
-    // Setup program to test undelegation
-    let data = read_file("tests/buffers/test_delegation.so");
+    // Setup the validator fees vault
     program_test.add_account(
-        DELEGATED_PDA_OWNER_ID,
+        validator_fees_vault_pda_from_pubkey(&authority.pubkey()),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()).max(1),
-            data,
-            owner: solana_sdk::bpf_loader::id(),
-            executable: true,
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: dlp::id(),
+            executable: false,
             rent_epoch: 0,
         },
     );
 
     let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, payer_alt, blockhash)
+    (banks, payer, authority, blockhash)
 }

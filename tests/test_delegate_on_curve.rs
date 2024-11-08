@@ -8,12 +8,12 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
-use crate::fixtures::ON_CURVE_ACCOUNT_BYTES;
+use crate::fixtures::ON_CURVE_KEYPAIR;
 use dlp::consts::BUFFER;
 use dlp::instruction::DelegateAccountArgs;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
 use dlp::state::{DelegationMetadata, DelegationRecord};
-use dlp::utils_account::AccountDeserialize;
+use dlp::utils::utils_account::AccountDeserialize;
 
 mod fixtures;
 
@@ -116,7 +116,7 @@ async fn test_delegate_on_curve() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::from_bytes(&ON_CURVE_ACCOUNT_BYTES).unwrap();
+    let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
 
     program_test.add_account(
         payer_alt.pubkey(),

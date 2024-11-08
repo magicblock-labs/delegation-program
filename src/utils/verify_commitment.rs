@@ -2,7 +2,7 @@ use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
 
 use crate::state::{CommitRecord, DelegationRecord};
-use crate::verify_state::verify_state;
+use crate::utils::verify_state::verify_state;
 
 /// Verify the committed state
 pub(crate) fn verify_commitment(

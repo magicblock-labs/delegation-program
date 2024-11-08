@@ -7,11 +7,11 @@ use solana_program::{
     system_program,
 };
 
-use crate::consts::BUFFER;
+use crate::consts::{BUFFER, FEES_VAULT};
 use crate::pda::{
     buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
     committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
-    delegation_record_pda_from_pubkey,
+    delegation_record_pda_from_pubkey, validator_fees_vault_pda_from_pubkey,
 };
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
@@ -24,8 +24,14 @@ pub struct DelegateAccountArgs {
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct CommitAccountArgs {
     pub slot: u64,
+    pub lamports: u64,
     pub allow_undelegation: bool,
     pub data: Vec<u8>,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct ClaimFeesArgs {
+    pub amount: Option<u64>,
 }
 
 #[repr(u8)]
@@ -37,6 +43,9 @@ pub enum DlpInstruction {
     Finalize = 2,
     Undelegate = 3,
     AllowUndelegate = 4,
+    InitFeesVault = 5,
+    InitValidatorFeesVault = 6,
+    ValidatorClaimFees = 7,
 }
 
 impl DlpInstruction {
@@ -55,6 +64,9 @@ impl TryFrom<[u8; 8]> for DlpInstruction {
             [0x2, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Finalize),
             [0x3, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Undelegate),
             [0x4, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::AllowUndelegate),
+            [0x5, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitFeesVault),
+            [0x6, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitValidatorFeesVault),
+            [0x7, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::ValidatorClaimFees),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -122,7 +134,7 @@ pub fn delegate_on_curve(
 }
 /// Builds a commit state instruction.
 pub fn commit_state(
-    authority: Pubkey,
+    validator: Pubkey,
     delegated_account: Pubkey,
     commit_args: CommitAccountArgs,
 ) -> Instruction {
@@ -130,16 +142,18 @@ pub fn commit_state(
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator);
     let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&delegated_account);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new_readonly(authority, true),
+            AccountMeta::new_readonly(validator, true),
             AccountMeta::new_readonly(delegated_account, false),
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [DlpInstruction::CommitState.to_vec(), commit_args].concat(),
@@ -147,21 +161,22 @@ pub fn commit_state(
 }
 
 /// Builds a finalize state instruction.
-pub fn finalize(payer: Pubkey, delegated_account: Pubkey, reimbursement: Pubkey) -> Instruction {
+pub fn finalize(validator: Pubkey, delegated_account: Pubkey) -> Instruction {
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new_readonly(payer, true),
+            AccountMeta::new_readonly(validator, true),
             AccountMeta::new(delegated_account, false),
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
-            AccountMeta::new(reimbursement, false),
+            AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpInstruction::Finalize.to_vec(),
@@ -194,20 +209,22 @@ pub fn allow_undelegate(
 /// Builds a commit state instruction.
 #[allow(clippy::too_many_arguments)]
 pub fn undelegate(
-    payer: Pubkey,
+    validator: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
-    reimbursement: Pubkey,
+    rent_reimbursement: Pubkey,
 ) -> Instruction {
     let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
     let commit_state_pda = committed_state_pda_from_pubkey(&delegated_account);
     let commit_state_record_pda = committed_state_record_pda_from_pubkey(&delegated_account);
     let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegated_account);
     let buffer_pda = buffer_pda_from_pubkey(&delegated_account);
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator);
+    let fees_vault_pda = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
     Instruction {
         program_id: crate::id(),
         accounts: vec![
-            AccountMeta::new(payer, true),
+            AccountMeta::new(validator, true),
             AccountMeta::new(delegated_account, false),
             AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(buffer_pda, false),
@@ -215,9 +232,65 @@ pub fn undelegate(
             AccountMeta::new(commit_state_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata, false),
-            AccountMeta::new(reimbursement, false),
+            AccountMeta::new(rent_reimbursement, false),
+            AccountMeta::new(fees_vault_pda, false),
+            AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpInstruction::Undelegate.to_vec(),
+    }
+}
+
+/// Initialize a validator fees vault PDA.
+pub fn initialize_validator_fees_vault(
+    payer: Pubkey,
+    admin: Pubkey,
+    validator_identity: Pubkey,
+) -> Instruction {
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator_identity);
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(admin, true),
+            AccountMeta::new(validator_identity, false),
+            AccountMeta::new(validator_fees_vault_pda, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: DlpInstruction::InitValidatorFeesVault.to_vec(),
+    }
+}
+
+/// Initialize the fees vault PDA.
+pub fn initialize_fees_vault(payer: Pubkey) -> Instruction {
+    let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(fees_vault, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: DlpInstruction::InitFeesVault.to_vec(),
+    }
+}
+
+/// Claim the accrued fees from the fees vault.
+pub fn validator_claim_fees(validator: Pubkey, amount: Option<u64>) -> Instruction {
+    let args = ClaimFeesArgs { amount };
+    let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
+    let validator_fees_vault = validator_fees_vault_pda_from_pubkey(&validator);
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(validator, true),
+            AccountMeta::new(fees_vault, false),
+            AccountMeta::new(validator_fees_vault, false),
+        ],
+        data: [
+            DlpInstruction::ValidatorClaimFees.to_vec(),
+            args.try_to_vec().unwrap(),
+        ]
+        .concat(),
     }
 }

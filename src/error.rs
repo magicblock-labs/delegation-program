@@ -11,12 +11,22 @@ pub enum DlpError {
         "Account cannot be undelegated, is_delegatable is false and valid_until isn't reached"
     )]
     Undelegatable = 1,
+    #[error("Unauthorized Operation")]
+    Unauthorized = 2,
     #[error("Invalid Authority for the current target program")]
-    InvalidAuthorityForProgram = 2,
+    InvalidAuthorityForProgram = 3,
     #[error("Delegated account does not match the expected account")]
-    InvalidDelegatedAccount = 3,
+    InvalidDelegatedAccount = 4,
+    #[error("Delegated account is not in a valid state")]
+    InvalidDelegatedState = 5,
     #[error("Reimbursement account does not match the expected account")]
-    InvalidReimbursementAccount = 4,
+    InvalidReimbursementAccount = 6,
+    #[error("Invalid account data after CPI")]
+    InvalidAccountDataAfterCPI = 7,
+    #[error("Invalid validator balance after CPI")]
+    InvalidValidatorBalanceAfterCPI = 8,
+    #[error("Invalid reimbursement address for delegation rent")]
+    InvalidReimbursementAddressForDelegationRent = 9,
 }
 
 impl From<DlpError> for ProgramError {

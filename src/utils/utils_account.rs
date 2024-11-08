@@ -9,6 +9,14 @@ pub enum AccountDiscriminator {
     DelegatedMetadata = 102,
 }
 
+impl AccountDiscriminator {
+    pub fn to_bytes(&self) -> [u8; 8] {
+        let mut bytes = [0u8; 8];
+        bytes[0] = (*self).into();
+        bytes
+    }
+}
+
 pub trait Discriminator {
     fn discriminator() -> AccountDiscriminator;
 }
@@ -32,7 +40,7 @@ macro_rules! impl_to_bytes {
 #[macro_export]
 macro_rules! impl_account_from_bytes {
     ($struct_name:ident) => {
-        impl $crate::utils_account::AccountDeserialize for $struct_name {
+        impl $crate::utils::utils_account::AccountDeserialize for $struct_name {
             fn try_from_bytes(
                 data: &[u8],
             ) -> Result<&Self, solana_program::program_error::ProgramError> {

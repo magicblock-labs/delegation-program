@@ -159,7 +159,7 @@
       ],
       "accounts": [
         {
-          "name": "payer",
+          "name": "validator",
           "signer": true,
           "writable": true
         },
@@ -184,7 +184,8 @@
           "writable": true
         },
         {
-          "name": "reimbursement"
+          "name": "validator_fees_vault",
+          "writable": true
         },
         {
           "name": "system_program"
@@ -206,7 +207,7 @@
       ],
       "accounts": [
         {
-          "name": "payer",
+          "name": "validator",
           "signer": true,
           "writable": true
         },
@@ -282,6 +283,12 @@
         },
         {
           "name": "reimbursement"
+        },
+        {
+          "name": "fees_vault"
+        },
+        {
+          "name": "validator_fees_vault"
         },
         {
           "name": "system_program"

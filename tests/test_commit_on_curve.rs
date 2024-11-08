@@ -17,31 +17,32 @@ use solana_sdk::{
 };
 
 use crate::fixtures::{
-    get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID, TEST_AUTHORITY,
+    get_delegation_metadata_data_on_curve, get_delegation_record_on_curve_data, ON_CURVE_KEYPAIR,
+    TEST_AUTHORITY,
 };
 
 mod fixtures;
 
 #[tokio::test]
-async fn test_commit_new_state() {
+async fn test_commit_on_curve() {
     // Setup
-    let (mut banks, _, authority, blockhash) = setup_program_test_env().await;
-    let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
+    let (mut banks, payer_delegated, validator, blockhash) = setup_program_test_env().await;
 
     let new_account_balance = 1_000_000;
     let commit_args = CommitAccountArgs {
-        data: new_state.clone(),
+        data: vec![],
         slot: 100,
         allow_undelegation: true,
         lamports: new_account_balance,
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(authority.pubkey(), DELEGATED_PDA_ID, commit_args);
+    let ix =
+        dlp::instruction::commit_state(validator.pubkey(), payer_delegated.pubkey(), commit_args);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
-        Some(&authority.pubkey()),
-        &[&authority],
+        Some(&validator.pubkey()),
+        &[&validator],
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
@@ -49,20 +50,16 @@ async fn test_commit_new_state() {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let committed_state_pda = committed_state_pda_from_pubkey(&payer_delegated.pubkey());
     let new_state_account = banks
         .get_account(committed_state_pda)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(new_state_account.data, new_state.clone());
-
-    // Check that the commit has enough collateral to finalize the proposed state diff
-    let delegated_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert!(new_account_balance < new_state_account.lamports + delegated_account.lamports);
+    assert!(new_state_account.data.is_empty());
 
     // Assert the record about the commitment exists
-    let state_commit_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let state_commit_record_pda = committed_state_record_pda_from_pubkey(&payer_delegated.pubkey());
     let state_commit_record_account = banks
         .get_account(state_commit_record_pda)
         .await
@@ -70,11 +67,11 @@ async fn test_commit_new_state() {
         .unwrap();
     let state_commit_record =
         CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
-    assert_eq!(state_commit_record.account, DELEGATED_PDA_ID);
-    assert_eq!(state_commit_record.identity, authority.pubkey());
+    assert_eq!(state_commit_record.account, payer_delegated.pubkey());
+    assert_eq!(state_commit_record.identity, validator.pubkey());
     assert_eq!(state_commit_record.slot, 100);
 
-    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&payer_delegated.pubkey());
     let delegation_metadata_account = banks
         .get_account(delegation_metadata_pda)
         .await
@@ -89,8 +86,8 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
 
+    // Setup the validator authority
     let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
-
     program_test.add_account(
         validator_keypair.pubkey(),
         Account {
@@ -102,11 +99,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup a delegated PDA
+    // Setup a delegated account
+    let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
     program_test.add_account(
-        DELEGATED_PDA_ID,
+        payer_alt.pubkey(),
         Account {
-            lamports: LAMPORTS_PER_SOL,
+            lamports: 10 * LAMPORTS_PER_SOL,
             data: vec![],
             owner: dlp::id(),
             executable: false,
@@ -114,12 +112,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup the delegated account metadata PDA
-    let data = get_delegation_metadata_data(validator_keypair.pubkey(), None);
+    // Setup the delegated record PDA
+    let data =
+        get_delegation_record_on_curve_data(validator_keypair.pubkey(), Some(LAMPORTS_PER_SOL));
     program_test.add_account(
-        delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
+        delegation_record_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
+            lamports: LAMPORTS_PER_SOL,
             data,
             owner: dlp::id(),
             executable: false,
@@ -127,10 +126,10 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup the delegated record PDA
-    let data = get_delegation_record_data(validator_keypair.pubkey(), None);
+    // Setup the delegated account metadata PDA
+    let data = get_delegation_metadata_data_on_curve(validator_keypair.pubkey(), None);
     program_test.add_account(
-        delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
+        delegation_metadata_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
             lamports: Rent::default().minimum_balance(data.len()),
             data,
@@ -152,6 +151,6 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, validator_keypair, blockhash)
+    let (banks, _, blockhash) = program_test.start().await;
+    (banks, payer_alt, validator_keypair, blockhash)
 }

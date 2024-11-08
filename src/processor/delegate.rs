@@ -12,12 +12,12 @@ use solana_program::{
 
 use crate::consts::{BUFFER, DELEGATION_METADATA, DELEGATION_RECORD};
 use crate::instruction::DelegateAccountArgs;
-use crate::loaders::{
+use crate::state::{DelegationMetadata, DelegationRecord};
+use crate::utils::loaders::{
     load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
 };
-use crate::state::{DelegationMetadata, DelegationRecord};
-use crate::utils::{create_pda, ValidateEdwards};
-use crate::utils_account::{AccountDeserialize, Discriminator};
+use crate::utils::utils_account::{AccountDeserialize, Discriminator};
+use crate::utils::utils_pda::{create_pda, ValidateEdwards};
 
 /// Delegate an account
 ///
@@ -108,6 +108,7 @@ pub fn process_delegate(
         valid_until: args.valid_until,
         last_update_external_slot: 0,
         is_undelegatable: false,
+        rent_payer: *payer.key,
     };
 
     let serialized_metadata_struct = delegation_metadata_struct.try_to_vec()?;

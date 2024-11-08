@@ -84,6 +84,16 @@ jobs:
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           cargo test-sbf
 
+      - name: clean up before integration tests
+        run: |
+          rm -rf sdk/ts/node_modules
+          cp target/deploy/dlp.so /tmp/dlp.so
+          rm -rf target
+          mkdir -p target/deploy && cp /tmp/dlp.so target/deploy/dlp.so
+          rm -rf ~/.cache
+          rm -rf ~/.cargo/registry
+          df -h
+
       - name: run integration tests
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"

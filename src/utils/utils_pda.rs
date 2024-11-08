@@ -94,6 +94,45 @@ pub(crate) fn close_pda<'a, 'info>(
     target_account.realloc(0, false).map_err(Into::into)
 }
 
+/// Close PDA with fees, distributing the fees to the specified addresses in sequence
+#[inline(always)]
+pub(crate) fn close_pda_with_fees<'a, 'info>(
+    target_account: &'a AccountInfo<'info>,
+    destination: &'a AccountInfo<'info>,
+    fees_addresses: &[&AccountInfo<'info>],
+    fee_percentage: u8,
+) -> ProgramResult {
+    let total_lamports = target_account.lamports();
+    let mut remaining_amount = total_lamports;
+
+    for fee_address in fees_addresses.iter() {
+        let fee_amount = (remaining_amount as u128)
+            .checked_mul(fee_percentage as u128)
+            .unwrap()
+            .checked_div(100)
+            .unwrap() as u64;
+
+        let fees_starting_lamports = fee_address.lamports();
+        **fee_address.lamports.borrow_mut() =
+            fees_starting_lamports.checked_add(fee_amount).unwrap();
+
+        remaining_amount = remaining_amount.checked_sub(fee_amount).unwrap();
+
+        if remaining_amount == 0 {
+            break;
+        }
+    }
+
+    let dest_starting_lamports = destination.lamports();
+    **destination.lamports.borrow_mut() = dest_starting_lamports
+        .checked_add(remaining_amount)
+        .unwrap();
+
+    **target_account.lamports.borrow_mut() = 0;
+    target_account.assign(&solana_program::system_program::ID);
+    target_account.realloc(0, false).map_err(Into::into)
+}
+
 /// Define a trait to add is_on_curve method to AccountInfo
 pub trait ValidateEdwards {
     fn is_on_curve(&self) -> bool;

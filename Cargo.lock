@@ -1090,6 +1090,7 @@ dependencies = [
  "base64 0.22.1",
  "borsh 0.10.3",
  "bytemuck",
+ "delegation-program",
  "num_enum 0.7.3",
  "paste",
  "rand 0.8.5",
