@@ -2,6 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use num_enum::TryFromPrimitive;
 use solana_program::program_error::ProgramError;
 use solana_program::{
+    bpf_loader_upgradeable,
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,
@@ -11,7 +12,8 @@ use crate::consts::{BUFFER, FEES_VAULT};
 use crate::pda::{
     buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
     committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
-    delegation_record_pda_from_pubkey, validator_fees_vault_pda_from_pubkey,
+    delegation_record_pda_from_pubkey, program_config_pda_from_pubkey,
+    validator_fees_vault_pda_from_pubkey,
 };
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
@@ -34,6 +36,11 @@ pub struct ClaimFeesArgs {
     pub amount: Option<u64>,
 }
 
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct WhitelistValidatorForProgramArgs {
+    pub insert: bool,
+}
+
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive)]
 #[rustfmt::skip]
@@ -46,6 +53,7 @@ pub enum DlpInstruction {
     InitFeesVault = 5,
     InitValidatorFeesVault = 6,
     ValidatorClaimFees = 7,
+    WhitelistValidatorForProgram = 8,
 }
 
 impl DlpInstruction {
@@ -67,6 +75,7 @@ impl TryFrom<[u8; 8]> for DlpInstruction {
             [0x5, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitFeesVault),
             [0x6, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitValidatorFeesVault),
             [0x7, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::ValidatorClaimFees),
+            [0x8, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::WhitelistValidatorForProgram),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -289,6 +298,35 @@ pub fn validator_claim_fees(validator: Pubkey, amount: Option<u64>) -> Instructi
         ],
         data: [
             DlpInstruction::ValidatorClaimFees.to_vec(),
+            args.try_to_vec().unwrap(),
+        ]
+        .concat(),
+    }
+}
+
+/// Whitelist validator for program
+pub fn whitelist_validator_for_program(
+    authority: Pubkey,
+    validator_identity: Pubkey,
+    program: Pubkey,
+    insert: bool,
+) -> Instruction {
+    let args = WhitelistValidatorForProgramArgs { insert };
+    let program_data =
+        Pubkey::find_program_address(&[program.as_ref()], &bpf_loader_upgradeable::id()).0;
+    let program_config = program_config_pda_from_pubkey(&program);
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(authority, true),
+            AccountMeta::new(validator_identity, false),
+            AccountMeta::new_readonly(program, false),
+            AccountMeta::new_readonly(program_data, false),
+            AccountMeta::new(program_config, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: [
+            DlpInstruction::WhitelistValidatorForProgram.to_vec(),
             args.try_to_vec().unwrap(),
         ]
         .concat(),

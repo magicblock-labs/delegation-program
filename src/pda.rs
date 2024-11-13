@@ -1,7 +1,7 @@
 use paste::paste;
 
 use crate::consts::{
-    BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD,
+    BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, PROGRAM_CONFIG,
     VALIDATOR_FEES_VAULT,
 };
 
@@ -85,6 +85,9 @@ pda! { validator_fees_vault }
 
 seeds! { buffer, BUFFER }
 pda! { buffer }
+
+seeds! { program_config, PROGRAM_CONFIG }
+pda! { program_config }
 
 #[cfg(test)]
 mod tests {

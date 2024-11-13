@@ -1,5 +1,4 @@
 [toolchain]
-channel = "1.75.0"
+channel = "1.79.0"
 components = [ "rustfmt", "rust-analyzer", "clippy"]
-targets = [ "x86_64-apple-darwin", "x86_64-unknown-linux-gnu", "aarch64-apple-darwin"]
 profile = "minimal"
