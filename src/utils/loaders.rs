@@ -5,13 +5,15 @@ use crate::consts::{
 use crate::error::DlpError::InvalidAuthority;
 use crate::pda::validator_fees_vault_pda_from_pubkey;
 use solana_program::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
+    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, system_program,
+    sysvar,
 };
 
 /// Errors if:
 /// - Account is not owned by expected program.
 pub fn load_owned_pda(info: &AccountInfo, owner: &Pubkey) -> Result<(), ProgramError> {
     if !info.owner.eq(owner) {
+        msg!("Invalid account owner for {:?}", info.key);
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -39,6 +41,7 @@ pub fn load_uninitialized_pda(
     let pda = Pubkey::find_program_address(seeds, program_id);
 
     if info.key.ne(&pda.0) {
+        msg!("Invalid seeds for account: {:?}", info.key);
         return Err(ProgramError::InvalidSeeds);
     }
 
@@ -59,12 +62,14 @@ pub fn load_initialized_pda(
     let pda = Pubkey::find_program_address(seeds, program_id);
 
     if info.key.ne(&pda.0) {
+        msg!("Invalid seeds for account: {:?}", info.key);
         return Err(ProgramError::InvalidSeeds);
     }
 
     load_owned_pda(info, program_id)?;
 
     if is_writable && !info.is_writable {
+        msg!("Account {:?} is not writable", info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -78,14 +83,17 @@ pub fn load_initialized_pda(
 #[allow(dead_code)]
 pub fn load_uninitialized_account(info: &AccountInfo) -> Result<(), ProgramError> {
     if info.owner.ne(&system_program::id()) {
+        msg!("Invalid owner for account: {:?}", info.key);
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     if !info.data_is_empty() {
+        msg!("Account {:?} is not empty", info.key);
         return Err(ProgramError::AccountAlreadyInitialized);
     }
 
     if !info.is_writable {
+        msg!("Account {:?} is not writable", info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -98,6 +106,7 @@ pub fn load_uninitialized_account(info: &AccountInfo) -> Result<(), ProgramError
 #[allow(dead_code)]
 pub fn load_sysvar(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError> {
     if info.owner.ne(&sysvar::id()) {
+        msg!("Invalid owner for sysvar: {:?}", info.key);
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -113,10 +122,12 @@ pub fn load_account(
     is_writable: bool,
 ) -> Result<(), ProgramError> {
     if info.key.ne(&key) {
+        msg!("Invalid account: {:?}", info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
     if is_writable && !info.is_writable {
+        msg!("Account {:?} is not writable", info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -128,10 +139,12 @@ pub fn load_account(
 /// - Account is not executable.
 pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError> {
     if info.key.ne(&key) {
+        msg!("Invalid program account: {:?}", info.key);
         return Err(ProgramError::IncorrectProgramId);
     }
 
     if !info.executable {
+        msg!("Program is not executable: {:?}", info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
