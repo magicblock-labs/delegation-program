@@ -101,6 +101,7 @@ pub fn process_delegate(
     delegation.authority = Pubkey::default();
     delegation.commit_frequency_ms = args.commit_frequency_ms as u64;
     delegation.delegation_slot = solana_program::clock::Clock::get()?.slot;
+    delegation.lamports = delegate_account.lamports();
 
     // Initialize the account seeds PDA
     let delegation_metadata_struct = DelegationMetadata {
