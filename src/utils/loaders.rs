@@ -1,4 +1,7 @@
-use crate::consts::{COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, FEES_VAULT, PROGRAM_CONFIG, VALIDATOR_FEES_VAULT};
+use crate::consts::{
+    COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, FEES_VAULT,
+    PROGRAM_CONFIG, VALIDATOR_FEES_VAULT,
+};
 use crate::error::DlpError::InvalidAuthority;
 use crate::pda::{program_config_pda_from_pubkey, validator_fees_vault_pda_from_pubkey};
 use solana_program::{
@@ -195,11 +198,13 @@ pub fn load_validator_fees_vault(
     Ok(())
 }
 
-
 /// Load program config PDA
 /// - Program config PDA must be initialized with the expected seeds and owner, or not exists
 #[allow(dead_code)]
-pub fn load_program_config(program_config: &AccountInfo, program: Pubkey) -> Result<(), ProgramError> {
+pub fn load_program_config(
+    program_config: &AccountInfo,
+    program: Pubkey,
+) -> Result<(), ProgramError> {
     if !program_config_pda_from_pubkey(&program).eq(program_config.key) {
         return Err(InvalidAuthority.into());
     }

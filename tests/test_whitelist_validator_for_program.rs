@@ -82,7 +82,7 @@ async fn test_remove_validator_for_program() {
     println!("{:?}", res);
     assert!(res.is_ok());
 
-    // Check that the validator is whitelisted
+    // Check that the validator is not whitelisted
     let validator_whitelist_account = banks
         .get_account(program_config_pda_from_pubkey(&DELEGATED_PDA_OWNER_ID))
         .await;

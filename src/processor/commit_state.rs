@@ -4,7 +4,10 @@ use crate::consts::{COMMIT_RECORD, COMMIT_STATE};
 use crate::error::DlpError;
 use crate::instruction::CommitAccountArgs;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use crate::utils::loaders::{load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda, load_signer, load_uninitialized_pda, load_validator_fees_vault};
+use crate::utils::loaders::{
+    load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
+    load_signer, load_uninitialized_pda, load_validator_fees_vault,
+};
 use crate::utils::utils_account::{AccountDeserialize, Discriminator};
 use crate::utils::utils_pda::create_pda;
 use crate::utils::verify_commitment::verify_commitment;
