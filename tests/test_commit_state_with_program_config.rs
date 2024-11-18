@@ -1,11 +1,11 @@
-use borsh::BorshDeserialize;
+use borsh::{BorshDeserialize, BorshSerialize};
 use dlp::instruction::CommitAccountArgs;
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-    validator_fees_vault_pda_from_pubkey,
+    program_config_pda_from_pubkey, validator_fees_vault_pda_from_pubkey,
 };
-use dlp::state::{CommitRecord, DelegationMetadata};
+use dlp::state::{CommitRecord, DelegationMetadata, WhitelistForProgram};
 use dlp::utils::utils_account::AccountDeserialize;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
@@ -24,9 +24,18 @@ use crate::fixtures::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_commit_new_state() {
+async fn test_commit_new_state_valid_config() {
+    test_commit_new_state(true).await
+}
+
+#[tokio::test]
+async fn test_commit_new_state_invalid_config() {
+    test_commit_new_state(false).await
+}
+
+async fn test_commit_new_state(valid_config: bool) {
     // Setup
-    let (mut banks, _, authority, blockhash) = setup_program_test_env().await;
+    let (mut banks, _, authority, blockhash) = setup_program_test_env(valid_config).await;
     let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
 
     let new_account_balance = 1_000_000;
@@ -52,46 +61,50 @@ async fn test_commit_new_state() {
     );
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
-    assert!(res.is_ok());
+    if !valid_config {
+        assert!(!res.is_ok())
+    } else {
+        assert!(res.is_ok());
 
-    // Assert the state commitment was created and contains the new state
-    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let new_state_account = banks
-        .get_account(committed_state_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    assert_eq!(new_state_account.data, new_state.clone());
+        // Assert the state commitment was created and contains the new state
+        let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+        let new_state_account = banks
+            .get_account(committed_state_pda)
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(new_state_account.data, new_state.clone());
 
-    // Check that the commit has enough collateral to finalize the proposed state diff
-    let delegated_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert!(new_account_balance < new_state_account.lamports + delegated_account.lamports);
+        // Check that the commit has enough collateral to finalize the proposed state diff
+        let delegated_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+        assert!(new_account_balance < new_state_account.lamports + delegated_account.lamports);
 
-    // Assert the record about the commitment exists
-    let state_commit_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let state_commit_record_account = banks
-        .get_account(state_commit_record_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    let state_commit_record =
-        CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
-    assert_eq!(state_commit_record.account, DELEGATED_PDA_ID);
-    assert_eq!(state_commit_record.identity, authority.pubkey());
-    assert_eq!(state_commit_record.slot, 100);
+        // Assert the record about the commitment exists
+        let state_commit_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
+        let state_commit_record_account = banks
+            .get_account(state_commit_record_pda)
+            .await
+            .unwrap()
+            .unwrap();
+        let state_commit_record =
+            CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
+        assert_eq!(state_commit_record.account, DELEGATED_PDA_ID);
+        assert_eq!(state_commit_record.identity, authority.pubkey());
+        assert_eq!(state_commit_record.slot, 100);
 
-    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let delegation_metadata_account = banks
-        .get_account(delegation_metadata_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    let delegation_metadata =
-        DelegationMetadata::try_from_slice(&delegation_metadata_account.data).unwrap();
-    assert_eq!(delegation_metadata.is_undelegatable, true);
+        let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
+        let delegation_metadata_account = banks
+            .get_account(delegation_metadata_pda)
+            .await
+            .unwrap()
+            .unwrap();
+        let delegation_metadata =
+            DelegationMetadata::try_from_slice(&delegation_metadata_account.data).unwrap();
+        assert_eq!(delegation_metadata.is_undelegatable, true);
+    }
 }
 
-async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
+async fn setup_program_test_env(valid_config: bool) -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
 
@@ -152,6 +165,29 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the program config
+    let mut whitelist_config = WhitelistForProgram {
+        approved_validators: Default::default(),
+    };
+    whitelist_config
+        .approved_validators
+        .insert(if valid_config {
+            validator_keypair.pubkey()
+        } else {
+            Keypair::new().pubkey()
+        });
+    let data = whitelist_config.try_to_vec().unwrap();
+    program_test.add_account(
+        program_config_pda_from_pubkey(&DELEGATED_PDA_OWNER_ID),
+        Account {
+            lamports: Rent::default().minimum_balance(data.len()),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

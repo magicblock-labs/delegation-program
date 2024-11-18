@@ -182,6 +182,7 @@ describe("TestDelegation", () => {
       {
         authority: provider.wallet.publicKey,
         delegatedAccount: pda,
+        delegatedAccountOwner: testDelegation.programId,
         commitStatePda: commitStatePda,
         commitStateRecordPda: commitStateRecordPda,
         delegationRecordPda: delegationRecord,
@@ -253,6 +254,7 @@ describe("TestDelegation", () => {
       {
         authority: provider.wallet.publicKey,
         delegatedAccount: pda,
+        delegatedAccountOwner: testDelegation.programId,
         commitStatePda: commitStatePda,
         commitStateRecordPda: commitStateRecordPda,
         delegationRecordPda: delegationRecord,
@@ -333,6 +335,7 @@ describe("TestDelegation", () => {
   interface CommitStateAccounts {
     authority: web3.PublicKey;
     delegatedAccount: web3.PublicKey;
+    delegatedAccountOwner: web3.PublicKey;
     commitStatePda: web3.PublicKey;
     commitStateRecordPda: web3.PublicKey;
     delegationRecordPda: web3.PublicKey;
@@ -374,6 +377,10 @@ describe("TestDelegation", () => {
       [Buffer.from("v-fees-vault"), accounts.authority.toBuffer()],
       new anchor.web3.PublicKey(DELEGATION_PROGRAM_ID)
     )[0];
+    const programConfig = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("p-conf"), accounts.delegatedAccountOwner.toBuffer()],
+      programId
+    )[0];
     const keys = [
       { pubkey: accounts.authority, isSigner: true, isWritable: false },
       { pubkey: accounts.delegatedAccount, isSigner: false, isWritable: false },
@@ -394,6 +401,7 @@ describe("TestDelegation", () => {
         isWritable: true,
       },
       { pubkey: validatorFeesVaultPda, isSigner: false, isWritable: true },
+      { pubkey: programConfig, isSigner: false, isWritable: false },
       {
         pubkey: web3.SystemProgram.programId,
         isSigner: false,

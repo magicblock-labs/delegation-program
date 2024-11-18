@@ -27,6 +27,8 @@ pub enum DlpError {
     InvalidValidatorBalanceAfterCPI = 8,
     #[error("Invalid reimbursement address for delegation rent")]
     InvalidReimbursementAddressForDelegationRent = 9,
+    #[error("Authority is invalid for the delegated account program owner")]
+    InvalidWhitelistProgramConfig = 10,
 }
 
 impl From<DlpError> for ProgramError {

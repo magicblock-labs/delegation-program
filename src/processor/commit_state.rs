@@ -3,10 +3,10 @@ use std::mem::size_of;
 use crate::consts::{COMMIT_RECORD, COMMIT_STATE};
 use crate::error::DlpError;
 use crate::instruction::CommitAccountArgs;
-use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, WhitelistForProgram};
 use crate::utils::loaders::{
     load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
-    load_signer, load_uninitialized_pda, load_validator_fees_vault,
+    load_program_config, load_signer, load_uninitialized_pda, load_validator_fees_vault,
 };
 use crate::utils::utils_account::{AccountDeserialize, Discriminator};
 use crate::utils::utils_pda::create_pda;
@@ -18,6 +18,7 @@ use solana_program::system_instruction::transfer;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
+    msg,
     pubkey::Pubkey,
     {self},
 };
@@ -38,7 +39,7 @@ pub fn process_commit_state(
     let args = CommitAccountArgs::try_from_slice(data)?;
     let data: &[u8] = args.data.as_ref();
 
-    let [validator, delegated_account, commit_state_account, commit_state_record, delegation_record, delegation_metadata, validator_fees_vault, system_program] =
+    let [validator, delegated_account, commit_state_account, commit_state_record, delegation_record, delegation_metadata, validator_fees_vault, program_config, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -54,6 +55,17 @@ pub fn process_commit_state(
     // Load delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
     let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
+
+    // Load the program configuration and validate it, if any
+    let is_config = load_program_config(program_config, delegation.owner)?;
+    msg!("Config: {:?}", is_config);
+    if is_config {
+        msg!("Checking config");
+        let program_config_data = program_config.try_borrow_data()?;
+        let config = WhitelistForProgram::try_from_slice(&program_config_data)?;
+        msg!("Config: {:?}", config);
+        validate_config(config, validator.key)?;
+    }
 
     let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
     let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
@@ -134,5 +146,14 @@ pub fn process_commit_state(
 
     verify_commitment(validator, delegation, commit_record, commit_state_account)?;
 
+    Ok(())
+}
+
+/// If there exists a validators whitelist for the delegated account program owner, check that the validator is whitelisted for it
+fn validate_config(config: WhitelistForProgram, validator: &Pubkey) -> Result<(), ProgramError> {
+    if !config.approved_validators.is_empty() && !config.approved_validators.contains(validator) {
+        return Err(DlpError::InvalidWhitelistProgramConfig.into());
+    }
+    msg!("Valid config");
     Ok(())
 }

@@ -200,11 +200,10 @@ pub fn load_validator_fees_vault(
 
 /// Load program config PDA
 /// - Program config PDA must be initialized with the expected seeds and owner, or not exists
-#[allow(dead_code)]
 pub fn load_program_config(
     program_config: &AccountInfo,
     program: Pubkey,
-) -> Result<(), ProgramError> {
+) -> Result<bool, ProgramError> {
     if !program_config_pda_from_pubkey(&program).eq(program_config.key) {
         return Err(InvalidAuthority.into());
     }
@@ -212,9 +211,9 @@ pub fn load_program_config(
         program_config,
         &[PROGRAM_CONFIG, program.as_ref()],
         &crate::id(),
-        true,
+        false,
     )?;
-    Ok(())
+    Ok(!program_config.owner.eq(&system_program::ID))
 }
 
 /// Load initialized delegation record
