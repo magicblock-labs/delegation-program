@@ -1,9 +1,9 @@
 use crate::consts::{
     COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, FEES_VAULT,
-    VALIDATOR_FEES_VAULT,
+    PROGRAM_CONFIG, VALIDATOR_FEES_VAULT,
 };
 use crate::error::DlpError::InvalidAuthority;
-use crate::pda::validator_fees_vault_pda_from_pubkey;
+use crate::pda::{program_config_pda_from_pubkey, validator_fees_vault_pda_from_pubkey};
 use solana_program::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, system_program,
     sysvar,
@@ -28,6 +28,27 @@ pub fn load_signer(info: &AccountInfo) -> Result<(), ProgramError> {
     }
 
     Ok(())
+}
+
+/// Errors if:
+/// - Address does not match PDA derived from provided seeds.
+pub fn load_pda(
+    info: &AccountInfo,
+    seeds: &[&[u8]],
+    program_id: &Pubkey,
+    is_writable: bool,
+) -> Result<u8, ProgramError> {
+    let pda = Pubkey::find_program_address(seeds, program_id);
+
+    if info.key.ne(&pda.0) {
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    if !info.is_writable.eq(&is_writable) {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    Ok(pda.1)
 }
 
 /// Errors if:
@@ -175,6 +196,24 @@ pub fn load_validator_fees_vault(
         true,
     )?;
     Ok(())
+}
+
+/// Load program config PDA
+/// - Program config PDA must be initialized with the expected seeds and owner, or not exists
+pub fn load_program_config(
+    program_config: &AccountInfo,
+    program: Pubkey,
+) -> Result<bool, ProgramError> {
+    if !program_config_pda_from_pubkey(&program).eq(program_config.key) {
+        return Err(InvalidAuthority.into());
+    }
+    load_pda(
+        program_config,
+        &[PROGRAM_CONFIG, program.as_ref()],
+        &crate::id(),
+        false,
+    )?;
+    Ok(!program_config.owner.eq(&system_program::ID))
 }
 
 /// Load initialized delegation record

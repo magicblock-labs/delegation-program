@@ -1,7 +1,9 @@
 use solana_curve25519::edwards::{validate_edwards, PodEdwardsPoint};
+use solana_program::program::invoke;
+use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, rent::Rent,
-    sysvar::Sysvar,
+    system_instruction, sysvar::Sysvar,
 };
 
 /// Creates a new pda
@@ -74,6 +76,24 @@ pub(crate) fn create_pda<'a, 'info>(
         )?;
     }
 
+    Ok(())
+}
+
+/// Resize PDA
+pub(crate) fn resize_pda<'a, 'info>(
+    payer: &'a AccountInfo<'info>,
+    pda: &'a AccountInfo<'info>,
+    system_program: &'a AccountInfo<'info>,
+    new_size: usize,
+) -> Result<(), ProgramError> {
+    let new_minimum_balance = Rent::default().minimum_balance(new_size);
+    let lamports_diff = new_minimum_balance.saturating_sub(pda.lamports());
+    invoke(
+        &system_instruction::transfer(payer.key, pda.key, lamports_diff),
+        &[payer.clone(), pda.clone(), system_program.clone()],
+    )?;
+
+    pda.realloc(new_size, false)?;
     Ok(())
 }
 

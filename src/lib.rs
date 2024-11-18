@@ -62,6 +62,9 @@ pub fn process_instruction(
         DlpInstruction::ValidatorClaimFees => {
             process_validator_claim_fees(program_id, accounts, data)?
         }
+        DlpInstruction::WhitelistValidatorForProgram => {
+            process_whitelist_validator_for_program(program_id, accounts, data)?
+        }
     }
     Ok(())
 }

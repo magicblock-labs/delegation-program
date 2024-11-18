@@ -23,17 +23,18 @@ unit_test_config = []
 [dependencies]
 borsh = "0.10.3"
 paste = "^1.0"
-solana-program = "^1.18.25"
+solana-program = "1.18.26"
 bytemuck = "^1.14.3"
 num_enum = "^0.7.2"
 thiserror = "^1.0.57"
 solana-security-txt = { version = "1.1.1", optional = true }
 solana-curve25519 = "2.0.13"
+bincode = "1.3.3"
 
 [dev-dependencies]
 base64 = "0.22.0"
 rand = "0.8.5"
-solana-program-test = "^1.18.25"
-solana-sdk = "^1.18.25"
+solana-program-test = "1.18.26"
+solana-sdk = "1.18.26"
 tokio = { version = "1.40.0", features = ["full"] }
 delegation-program = { path = ".", features = ["unit_test_config"] }

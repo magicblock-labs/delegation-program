@@ -182,6 +182,7 @@ describe("TestDelegation", () => {
       {
         authority: provider.wallet.publicKey,
         delegatedAccount: pda,
+        delegatedAccountOwner: testDelegation.programId,
         commitStatePda: commitStatePda,
         commitStateRecordPda: commitStateRecordPda,
         delegationRecordPda: delegationRecord,
@@ -253,6 +254,7 @@ describe("TestDelegation", () => {
       {
         authority: provider.wallet.publicKey,
         delegatedAccount: pda,
+        delegatedAccountOwner: testDelegation.programId,
         commitStatePda: commitStatePda,
         commitStateRecordPda: commitStateRecordPda,
         delegationRecordPda: delegationRecord,
@@ -312,11 +314,28 @@ describe("TestDelegation", () => {
     console.log("Undelegate signature", txSign);
   });
 
+  it("Whitelist a validator for a program", async () => {
+    const ix = createWhitelistValidatorForProgramInstruction(
+      provider.wallet.publicKey,
+      provider.wallet.publicKey,
+      testDelegation.programId,
+      true
+    );
+    const tx = new web3.Transaction().add(ix);
+    tx.recentBlockhash = (
+      await provider.connection.getLatestBlockhash()
+    ).blockhash;
+    tx.feePayer = provider.wallet.publicKey;
+    const txId = await provider.sendAndConfirm(tx, [], { skipPreflight: true });
+    console.log("Whitelist a validator for a program:", txId);
+  });
+
   /// Instruction to commit a new state to the PDA
 
   interface CommitStateAccounts {
     authority: web3.PublicKey;
     delegatedAccount: web3.PublicKey;
+    delegatedAccountOwner: web3.PublicKey;
     commitStatePda: web3.PublicKey;
     commitStateRecordPda: web3.PublicKey;
     delegationRecordPda: web3.PublicKey;
@@ -358,6 +377,10 @@ describe("TestDelegation", () => {
       [Buffer.from("v-fees-vault"), accounts.authority.toBuffer()],
       new anchor.web3.PublicKey(DELEGATION_PROGRAM_ID)
     )[0];
+    const programConfig = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("p-conf"), accounts.delegatedAccountOwner.toBuffer()],
+      programId
+    )[0];
     const keys = [
       { pubkey: accounts.authority, isSigner: true, isWritable: false },
       { pubkey: accounts.delegatedAccount, isSigner: false, isWritable: false },
@@ -378,6 +401,7 @@ describe("TestDelegation", () => {
         isWritable: true,
       },
       { pubkey: validatorFeesVaultPda, isSigner: false, isWritable: true },
+      { pubkey: programConfig, isSigner: false, isWritable: false },
       {
         pubkey: web3.SystemProgram.programId,
         isSigner: false,
@@ -502,6 +526,46 @@ describe("TestDelegation", () => {
     ];
 
     const data = Buffer.from([3, 0, 0, 0, 0, 0, 0, 0]);
+
+    const ix = new web3.TransactionInstruction({
+      programId,
+      keys,
+      data,
+    });
+    return ix;
+  }
+
+  function createWhitelistValidatorForProgramInstruction(
+    authority: web3.PublicKey,
+    validatorIdentity: web3.PublicKey,
+    program: web3.PublicKey,
+    insert: boolean,
+    programId = new web3.PublicKey(DELEGATION_PROGRAM_ID)
+  ) {
+    const programData = web3.PublicKey.findProgramAddressSync(
+      [program.toBuffer()],
+      new web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+    )[0];
+
+    const programConfig = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("p-conf"), program.toBuffer()],
+      programId
+    )[0];
+
+    const keys = [
+      { pubkey: authority, isSigner: true, isWritable: false },
+      { pubkey: validatorIdentity, isSigner: false, isWritable: false },
+      { pubkey: program, isSigner: false, isWritable: false },
+      { pubkey: programData, isSigner: false, isWritable: false },
+      { pubkey: programConfig, isSigner: false, isWritable: true },
+      {
+        pubkey: web3.SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
+      },
+    ];
+
+    const data = Buffer.from([8, 0, 0, 0, 0, 0, 0, 0, insert ? 1 : 0]);
 
     const ix = new web3.TransactionInstruction({
       programId,

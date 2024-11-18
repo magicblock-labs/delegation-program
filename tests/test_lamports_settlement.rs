@@ -126,6 +126,7 @@ pub async fn test_commit_system_account_after_balance_decrease(is_undelegate: bo
         blockhash,
         new_delegated_account_lamports,
         delegate_account: delegated_account,
+        delegate_account_owner: owner_program,
     })
     .await;
 
@@ -173,6 +174,7 @@ async fn test_commit_system_account_after_balance_increase(is_undelegate: bool, 
         blockhash,
         new_delegated_account_lamports,
         delegate_account: delegated_account,
+        delegate_account_owner: owner_program,
     })
     .await;
 
@@ -223,6 +225,7 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
         blockhash,
         new_delegated_account_lamports,
         delegate_account: delegated_account,
+        delegate_account_owner: owner_program,
     })
     .await;
 
@@ -276,6 +279,7 @@ async fn test_commit_system_account_after_balance_increase_and_increase_mainchai
         blockhash,
         new_delegated_account_lamports,
         delegate_account: delegated_account,
+        delegate_account_owner: owner_program,
     })
     .await;
 
@@ -427,6 +431,7 @@ struct CommitNewStateArgs<'a> {
     blockhash: Hash,
     new_delegated_account_lamports: u64,
     delegate_account: Pubkey,
+    delegate_account_owner: Pubkey,
 }
 
 async fn commit_new_state(args: CommitNewStateArgs<'_>) {
@@ -443,8 +448,12 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     };
 
     // Commit the state for the delegated account
-    let ix =
-        dlp::instruction::commit_state(args.authority.pubkey(), args.delegate_account, commit_args);
+    let ix = dlp::instruction::commit_state(
+        args.authority.pubkey(),
+        args.delegate_account,
+        args.delegate_account_owner,
+        commit_args,
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&args.authority.pubkey()),
