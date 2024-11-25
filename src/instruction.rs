@@ -1,3 +1,10 @@
+use crate::consts::{BUFFER, EPHEMERAL_BALANCE, FEES_VAULT};
+use crate::pda::{
+    buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
+    committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
+    delegation_record_pda_from_pubkey, program_config_pda_from_pubkey,
+    validator_fees_vault_pda_from_pubkey,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use num_enum::TryFromPrimitive;
 use solana_program::program_error::ProgramError;
@@ -8,22 +15,20 @@ use solana_program::{
     system_program,
 };
 
-use crate::consts::{BUFFER, FEES_VAULT};
-use crate::pda::{
-    buffer_pda_from_pubkey, committed_state_pda_from_pubkey,
-    committed_state_record_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
-    delegation_record_pda_from_pubkey, program_config_pda_from_pubkey,
-    validator_fees_vault_pda_from_pubkey,
-};
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateAccountArgs {
     pub valid_until: i64,
     pub commit_frequency_ms: u32,
     pub seeds: Vec<Vec<u8>>,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
+pub struct DelegateTopUpAccountArgs {
+    pub delegate_args: DelegateAccountArgs,
+    pub index: u8,
+}
+
+#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct CommitAccountArgs {
     pub slot: u64,
     pub lamports: u64,
@@ -31,16 +36,30 @@ pub struct CommitAccountArgs {
     pub data: Vec<u8>,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct ClaimFeesArgs {
     pub amount: Option<u64>,
+}
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct TopUpEphemeralArgs {
+    pub amount: u64,
+    pub index: u8,
+}
+
+impl Default for TopUpEphemeralArgs {
+    fn default() -> Self {
+        Self {
+            amount: 10000,
+            index: 0,
+        }
+    }
 }
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct WhitelistValidatorForProgramArgs {
     pub insert: bool,
 }
-
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive)]
 #[rustfmt::skip]
@@ -54,8 +73,10 @@ pub enum DlpInstruction {
     InitValidatorFeesVault = 6,
     ValidatorClaimFees = 7,
     WhitelistValidatorForProgram = 8,
+    TopUp = 9,
+    DelegateEphemeralBalance = 10,
+    CloseEphemeralBalance = 11
 }
-
 impl DlpInstruction {
     pub fn to_vec(&self) -> Vec<u8> {
         let num = *self as u64;
@@ -66,16 +87,19 @@ impl DlpInstruction {
 impl TryFrom<[u8; 8]> for DlpInstruction {
     type Error = ProgramError;
     fn try_from(bytes: [u8; 8]) -> Result<Self, Self::Error> {
-        match bytes {
-            [0x0, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Delegate),
-            [0x1, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::CommitState),
-            [0x2, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Finalize),
-            [0x3, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::Undelegate),
-            [0x4, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::AllowUndelegate),
-            [0x5, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitFeesVault),
-            [0x6, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::InitValidatorFeesVault),
-            [0x7, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::ValidatorClaimFees),
-            [0x8, 0, 0, 0, 0, 0, 0, 0] => Ok(DlpInstruction::WhitelistValidatorForProgram),
+        match bytes[0] {
+            0x0 => Ok(DlpInstruction::Delegate),
+            0x1 => Ok(DlpInstruction::CommitState),
+            0x2 => Ok(DlpInstruction::Finalize),
+            0x3 => Ok(DlpInstruction::Undelegate),
+            0x4 => Ok(DlpInstruction::AllowUndelegate),
+            0x5 => Ok(DlpInstruction::InitFeesVault),
+            0x6 => Ok(DlpInstruction::InitValidatorFeesVault),
+            0x7 => Ok(DlpInstruction::ValidatorClaimFees),
+            0x8 => Ok(DlpInstruction::WhitelistValidatorForProgram),
+            0x9 => Ok(DlpInstruction::TopUp),
+            0xa => Ok(DlpInstruction::DelegateEphemeralBalance),
+            0xb => Ok(DlpInstruction::CloseEphemeralBalance),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
@@ -93,7 +117,7 @@ pub fn delegate_from_wrapper_program(
     let buffer =
         Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner_program);
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
-    let delegate_accounts_seeds = delegation_metadata_pda_from_pubkey(&delegate_account);
+    let delegate_account_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
 
     Instruction {
         program_id: owner_program,
@@ -103,7 +127,7 @@ pub fn delegate_from_wrapper_program(
             AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),
-            AccountMeta::new(delegate_accounts_seeds, false),
+            AccountMeta::new(delegate_account_metadata, false),
             AccountMeta::new_readonly(delegation_program, false),
             AccountMeta::new_readonly(system_program, false),
         ],
@@ -111,19 +135,17 @@ pub fn delegate_from_wrapper_program(
     }
 }
 
-/// Builds a delegate instruction for an on-curve account.
-pub fn delegate_on_curve(
+/// Builds a delegate instruction
+pub fn delegate(
     payer: Pubkey,
     delegate_account: Pubkey,
-    system_program: Pubkey,
+    owner: Option<Pubkey>,
     args: DelegateAccountArgs,
 ) -> Instruction {
-    let buffer = Pubkey::find_program_address(
-        &[BUFFER, &delegate_account.to_bytes()],
-        &system_program::id(),
-    );
+    let owner = owner.unwrap_or(system_program::id());
+    let buffer = Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner);
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
-    let delegate_accounts_seeds = delegation_metadata_pda_from_pubkey(&delegate_account);
+    let delegate_account_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
     let mut data = DlpInstruction::Delegate.to_vec();
     data.extend_from_slice(&args.try_to_vec().unwrap());
 
@@ -132,15 +154,45 @@ pub fn delegate_on_curve(
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegate_account, true),
-            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(owner, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),
-            AccountMeta::new(delegate_accounts_seeds, false),
-            AccountMeta::new_readonly(system_program, false),
+            AccountMeta::new(delegate_account_metadata, false),
+            AccountMeta::new_readonly(system_program::id(), false),
         ],
         data,
     }
 }
+
+/// Delegate ephemeral balance
+pub fn delegate_ephemeral_balance(payer: Pubkey, args: DelegateTopUpAccountArgs) -> Instruction {
+    let delegate_account = Pubkey::find_program_address(
+        &[EPHEMERAL_BALANCE, &payer.to_bytes(), &[args.index]],
+        &crate::id(),
+    )
+    .0;
+    let buffer =
+        Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &crate::id());
+    let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
+    let delegate_accounts_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
+    let mut data = DlpInstruction::DelegateEphemeralBalance.to_vec();
+    data.extend_from_slice(&args.try_to_vec().unwrap());
+
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(delegate_account, false),
+            AccountMeta::new(buffer.0, false),
+            AccountMeta::new(delegation_record, false),
+            AccountMeta::new(delegate_accounts_metadata, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new_readonly(crate::id(), false),
+        ],
+        data,
+    }
+}
+
 /// Builds a commit state instruction.
 pub fn commit_state(
     validator: Pubkey,
@@ -333,5 +385,50 @@ pub fn whitelist_validator_for_program(
             args.try_to_vec().unwrap(),
         ]
         .concat(),
+    }
+}
+
+/// Builds a top-up ephemeral balance instruction.
+pub fn top_up_ephemeral_balance(
+    payer: Pubkey,
+    amount: Option<u64>,
+    index: Option<u8>,
+) -> Instruction {
+    let mut args = TopUpEphemeralArgs::default();
+    if let Some(amount) = amount {
+        args.amount = amount;
+    }
+    if let Some(index) = index {
+        args.index = index;
+    }
+    let ephemeral_balance = Pubkey::find_program_address(
+        &[EPHEMERAL_BALANCE, &payer.to_bytes(), &[args.index]],
+        &crate::id(),
+    )
+    .0;
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(ephemeral_balance, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: [DlpInstruction::TopUp.to_vec(), args.try_to_vec().unwrap()].concat(),
+    }
+}
+
+pub fn close_ephemeral_balance(payer: Pubkey, index: u8) -> Instruction {
+    let ephemeral_balance = Pubkey::find_program_address(
+        &[EPHEMERAL_BALANCE, &payer.to_bytes(), &[index]],
+        &crate::id(),
+    )
+    .0;
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(ephemeral_balance, false),
+        ],
+        data: [DlpInstruction::CloseEphemeralBalance.to_vec(), vec![index]].concat(),
     }
 }

@@ -14,7 +14,7 @@ use crate::consts::{BUFFER, DELEGATION_METADATA, DELEGATION_RECORD};
 use crate::instruction::DelegateAccountArgs;
 use crate::state::{DelegationMetadata, DelegationRecord};
 use crate::utils::loaders::{
-    load_initialized_pda, load_owned_pda, load_program, load_signer, load_uninitialized_pda,
+    load_owned_pda, load_pda, load_program, load_signer, load_uninitialized_pda,
 };
 use crate::utils::utils_account::{AccountDeserialize, Discriminator};
 use crate::utils::utils_pda::{create_pda, ValidateEdwards};
@@ -54,11 +54,11 @@ pub fn process_delegate(
     }
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
-    load_initialized_pda(
+    load_pda(
         buffer,
         &[BUFFER, &delegate_account.key.to_bytes()],
         owner_program.key,
-        false,
+        true,
     )?;
 
     // Check that the delegation record PDA is uninitialized
@@ -131,9 +131,11 @@ pub fn process_delegate(
     (*seeds_data).copy_from_slice(serialized_metadata_struct.as_slice());
 
     // Copy the data from the buffer into the original account
-    let mut account_data = delegate_account.try_borrow_mut_data()?;
-    let new_data = buffer.try_borrow_data()?;
-    (*account_data).copy_from_slice(&new_data);
+    if !buffer.data_is_empty() {
+        let mut account_data = delegate_account.try_borrow_mut_data()?;
+        let new_data = buffer.try_borrow_data()?;
+        (*account_data).copy_from_slice(&new_data);
+    }
 
     Ok(())
 }

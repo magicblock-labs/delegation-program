@@ -25,8 +25,14 @@ pub const COMMIT_RECORD: &[u8] = b"commit-state-record";
 /// The account to store lamports deposited for paying fees.
 pub const FEES_VAULT: &[u8] = b"fees-vault";
 
+/// The account to store the validator fees vault PDA.
 pub const VALIDATOR_FEES_VAULT: &[u8] = b"v-fees-vault";
+
+/// The account to store the program config (e.g. whitelisting of validators) PDA.
 pub const PROGRAM_CONFIG: &[u8] = b"p-conf";
+
+/// A Pda used to escrow lamports in the ephemeral validator.
+pub const EPHEMERAL_BALANCE: &[u8] = b"balance";
 
 /// The discriminator for the external undelegate instruction.
 pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37, 51, 167];
