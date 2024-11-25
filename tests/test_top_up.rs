@@ -64,7 +64,7 @@ async fn test_top_up_and_delegate() {
 }
 
 #[tokio::test]
-async fn tes_undelegate_and_close() {
+async fn test_undelegate_and_close() {
     // Setup
     let (mut banks, _, payer_alt, blockhash) = setup_program_test_env().await;
 

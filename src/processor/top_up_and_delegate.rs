@@ -139,7 +139,7 @@ pub fn process_close_ephemeral_balance(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let index = data[0];
+    let index = data.get(0).ok_or(ProgramError::InvalidInstructionData)?;
 
     // Load Accounts
     let [payer, ephemeral_balance_pda] = accounts else {
