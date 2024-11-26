@@ -107,7 +107,7 @@ pub fn get_delegation_metadata_data(rent_payer: Pubkey, is_undelegatable: Option
     )
 }
 
-fn create_delegation_metadata_data(
+pub fn create_delegation_metadata_data(
     rent_payer: Pubkey,
     seeds: Vec<Vec<u8>>,
     is_undelegatable: bool,

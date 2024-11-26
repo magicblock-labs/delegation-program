@@ -65,6 +65,13 @@ pub fn process_instruction(
         DlpInstruction::WhitelistValidatorForProgram => {
             process_whitelist_validator_for_program(program_id, accounts, data)?
         }
+        DlpInstruction::TopUp => process_top_up(program_id, accounts, data)?,
+        DlpInstruction::DelegateEphemeralBalance => {
+            process_delegate_ephemeral_balance(program_id, accounts, data)?
+        }
+        DlpInstruction::CloseEphemeralBalance => {
+            process_close_ephemeral_balance(program_id, accounts, data)?
+        }
     }
     Ok(())
 }
