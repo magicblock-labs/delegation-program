@@ -98,7 +98,7 @@ pub fn process_delegate(
     delegation_data[0] = DelegationRecord::discriminator() as u8;
     let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
     delegation.owner = *owner_program.key;
-    delegation.authority = Pubkey::default();
+    delegation.authority = args.validator.unwrap_or(Pubkey::default());
     delegation.commit_frequency_ms = args.commit_frequency_ms as u64;
     delegation.delegation_slot = solana_program::clock::Clock::get()?.slot;
     delegation.lamports = delegate_account.lamports();

@@ -4,10 +4,10 @@
         "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
     },
     "dependencies": {
-        "@coral-xyz/anchor": "^0.30.0"
+        "@coral-xyz/anchor": "^0.30.1"
     },
     "devDependencies": {
-        "@magicblock-labs/ephemeral-rollups-sdk": "^0.0.7",
+        "@magicblock-labs/ephemeral-rollups-sdk-v2": "0.1.1",
         "@metaplex-foundation/beet": "^0.7.1",
         "@metaplex-foundation/beet-solana": "^0.4.0",
         "@types/bn.js": "^5.1.0",
