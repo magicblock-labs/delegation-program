@@ -1,16 +1,24 @@
 use bolt_lang::*;
-use delegation_program_sdk::{delegate, delegate_account};
+use ephemeral_rollups_sdk_v2::anchor::{delegate, ephemeral};
+use ephemeral_rollups_sdk_v2::cpi::{DelegateConfig};
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
 pub const TEST_PDA_SEED: &[u8] = b"test-pda";
+pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 
-#[delegate]
+#[ephemeral]
 #[program]
 pub mod test_delegation {
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let counter = &mut ctx.accounts.counter;
+        counter.count = 0;
+        Ok(())
+    }
+
+    pub fn initialize_other(ctx: Context<InitializeOther>) -> Result<()> {
         let counter = &mut ctx.accounts.counter;
         counter.count = 0;
         Ok(())
@@ -28,7 +36,7 @@ pub mod test_delegation {
         msg!("Counter: {:?}", counter.count);
         if counter.count > 0 {
             msg!("Counter is greater than 0, undelegation is allowed");
-            delegation_program_sdk::allow_undelegation(
+            ephemeral_rollups_sdk_v2::cpi::allow_undelegation(
                 &ctx.accounts.counter,
                 &ctx.accounts.delegation_record,
                 &ctx.accounts.delegation_metadata,
@@ -42,63 +50,54 @@ pub mod test_delegation {
 
     /// Delegate the account to the delegation program
     pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
-        let pda_seeds: &[&[u8]] = &[TEST_PDA_SEED];
+        ctx.accounts
+            .delegate_pda(&ctx.accounts.payer, &[TEST_PDA_SEED], DelegateConfig::default())?;
+        Ok(())
+    }
 
-        let [payer, pda, owner_program, buffer, delegation_record, delegation_metadata, delegation_program, system_program] = [
-            &ctx.accounts.payer,
-            &ctx.accounts.pda,
-            &ctx.accounts.owner_program,
-            &ctx.accounts.buffer,
-            &ctx.accounts.delegation_record,
-            &ctx.accounts.delegation_metadata,
-            &ctx.accounts.delegation_program,
-            &ctx.accounts.system_program,
-        ];
-
-        delegate_account(
-            payer,
-            pda,
-            owner_program,
-            buffer,
-            delegation_record,
-            delegation_metadata,
-            delegation_program,
-            system_program,
-            pda_seeds,
-            0,
-            30000,
-        )?;
-
+    /// Delegate two accounts to the delegation program
+    pub fn delegate_two(ctx: Context<DelegateInputTwo>) -> Result<()> {
+        ctx.accounts
+            .delegate_pda(&ctx.accounts.payer, &[TEST_PDA_SEED], DelegateConfig::default())?;
+        ctx.accounts
+            .delegate_pda_other(&ctx.accounts.payer, &[TEST_PDA_SEED_OTHER], DelegateConfig::default())?;
         Ok(())
     }
 }
 
+#[delegate]
 #[derive(Accounts)]
 pub struct DelegateInput<'info> {
     pub payer: Signer<'info>,
-    /// CHECK:
-    #[account(mut)]
+    /// CHECK: The pda to delegate
+    #[account(mut, del, seeds = [TEST_PDA_SEED], bump)]
     pub pda: AccountInfo<'info>,
-    /// CHECK:`
-    pub owner_program: AccountInfo<'info>,
-    /// CHECK:
-    #[account(mut)]
-    pub buffer: AccountInfo<'info>,
-    /// CHECK:`
-    #[account(mut)]
-    pub delegation_record: AccountInfo<'info>,
-    /// CHECK:`
-    #[account(mut)]
-    pub delegation_metadata: AccountInfo<'info>,
-    /// CHECK:`
-    pub delegation_program: AccountInfo<'info>,
-    /// CHECK:`
-    pub system_program: AccountInfo<'info>,
+}
+
+#[delegate]
+#[derive(Accounts)]
+pub struct DelegateInputTwo<'info> {
+    pub payer: Signer<'info>,
+    /// CHECK: The pda to delegate
+    #[account(mut, del, seeds = [TEST_PDA_SEED], bump)]
+    pub pda: AccountInfo<'info>,
+    /// CHECK: The other pda to delegate
+    #[account(mut, del, seeds = [TEST_PDA_SEED_OTHER], bump)]
+    pub pda_other: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
     #[account(init, payer = user, space = 8 + 8, seeds = [TEST_PDA_SEED], bump)]
+    pub counter: Account<'info, Counter>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeOther<'info> {
+    #[account(init, payer = user, space = 8 + 8, seeds = [TEST_PDA_SEED_OTHER], bump)]
     pub counter: Account<'info, Counter>,
     #[account(mut)]
     pub user: Signer<'info>,

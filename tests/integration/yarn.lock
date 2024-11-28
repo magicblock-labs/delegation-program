@@ -16,12 +16,18 @@
   dependencies:
     regenerator-runtime "^0.14.0"
 
-"@coral-xyz/anchor@^0.30.0":
-  version "0.30.0"
-  resolved "https://registry.npmjs.org/@coral-xyz/anchor/-/anchor-0.30.0.tgz"
-  integrity sha512-qreDh5ztiRHVnCbJ+RS70NJ6aSTPBYDAgFeQ7Z5QvaT5DcDIhNyt4onOciVz2ieIE1XWePOJDDu9SbNvPGBkvQ==
+"@coral-xyz/anchor-errors@^0.30.1":
+  version "0.30.1"
+  resolved "https://registry.yarnpkg.com/@coral-xyz/anchor-errors/-/anchor-errors-0.30.1.tgz#bdfd3a353131345244546876eb4afc0e125bec30"
+  integrity sha512-9Mkradf5yS5xiLWrl9WrpjqOrAV+/W2RQHDlbnAZBivoGpOs1ECjoDCkVk4aRG8ZdiFiB8zQEVlxf+8fKkmSfQ==
+
+"@coral-xyz/anchor@^0.30.1":
+  version "0.30.1"
+  resolved "https://registry.yarnpkg.com/@coral-xyz/anchor/-/anchor-0.30.1.tgz#17f3e9134c28cd0ea83574c6bab4e410bcecec5d"
+  integrity sha512-gDXFoF5oHgpriXAaLpxyWBHdCs8Awgf/gLHIo6crv7Aqm937CNdY+x+6hoj7QR5vaJV7MxWSQ0NGFzL3kPbWEQ==
   dependencies:
-    "@coral-xyz/borsh" "^0.30.0"
+    "@coral-xyz/anchor-errors" "^0.30.1"
+    "@coral-xyz/borsh" "^0.30.1"
     "@noble/hashes" "^1.3.1"
     "@solana/web3.js" "^1.68.0"
     bn.js "^5.1.2"
@@ -36,18 +42,18 @@
     superstruct "^0.15.4"
     toml "^3.0.0"
 
-"@coral-xyz/borsh@^0.30.0":
-  version "0.30.0"
-  resolved "https://registry.npmjs.org/@coral-xyz/borsh/-/borsh-0.30.0.tgz"
-  integrity sha512-OrcV+7N10cChhgDRUxM4iEIuwxUHHs52XD85R8cFCUqE0vbLYrcoPPPs+VF6kZ9DhdJGVW2I6DHJOp5TykyZog==
+"@coral-xyz/borsh@^0.30.1":
+  version "0.30.1"
+  resolved "https://registry.yarnpkg.com/@coral-xyz/borsh/-/borsh-0.30.1.tgz#869d8833abe65685c72e9199b8688477a4f6b0e3"
+  integrity sha512-aaxswpPrCFKl8vZTbxLssA2RvwX2zmKLlRCIktJOwW+VpVwYtXRtlWiIP+c2pPRKneiTiWCN2GEMSH9j1zTlWQ==
   dependencies:
     bn.js "^5.1.2"
     buffer-layout "^1.2.0"
 
-"@magicblock-labs/ephemeral-rollups-sdk@^0.0.7":
-  version "0.0.7"
-  resolved "https://registry.yarnpkg.com/@magicblock-labs/ephemeral-rollups-sdk/-/ephemeral-rollups-sdk-0.0.7.tgz#4d9456f27b75eceec5a3bbcc77a93e360a9109c4"
-  integrity sha512-nEDbTD8Fu//xOAOlY9H4ziEue8qHZxyiFWit0ItG6dp8Zz/HBQaNeRpuQeK/OWPC7ytBnnTRpm+Qr6Soy4KtkA==
+"@magicblock-labs/ephemeral-rollups-sdk-v2@0.1.1":
+  version "0.1.1"
+  resolved "https://registry.yarnpkg.com/@magicblock-labs/ephemeral-rollups-sdk-v2/-/ephemeral-rollups-sdk-v2-0.1.1.tgz#a44af11b07010e5ffd7c3692dd18104b3f6404de"
+  integrity sha512-y6UjwRVjBRxpTZYsT3Bz5MINrLzw1z8xAFc2hVxena4XnTROActEay5mKvHJEkBDXp0T5LIH5SHBDTpzvFdvjg==
   dependencies:
     "@metaplex-foundation/beet" "^0.7.2"
     "@solana/web3.js" "^1.92.3"

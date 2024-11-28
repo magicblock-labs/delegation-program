@@ -57,6 +57,7 @@ async fn test_delegate_on_curve() {
             valid_until: 0,
             commit_frequency_ms: u32::MAX,
             seeds: vec![],
+            validator: Some(alt_payer.pubkey()),
         },
     );
 
@@ -100,6 +101,7 @@ async fn test_delegate_on_curve() {
         .unwrap();
     let delegation_record = DelegationRecord::try_from_bytes(&delegation_record.data).unwrap();
     assert_eq!(delegation_record.owner, system_program::id());
+    assert_eq!(delegation_record.authority, alt_payer.pubkey());
 
     // Assert that the delegation metadata exists and can be parsed
     let delegation_metadata = banks

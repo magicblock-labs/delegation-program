@@ -20,6 +20,7 @@ pub struct DelegateAccountArgs {
     pub valid_until: i64,
     pub commit_frequency_ms: u32,
     pub seeds: Vec<Vec<u8>>,
+    pub validator: Option<Pubkey>,
 }
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
@@ -123,11 +124,11 @@ pub fn delegate_from_wrapper_program(
         program_id: owner_program,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(delegate_account, false),
-            AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),
             AccountMeta::new(delegate_account_metadata, false),
+            AccountMeta::new(delegate_account, false),
+            AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new_readonly(delegation_program, false),
             AccountMeta::new_readonly(system_program, false),
         ],
