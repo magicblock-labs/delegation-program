@@ -27,7 +27,7 @@ pub fn process_init_fees_vault(
     let bump_fees_vault = load_uninitialized_pda(fees_vault, &[FEES_VAULT], &crate::id())?;
     load_program(system_program, system_program::id())?;
 
-    // Crete the fees vault account
+    // Create the fees vault account
     create_pda(
         fees_vault,
         &crate::id(),
