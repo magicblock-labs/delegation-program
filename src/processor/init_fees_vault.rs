@@ -3,11 +3,11 @@ use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     pubkey::Pubkey,
-    {self},
+    system_program, {self},
 };
 
 use crate::consts::FEES_VAULT;
-use crate::utils::loaders::{load_signer, load_uninitialized_pda};
+use crate::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
 use crate::utils::utils_pda::create_pda;
 
 /// Initialize the global fees vault
@@ -25,6 +25,7 @@ pub fn process_init_fees_vault(
 
     load_signer(payer)?;
     let bump_fees_vault = load_uninitialized_pda(fees_vault, &[FEES_VAULT], &crate::id())?;
+    load_program(system_program, system_program::id())?;
 
     // Crete the fees vault account
     create_pda(

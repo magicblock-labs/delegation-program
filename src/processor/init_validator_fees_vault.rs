@@ -3,12 +3,12 @@ use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     pubkey::Pubkey,
-    {self},
+    system_program, {self},
 };
 
 use crate::consts::{ADMIN_PUBKEY, VALIDATOR_FEES_VAULT};
 use crate::error::DlpError::Unauthorized;
-use crate::utils::loaders::{load_signer, load_uninitialized_pda};
+use crate::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
 use crate::utils::utils_pda::create_pda;
 
 /// Process the initialization of the validator fees vault
@@ -28,6 +28,7 @@ pub fn process_init_validator_fees_vault(
     // Check if the payer and admin are signers
     load_signer(payer)?;
     load_signer(admin)?;
+    load_program(system_program, system_program::id())?;
 
     // Check if the admin is the correct one
     if !admin.key.eq(&ADMIN_PUBKEY) {

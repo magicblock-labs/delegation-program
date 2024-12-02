@@ -40,8 +40,8 @@ pub fn process_delegate(
 
     let args = DelegateAccountArgs::try_from_slice(data)?;
 
-    load_program(system_program, system_program::id())?;
     load_owned_pda(delegate_account, &crate::id())?;
+    load_program(system_program, system_program::id())?;
 
     // Validate seeds if the delegate account is not on curve, i.e. is a PDA
     if !delegate_account.is_on_curve() {
