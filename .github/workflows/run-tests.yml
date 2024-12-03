@@ -82,7 +82,7 @@ jobs:
       - name: run tests
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          cargo test
+          cargo test-sbf --features unit_test_config
 
       - name: clean up before integration tests
         run: |
