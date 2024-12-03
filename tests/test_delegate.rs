@@ -11,7 +11,7 @@ use solana_sdk::{
 use dlp::consts::BUFFER;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
 use dlp::state::DelegationRecord;
-use dlp::utils::utils_account::AccountDeserialize;
+use dlp::state::account::AccountDeserialize;
 
 use crate::fixtures::{
     DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR,

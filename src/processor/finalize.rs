@@ -1,14 +1,14 @@
 use crate::error::DlpError;
-use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use crate::utils::balance_lamports::settle_lamports_balance;
-use crate::utils::loaders::{
+use crate::processor::utils::lamports::settle_lamports_balance;
+use crate::processor::utils::loaders::{
     load_initialized_commit_record, load_initialized_commit_state,
     load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
     load_program, load_signer, load_validator_fees_vault,
 };
-use crate::utils::utils_account::AccountDeserialize;
-use crate::utils::utils_pda::close_pda;
-use crate::utils::verify_state::verify_state;
+use crate::processor::utils::pda::close_pda;
+use crate::processor::utils::verify::verify_state;
+use crate::state::account::AccountDeserialize;
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::{

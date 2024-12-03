@@ -1,7 +1,6 @@
 use crate::consts::FEES_VOLUME;
-use crate::instruction::ClaimFeesArgs;
-use crate::utils::loaders::{load_fees_vault, load_signer, load_validator_fees_vault};
-use borsh::BorshDeserialize;
+use crate::processor::utils::loaders::{load_fees_vault, load_signer, load_validator_fees_vault};
+use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::{
@@ -11,6 +10,11 @@ use solana_program::{
     {self},
 };
 
+#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
+pub struct ValidatorClaimFeesArgs {
+    pub amount: Option<u64>,
+}
+
 /// Process validator request to claim fees from the fees vault
 ///
 /// 1. Transfer lamports from validator fees_vault PDA to the validator authority
@@ -19,7 +23,7 @@ pub fn process_validator_claim_fees(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let args = ClaimFeesArgs::try_from_slice(data)?;
+    let args = ValidatorClaimFeesArgs::try_from_slice(data)?;
 
     // Load Accounts
     let [validator, fees_vault, validator_fees_vault] = accounts else {

@@ -9,7 +9,7 @@ use dlp::pda::{
     validator_fees_vault_pda_from_pubkey,
 };
 use dlp::state::{CommitRecord, DelegationMetadata};
-use dlp::utils::utils_account::AccountDeserialize;
+use dlp::state::account::AccountDeserialize;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};

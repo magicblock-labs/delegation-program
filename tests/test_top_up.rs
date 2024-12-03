@@ -1,8 +1,8 @@
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data, TEST_AUTHORITY,
 };
+use dlp::args::DelegateEphemeralBalanceArgs;
 use dlp::consts::{EPHEMERAL_BALANCE, FEES_VAULT};
-use dlp::instruction::DelegateTopUpAccountArgs;
 use dlp::pda::{
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
@@ -24,7 +24,7 @@ async fn test_top_up() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction::top_up_ephemeral_balance(payer.pubkey(), None, None);
+    let ix = dlp::instruction::top_up(payer.pubkey(), None, None);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
@@ -46,11 +46,11 @@ async fn test_top_up_and_delegate() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Top-up Ix
-    let ix = dlp::instruction::top_up_ephemeral_balance(payer.pubkey(), None, None);
+    let ix = dlp::instruction::top_up(payer.pubkey(), None, None);
     // Delegate ephemeral balance Ix
     let delegate_ix = dlp::instruction::delegate_ephemeral_balance(
         payer.pubkey(),
-        DelegateTopUpAccountArgs::default(),
+        DelegateEphemeralBalanceArgs::default(),
     );
 
     let tx = Transaction::new_signed_with_payer(

@@ -1,4 +1,4 @@
-use crate::utils::utils_account::{AccountDiscriminator, Discriminator};
+use crate::state::utils::account::{AccountDiscriminator, Discriminator};
 use crate::{impl_account_from_bytes, impl_to_bytes};
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;

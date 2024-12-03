@@ -3,16 +3,14 @@ use solana_program::{
     program_error::ProgramError, pubkey::Pubkey,
 };
 
-use instruction::*;
-use processor::*;
-
+pub mod args;
 pub mod consts;
+mod discriminant;
 pub mod error;
 pub mod instruction;
 pub mod pda;
 mod processor;
 pub mod state;
-pub mod utils;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
@@ -47,30 +45,45 @@ pub fn process_instruction(
         .try_into()
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    let ix = DlpInstruction::try_from(tag_array).or(Err(ProgramError::InvalidInstructionData))?;
+    let ix = discriminant::DlpDiscriminant::try_from(tag_array)
+        .or(Err(ProgramError::InvalidInstructionData))?;
     msg!("Processing instruction: {:?}", ix);
     match ix {
-        DlpInstruction::Delegate => process_delegate(program_id, accounts, data)?,
-        DlpInstruction::CommitState => process_commit_state(program_id, accounts, data)?,
-        DlpInstruction::Finalize => process_finalize(program_id, accounts, data)?,
-        DlpInstruction::Undelegate => process_undelegate(program_id, accounts, data)?,
-        DlpInstruction::AllowUndelegate => process_allow_undelegate(program_id, accounts, data)?,
-        DlpInstruction::InitValidatorFeesVault => {
-            process_init_validator_fees_vault(program_id, accounts, data)?
+        discriminant::DlpDiscriminant::Delegate => {
+            processor::process_delegate(program_id, accounts, data)?
         }
-        DlpInstruction::InitFeesVault => process_init_fees_vault(program_id, accounts, data)?,
-        DlpInstruction::ValidatorClaimFees => {
-            process_validator_claim_fees(program_id, accounts, data)?
+        discriminant::DlpDiscriminant::CommitState => {
+            processor::process_commit_state(program_id, accounts, data)?
         }
-        DlpInstruction::WhitelistValidatorForProgram => {
-            process_whitelist_validator_for_program(program_id, accounts, data)?
+        discriminant::DlpDiscriminant::Finalize => {
+            processor::process_finalize(program_id, accounts, data)?
         }
-        DlpInstruction::TopUp => process_top_up(program_id, accounts, data)?,
-        DlpInstruction::DelegateEphemeralBalance => {
-            process_delegate_ephemeral_balance(program_id, accounts, data)?
+        discriminant::DlpDiscriminant::Undelegate => {
+            processor::process_undelegate(program_id, accounts, data)?
         }
-        DlpInstruction::CloseEphemeralBalance => {
-            process_close_ephemeral_balance(program_id, accounts, data)?
+        discriminant::DlpDiscriminant::AllowUndelegate => {
+            processor::process_allow_undelegate(program_id, accounts, data)?
+        }
+        discriminant::DlpDiscriminant::InitValidatorFeesVault => {
+            processor::process_init_validator_fees_vault(program_id, accounts, data)?
+        }
+        discriminant::DlpDiscriminant::InitFeesVault => {
+            processor::process_init_fees_vault(program_id, accounts, data)?
+        }
+        discriminant::DlpDiscriminant::ValidatorClaimFees => {
+            processor::process_validator_claim_fees(program_id, accounts, data)?
+        }
+        discriminant::DlpDiscriminant::WhitelistValidatorForProgram => {
+            processor::process_whitelist_validator_for_program(program_id, accounts, data)?
+        }
+        discriminant::DlpDiscriminant::TopUp => {
+            processor::process_top_up(program_id, accounts, data)?
+        }
+        discriminant::DlpDiscriminant::DelegateEphemeralBalance => {
+            processor::process_delegate_ephemeral_balance(program_id, accounts, data)?
+        }
+        discriminant::DlpDiscriminant::CloseEphemeralBalance => {
+            processor::process_close_ephemeral_balance(program_id, accounts, data)?
         }
     }
     Ok(())

@@ -1,9 +1,8 @@
 use crate::consts::{ADMIN_PUBKEY, PROGRAM_CONFIG};
 use crate::error::DlpError::Unauthorized;
-use crate::instruction::WhitelistValidatorForProgramArgs;
 use crate::state::WhitelistForProgram;
-use crate::utils::loaders::{load_pda, load_signer};
-use crate::utils::utils_pda::{create_pda, resize_pda};
+use crate::processor::utils::loaders::{load_pda, load_signer};
+use crate::processor::utils::pda::{create_pda, resize_pda};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::program_error::ProgramError;
@@ -14,6 +13,11 @@ use solana_program::{
     pubkey::Pubkey,
     {self},
 };
+
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
+pub struct WhitelistValidatorForProgramArgs {
+    pub insert: bool,
+}
 
 /// Whitelist a validator for a program
 ///
