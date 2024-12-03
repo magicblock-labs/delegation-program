@@ -1,41 +1,37 @@
-# Delegation program 
+# Delegation program
 
 Delegation module for https://arxiv.org/pdf/2311.02650.pdf
 
-## Program
+## Api
 
 - [`Consts`](src/consts.rs) – Program constants.
-- [`Entrypoint`](src/lib.rs) – The program entrypoint.
+- [`Instruction`](src/instruction/*.rs) – utilities to generate Instructions.
+- [`Args`](src/args/*.rs) – Instructions arguments structures.
 - [`Errors`](src/error.rs) – Custom program errors.
-- [`Idl`](idl/delegator.json) – Interface for clients, explorers, and programs.
-- [`Instruction`](src/instruction.rs) – Declared instructions and arguments.
-- [`Loaders`](src/loaders.rs) – Validation logic for loading Solana accounts.
 
+## Program
 
-## Instructions
+- [`Entrypoint`](src/lib.rs) – The program entrypoint.
+- [`Processors`](src/processors/) – Instruction implementations.
+
+## Important Instructions
 
 - [`Delegate`](src/processor/delegate.rs) - Delegate an account
-- [`CommitState`](src/processor/update.rs) – Commit a new state
+- [`CommitState`](src/processor/commit_state.rs) – Commit a new state
 - [`Finalize`](src/processor/finalize.rs) – Finalize a new state
-- [`Undelegate`](src/processor/undelegate.rs) – Undelegate an account 
-
-
-## State
-
-- [`CommitState`](src/state/commit_record) – Commit state account state.
-- [`Delegator`](src/state/delegator.rs) – Delegator account state.
+- [`Undelegate`](src/processor/undelegate.rs) – Undelegate an account
 
 ## Tests
 
-To run the test suite, use the Solana toolchain: 
+To run the test suite, use the Solana toolchain:
 
-```
+```bash
 cargo test-sbf
 ```
 
 For line coverage, use llvm-cov:
 
-```
+```bash
 cargo llvm-cov --test test_commit_state
 ```
 
@@ -49,12 +45,12 @@ This can be also used a reference for how to interact with the program.
 
 To run the integration test, use Bolt or Anchor:
 
-```
+```bash
 cd tests/integration && bolt test
 ```
 
 or:
 
-```
+```bash
 cd tests/integration && anchor test
 ```
