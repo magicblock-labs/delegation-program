@@ -1,4 +1,4 @@
-pub(crate) mod is_on_curve;
+pub(crate) mod curve;
 pub(crate) mod lamports;
 pub(crate) mod loaders;
 pub(crate) mod pda;

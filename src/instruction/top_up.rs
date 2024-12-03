@@ -3,9 +3,9 @@ use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
+use crate::args::TopUpArgs;
 use crate::consts::EPHEMERAL_BALANCE;
 use crate::discriminant::DlpDiscriminant;
-use crate::processor::TopUpArgs;
 
 /// Builds a top-up ephemeral balance instruction.
 pub fn top_up(payer: Pubkey, amount: Option<u64>, index: Option<u8>) -> Instruction {

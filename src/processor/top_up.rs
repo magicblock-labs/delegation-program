@@ -1,19 +1,14 @@
+use crate::args::TopUpArgs;
 use crate::consts::EPHEMERAL_BALANCE;
 use crate::processor::utils::loaders::{load_pda, load_signer};
 use crate::processor::utils::pda::create_pda;
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct TopUpArgs {
-    pub amount: u64,
-    pub index: u8,
-}
 
 pub fn process_top_up(
     _program_id: &Pubkey,
