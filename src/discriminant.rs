@@ -20,8 +20,8 @@ pub enum DlpDiscriminant {
 }
 
 impl DlpDiscriminant {
-    pub fn to_vec(&self) -> Vec<u8> {
-        let num = *self as u64;
+    pub fn to_vec(self) -> Vec<u8> {
+        let num = self as u64;
         num.to_le_bytes().to_vec()
     }
 }

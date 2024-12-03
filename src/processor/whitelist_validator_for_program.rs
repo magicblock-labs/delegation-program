@@ -1,8 +1,8 @@
 use crate::consts::{ADMIN_PUBKEY, PROGRAM_CONFIG};
 use crate::error::DlpError::Unauthorized;
-use crate::state::WhitelistForProgram;
 use crate::processor::utils::loaders::{load_pda, load_signer};
 use crate::processor::utils::pda::{create_pda, resize_pda};
+use crate::state::WhitelistForProgram;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::program_error::ProgramError;
