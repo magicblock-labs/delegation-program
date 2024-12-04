@@ -2,11 +2,11 @@
 
 Delegation module for https://arxiv.org/pdf/2311.02650.pdf
 
-## Api
+## Public Api
 
-- [`Consts`](src/consts.rs) – Program constants.
-- [`Instruction`](src/instruction/*.rs) – utilities to generate Instructions.
+- [`Instruction Builders`](src/instruction_builder/*.rs) – utilities to generate Instructions.
 - [`Args`](src/args/*.rs) – Instructions arguments structures.
+- [`Consts`](src/consts.rs) – Program constants.
 - [`Errors`](src/error.rs) – Custom program errors.
 
 ## Program
