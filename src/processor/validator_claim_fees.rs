@@ -1,6 +1,7 @@
+use crate::args::ValidatorClaimFeesArgs;
 use crate::consts::FEES_VOLUME;
 use crate::processor::utils::loaders::{load_fees_vault, load_signer, load_validator_fees_vault};
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::{
@@ -9,11 +10,6 @@ use solana_program::{
     pubkey::Pubkey,
     {self},
 };
-
-#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
-pub struct ValidatorClaimFeesArgs {
-    pub amount: Option<u64>,
-}
 
 /// Process validator request to claim fees from the fees vault
 ///

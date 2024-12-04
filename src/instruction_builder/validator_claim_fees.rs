@@ -2,10 +2,10 @@ use borsh::BorshSerialize;
 use solana_program::instruction::Instruction;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
+use crate::args::ValidatorClaimFeesArgs;
 use crate::consts::FEES_VAULT;
 use crate::discriminant::DlpDiscriminant;
 use crate::pda::validator_fees_vault_pda_from_pubkey;
-use crate::processor::ValidatorClaimFeesArgs;
 
 /// Claim the accrued fees from the fees vault.
 pub fn validator_claim_fees(validator: Pubkey, amount: Option<u64>) -> Instruction {

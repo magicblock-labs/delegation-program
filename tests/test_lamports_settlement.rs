@@ -362,7 +362,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
     let delegation_pda = delegation_record_pda_from_pubkey(&args.delegate_account);
 
     // Submit the undelegate tx
-    let ix = dlp::instruction::undelegate(
+    let ix = dlp::instruction_builder::undelegate(
         args.authority.pubkey(),
         args.delegate_account,
         args.owner_program,
@@ -405,7 +405,7 @@ struct FinalizeNewStateArgs<'a> {
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = dlp::instruction::finalize(args.authority.pubkey(), args.delegate_account);
+    let ix = dlp::instruction_builder::finalize(args.authority.pubkey(), args.delegate_account);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&args.authority.pubkey()),
@@ -448,7 +448,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(
+    let ix = dlp::instruction_builder::commit_state(
         args.authority.pubkey(),
         args.delegate_account,
         args.delegate_account_owner,

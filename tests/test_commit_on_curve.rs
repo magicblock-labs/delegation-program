@@ -37,7 +37,7 @@ async fn test_commit_on_curve() {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(
+    let ix = dlp::instruction_builder::commit_state(
         validator.pubkey(),
         payer_delegated.pubkey(),
         system_program::ID,

@@ -49,7 +49,7 @@ async fn test_delegate_on_curve() {
     assert_eq!(updated_alt_payer_account.owner, dlp::id());
 
     // Submit the delegate tx
-    let ix = dlp::instruction::delegate(
+    let ix = dlp::instruction_builder::delegate(
         payer.pubkey(),
         accounts_to_delegate,
         None,

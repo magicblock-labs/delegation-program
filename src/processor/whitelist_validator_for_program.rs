@@ -1,3 +1,4 @@
+use crate::args::WhitelistValidatorForProgramArgs;
 use crate::consts::{ADMIN_PUBKEY, PROGRAM_CONFIG};
 use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{load_pda, load_signer};
@@ -13,11 +14,6 @@ use solana_program::{
     pubkey::Pubkey,
     {self},
 };
-
-#[derive(Debug, BorshSerialize, BorshDeserialize)]
-pub struct WhitelistValidatorForProgramArgs {
-    pub insert: bool,
-}
 
 /// Whitelist a validator for a program
 ///

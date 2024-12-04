@@ -45,7 +45,7 @@ pub fn process_delegate_ephemeral_balance(
     )?;
 
     // Create the delegation ix
-    let ix = crate::instruction::delegate(
+    let ix = crate::instruction_builder::delegate(
         *payer.key,
         *delegate_account.key,
         Some(crate::id()),

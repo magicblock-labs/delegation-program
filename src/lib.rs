@@ -7,7 +7,7 @@ pub mod args;
 pub mod consts;
 mod discriminant;
 pub mod error;
-pub mod instruction;
+pub mod instruction_builder;
 pub mod pda;
 mod processor;
 pub mod state;

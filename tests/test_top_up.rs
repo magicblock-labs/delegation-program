@@ -24,7 +24,7 @@ async fn test_top_up() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction::top_up(payer.pubkey(), None, None);
+    let ix = dlp::instruction_builder::top_up(payer.pubkey(), None, None);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
@@ -46,9 +46,9 @@ async fn test_top_up_and_delegate() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Top-up Ix
-    let ix = dlp::instruction::top_up(payer.pubkey(), None, None);
+    let ix = dlp::instruction_builder::top_up(payer.pubkey(), None, None);
     // Delegate ephemeral balance Ix
-    let delegate_ix = dlp::instruction::delegate_ephemeral_balance(
+    let delegate_ix = dlp::instruction_builder::delegate_ephemeral_balance(
         payer.pubkey(),
         DelegateEphemeralBalanceArgs::default(),
     );
@@ -90,14 +90,14 @@ async fn test_undelegate_and_close() {
         .lamports;
 
     // Undelegate ephemeral balance Ix
-    let ix = dlp::instruction::undelegate(
+    let ix = dlp::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance,
         dlp::id(),
         validator.pubkey(),
     );
 
-    let ix_close = dlp::instruction::close_ephemeral_balance(payer_alt.pubkey(), 0);
+    let ix_close = dlp::instruction_builder::close_ephemeral_balance(payer_alt.pubkey(), 0);
 
     let tx = Transaction::new_signed_with_payer(
         &[ix, ix_close],
