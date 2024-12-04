@@ -76,8 +76,8 @@ pub fn process_instruction(
         discriminant::DlpDiscriminant::WhitelistValidatorForProgram => {
             processor::process_whitelist_validator_for_program(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::TopUp => {
-            processor::process_top_up(program_id, accounts, data)?
+        discriminant::DlpDiscriminant::TopUpEphemeralBalance => {
+            processor::process_top_up_ephemeral_balance(program_id, accounts, data)?
         }
         discriminant::DlpDiscriminant::DelegateEphemeralBalance => {
             processor::process_delegate_ephemeral_balance(program_id, accounts, data)?

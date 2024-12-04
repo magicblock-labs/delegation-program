@@ -3,13 +3,17 @@ use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
-use crate::args::TopUpArgs;
+use crate::args::TopUpEphemeralBalanceArgs;
 use crate::consts::EPHEMERAL_BALANCE;
 use crate::discriminant::DlpDiscriminant;
 
 /// Builds a top-up ephemeral balance instruction.
-pub fn top_up(payer: Pubkey, amount: Option<u64>, index: Option<u8>) -> Instruction {
-    let args = TopUpArgs {
+pub fn top_up_ephemeral_balance(
+    payer: Pubkey,
+    amount: Option<u64>,
+    index: Option<u8>,
+) -> Instruction {
+    let args = TopUpEphemeralBalanceArgs {
         amount: amount.unwrap_or(10000),
         index: index.unwrap_or(0),
     };
@@ -25,6 +29,10 @@ pub fn top_up(payer: Pubkey, amount: Option<u64>, index: Option<u8>) -> Instruct
             AccountMeta::new(ephemeral_balance, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: [DlpDiscriminant::TopUp.to_vec(), args.try_to_vec().unwrap()].concat(),
+        data: [
+            DlpDiscriminant::TopUpEphemeralBalance.to_vec(),
+            args.try_to_vec().unwrap(),
+        ]
+        .concat(),
     }
 }

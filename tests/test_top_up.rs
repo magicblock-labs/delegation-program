@@ -20,11 +20,11 @@ use solana_sdk::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_top_up() {
+async fn test_top_up_ephemeral_balance() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction_builder::top_up(payer.pubkey(), None, None);
+    let ix = dlp::instruction_builder::top_up_ephemeral_balance(payer.pubkey(), None, None);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
@@ -41,12 +41,12 @@ async fn test_top_up() {
 }
 
 #[tokio::test]
-async fn test_top_up_and_delegate() {
+async fn test_top_up_ephemeral_balance_and_delegate() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Top-up Ix
-    let ix = dlp::instruction_builder::top_up(payer.pubkey(), None, None);
+    let ix = dlp::instruction_builder::top_up_ephemeral_balance(payer.pubkey(), None, None);
     // Delegate ephemeral balance Ix
     let delegate_ix = dlp::instruction_builder::delegate_ephemeral_balance(
         payer.pubkey(),

@@ -1,4 +1,4 @@
-use crate::args::TopUpArgs;
+use crate::args::TopUpEphemeralBalanceArgs;
 use crate::consts::EPHEMERAL_BALANCE;
 use crate::processor::utils::loaders::{load_pda, load_signer};
 use crate::processor::utils::pda::create_pda;
@@ -10,13 +10,13 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
 
-pub fn process_top_up(
+pub fn process_top_up_ephemeral_balance(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
     // Parse args.
-    let args = TopUpArgs::try_from_slice(data)?;
+    let args = TopUpEphemeralBalanceArgs::try_from_slice(data)?;
 
     // Load Accounts
     let [payer, ephemeral_balance_pda, system_program] = accounts else {
