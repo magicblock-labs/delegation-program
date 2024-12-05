@@ -172,17 +172,17 @@ async fn setup_program_test_env(valid_config: bool) -> (BanksClient, Keypair, Ke
     );
 
     // Setup the program config
-    let mut whitelist_config = ProgramConfig {
+    let mut program_config = ProgramConfig {
         approved_validators: Default::default(),
     };
-    whitelist_config
+    program_config
         .approved_validators
         .insert(if valid_config {
             validator_keypair.pubkey()
         } else {
             Keypair::new().pubkey()
         });
-    let data = whitelist_config.try_to_vec().unwrap();
+    let data = program_config.try_to_vec().unwrap();
     program_test.add_account(
         program_config_pda_from_pubkey(&DELEGATED_PDA_OWNER_ID),
         Account {

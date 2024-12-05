@@ -42,7 +42,7 @@ pub fn process_whitelist_validator_for_program(
         true,
     )?;
 
-    // Get the program whitelist. If the account doesn't exist, create it
+    // Get the program config. If the account doesn't exist, create it
     let mut program_config = if program_config_account.owner.eq(system_program.key) {
         create_pda(
             program_config_account,
