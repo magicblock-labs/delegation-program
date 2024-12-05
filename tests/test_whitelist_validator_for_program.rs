@@ -1,7 +1,7 @@
 use crate::fixtures::{DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY};
 use borsh::BorshDeserialize;
 use dlp::pda::program_config_pda_from_pubkey;
-use dlp::state::WhitelistForProgram;
+use dlp::state::ProgramConfig;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
@@ -35,13 +35,14 @@ async fn test_whitelist_validator_for_program() {
     assert!(res.is_ok());
 
     // Check that the validator is whitelisted
-    let validator_whitelist_account = banks
+    let program_config_account = banks
         .get_account(program_config_pda_from_pubkey(&DELEGATED_PDA_OWNER_ID))
         .await;
-    let whitelist =
-        WhitelistForProgram::try_from_slice(&validator_whitelist_account.unwrap().unwrap().data)
-            .unwrap();
-    assert!(whitelist.approved_validators.contains(&validator.pubkey()));
+    let program_config =
+        ProgramConfig::try_from_slice(&program_config_account.unwrap().unwrap().data).unwrap();
+    assert!(program_config
+        .approved_validators
+        .contains(&validator.pubkey()));
 }
 
 #[tokio::test]
@@ -82,14 +83,15 @@ async fn test_remove_validator_for_program() {
     println!("{:?}", res);
     assert!(res.is_ok());
 
-    // Check that the validator is not whitelisted
-    let validator_whitelist_account = banks
+    // Check that the validator is NOT whitelisted
+    let program_config_account = banks
         .get_account(program_config_pda_from_pubkey(&DELEGATED_PDA_OWNER_ID))
         .await;
-    let whitelist =
-        WhitelistForProgram::try_from_slice(&validator_whitelist_account.unwrap().unwrap().data)
-            .unwrap();
-    assert!(!whitelist.approved_validators.contains(&validator.pubkey()));
+    let program_config =
+        ProgramConfig::try_from_slice(&program_config_account.unwrap().unwrap().data).unwrap();
+    assert!(!program_config
+        .approved_validators
+        .contains(&validator.pubkey()));
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

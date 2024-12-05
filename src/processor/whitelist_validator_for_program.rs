@@ -3,7 +3,7 @@ use crate::consts::{ADMIN_PUBKEY, PROGRAM_CONFIG};
 use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{load_pda, load_program, load_signer};
 use crate::processor::utils::pda::{create_pda, resize_pda};
-use crate::state::WhitelistForProgram;
+use crate::state::ProgramConfig;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::program_error::ProgramError;
@@ -35,34 +35,34 @@ pub fn process_whitelist_validator_for_program(
     validate_authority(authority, program, program_data)?;
     load_program(system_program, system_program::id())?;
 
-    let bump = load_pda(
+    let program_config_bump = load_pda(
         program_config_account,
         &[PROGRAM_CONFIG, program.key.as_ref()],
         &crate::id(),
         true,
     )?;
 
-    // Get the program whitelist. If the account doesn't exist, create it
-    let mut program_whitelist = if program_config_account.owner.eq(system_program.key) {
+    // Get the program config. If the account doesn't exist, create it
+    let mut program_config = if program_config_account.owner.eq(system_program.key) {
         create_pda(
             program_config_account,
             &crate::id(),
-            8 + WhitelistForProgram::default().serialized_len(),
-            &[PROGRAM_CONFIG, program.key.as_ref(), &[bump]],
+            ProgramConfig::default().serialized_len(),
+            &[PROGRAM_CONFIG, program.key.as_ref(), &[program_config_bump]],
             system_program,
             authority,
         )?;
-        WhitelistForProgram::default()
+        ProgramConfig::default()
     } else {
         let data = program_config_account.try_borrow_data()?;
-        WhitelistForProgram::try_from_slice(&data)?
+        ProgramConfig::try_from_slice(&data)?
     };
     if args.insert {
-        program_whitelist
+        program_config
             .approved_validators
             .insert(*validator_identity.key);
     } else {
-        program_whitelist
+        program_config
             .approved_validators
             .remove(validator_identity.key);
     }
@@ -70,10 +70,10 @@ pub fn process_whitelist_validator_for_program(
         authority,
         program_config_account,
         system_program,
-        program_whitelist.serialized_len(),
+        program_config.serialized_len(),
     )?;
     let mut data = program_config_account.try_borrow_mut_data()?;
-    program_whitelist.serialize(&mut &mut data.as_mut())?;
+    program_config.serialize(&mut &mut data.as_mut())?;
 
     Ok(())
 }
