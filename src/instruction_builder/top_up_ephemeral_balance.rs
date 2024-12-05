@@ -4,8 +4,8 @@ use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::TopUpEphemeralBalanceArgs;
-use crate::consts::EPHEMERAL_BALANCE;
 use crate::discriminant::DlpDiscriminant;
+use crate::pda::ephemeral_balance_from_payer;
 
 /// Builds a top-up ephemeral balance instruction.
 pub fn top_up_ephemeral_balance(
@@ -17,11 +17,7 @@ pub fn top_up_ephemeral_balance(
         amount: amount.unwrap_or(10000),
         index: index.unwrap_or(0),
     };
-    let ephemeral_balance = Pubkey::find_program_address(
-        &[EPHEMERAL_BALANCE, &payer.to_bytes(), &[args.index]],
-        &crate::id(),
-    )
-    .0;
+    let ephemeral_balance = ephemeral_balance_from_payer(&payer, args.index);
     Instruction {
         program_id: crate::id(),
         accounts: vec![

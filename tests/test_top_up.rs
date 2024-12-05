@@ -5,7 +5,7 @@ use dlp::args::DelegateEphemeralBalanceArgs;
 use dlp::consts::{EPHEMERAL_BALANCE, FEES_VAULT};
 use dlp::pda::{
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-    validator_fees_vault_pda_from_pubkey,
+    ephemeral_balance_from_payer, validator_fees_vault_pda_from_pubkey,
 };
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
@@ -147,10 +147,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    let (ephemeral_balance, _) = Pubkey::find_program_address(
-        &[EPHEMERAL_BALANCE, &payer_alt.pubkey().to_bytes(), &[0]],
-        &dlp::id(),
-    );
+    let ephemeral_balance = ephemeral_balance_from_payer(&payer_alt.pubkey(), 0);
 
     // Setup the delegated account PDA
     program_test.add_account(
