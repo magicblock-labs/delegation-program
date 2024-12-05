@@ -19,14 +19,14 @@ pub fn process_top_up_ephemeral_balance(
     let args = TopUpEphemeralBalanceArgs::try_from_slice(data)?;
 
     // Load Accounts
-    let [payer, ephemeral_balance_pda, system_program] = accounts else {
+    let [payer, pubkey, ephemeral_balance_pda, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     load_signer(payer)?;
     load_program(system_program, system_program::id())?;
 
-    let seeds_ephemeral_balance_pda = [EPHEMERAL_BALANCE, &payer.key.to_bytes(), &[args.index]];
+    let seeds_ephemeral_balance_pda = [EPHEMERAL_BALANCE, &pubkey.key.to_bytes(), &[args.index]];
     let bump_ephemeral_balance = load_pda(
         ephemeral_balance_pda,
         &seeds_ephemeral_balance_pda,
@@ -39,10 +39,10 @@ pub fn process_top_up_ephemeral_balance(
         create_pda(
             ephemeral_balance_pda,
             &system_program::id(),
-            8,
+            0,
             &[
                 EPHEMERAL_BALANCE,
-                &payer.key.to_bytes(),
+                &pubkey.key.to_bytes(),
                 &[args.index],
                 &[bump_ephemeral_balance],
             ],

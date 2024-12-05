@@ -14,9 +14,10 @@ use crate::pda::{
 /// Delegate ephemeral balance
 pub fn delegate_ephemeral_balance(
     payer: Pubkey,
+    pubkey: Pubkey,
     args: DelegateEphemeralBalanceArgs,
 ) -> Instruction {
-    let delegate_account = ephemeral_balance_from_payer(&payer, args.index);
+    let delegate_account = ephemeral_balance_from_payer(&pubkey, args.index);
     let buffer =
         Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &crate::id());
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
@@ -28,6 +29,7 @@ pub fn delegate_ephemeral_balance(
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
+            AccountMeta::new(pubkey, true),
             AccountMeta::new(delegate_account, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),

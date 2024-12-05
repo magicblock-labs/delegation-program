@@ -15,18 +15,19 @@ pub fn process_delegate_ephemeral_balance(
     data: &[u8],
 ) -> ProgramResult {
     let mut args = DelegateEphemeralBalanceArgs::try_from_slice(data)?;
-    let [payer, delegate_account, buffer, delegation_record, delegation_metadata, system_program, delegation_program] =
+    let [payer, pubkey, delegate_account, buffer, delegation_record, delegation_metadata, system_program, delegation_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     load_signer(payer)?;
+    load_signer(pubkey)?;
     load_program(system_program, system_program::id())?;
     load_program(delegation_program, crate::id())?;
 
     // Check seeds and derive bump
-    let seeds = &[EPHEMERAL_BALANCE, &payer.key.to_bytes(), &[args.index]];
+    let seeds = &[EPHEMERAL_BALANCE, &pubkey.key.to_bytes(), &[args.index]];
     let (address, bump) = Pubkey::find_program_address(seeds, &crate::id());
     if !address.eq(delegate_account.key) {
         return Err(ProgramError::InvalidSeeds);
@@ -41,7 +42,7 @@ pub fn process_delegate_ephemeral_balance(
         &[delegate_account.clone(), system_program.clone()],
         &[&[
             EPHEMERAL_BALANCE,
-            &payer.key.to_bytes(),
+            &pubkey.key.to_bytes(),
             &[args.index],
             &[bump],
         ]],
@@ -69,7 +70,7 @@ pub fn process_delegate_ephemeral_balance(
         ],
         &[&[
             EPHEMERAL_BALANCE,
-            &payer.key.to_bytes(),
+            &pubkey.key.to_bytes(),
             &[args.index],
             &[bump],
         ]],

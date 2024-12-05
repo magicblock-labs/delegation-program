@@ -24,7 +24,12 @@ async fn test_top_up_ephemeral_balance() {
     // Setup
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction_builder::top_up_ephemeral_balance(payer.pubkey(), None, None);
+    let ix = dlp::instruction_builder::top_up_ephemeral_balance(
+        payer.pubkey(),
+        payer.pubkey(),
+        None,
+        None,
+    );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
@@ -46,9 +51,15 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Top-up Ix
-    let ix = dlp::instruction_builder::top_up_ephemeral_balance(payer.pubkey(), None, None);
+    let ix = dlp::instruction_builder::top_up_ephemeral_balance(
+        payer.pubkey(),
+        payer.pubkey(),
+        None,
+        None,
+    );
     // Delegate ephemeral balance Ix
     let delegate_ix = dlp::instruction_builder::delegate_ephemeral_balance(
+        payer.pubkey(),
         payer.pubkey(),
         DelegateEphemeralBalanceArgs::default(),
     );
@@ -57,6 +68,53 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
         &[ix, delegate_ix],
         Some(&payer.pubkey()),
         &[&payer],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok());
+}
+
+#[tokio::test]
+async fn test_top_up_ephemeral_balance_for_pubkey() {
+    // Setup
+    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+
+    let pubkey = Keypair::new().pubkey();
+
+    let ix = dlp::instruction_builder::top_up_ephemeral_balance(payer.pubkey(), pubkey, None, None);
+    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok());
+
+    // Check account exists and it's owned by the system program
+    let ephemeral_balance = ephemeral_balance_from_payer(&pubkey, 0);
+    let balance_account = banks.get_account(ephemeral_balance).await.unwrap().unwrap();
+
+    assert_eq!(balance_account.owner, system_program::id());
+    assert!(balance_account.lamports > 0);
+}
+
+#[tokio::test]
+async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
+    // Setup
+    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+
+    let key = Keypair::new();
+    let pubkey = key.pubkey();
+
+    // Top-up Ix
+    let ix = dlp::instruction_builder::top_up_ephemeral_balance(payer.pubkey(), pubkey, None, None);
+    // Delegate ephemeral balance Ix
+    let delegate_ix = dlp::instruction_builder::delegate_ephemeral_balance(
+        payer.pubkey(),
+        pubkey,
+        DelegateEphemeralBalanceArgs::default(),
+    );
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix, delegate_ix],
+        Some(&payer.pubkey()),
+        &[&payer, &key],
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
