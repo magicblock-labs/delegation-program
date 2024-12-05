@@ -41,7 +41,9 @@ async fn test_whitelist_validator_for_program() {
     let program_config =
         ProgramConfig::try_from_slice(&validator_program_config_account.unwrap().unwrap().data)
             .unwrap();
-    assert!(program_config.approved_validators.contains(&validator.pubkey()));
+    assert!(program_config
+        .approved_validators
+        .contains(&validator.pubkey()));
 }
 
 #[tokio::test]
@@ -89,7 +91,9 @@ async fn test_remove_validator_for_program() {
     let program_config =
         ProgramConfig::try_from_slice(&validator_program_config_account.unwrap().unwrap().data)
             .unwrap();
-    assert!(!program_config.approved_validators.contains(&validator.pubkey()));
+    assert!(!program_config
+        .approved_validators
+        .contains(&validator.pubkey()));
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

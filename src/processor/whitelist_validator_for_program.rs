@@ -35,7 +35,7 @@ pub fn process_whitelist_validator_for_program(
     validate_authority(authority, program, program_data)?;
     load_program(system_program, system_program::id())?;
 
-    let bump = load_pda(
+    let program_config_bump = load_pda(
         program_config_account,
         &[PROGRAM_CONFIG, program.key.as_ref()],
         &crate::id(),
@@ -48,7 +48,7 @@ pub fn process_whitelist_validator_for_program(
             program_config_account,
             &crate::id(),
             8 + ProgramConfig::default().serialized_len(),
-            &[PROGRAM_CONFIG, program.key.as_ref(), &[bump]],
+            &[PROGRAM_CONFIG, program.key.as_ref(), &[program_config_bump]],
             system_program,
             authority,
         )?;
@@ -70,7 +70,7 @@ pub fn process_whitelist_validator_for_program(
         authority,
         program_config_account,
         system_program,
-        program_config.serialized_len(),
+        8 + program_config.serialized_len(),
     )?;
     let mut data = program_config_account.try_borrow_mut_data()?;
     program_config.serialize(&mut &mut data.as_mut())?;

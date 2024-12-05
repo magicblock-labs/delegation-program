@@ -152,8 +152,13 @@ pub fn process_commit_state(
 }
 
 /// If there exists a validators whitelist for the delegated account program owner, check that the validator is whitelisted for it
-fn validate_program_config(program_config: ProgramConfig, validator: &Pubkey) -> Result<(), ProgramError> {
-    if !program_config.approved_validators.is_empty() && !program_config.approved_validators.contains(validator) {
+fn validate_program_config(
+    program_config: ProgramConfig,
+    validator: &Pubkey,
+) -> Result<(), ProgramError> {
+    if !program_config.approved_validators.is_empty()
+        && !program_config.approved_validators.contains(validator)
+    {
         return Err(DlpError::InvalidWhitelistProgramConfig.into());
     }
     msg!("Valid config");
