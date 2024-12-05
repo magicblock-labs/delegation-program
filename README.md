@@ -26,7 +26,7 @@ Delegation module for https://arxiv.org/pdf/2311.02650.pdf
 To run the test suite, use the Solana toolchain:
 
 ```bash
-cargo test-sbf
+cargo test-sbf --features unit_test_config
 ```
 
 For line coverage, use llvm-cov:
