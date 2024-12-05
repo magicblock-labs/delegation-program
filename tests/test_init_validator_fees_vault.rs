@@ -17,7 +17,7 @@ async fn test_init_validator_fees_vault() {
     let (mut banks, payer, admin, blockhash) = setup_program_test_env().await;
 
     let validator_identity = Pubkey::new_unique();
-    let ix = dlp::instruction::initialize_validator_fees_vault(
+    let ix = dlp::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         admin.pubkey(),
         validator_identity,
@@ -38,7 +38,7 @@ async fn test_init_validator_fees_vault() {
 
     // Assert record cannot be created if the admin is not the correct one
     let validator_identity = Pubkey::new_unique();
-    let ix = dlp::instruction::initialize_validator_fees_vault(
+    let ix = dlp::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         payer.pubkey(),
         validator_identity,

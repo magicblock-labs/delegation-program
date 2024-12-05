@@ -1,16 +1,16 @@
 use std::mem::size_of;
 
+use crate::args::CommitStateArgs;
 use crate::consts::{COMMIT_RECORD, COMMIT_STATE};
 use crate::error::DlpError;
-use crate::instruction::CommitAccountArgs;
-use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, WhitelistForProgram};
-use crate::utils::loaders::{
+use crate::processor::utils::loaders::{
     load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
     load_program_config, load_signer, load_uninitialized_pda, load_validator_fees_vault,
 };
-use crate::utils::utils_account::{AccountDeserialize, Discriminator};
-use crate::utils::utils_pda::create_pda;
-use crate::utils::verify_commitment::verify_commitment;
+use crate::processor::utils::pda::create_pda;
+use crate::processor::utils::verify::verify_state;
+use crate::state::account::{AccountDeserialize, Discriminator};
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, WhitelistForProgram};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
@@ -36,7 +36,7 @@ pub fn process_commit_state(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let args = CommitAccountArgs::try_from_slice(data)?;
+    let args = CommitStateArgs::try_from_slice(data)?;
     let data: &[u8] = args.data.as_ref();
 
     let [validator, delegated_account, commit_state_account, commit_state_record, delegation_record, delegation_metadata, validator_fees_vault, program_config, system_program] =
@@ -156,4 +156,20 @@ fn validate_config(config: WhitelistForProgram, validator: &Pubkey) -> Result<()
     }
     msg!("Valid config");
     Ok(())
+}
+
+/// Verify the committed state
+fn verify_commitment(
+    authority: &AccountInfo,
+    delegation_record: &DelegationRecord,
+    committed_record: &CommitRecord,
+    committed_state: &AccountInfo,
+) -> ProgramResult {
+    // TODO - is there something special to do here?
+    verify_state(
+        authority,
+        delegation_record,
+        committed_record,
+        committed_state,
+    )
 }

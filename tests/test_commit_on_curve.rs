@@ -1,12 +1,12 @@
 use borsh::BorshDeserialize;
-use dlp::instruction::CommitAccountArgs;
+use dlp::args::CommitStateArgs;
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
+use dlp::state::account::AccountDeserialize;
 use dlp::state::{CommitRecord, DelegationMetadata};
-use dlp::utils::utils_account::AccountDeserialize;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -29,7 +29,7 @@ async fn test_commit_on_curve() {
     let (mut banks, payer_delegated, validator, blockhash) = setup_program_test_env().await;
 
     let new_account_balance = 1_000_000;
-    let commit_args = CommitAccountArgs {
+    let commit_args = CommitStateArgs {
         data: vec![],
         slot: 100,
         allow_undelegation: true,
@@ -37,7 +37,7 @@ async fn test_commit_on_curve() {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(
+    let ix = dlp::instruction_builder::commit_state(
         validator.pubkey(),
         payer_delegated.pubkey(),
         system_program::ID,

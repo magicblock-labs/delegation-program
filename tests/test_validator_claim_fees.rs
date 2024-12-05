@@ -42,7 +42,8 @@ async fn test_validator_claim_fees() {
 
     // Submit the undelegate tx
     let withdrawal_amount = 100000;
-    let ix = dlp::instruction::validator_claim_fees(validator.pubkey(), Some(withdrawal_amount));
+    let ix =
+        dlp::instruction_builder::validator_claim_fees(validator.pubkey(), Some(withdrawal_amount));
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),

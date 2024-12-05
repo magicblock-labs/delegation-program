@@ -39,7 +39,7 @@ async fn test_undelegate() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the undelegate tx
-    let ix = dlp::instruction::undelegate(
+    let ix = dlp::instruction_builder::undelegate(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

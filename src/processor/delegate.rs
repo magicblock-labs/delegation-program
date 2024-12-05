@@ -10,14 +10,15 @@ use solana_program::{
     system_program, {self},
 };
 
+use crate::args::DelegateArgs;
 use crate::consts::{BUFFER, DELEGATION_METADATA, DELEGATION_RECORD};
-use crate::instruction::DelegateAccountArgs;
-use crate::state::{DelegationMetadata, DelegationRecord};
-use crate::utils::loaders::{
+use crate::processor::utils::curve::is_on_curve;
+use crate::processor::utils::loaders::{
     load_owned_pda, load_pda, load_program, load_signer, load_uninitialized_pda,
 };
-use crate::utils::utils_account::{AccountDeserialize, Discriminator};
-use crate::utils::utils_pda::{create_pda, ValidateEdwards};
+use crate::processor::utils::pda::create_pda;
+use crate::state::account::{AccountDeserialize, Discriminator};
+use crate::state::{DelegationMetadata, DelegationRecord};
 
 /// Delegate an account
 ///
@@ -38,13 +39,13 @@ pub fn process_delegate(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    let args = DelegateAccountArgs::try_from_slice(data)?;
+    let args = DelegateArgs::try_from_slice(data)?;
 
     load_program(system_program, system_program::id())?;
     load_owned_pda(delegate_account, &crate::id())?;
 
     // Validate seeds if the delegate account is not on curve, i.e. is a PDA
-    if !delegate_account.is_on_curve() {
+    if !is_on_curve(delegate_account.key) {
         let seeds_to_validate: Vec<&[u8]> = args.seeds.iter().map(|v| v.as_slice()).collect();
         let (derived_pda, _) =
             Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);

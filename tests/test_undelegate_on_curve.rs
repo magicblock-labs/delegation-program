@@ -29,7 +29,7 @@ async fn test_undelegate_on_curve() {
     let delegation_pda = delegation_record_pda_from_pubkey(&delegated_on_curve.pubkey());
 
     // Submit the undelegate tx
-    let ix = dlp::instruction::undelegate(
+    let ix = dlp::instruction_builder::undelegate(
         validator.pubkey(),
         delegated_on_curve.pubkey(),
         system_program::id(),

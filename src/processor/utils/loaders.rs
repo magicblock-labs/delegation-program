@@ -280,7 +280,7 @@ pub fn load_initialized_commit_record(
 mod tests {
     use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
 
-    use crate::utils::loaders::{
+    use crate::processor::utils::loaders::{
         load_account, load_signer, load_sysvar, load_uninitialized_account,
     };
 

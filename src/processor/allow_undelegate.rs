@@ -8,9 +8,9 @@ use solana_program::{
 };
 
 use crate::consts::{BUFFER, DELEGATION_METADATA, DELEGATION_RECORD};
+use crate::processor::utils::loaders::{load_initialized_pda, load_owned_pda, load_signer};
+use crate::state::account::AccountDeserialize;
 use crate::state::{DelegationMetadata, DelegationRecord};
-use crate::utils::loaders::{load_initialized_pda, load_owned_pda, load_signer};
-use crate::utils::utils_account::AccountDeserialize;
 
 /// Called through CPI to allow the undelegation of a delegated account
 ///
