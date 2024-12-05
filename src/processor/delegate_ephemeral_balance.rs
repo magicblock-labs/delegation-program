@@ -1,9 +1,10 @@
 use crate::args::DelegateEphemeralBalanceArgs;
 use crate::consts::EPHEMERAL_BALANCE;
-use crate::processor::utils::loaders::load_signer;
+use crate::processor::utils::loaders::{load_program, load_signer};
 use borsh::BorshDeserialize;
 use solana_program::program::invoke_signed;
 use solana_program::program_error::ProgramError;
+use solana_program::system_program;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_instruction,
 };
@@ -21,6 +22,8 @@ pub fn process_delegate_ephemeral_balance(
     };
 
     load_signer(payer)?;
+    load_program(system_program, system_program::id())?;
+    load_program(delegation_program, crate::id())?;
 
     // Check seeds and derive bump
     let seeds = &[EPHEMERAL_BALANCE, &payer.key.to_bytes(), &[args.index]];
