@@ -8,8 +8,8 @@ use solana_program::{
 
 use crate::consts::{ADMIN_PUBKEY, VALIDATOR_FEES_VAULT};
 use crate::error::DlpError::Unauthorized;
-use crate::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
-use crate::utils::utils_pda::create_pda;
+use crate::processor::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
+use crate::processor::utils::pda::create_pda;
 
 /// Process the initialization of the validator fees vault
 ///

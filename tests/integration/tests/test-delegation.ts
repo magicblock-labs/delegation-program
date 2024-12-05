@@ -36,7 +36,7 @@ describe("TestDelegation", () => {
   )[0];
 
   it("Initialize protocol fees vault", async () => {
-    const ix = createInitializeFeesVaultInstruction(provider.wallet.publicKey);
+    const ix = createInitFeesVaultInstruction(provider.wallet.publicKey);
     const tx = new web3.Transaction().add(ix);
     tx.recentBlockhash = (
       await provider.connection.getLatestBlockhash()
@@ -47,7 +47,7 @@ describe("TestDelegation", () => {
   });
 
   it("Initialize validator fee vault", async () => {
-    const ix = createInitializeValidatorFeesVaultInstruction(
+    const ix = createInitValidatorFeesVaultInstruction(
       provider.wallet.publicKey,
       provider.wallet.publicKey,
       provider.wallet.publicKey
@@ -438,7 +438,7 @@ describe("TestDelegation", () => {
   }
 
   /// Instruction to initialize protocol fees vault
-  function createInitializeFeesVaultInstruction(
+  function createInitFeesVaultInstruction(
       payer: web3.PublicKey,
       programId = new web3.PublicKey(DELEGATION_PROGRAM_ID)
   ) {
@@ -468,7 +468,7 @@ describe("TestDelegation", () => {
   }
 
   /// Instruction to initialize a fees vault for a validator authority
-  function createInitializeValidatorFeesVaultInstruction(
+  function createInitValidatorFeesVaultInstruction(
     payer: web3.PublicKey,
     admin: web3.PublicKey,
     validatorIdentity: web3.PublicKey,

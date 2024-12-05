@@ -1,11 +1,11 @@
-/// Add the logic to check the state diff, Authority and/or Fraud proofs
-use crate::state::{CommitRecord, DelegationRecord};
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
 
+use crate::state::{CommitRecord, DelegationRecord};
+
 /// Verify the committed state
 #[inline(always)]
-pub(crate) fn verify_state(
+pub fn verify_state(
     _authority: &AccountInfo,
     _delegation_record: &DelegationRecord,
     _committed_record: &CommitRecord,

@@ -7,8 +7,8 @@ use solana_program::{
 };
 
 use crate::consts::FEES_VAULT;
-use crate::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
-use crate::utils::utils_pda::create_pda;
+use crate::processor::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
+use crate::processor::utils::pda::create_pda;
 
 /// Initialize the global fees vault
 ///

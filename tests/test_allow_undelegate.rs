@@ -30,7 +30,7 @@ async fn test_allow_undelegate() {
     // assert!(seeds_pda_account.is_none());
 
     // Submit the allow undelegation tx
-    let ix = dlp::instruction::allow_undelegate(
+    let ix = dlp::instruction_builder::allow_undelegate(
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         EXTERNAL_ALLOW_UNDELEGATION_INSTRUCTION_DISCRIMINATOR.to_vec(),

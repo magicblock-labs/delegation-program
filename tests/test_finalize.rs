@@ -8,8 +8,8 @@ use dlp::pda::{
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
+use dlp::state::account::AccountDeserialize;
 use dlp::state::{CommitRecord, DelegationMetadata};
-use dlp::utils::utils_account::AccountDeserialize;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -48,7 +48,7 @@ async fn test_finalize() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the finalize tx
-    let ix = dlp::instruction::finalize(authority.pubkey(), DELEGATED_PDA_ID);
+    let ix = dlp::instruction_builder::finalize(authority.pubkey(), DELEGATED_PDA_ID);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&authority.pubkey()),

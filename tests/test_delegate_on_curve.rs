@@ -9,11 +9,11 @@ use solana_sdk::{
 };
 
 use crate::fixtures::ON_CURVE_KEYPAIR;
+use dlp::args::DelegateArgs;
 use dlp::consts::BUFFER;
-use dlp::instruction::DelegateAccountArgs;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
+use dlp::state::account::AccountDeserialize;
 use dlp::state::{DelegationMetadata, DelegationRecord};
-use dlp::utils::utils_account::AccountDeserialize;
 
 mod fixtures;
 
@@ -49,11 +49,11 @@ async fn test_delegate_on_curve() {
     assert_eq!(updated_alt_payer_account.owner, dlp::id());
 
     // Submit the delegate tx
-    let ix = dlp::instruction::delegate(
+    let ix = dlp::instruction_builder::delegate(
         payer.pubkey(),
         accounts_to_delegate,
         None,
-        DelegateAccountArgs {
+        DelegateArgs {
             valid_until: 0,
             commit_frequency_ms: u32::MAX,
             seeds: vec![],

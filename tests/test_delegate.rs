@@ -10,8 +10,8 @@ use solana_sdk::{
 
 use dlp::consts::BUFFER;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
+use dlp::state::account::AccountDeserialize;
 use dlp::state::DelegationRecord;
-use dlp::utils::utils_account::AccountDeserialize;
 
 use crate::fixtures::{
     DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR,
@@ -29,7 +29,7 @@ async fn test_delegate() {
     let pda_data_before_delegation = pda_before_delegation.data.clone();
 
     // Submit the delegate tx
-    let ix = dlp::instruction::delegate_from_wrapper_program(
+    let ix = dlp::instruction_builder::delegate_from_wrapper_program(
         payer.pubkey(),
         DELEGATED_PDA_ID,
         system_program::id(),

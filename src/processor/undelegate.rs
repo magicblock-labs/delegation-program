@@ -5,15 +5,16 @@ use crate::error::DlpError::{
     InvalidAccountDataAfterCPI, InvalidAuthority, InvalidDelegatedAccount,
     InvalidReimbursementAddressForDelegationRent, InvalidValidatorBalanceAfterCPI, Undelegatable,
 };
-use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use crate::utils::balance_lamports::settle_lamports_balance;
-use crate::utils::loaders::{
+use crate::processor::utils::curve::is_on_curve;
+use crate::processor::utils::lamports::settle_lamports_balance;
+use crate::processor::utils::loaders::{
     load_fees_vault, load_initialized_delegation_metadata, load_initialized_delegation_record,
     load_owned_pda, load_program, load_signer, load_uninitialized_pda, load_validator_fees_vault,
 };
-use crate::utils::utils_account::AccountDeserialize;
-use crate::utils::utils_pda::{close_pda, close_pda_with_fees, create_pda, ValidateEdwards};
-use crate::utils::verify_state::verify_state;
+use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
+use crate::processor::utils::verify::verify_state;
+use crate::state::account::AccountDeserialize;
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::{invoke, invoke_signed};
@@ -145,7 +146,7 @@ pub fn process_undelegate(
     drop(commit_record_data);
     drop(delegation_data);
 
-    if delegated_account.is_on_curve() || buffer.try_borrow_data()?.is_empty() {
+    if is_on_curve(delegated_account.key) || buffer.try_borrow_data()?.is_empty() {
         settle_lamports_balance(
             delegated_account,
             committed_state_account,

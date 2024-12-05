@@ -1,6 +1,6 @@
+use crate::args::ValidatorClaimFeesArgs;
 use crate::consts::FEES_VOLUME;
-use crate::instruction::ClaimFeesArgs;
-use crate::utils::loaders::{load_fees_vault, load_signer, load_validator_fees_vault};
+use crate::processor::utils::loaders::{load_fees_vault, load_signer, load_validator_fees_vault};
 use borsh::BorshDeserialize;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -19,7 +19,7 @@ pub fn process_validator_claim_fees(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let args = ClaimFeesArgs::try_from_slice(data)?;
+    let args = ValidatorClaimFeesArgs::try_from_slice(data)?;
 
     // Load Accounts
     let [validator, fees_vault, validator_fees_vault] = accounts else {

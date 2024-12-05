@@ -1,6 +1,6 @@
 use borsh::BorshSerialize;
+use dlp::state::account::Discriminator;
 use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use dlp::utils::utils_account::Discriminator;
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;

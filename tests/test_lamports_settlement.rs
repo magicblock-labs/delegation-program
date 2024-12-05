@@ -4,15 +4,15 @@ use crate::fixtures::{
     DELEGATED_PDA_OWNER_ID, ON_CURVE_KEYPAIR, TEST_AUTHORITY,
 };
 use borsh::BorshDeserialize;
+use dlp::args::CommitStateArgs;
 use dlp::consts::FEES_VAULT;
-use dlp::instruction::CommitAccountArgs;
 use dlp::pda::{
     committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
+use dlp::state::account::AccountDeserialize;
 use dlp::state::{CommitRecord, DelegationMetadata};
-use dlp::utils::utils_account::AccountDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
@@ -362,7 +362,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
     let delegation_pda = delegation_record_pda_from_pubkey(&args.delegate_account);
 
     // Submit the undelegate tx
-    let ix = dlp::instruction::undelegate(
+    let ix = dlp::instruction_builder::undelegate(
         args.authority.pubkey(),
         args.delegate_account,
         args.owner_program,
@@ -405,7 +405,7 @@ struct FinalizeNewStateArgs<'a> {
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = dlp::instruction::finalize(args.authority.pubkey(), args.delegate_account);
+    let ix = dlp::instruction_builder::finalize(args.authority.pubkey(), args.delegate_account);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&args.authority.pubkey()),
@@ -440,7 +440,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     } else {
         vec![]
     };
-    let commit_args = CommitAccountArgs {
+    let commit_args = CommitStateArgs {
         data: data.clone(),
         slot: 100,
         allow_undelegation: true,
@@ -448,7 +448,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction::commit_state(
+    let ix = dlp::instruction_builder::commit_state(
         args.authority.pubkey(),
         args.delegate_account,
         args.delegate_account_owner,
