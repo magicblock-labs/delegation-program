@@ -44,8 +44,8 @@ pub fn process_finalize(
     load_initialized_commit_record(delegated_account, committed_state_record)?;
     load_initialized_delegation_record(delegated_account, delegation_record)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata)?;
-    load_program(system_program, system_program::id())?;
     load_validator_fees_vault(validator, validator_fees_vault)?;
+    load_program(system_program, system_program::id())?;
 
     // Load delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;

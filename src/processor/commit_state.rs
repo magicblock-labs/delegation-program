@@ -5,7 +5,8 @@ use crate::consts::{COMMIT_RECORD, COMMIT_STATE};
 use crate::error::DlpError;
 use crate::processor::utils::loaders::{
     load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
-    load_program_config, load_signer, load_uninitialized_pda, load_validator_fees_vault,
+    load_program, load_program_config, load_signer, load_uninitialized_pda,
+    load_validator_fees_vault,
 };
 use crate::processor::utils::pda::create_pda;
 use crate::processor::utils::verify::verify_state;
@@ -15,6 +16,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
+use solana_program::system_program;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
@@ -51,6 +53,7 @@ pub fn process_commit_state(
     load_initialized_delegation_record(delegated_account, delegation_record)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata)?;
     load_validator_fees_vault(validator, validator_fees_vault)?;
+    load_program(system_program, system_program::id())?;
 
     // Load delegation record
     let mut delegation_data = delegation_record.try_borrow_mut_data()?;
