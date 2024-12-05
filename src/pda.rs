@@ -1,9 +1,8 @@
-use paste::paste;
-
 use crate::consts::{
-    BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, PROGRAM_CONFIG,
-    VALIDATOR_FEES_VAULT,
+    BUFFER, COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, EPHEMERAL_BALANCE,
+    PROGRAM_CONFIG, VALIDATOR_FEES_VAULT,
 };
+use paste::paste;
 
 // -----------------
 // Seeds
@@ -88,6 +87,23 @@ pda! { buffer }
 
 seeds! { program_config, PROGRAM_CONFIG }
 pda! { program_config }
+
+pub fn ephemeral_balance_from_payer(
+    payer: &solana_program::pubkey::Pubkey,
+    index: u8,
+) -> solana_program::pubkey::Pubkey {
+    ephemeral_balance_and_bump_from_payer(payer, index).0
+}
+
+pub fn ephemeral_balance_and_bump_from_payer(
+    payer: &solana_program::pubkey::Pubkey,
+    index: u8,
+) -> (solana_program::pubkey::Pubkey, u8) {
+    solana_program::pubkey::Pubkey::find_program_address(
+        &[EPHEMERAL_BALANCE, &payer.to_bytes(), &[index]],
+        &crate::id(),
+    )
+}
 
 #[cfg(test)]
 mod tests {
