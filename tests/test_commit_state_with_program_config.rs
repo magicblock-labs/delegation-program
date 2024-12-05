@@ -6,7 +6,7 @@ use dlp::pda::{
     program_config_pda_from_pubkey, validator_fees_vault_pda_from_pubkey,
 };
 use dlp::state::account::AccountDeserialize;
-use dlp::state::{CommitRecord, DelegationMetadata, WhitelistForProgram};
+use dlp::state::{CommitRecord, DelegationMetadata, ProgramConfig};
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -172,7 +172,7 @@ async fn setup_program_test_env(valid_config: bool) -> (BanksClient, Keypair, Ke
     );
 
     // Setup the program config
-    let mut whitelist_config = WhitelistForProgram {
+    let mut whitelist_config = ProgramConfig {
         approved_validators: Default::default(),
     };
     whitelist_config

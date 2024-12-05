@@ -11,7 +11,7 @@ use crate::processor::utils::loaders::{
 use crate::processor::utils::pda::create_pda;
 use crate::processor::utils::verify::verify_state;
 use crate::state::account::{AccountDeserialize, Discriminator};
-use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, WhitelistForProgram};
+use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
@@ -63,11 +63,11 @@ pub fn process_commit_state(
     let is_config = load_program_config(program_config, delegation.owner)?;
     msg!("Config: {:?}", is_config);
     if is_config {
-        msg!("Checking config");
+        msg!("Checking program config");
         let program_config_data = program_config.try_borrow_data()?;
-        let config = WhitelistForProgram::try_from_slice(&program_config_data)?;
-        msg!("Config: {:?}", config);
-        validate_config(config, validator.key)?;
+        let program_config = ProgramConfig::try_from_slice(&program_config_data)?;
+        msg!("Program Config: {:?}", program_config);
+        validate_program_config(program_config, validator.key)?;
     }
 
     let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
@@ -153,8 +153,8 @@ pub fn process_commit_state(
 }
 
 /// If there exists a validators whitelist for the delegated account program owner, check that the validator is whitelisted for it
-fn validate_config(config: WhitelistForProgram, validator: &Pubkey) -> Result<(), ProgramError> {
-    if !config.approved_validators.is_empty() && !config.approved_validators.contains(validator) {
+fn validate_program_config(program_config: ProgramConfig, validator: &Pubkey) -> Result<(), ProgramError> {
+    if !program_config.approved_validators.is_empty() && !program_config.approved_validators.contains(validator) {
         return Err(DlpError::InvalidWhitelistProgramConfig.into());
     }
     msg!("Valid config");
