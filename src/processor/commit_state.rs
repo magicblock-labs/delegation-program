@@ -60,10 +60,9 @@ pub fn process_commit_state(
     let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
 
     // Load the program configuration and validate it, if any
-    let is_config = load_program_config(program_config, delegation.owner)?;
-    msg!("Config: {:?}", is_config);
-    if is_config {
-        msg!("Checking program config");
+    let is_program_config = load_program_config(program_config, delegation.owner)?;
+    msg!("Is program config: {:?}", is_program_config);
+    if is_program_config {
         let program_config_data = program_config.try_borrow_data()?;
         let program_config = ProgramConfig::try_from_slice(&program_config_data)?;
         msg!("Program Config: {:?}", program_config);

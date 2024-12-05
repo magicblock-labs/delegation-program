@@ -10,7 +10,7 @@ pub struct ProgramConfig {
 
 impl Discriminator for ProgramConfig {
     fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::WhitelistForProgram
+        AccountDiscriminator::ProgramConfig
     }
 }
 
