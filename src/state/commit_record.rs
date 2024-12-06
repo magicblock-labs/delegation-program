@@ -4,8 +4,7 @@ use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
 use crate::{
-    consts::COMMIT_RECORD_DISCRIMINANT, impl_to_bytes_with_discriminant_zero_copy,
-    impl_try_from_bytes_with_discriminant_zero_copy,
+    impl_to_bytes_with_discriminant_zero_copy, impl_try_from_bytes_with_discriminant_zero_copy,
 };
 
 /// The Commit State Record
@@ -27,7 +26,7 @@ pub struct CommitRecord {
 
 impl CommitRecord {
     pub fn discriminant() -> &'static [u8; 8] {
-        COMMIT_RECORD_DISCRIMINANT
+        &[101, 0, 0, 0, 0, 0, 0, 0]
     }
     pub fn size_with_discriminant() -> usize {
         8 + size_of::<CommitRecord>()

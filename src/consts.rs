@@ -9,11 +9,9 @@ pub const FEES_VOLUME: u8 = 10;
 
 /// The seed of the authority account PDA.
 pub const DELEGATION_RECORD: &[u8] = b"delegation";
-pub const DELEGATION_RECORD_DISCRIMINANT: &[u8; 8] = &[100, 0, 0, 0, 0, 0, 0, 0];
 
 /// The account to store the delegated account seeds.
 pub const DELEGATION_METADATA: &[u8] = b"delegation-metadata";
-pub const DELEGATION_METADATA_DISCRIMINANT: &[u8; 8] = &[102, 0, 0, 0, 0, 0, 0, 0];
 
 /// The seed of the buffer account PDA.
 pub const BUFFER: &[u8] = b"buffer";
@@ -23,7 +21,6 @@ pub const COMMIT_STATE: &[u8] = b"state-diff";
 
 /// The seed of a commit state record PDA.
 pub const COMMIT_RECORD: &[u8] = b"commit-state-record";
-pub const COMMIT_RECORD_DISCRIMINANT: &[u8; 8] = &[101, 0, 0, 0, 0, 0, 0, 0];
 
 /// The account to store lamports deposited for paying fees.
 pub const FEES_VAULT: &[u8] = b"fees-vault";
@@ -33,7 +30,6 @@ pub const VALIDATOR_FEES_VAULT: &[u8] = b"v-fees-vault";
 
 /// The account to store the program config (e.g. whitelisting of validators) PDA.
 pub const PROGRAM_CONFIG: &[u8] = b"p-conf";
-pub const PROGRAM_CONFIG_DISCRIMINANT: &[u8; 8] = &[103, 0, 0, 0, 0, 0, 0, 0];
 
 /// A Pda used to escrow lamports in the ephemeral validator.
 pub const EPHEMERAL_BALANCE: &[u8] = b"balance";
