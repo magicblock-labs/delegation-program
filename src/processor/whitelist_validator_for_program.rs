@@ -4,7 +4,7 @@ use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{load_pda, load_program, load_signer};
 use crate::processor::utils::pda::{create_pda, resize_pda};
 use crate::state::ProgramConfig;
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::program_error::ProgramError;
 use solana_program::{
@@ -73,8 +73,7 @@ pub fn process_whitelist_validator_for_program(
         program_config.size_with_discriminant(),
     )?;
     let mut program_config_data = program_config_account.try_borrow_mut_data()?;
-    program_config_data[..8].copy_from_slice(ProgramConfig::discriminant());
-    program_config.serialize(&mut &mut program_config_data.as_mut()[8..])?;
+    program_config.to_bytes_with_discriminant(&mut program_config_data.as_mut())?;
 
     Ok(())
 }

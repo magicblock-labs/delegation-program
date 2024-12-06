@@ -1,4 +1,3 @@
-use borsh::BorshSerialize;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
@@ -60,12 +59,12 @@ pub fn process_allow_undelegate(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    // Load delegated account metadata
+    // Load and update delegated account metadata
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_data)?;
     delegation_metadata.is_undelegatable = true;
-    delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut()[8..])?;
+    delegation_metadata.to_bytes_with_discriminant(&mut delegation_metadata_data.as_mut())?;
 
     Ok(())
 }

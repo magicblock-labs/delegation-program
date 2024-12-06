@@ -9,7 +9,7 @@ use crate::processor::utils::loaders::{
 use crate::processor::utils::pda::create_pda;
 use crate::processor::utils::verify::verify_state;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
@@ -127,21 +127,21 @@ pub fn process_commit_state(
     }
 
     // Initialize the commit record
+    let commit_record = CommitRecord {
+        identity: *validator.key,
+        account: *delegated_account.key,
+        slot: args.slot,
+        lamports: args.lamports,
+    };
     let mut commit_record_data = commit_record_account.try_borrow_mut_data()?;
-    commit_record_data[0..8].copy_from_slice(CommitRecord::discriminant());
-    let commit_record =
-        CommitRecord::try_from_bytes_with_discriminant_mut(&mut commit_record_data)?;
-    commit_record.identity = *validator.key;
-    commit_record.account = *delegated_account.key;
-    commit_record.slot = args.slot;
-    commit_record.lamports = args.lamports;
+    commit_record.to_bytes_with_discriminant(&mut commit_record_data)?;
 
     // Update delegation metadata undelegation flag
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_data)?;
     delegation_metadata.is_undelegatable = args.allow_undelegation;
-    delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut()[8..])?;
+    delegation_metadata.to_bytes_with_discriminant(&mut delegation_metadata_data.as_mut())?;
 
     // Copy the new state to the initialized PDA
     let mut commit_state_data = commit_state_account.try_borrow_mut_data()?;
@@ -150,7 +150,7 @@ pub fn process_commit_state(
     verify_commitment(
         validator,
         delegation_record,
-        commit_record,
+        &commit_record,
         commit_state_account,
     )?;
 

@@ -1,5 +1,6 @@
 use crate::{
-    consts::DELEGATION_METADATA_DISCRIMINANT, impl_try_from_bytes_with_discriminant_borsh,
+    consts::DELEGATION_METADATA_DISCRIMINANT, impl_to_bytes_with_discriminant_borsh,
+    impl_try_from_bytes_with_discriminant_borsh,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
@@ -27,6 +28,7 @@ impl DelegationMetadata {
     }
 }
 
+impl_to_bytes_with_discriminant_borsh!(DelegationMetadata);
 impl_try_from_bytes_with_discriminant_borsh!(DelegationMetadata);
 
 #[cfg(test)]

@@ -8,7 +8,6 @@ use crate::processor::utils::loaders::{
 use crate::processor::utils::pda::close_pda;
 use crate::processor::utils::verify::verify_state;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use borsh::BorshSerialize;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
@@ -96,7 +95,7 @@ pub fn process_finalize(
 
         delegation_metadata.last_update_external_slot = commit_record.slot;
         delegation_record.lamports = delegated_account.lamports();
-        delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut()[8..])?;
+        delegation_metadata.to_bytes_with_discriminant(&mut delegation_metadata_data.as_mut())?;
 
         // Dropping references
         drop(delegated_account_data);

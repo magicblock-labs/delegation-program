@@ -1,4 +1,3 @@
-use borsh::BorshSerialize;
 use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
@@ -78,9 +77,10 @@ pub fn create_delegation_record_data(
         commit_frequency_ms: DEFAULT_COMMIT_FREQUENCY_MS,
         lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500)),
     };
-    let mut bytes = vec![];
-    bytes.extend_from_slice(DelegationRecord::discriminant());
-    bytes.extend_from_slice(bytemuck::bytes_of(&delegation_record));
+    let mut bytes = vec![0u8; DelegationRecord::size_with_discriminant()];
+    delegation_record
+        .to_bytes_with_discriminant(&mut bytes)
+        .unwrap();
     bytes
 }
 
@@ -118,8 +118,9 @@ pub fn create_delegation_metadata_data(
         rent_payer,
     };
     let mut bytes = vec![];
-    bytes.extend_from_slice(DelegationMetadata::discriminant());
-    bytes.extend_from_slice(&delegation_metadata.try_to_vec().unwrap());
+    delegation_metadata
+        .to_bytes_with_discriminant(&mut bytes)
+        .unwrap();
     bytes
 }
 
@@ -131,9 +132,10 @@ pub fn get_commit_record_account_data(authority: Pubkey) -> Vec<u8> {
         account: DELEGATED_PDA_ID,
         lamports: LAMPORTS_PER_SOL,
     };
-    let mut bytes = vec![];
-    bytes.extend_from_slice(CommitRecord::discriminant());
-    bytes.extend_from_slice(bytemuck::bytes_of(&commit_record));
+    let mut bytes = vec![0u8; CommitRecord::size_with_discriminant()];
+    commit_record
+        .to_bytes_with_discriminant(&mut bytes)
+        .unwrap();
     bytes
 }
 
@@ -146,7 +148,8 @@ pub fn create_program_config_data(approved_validator: Pubkey) -> Vec<u8> {
         .approved_validators
         .insert(approved_validator);
     let mut bytes = vec![];
-    bytes.extend_from_slice(ProgramConfig::discriminant());
-    bytes.extend_from_slice(&program_config.try_to_vec().unwrap());
+    program_config
+        .to_bytes_with_discriminant(&mut bytes)
+        .unwrap();
     bytes
 }

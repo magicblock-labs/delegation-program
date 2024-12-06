@@ -2,7 +2,10 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 use std::collections::BTreeSet;
 
-use crate::{consts::PROGRAM_CONFIG_DISCRIMINANT, impl_try_from_bytes_with_discriminant_borsh};
+use crate::{
+    consts::PROGRAM_CONFIG_DISCRIMINANT, impl_to_bytes_with_discriminant_borsh,
+    impl_try_from_bytes_with_discriminant_borsh,
+};
 
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
 pub struct ProgramConfig {
@@ -18,4 +21,5 @@ impl ProgramConfig {
     }
 }
 
+impl_to_bytes_with_discriminant_borsh!(ProgramConfig);
 impl_try_from_bytes_with_discriminant_borsh!(ProgramConfig);
