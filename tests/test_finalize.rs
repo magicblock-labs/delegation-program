@@ -33,7 +33,8 @@ async fn test_finalize() {
 
     // Commit state record data
     let commit_record = banks.get_account(commit_record_pda).await.unwrap().unwrap();
-    let commit_record = CommitRecord::try_from_bytes(&commit_record.data).unwrap();
+    let commit_record =
+        CommitRecord::try_from_bytes_with_discriminant(&commit_record.data).unwrap();
 
     // Save the new state data before finalizing
     let new_state_before_finalize = banks.get_account(commit_state_pda).await.unwrap().unwrap();

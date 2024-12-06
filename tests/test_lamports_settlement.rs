@@ -494,7 +494,8 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .await
         .unwrap()
         .unwrap();
-    let commit_record = CommitRecord::try_from_bytes(&commit_record_account.data).unwrap();
+    let commit_record =
+        CommitRecord::try_from_bytes_with_discriminant(&commit_record_account.data).unwrap();
     assert_eq!(commit_record.account, args.delegate_account);
     assert_eq!(commit_record.identity, args.authority.pubkey());
     assert_eq!(commit_record.slot, 100);

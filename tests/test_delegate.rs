@@ -70,7 +70,8 @@ async fn test_delegate() {
         .await
         .unwrap()
         .unwrap();
-    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record.data).unwrap();
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminant(&delegation_record.data).unwrap();
     assert_eq!(delegation_record.owner, DELEGATED_PDA_OWNER_ID);
 }
 

@@ -15,7 +15,6 @@ use crate::processor::utils::loaders::{
     load_owned_pda, load_pda, load_program, load_signer, load_uninitialized_pda,
 };
 use crate::processor::utils::pda::create_pda;
-use crate::state::account::{AccountDeserialize, AccountWithDiscriminator};
 use crate::state::{DelegationMetadata, DelegationRecord};
 
 /// Delegate an account
@@ -94,8 +93,9 @@ pub fn process_delegate(
 
     // Initialize the delegation record
     let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
-    delegation_record_data[0] = DelegationRecord::discriminator() as u8;
-    let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record_data)?;
+    delegation_record_data[0] = DelegationRecord::discriminant() as u8;
+    let mut delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminant_mut(&mut delegation_record_data)?;
     delegation_record.owner = *owner_program.key;
     delegation_record.authority = args.validator.unwrap_or(Pubkey::default());
     delegation_record.commit_frequency_ms = args.commit_frequency_ms as u64;

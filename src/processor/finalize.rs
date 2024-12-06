@@ -7,9 +7,8 @@ use crate::processor::utils::loaders::{
 };
 use crate::processor::utils::pda::close_pda;
 use crate::processor::utils::verify::verify_state;
-use crate::state::account_try_from_bytes::TryFromBytes;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
@@ -49,15 +48,17 @@ pub fn process_finalize(
 
     // Load delegation record
     let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
-    let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record_data)?;
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminant_mut(&mut delegation_record_data)?;
 
     // Load delegation metadata
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
-    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
+    let mut delegation_metadata =
+        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_data)?;
 
     // Load committed state
     let commit_record_data = commit_record_account.try_borrow_data()?;
-    let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
+    let commit_record = CommitRecord::try_from_bytes_with_discriminant(&commit_record_data)?;
 
     // If the commit slot is greater than the last update slot, we verify and finalize the state
     // If slot is equal or less, we simply close the commitment accounts

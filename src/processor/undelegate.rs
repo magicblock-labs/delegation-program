@@ -13,7 +13,6 @@ use crate::processor::utils::loaders::{
 };
 use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
 use crate::processor::utils::verify::verify_state;
-use crate::state::account_try_from_bytes::TryFromBytes;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::instruction::{AccountMeta, Instruction};
@@ -75,11 +74,12 @@ pub fn process_undelegate(
 
     // Load delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;
-    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record_data)?;
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminant(&delegation_record_data)?;
 
     let commit_record_data = commit_record_account.try_borrow_data()?;
     let commit_record = if is_committed {
-        let record = CommitRecord::try_from_bytes(&commit_record_data)?;
+        let record = CommitRecord::try_from_bytes_with_discriminant(&commit_record_data)?;
         Some(record)
     } else {
         None

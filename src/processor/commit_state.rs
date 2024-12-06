@@ -8,7 +8,6 @@ use crate::processor::utils::loaders::{
 };
 use crate::processor::utils::pda::create_pda;
 use crate::processor::utils::verify::verify_state;
-use crate::state::account::{AccountDeserialize, AccountWithDiscriminator};
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program::invoke;
@@ -54,14 +53,15 @@ pub fn process_commit_state(
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
-    let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
-    let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record_data)?;
+    let delegation_record_data = delegation_record_account.try_borrow_data()?;
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminant(&delegation_record_data)?;
 
     // Load the program configuration and validate it, if any
     let has_program_config = load_program_config(program_config_account, delegation_record.owner)?;
     if has_program_config {
         let program_config_data = program_config_account.try_borrow_data()?;
-        let program_config = ProgramConfig::try_from_slice(&program_config_data)?;
+        let program_config = ProgramConfig::try_from_bytes_with_discriminant(&program_config_data)?;
         msg!("Program Config: {:?}", program_config);
         validate_program_config(program_config, validator.key)?;
     }
@@ -96,7 +96,7 @@ pub fn process_commit_state(
     create_pda(
         commit_record_account,
         &crate::id(),
-        8 + size_of::<CommitRecord>(),
+        CommitRecord::size_with_discriminant(),
         &[
             COMMIT_RECORD,
             &delegated_account.key.to_bytes(),
@@ -128,8 +128,9 @@ pub fn process_commit_state(
 
     // Initialize the commit record
     let mut commit_record_data = commit_record_account.try_borrow_mut_data()?;
-    commit_record_data[0] = CommitRecord::discriminator() as u8;
-    let commit_record = CommitRecord::try_from_bytes_mut(&mut commit_record_data)?;
+    commit_record_data[0] = CommitRecord::discriminant() as u8;
+    let commit_record =
+        CommitRecord::try_from_bytes_with_discriminant_mut(&mut commit_record_data)?;
     commit_record.identity = *validator.key;
     commit_record.account = *delegated_account.key;
     commit_record.slot = args.slot;
@@ -137,7 +138,8 @@ pub fn process_commit_state(
 
     // Update delegation metadata undelegation flag
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
-    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
+    let mut delegation_metadata =
+        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_data)?;
     delegation_metadata.is_undelegatable = args.allow_undelegation;
     delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
 

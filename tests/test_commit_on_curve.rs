@@ -61,7 +61,8 @@ async fn test_commit_on_curve() {
     // Assert the record about the commitment exists
     let commit_record_pda = commit_record_pda_from_pubkey(&payer_delegated.pubkey());
     let commit_record_account = banks.get_account(commit_record_pda).await.unwrap().unwrap();
-    let commit_record = CommitRecord::try_from_bytes(&commit_record_account.data).unwrap();
+    let commit_record =
+        CommitRecord::try_from_bytes_with_discriminant(&commit_record_account.data).unwrap();
     assert_eq!(commit_record.account, payer_delegated.pubkey());
     assert_eq!(commit_record.identity, validator.pubkey());
     assert_eq!(commit_record.slot, 100);

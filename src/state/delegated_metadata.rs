@@ -34,7 +34,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_serialization() {
+    fn test_serialization_without_discriminant() {
         let original = DelegationMetadata {
             seeds: vec![
                 vec![],

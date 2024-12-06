@@ -15,7 +15,7 @@ pub fn process_delegate_ephemeral_balance(
     data: &[u8],
 ) -> ProgramResult {
     let mut args = DelegateEphemeralBalanceArgs::try_from_slice(data)?;
-    let [payer, pubkey, delegate_account, buffer, delegation_record, delegation_metadata, system_program, delegation_program] =
+    let [payer, pubkey, ephemeral_balance_account, buffer, delegation_record, delegation_metadata, system_program, delegation_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -26,32 +26,33 @@ pub fn process_delegate_ephemeral_balance(
     load_program(system_program, system_program::id())?;
     load_program(delegation_program, crate::id())?;
 
-    // Check seeds and derive bump
-    let seeds = &[EPHEMERAL_BALANCE, &pubkey.key.to_bytes(), &[args.index]];
-    let (address, bump) = Pubkey::find_program_address(seeds, &crate::id());
-    if !address.eq(delegate_account.key) {
+    // Check seeds and derive bump of ephemeral balance
+    let ephemeral_balance_seeds = &[EPHEMERAL_BALANCE, &pubkey.key.to_bytes(), &[args.index]];
+    let (ephemeral_balance_address, ephemeral_balance_bump) =
+        Pubkey::find_program_address(ephemeral_balance_seeds, &crate::id());
+    if !ephemeral_balance_address.eq(ephemeral_balance_account.key) {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // Set the delegation seeds
-    args.delegate_args.seeds = seeds.iter().map(|s| s.to_vec()).collect();
+    args.delegate_args.seeds = ephemeral_balance_seeds.iter().map(|s| s.to_vec()).collect();
 
     // Assign as owner the delegation program
     invoke_signed(
-        &system_instruction::assign(delegate_account.key, &crate::id()),
-        &[delegate_account.clone(), system_program.clone()],
+        &system_instruction::assign(ephemeral_balance_account.key, &crate::id()),
+        &[ephemeral_balance_account.clone(), system_program.clone()],
         &[&[
             EPHEMERAL_BALANCE,
             &pubkey.key.to_bytes(),
             &[args.index],
-            &[bump],
+            &[ephemeral_balance_bump],
         ]],
     )?;
 
     // Create the delegation ix
     let ix = crate::instruction_builder::delegate(
         *payer.key,
-        *delegate_account.key,
+        *ephemeral_balance_account.key,
         Some(crate::id()),
         args.delegate_args,
     );
@@ -62,7 +63,7 @@ pub fn process_delegate_ephemeral_balance(
         &[
             delegation_program.clone(),
             payer.clone(),
-            delegate_account.clone(),
+            ephemeral_balance_account.clone(),
             buffer.clone(),
             delegation_record.clone(),
             delegation_metadata.clone(),
@@ -72,7 +73,7 @@ pub fn process_delegate_ephemeral_balance(
             EPHEMERAL_BALANCE,
             &pubkey.key.to_bytes(),
             &[args.index],
-            &[bump],
+            &[ephemeral_balance_bump],
         ]],
     )?;
 

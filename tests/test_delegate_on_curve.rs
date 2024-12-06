@@ -99,7 +99,8 @@ async fn test_delegate_on_curve() {
         .await
         .unwrap()
         .unwrap();
-    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record.data).unwrap();
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminant(&delegation_record.data).unwrap();
     assert_eq!(delegation_record.owner, system_program::id());
     assert_eq!(delegation_record.authority, alt_payer.pubkey());
 
