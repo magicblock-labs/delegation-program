@@ -177,7 +177,7 @@ describe("TestDelegation", () => {
       delegationRecord,
       delegationMetadata,
       bufferPda,
-      commitStateRecordPda,
+      commitRecordPda,
       commitStatePda,
     } = DelegateAccounts(pda, testDelegation.programId);
 
@@ -198,7 +198,7 @@ describe("TestDelegation", () => {
         delegatedAccount: pda,
         delegatedAccountOwner: testDelegation.programId,
         commitStatePda: commitStatePda,
-        commitStateRecordPda: commitStateRecordPda,
+        commitRecordPda: commitRecordPda,
         delegationRecordPda: delegationRecord,
         delegationMetadataPda: delegationMetadata,
       },
@@ -223,7 +223,7 @@ describe("TestDelegation", () => {
       delegationRecord,
       delegationMetadata,
       bufferPda,
-      commitStateRecordPda: commitRecordPda,
+      commitRecordPda: commitRecordPda,
       commitStatePda,
     } = DelegateAccounts(pda, testDelegation.programId);
 
@@ -249,7 +249,7 @@ describe("TestDelegation", () => {
       delegationRecord,
       delegationMetadata,
       bufferPda,
-      commitStateRecordPda,
+      commitRecordPda,
       commitStatePda,
     } = DelegateAccounts(pda, testDelegation.programId);
 
@@ -270,7 +270,7 @@ describe("TestDelegation", () => {
         delegatedAccount: pda,
         delegatedAccountOwner: testDelegation.programId,
         commitStatePda: commitStatePda,
-        commitStateRecordPda: commitStateRecordPda,
+        commitRecordPda: commitRecordPda,
         delegationRecordPda: delegationRecord,
         delegationMetadataPda: delegationMetadata,
       },
@@ -357,7 +357,7 @@ describe("TestDelegation", () => {
     delegatedAccount: web3.PublicKey;
     delegatedAccountOwner: web3.PublicKey;
     commitStatePda: web3.PublicKey;
-    commitStateRecordPda: web3.PublicKey;
+    commitRecordPda: web3.PublicKey;
     delegationRecordPda: web3.PublicKey;
     delegationMetadataPda: web3.PublicKey;
   }
@@ -406,7 +406,7 @@ describe("TestDelegation", () => {
       { pubkey: accounts.delegatedAccount, isSigner: false, isWritable: false },
       { pubkey: accounts.commitStatePda, isSigner: false, isWritable: true },
       {
-        pubkey: accounts.commitStateRecordPda,
+        pubkey: accounts.commitRecordPda,
         isSigner: false,
         isWritable: true,
       },

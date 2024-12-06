@@ -52,8 +52,8 @@ async fn test_finalize() {
     assert!(res.is_ok());
 
     // Assert the state_diff was closed
-    let committed_state_account = banks.get_account(commit_state_pda).await.unwrap();
-    assert!(committed_state_account.is_none());
+    let commit_state_account = banks.get_account(commit_state_pda).await.unwrap();
+    assert!(commit_state_account.is_none());
 
     // Assert the delegation_record was not closed
     let delegation_record = banks.get_account(delegation_record).await.unwrap();
