@@ -4,13 +4,6 @@ use solana_program::pubkey::Pubkey;
 use crate::state::utils::account::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{impl_account_from_bytes, impl_to_bytes};
 
-#[repr(C)]
-#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
-pub struct CommitRecordWithDiscriminator {
-    pub discriminant: u64,
-    pub value: CommitRecord,
-}
-
 /// The Commit State Record
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]

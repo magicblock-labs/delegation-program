@@ -97,12 +97,12 @@ pub fn process_delegate(
     // Initialize the delegation record
     let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
     delegation_record_data[0] = DelegationRecord::discriminator() as u8;
-    let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_record_data)?;
-    delegation.owner = *owner_program.key;
-    delegation.authority = args.validator.unwrap_or(Pubkey::default());
-    delegation.commit_frequency_ms = args.commit_frequency_ms as u64;
-    delegation.delegation_slot = solana_program::clock::Clock::get()?.slot;
-    delegation.lamports = delegate_account.lamports();
+    let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record_data)?;
+    delegation_record.owner = *owner_program.key;
+    delegation_record.authority = args.validator.unwrap_or(Pubkey::default());
+    delegation_record.commit_frequency_ms = args.commit_frequency_ms as u64;
+    delegation_record.delegation_slot = solana_program::clock::Clock::get()?.slot;
+    delegation_record.lamports = delegate_account.lamports();
 
     // Initialize the account seeds PDA
     let delegation_metadata_struct = DelegationMetadata {

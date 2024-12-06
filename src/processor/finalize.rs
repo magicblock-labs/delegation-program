@@ -77,7 +77,7 @@ pub fn process_finalize(
             return Err(DlpError::InvalidReimbursementAccount.into());
         }
 
-        let new_data = commit_state_account.try_borrow_data()?;
+        let commit_state_data = commit_state_account.try_borrow_data()?;
 
         // Balance lamports
         let lamports_difference = delegation_record.lamports as i64 - commit_record.lamports as i64;
@@ -89,9 +89,9 @@ pub fn process_finalize(
         )?;
 
         // Copying the new state to the delegated account
-        delegated_account.realloc(new_data.len(), false)?;
+        delegated_account.realloc(commit_state_data.len(), false)?;
         let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
-        (*delegated_account_data).copy_from_slice(&new_data);
+        (*delegated_account_data).copy_from_slice(&commit_state_data);
 
         delegation_metadata.last_update_external_slot = commit_record.slot;
         delegation_record.lamports = delegated_account.lamports();
@@ -100,7 +100,7 @@ pub fn process_finalize(
         // Dropping references
         drop(delegated_account_data);
         drop(commit_record_data);
-        drop(new_data);
+        drop(commit_state_data);
     }
 
     // Closing accounts
