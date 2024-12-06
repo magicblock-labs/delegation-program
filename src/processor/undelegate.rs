@@ -94,7 +94,7 @@ pub fn process_undelegate(
         return Err(Undelegatable.into());
     }
 
-    // Check if the delegated account is undelegatable
+    // Check if the rent payer is correct
     if !delegation_metadata
         .rent_payer
         .eq(delegation_rent_reimbursement.key)

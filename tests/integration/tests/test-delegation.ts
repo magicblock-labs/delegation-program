@@ -177,7 +177,7 @@ describe("TestDelegation", () => {
       delegationRecord,
       delegationMetadata,
       bufferPda,
-      commitRecordPda,
+      commitStateRecordPda,
       commitStatePda,
     } = DelegateAccounts(pda, testDelegation.programId);
 
@@ -198,7 +198,7 @@ describe("TestDelegation", () => {
         delegatedAccount: pda,
         delegatedAccountOwner: testDelegation.programId,
         commitStatePda: commitStatePda,
-        commitRecordPda: commitRecordPda,
+        commitStateRecordPda: commitStateRecordPda,
         delegationRecordPda: delegationRecord,
         delegationMetadataPda: delegationMetadata,
       },
@@ -223,7 +223,7 @@ describe("TestDelegation", () => {
       delegationRecord,
       delegationMetadata,
       bufferPda,
-      commitRecordPda: commitRecordPda,
+      commitStateRecordPda,
       commitStatePda,
     } = DelegateAccounts(pda, testDelegation.programId);
 
@@ -233,8 +233,8 @@ describe("TestDelegation", () => {
       .accounts({
         validator: provider.wallet.publicKey,
         delegatedAccount: pda,
-        commitStateAccount: commitStatePda,
-        commitRecordAccount: commitRecordPda,
+        committedStateAccount: commitStatePda,
+        committedStateRecord: commitStateRecordPda,
         delegationRecord: delegationRecord,
         delegationMetadata: delegationMetadata,
         validatorFeesVault: validatorFeeVaultPda,
@@ -249,7 +249,7 @@ describe("TestDelegation", () => {
       delegationRecord,
       delegationMetadata,
       bufferPda,
-      commitRecordPda,
+      commitStateRecordPda,
       commitStatePda,
     } = DelegateAccounts(pda, testDelegation.programId);
 
@@ -270,7 +270,7 @@ describe("TestDelegation", () => {
         delegatedAccount: pda,
         delegatedAccountOwner: testDelegation.programId,
         commitStatePda: commitStatePda,
-        commitRecordPda: commitRecordPda,
+        commitStateRecordPda: commitStateRecordPda,
         delegationRecordPda: delegationRecord,
         delegationMetadataPda: delegationMetadata,
       },
@@ -357,7 +357,7 @@ describe("TestDelegation", () => {
     delegatedAccount: web3.PublicKey;
     delegatedAccountOwner: web3.PublicKey;
     commitStatePda: web3.PublicKey;
-    commitRecordPda: web3.PublicKey;
+    commitStateRecordPda: web3.PublicKey;
     delegationRecordPda: web3.PublicKey;
     delegationMetadataPda: web3.PublicKey;
   }
@@ -406,7 +406,7 @@ describe("TestDelegation", () => {
       { pubkey: accounts.delegatedAccount, isSigner: false, isWritable: false },
       { pubkey: accounts.commitStatePda, isSigner: false, isWritable: true },
       {
-        pubkey: accounts.commitRecordPda,
+        pubkey: accounts.commitStateRecordPda,
         isSigner: false,
         isWritable: true,
       },

@@ -95,7 +95,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup the committed state PDA
+    // Setup the commit state PDA
     program_test.add_account(
         commit_state_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
