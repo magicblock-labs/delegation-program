@@ -12,7 +12,6 @@ use crate::fixtures::ON_CURVE_KEYPAIR;
 use dlp::args::DelegateArgs;
 use dlp::consts::BUFFER;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
-use dlp::state::account_try_from_bytes::TryFromBytes;
 use dlp::state::{DelegationMetadata, DelegationRecord};
 
 mod fixtures;

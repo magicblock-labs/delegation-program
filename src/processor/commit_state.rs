@@ -128,7 +128,7 @@ pub fn process_commit_state(
 
     // Initialize the commit record
     let mut commit_record_data = commit_record_account.try_borrow_mut_data()?;
-    commit_record_data[0] = CommitRecord::discriminant() as u8;
+    commit_record_data[0..8].copy_from_slice(CommitRecord::discriminant());
     let commit_record =
         CommitRecord::try_from_bytes_with_discriminant_mut(&mut commit_record_data)?;
     commit_record.identity = *validator.key;

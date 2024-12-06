@@ -10,7 +10,6 @@ use solana_sdk::{
 
 use dlp::consts::BUFFER;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
-use dlp::state::account_try_from_bytes::TryFromBytes;
 use dlp::state::DelegationRecord;
 
 use crate::fixtures::{

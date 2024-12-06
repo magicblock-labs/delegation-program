@@ -11,7 +11,6 @@ use dlp::pda::{
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
-use dlp::state::account_try_from_bytes::TryFromBytes;
 use dlp::state::{CommitRecord, DelegationMetadata};
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;

@@ -1,5 +1,4 @@
 use borsh::BorshSerialize;
-use dlp::state::account::AccountWithDiscriminator;
 use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
@@ -79,11 +78,10 @@ pub fn create_delegation_record_data(
         commit_frequency_ms: DEFAULT_COMMIT_FREQUENCY_MS,
         lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500)),
     };
-    [
-        &DelegationRecord::discriminator().to_bytes(),
-        DelegationRecord::to_bytes(&delegation_record),
-    ]
-    .concat()
+    let mut bytes = vec![];
+    bytes.extend_from_slice(DelegationRecord::discriminant());
+    bytes.extend_from_slice(bytemuck::bytes_of(&delegation_record));
+    bytes
 }
 
 #[allow(dead_code)]
@@ -119,7 +117,10 @@ pub fn create_delegation_metadata_data(
         seeds: seeds.clone(),
         rent_payer,
     };
-    delegation_metadata.try_to_vec().unwrap()
+    let mut bytes = vec![];
+    bytes.extend_from_slice(DelegationMetadata::discriminant());
+    bytes.extend_from_slice(&delegation_metadata.try_to_vec().unwrap());
+    bytes
 }
 
 #[allow(dead_code)]
@@ -130,9 +131,8 @@ pub fn get_commit_record_account_data(authority: Pubkey) -> Vec<u8> {
         account: DELEGATED_PDA_ID,
         lamports: LAMPORTS_PER_SOL,
     };
-    [
-        &CommitRecord::discriminator().to_bytes(),
-        CommitRecord::to_bytes(&commit_record),
-    ]
-    .concat()
+    let mut bytes = vec![];
+    bytes.extend_from_slice(CommitRecord::discriminant());
+    bytes.extend_from_slice(bytemuck::bytes_of(&commit_record));
+    bytes
 }

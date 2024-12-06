@@ -1,9 +1,7 @@
 use std::mem::size_of;
 
 use crate::consts::DELEGATION_RECORD_DISCRIMINANT;
-use crate::{
-    impl_to_bytes_without_discriminant_zero_copy, impl_try_from_bytes_with_discriminant_zero_copy,
-};
+use crate::impl_try_from_bytes_with_discriminant_zero_copy;
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
@@ -37,5 +35,4 @@ impl DelegationRecord {
     }
 }
 
-impl_to_bytes_without_discriminant_zero_copy!(DelegationRecord);
 impl_try_from_bytes_with_discriminant_zero_copy!(DelegationRecord);
