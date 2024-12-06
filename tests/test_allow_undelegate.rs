@@ -70,12 +70,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
-    let data = get_delegation_record_data(payer_alt.pubkey(), None);
+    let delegation_record_data = get_delegation_record_data(payer_alt.pubkey(), None);
     program_test.add_account(
         delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data,
+            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -83,12 +83,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let data = get_delegation_metadata_data(payer_alt.pubkey(), None);
+    let delegation_metadata_data = get_delegation_metadata_data(payer_alt.pubkey(), None);
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data,
+            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -108,12 +108,12 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the commit state record PDA
-    let data = get_commit_record_account_data(payer_alt.pubkey());
+    let commit_record_data = get_commit_record_account_data(payer_alt.pubkey());
     program_test.add_account(
         commit_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data,
+            lamports: Rent::default().minimum_balance(commit_record_data.len()),
+            data: commit_record_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
