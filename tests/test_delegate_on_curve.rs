@@ -1,4 +1,3 @@
-use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -111,7 +110,7 @@ async fn test_delegate_on_curve() {
         .unwrap();
     assert!(delegation_metadata.owner.eq(&dlp::id()));
     let delegation_metadata =
-        DelegationMetadata::try_from_slice(&delegation_metadata.data).unwrap();
+        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata.data).unwrap();
     assert_eq!(delegation_metadata.is_undelegatable, false);
 }
 

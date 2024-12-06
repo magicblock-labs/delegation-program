@@ -73,7 +73,8 @@ pub fn process_whitelist_validator_for_program(
         program_config.size_with_discriminant(),
     )?;
     let mut program_config_data = program_config_account.try_borrow_mut_data()?;
-    program_config.serialize(&mut &mut program_config_data.as_mut())?;
+    program_config_data[..8].copy_from_slice(ProgramConfig::discriminant());
+    program_config.serialize(&mut &mut program_config_data.as_mut()[8..])?;
 
     Ok(())
 }

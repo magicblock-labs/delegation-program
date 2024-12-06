@@ -1,4 +1,3 @@
-use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
 use dlp::pda::{
     commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
@@ -73,7 +72,8 @@ async fn test_commit_on_curve() {
         .unwrap()
         .unwrap();
     let delegation_metadata =
-        DelegationMetadata::try_from_slice(&delegation_metadata_account.data).unwrap();
+        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_account.data)
+            .unwrap();
     assert_eq!(delegation_metadata.is_undelegatable, true);
 }
 

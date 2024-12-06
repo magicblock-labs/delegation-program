@@ -116,7 +116,7 @@ pub fn process_delegate(
     create_pda(
         delegation_metadata_account,
         &crate::id(),
-        delegation_metadata_serialized.len(),
+        8 + delegation_metadata_serialized.len(),
         &[
             DELEGATION_METADATA,
             &delegate_account.key.to_bytes(),
@@ -128,7 +128,8 @@ pub fn process_delegate(
 
     // Copy the seeds to the delegated metadata PDA
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
-    (*delegation_metadata_data).copy_from_slice(delegation_metadata_serialized.as_slice());
+    delegation_metadata_data[..8].copy_from_slice(DelegationMetadata::discriminant());
+    delegation_metadata_data[8..].copy_from_slice(delegation_metadata_serialized.as_slice());
 
     // Copy the data from the buffer into the original account
     if !buffer_account.data_is_empty() {

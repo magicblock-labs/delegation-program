@@ -96,7 +96,7 @@ pub fn process_finalize(
 
         delegation_metadata.last_update_external_slot = commit_record.slot;
         delegation_record.lamports = delegated_account.lamports();
-        delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
+        delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut()[8..])?;
 
         // Dropping references
         drop(delegated_account_data);

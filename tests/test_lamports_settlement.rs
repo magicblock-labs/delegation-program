@@ -3,7 +3,6 @@ use crate::fixtures::{
     get_delegation_metadata_data_on_curve, COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID,
     DELEGATED_PDA_OWNER_ID, ON_CURVE_KEYPAIR, TEST_AUTHORITY,
 };
-use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
 use dlp::consts::FEES_VAULT;
 use dlp::pda::{
@@ -507,7 +506,8 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap()
         .unwrap();
     let delegation_metadata =
-        DelegationMetadata::try_from_slice(&delegation_metadata_account.data).unwrap();
+        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_account.data)
+            .unwrap();
     assert_eq!(delegation_metadata.is_undelegatable, true);
 }
 
