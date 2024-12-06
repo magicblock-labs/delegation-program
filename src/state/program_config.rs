@@ -1,4 +1,4 @@
-use crate::state::utils::account::{AccountDiscriminator, Discriminator};
+use crate::state::utils::account::{AccountDiscriminator, AccountWithDiscriminator};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 use std::collections::BTreeSet;
@@ -8,7 +8,7 @@ pub struct ProgramConfig {
     pub approved_validators: BTreeSet<Pubkey>,
 }
 
-impl Discriminator for ProgramConfig {
+impl AccountWithDiscriminator for ProgramConfig {
     fn discriminator() -> AccountDiscriminator {
         AccountDiscriminator::ProgramConfig
     }

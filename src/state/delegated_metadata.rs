@@ -1,4 +1,4 @@
-use crate::state::utils::account::{AccountDiscriminator, Discriminator};
+use crate::state::utils::account::{AccountDiscriminator, AccountWithDiscriminator};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
@@ -19,7 +19,7 @@ pub struct DelegationMetadata {
     pub rent_payer: Pubkey,
 }
 
-impl Discriminator for DelegationMetadata {
+impl AccountWithDiscriminator for DelegationMetadata {
     fn discriminator() -> AccountDiscriminator {
         AccountDiscriminator::DelegatedMetadata
     }

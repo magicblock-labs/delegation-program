@@ -18,7 +18,7 @@ impl AccountDiscriminator {
     }
 }
 
-pub trait Discriminator {
+pub trait AccountWithDiscriminator {
     fn discriminator() -> AccountDiscriminator;
 }
 

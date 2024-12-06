@@ -8,8 +8,8 @@ use crate::state::{CommitRecord, DelegationRecord};
 pub fn verify_state(
     _authority: &AccountInfo,
     _delegation_record: &DelegationRecord,
-    _committed_record: &CommitRecord,
-    _committed_state: &AccountInfo,
+    _commit_record: &CommitRecord,
+    _commit_state_account: &AccountInfo,
 ) -> ProgramResult {
     // TODO: Temporary relying on the assumption than the validator fees vault exists (as it was created by the admin)
     Ok(())

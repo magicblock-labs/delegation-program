@@ -18,7 +18,7 @@ pub fn delegate(
     let owner = owner.unwrap_or(system_program::id());
     let buffer = Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner);
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
-    let delegate_account_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
+    let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
     let mut data = DlpDiscriminant::Delegate.to_vec();
     data.extend_from_slice(&args.try_to_vec().unwrap());
 
@@ -30,7 +30,7 @@ pub fn delegate(
             AccountMeta::new_readonly(owner, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),
-            AccountMeta::new(delegate_account_metadata, false),
+            AccountMeta::new(delegation_metadata, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data,

@@ -16,7 +16,7 @@ pub fn delegate_from_wrapper_program(
     let buffer =
         Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner_program);
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
-    let delegate_account_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
+    let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
 
     Instruction {
         program_id: owner_program,
@@ -24,7 +24,7 @@ pub fn delegate_from_wrapper_program(
             AccountMeta::new(payer, true),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),
-            AccountMeta::new(delegate_account_metadata, false),
+            AccountMeta::new(delegation_metadata, false),
             AccountMeta::new(delegate_account, false),
             AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new_readonly(delegation_program, false),

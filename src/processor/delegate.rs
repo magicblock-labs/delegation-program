@@ -17,7 +17,7 @@ use crate::processor::utils::loaders::{
     load_owned_pda, load_pda, load_program, load_signer, load_uninitialized_pda,
 };
 use crate::processor::utils::pda::create_pda;
-use crate::state::account::{AccountDeserialize, Discriminator};
+use crate::state::account::{AccountDeserialize, AccountWithDiscriminator};
 use crate::state::{DelegationMetadata, DelegationRecord};
 
 /// Delegate an account
@@ -33,7 +33,7 @@ pub fn process_delegate(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegate_account, owner_program, buffer, delegation_record, delegation_metadata, system_program] =
+    let [payer, delegate_account, owner_program, buffer_account, delegation_record_account, delegation_metadata_account, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -56,7 +56,7 @@ pub fn process_delegate(
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
     load_pda(
-        buffer,
+        buffer_account,
         &[BUFFER, &delegate_account.key.to_bytes()],
         owner_program.key,
         true,
@@ -64,14 +64,14 @@ pub fn process_delegate(
 
     // Check that the delegation record PDA is uninitialized
     let delegation_record_bump = load_uninitialized_pda(
-        delegation_record,
+        delegation_record_account,
         &[DELEGATION_RECORD, &delegate_account.key.to_bytes()],
         &crate::id(),
     )?;
 
     // Check that the delegation metadata PDA is uninitialized
     let delegation_metadata_bump = load_uninitialized_pda(
-        delegation_metadata,
+        delegation_metadata_account,
         &[DELEGATION_METADATA, &delegate_account.key.to_bytes()],
         &crate::id(),
     )?;
@@ -82,7 +82,7 @@ pub fn process_delegate(
 
     // Initialize the delegation record PDA
     create_pda(
-        delegation_record,
+        delegation_record_account,
         &crate::id(),
         8 + size_of::<DelegationRecord>(),
         &[
@@ -95,14 +95,14 @@ pub fn process_delegate(
     )?;
 
     // Initialize the delegation record
-    let mut delegation_data = delegation_record.try_borrow_mut_data()?;
-    delegation_data[0] = DelegationRecord::discriminator() as u8;
-    let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
-    delegation.owner = *owner_program.key;
-    delegation.authority = args.validator.unwrap_or(Pubkey::default());
-    delegation.commit_frequency_ms = args.commit_frequency_ms as u64;
-    delegation.delegation_slot = solana_program::clock::Clock::get()?.slot;
-    delegation.lamports = delegate_account.lamports();
+    let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
+    delegation_record_data[0] = DelegationRecord::discriminator() as u8;
+    let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record_data)?;
+    delegation_record.owner = *owner_program.key;
+    delegation_record.authority = args.validator.unwrap_or(Pubkey::default());
+    delegation_record.commit_frequency_ms = args.commit_frequency_ms as u64;
+    delegation_record.delegation_slot = solana_program::clock::Clock::get()?.slot;
+    delegation_record.lamports = delegate_account.lamports();
 
     // Initialize the account seeds PDA
     let delegation_metadata_struct = DelegationMetadata {
@@ -112,12 +112,13 @@ pub fn process_delegate(
         is_undelegatable: false,
         rent_payer: *payer.key,
     };
+    let delegation_metadata_serialized = delegation_metadata_struct.try_to_vec()?;
 
-    let serialized_metadata_struct = delegation_metadata_struct.try_to_vec()?;
+    // Initialize the delegation metadata PDA
     create_pda(
-        delegation_metadata,
+        delegation_metadata_account,
         &crate::id(),
-        serialized_metadata_struct.len(),
+        delegation_metadata_serialized.len(),
         &[
             DELEGATION_METADATA,
             &delegate_account.key.to_bytes(),
@@ -127,15 +128,15 @@ pub fn process_delegate(
         payer,
     )?;
 
-    // Copy the seeds to the delegated account seeds PDA
-    let mut seeds_data = delegation_metadata.try_borrow_mut_data()?;
-    (*seeds_data).copy_from_slice(serialized_metadata_struct.as_slice());
+    // Copy the seeds to the delegated metadata PDA
+    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
+    (*delegation_metadata_data).copy_from_slice(delegation_metadata_serialized.as_slice());
 
     // Copy the data from the buffer into the original account
-    if !buffer.data_is_empty() {
-        let mut account_data = delegate_account.try_borrow_mut_data()?;
-        let new_data = buffer.try_borrow_data()?;
-        (*account_data).copy_from_slice(&new_data);
+    if !buffer_account.data_is_empty() {
+        let mut delegate_data = delegate_account.try_borrow_mut_data()?;
+        let buffer_data = buffer_account.try_borrow_data()?;
+        (*delegate_data).copy_from_slice(&buffer_data);
     }
 
     Ok(())

@@ -21,7 +21,7 @@ pub fn delegate_ephemeral_balance(
     let buffer =
         Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &crate::id());
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
-    let delegate_accounts_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
+    let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
     let mut data = DlpDiscriminant::DelegateEphemeralBalance.to_vec();
     data.extend_from_slice(&args.try_to_vec().unwrap());
 
@@ -33,7 +33,7 @@ pub fn delegate_ephemeral_balance(
             AccountMeta::new(delegate_account, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record, false),
-            AccountMeta::new(delegate_accounts_metadata, false),
+            AccountMeta::new(delegation_metadata, false),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(crate::id(), false),
         ],

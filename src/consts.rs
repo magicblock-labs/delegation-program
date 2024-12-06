@@ -16,7 +16,7 @@ pub const DELEGATION_METADATA: &[u8] = b"delegation-metadata";
 /// The seed of the buffer account PDA.
 pub const BUFFER: &[u8] = b"buffer";
 
-/// The seed of the committed state PDA.
+/// The seed of the commit state PDA.
 pub const COMMIT_STATE: &[u8] = b"state-diff";
 
 /// The seed of a commit state record PDA.
