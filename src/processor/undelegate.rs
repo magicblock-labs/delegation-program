@@ -14,7 +14,7 @@ use crate::processor::utils::loaders::{
 use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
 use crate::processor::utils::verify::verify_state;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
@@ -86,8 +86,9 @@ pub fn process_undelegate(
     };
 
     // Load delegated account metadata
+    let delegation_metadata_data = delegation_metadata_account.try_borrow_data()?;
     let delegation_metadata =
-        DelegationMetadata::deserialize(&mut &**delegation_metadata_account.data.borrow())?;
+        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_data)?;
 
     // Check if the delegated account is undelegatable
     if !is_account_undelegatable(&delegation_metadata)? {
@@ -149,6 +150,7 @@ pub fn process_undelegate(
     // Dropping References
     drop(commit_record_data);
     drop(delegation_record_data);
+    drop(delegation_metadata_data);
 
     if is_on_curve(delegated_account.key) || buffer.try_borrow_data()?.is_empty() {
         settle_lamports_balance(

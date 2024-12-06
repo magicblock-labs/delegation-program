@@ -55,7 +55,7 @@ pub fn process_whitelist_validator_for_program(
         ProgramConfig::default()
     } else {
         let program_config_data = program_config_account.try_borrow_data()?;
-        ProgramConfig::try_from_slice(&program_config_data)?
+        ProgramConfig::try_from_bytes_with_discriminant(&program_config_data)?
     };
     if args.insert {
         program_config

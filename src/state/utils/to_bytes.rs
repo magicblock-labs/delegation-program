@@ -22,9 +22,7 @@ macro_rules! impl_to_bytes_with_discriminant_borsh {
                 &self,
                 data: &mut W,
             ) -> Result<(), solana_program::program_error::ProgramError> {
-                eprintln!("hello1: {:?}", Self::discriminant());
                 data.write_all(Self::discriminant())?;
-                eprintln!("hello2: {:?}", Self::discriminant());
                 self.serialize(data)?;
                 Ok(())
             }
