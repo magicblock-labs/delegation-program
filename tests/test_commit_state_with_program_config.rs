@@ -24,7 +24,7 @@ mod fixtures;
 
 #[tokio::test]
 async fn test_commit_new_state_valid_config() {
-    //test_commit_new_state(true).await
+    test_commit_new_state(true).await
 }
 
 #[tokio::test]
@@ -172,7 +172,9 @@ async fn setup_program_test_env(valid_config: bool) -> (BanksClient, Keypair, Ke
     } else {
         Keypair::new().pubkey()
     });
-    let program_config_data = program_config.try_to_vec().unwrap();
+    let mut program_config_data = vec![];
+    program_config_data.extend_from_slice(ProgramConfig::discriminant());
+    program_config_data.extend_from_slice(&program_config.try_to_vec().unwrap());
     program_test.add_account(
         program_config_pda_from_pubkey(&DELEGATED_PDA_OWNER_ID),
         Account {
