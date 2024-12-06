@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord};
+use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
@@ -134,5 +134,19 @@ pub fn get_commit_record_account_data(authority: Pubkey) -> Vec<u8> {
     let mut bytes = vec![];
     bytes.extend_from_slice(CommitRecord::discriminant());
     bytes.extend_from_slice(bytemuck::bytes_of(&commit_record));
+    bytes
+}
+
+#[allow(dead_code)]
+pub fn create_program_config_data(approved_validator: Pubkey) -> Vec<u8> {
+    let mut program_config = ProgramConfig {
+        approved_validators: Default::default(),
+    };
+    program_config
+        .approved_validators
+        .insert(approved_validator);
+    let mut bytes = vec![];
+    bytes.extend_from_slice(ProgramConfig::discriminant());
+    bytes.extend_from_slice(&program_config.try_to_vec().unwrap());
     bytes
 }
