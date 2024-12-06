@@ -61,7 +61,7 @@ async fn test_commit_new_state(valid_config: bool) {
     let res = banks.process_transaction(tx).await;
     println!("{:?}", res);
     if !valid_config {
-        assert!(!res.is_ok())
+        assert!(res.is_err())
     } else {
         assert!(res.is_ok());
 
@@ -92,7 +92,7 @@ async fn test_commit_new_state(valid_config: bool) {
         let delegation_metadata =
             DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_account.data)
                 .unwrap();
-        assert_eq!(delegation_metadata.is_undelegatable, true);
+        assert!(delegation_metadata.is_undelegatable);
     }
 }
 

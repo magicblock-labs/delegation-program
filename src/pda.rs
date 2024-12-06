@@ -116,7 +116,7 @@ mod tests {
     use super::*;
 
     // -----------------
-    // Delegation Record PDA
+    // Delegation Seeds
     // -----------------
     #[test]
     fn test_delegation_record_seeds() {
@@ -149,7 +149,7 @@ mod tests {
     }
 
     // -----------------
-    // Commit state PDA
+    // State Diff Seeds
     // -----------------
     #[test]
     fn test_commit_state_seeds() {
@@ -182,7 +182,7 @@ mod tests {
     }
 
     // -----------------
-    // Commit Record PDA
+    // Commit Record Seeds
     // -----------------
     #[test]
     fn test_commit_record_seeds() {
@@ -215,7 +215,7 @@ mod tests {
     }
 
     // -----------------
-    // Delegation Record PDA
+    // Delegation PDA
     // -----------------
     #[test]
     fn test_delegation_record_pda() {

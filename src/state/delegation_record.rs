@@ -28,7 +28,7 @@ pub struct DelegationRecord {
 
 impl DelegationRecord {
     pub fn discriminant() -> &'static [u8; 8] {
-        return DELEGATION_RECORD_DISCRIMINANT;
+        DELEGATION_RECORD_DISCRIMINANT
     }
     pub fn size_with_discriminant() -> usize {
         8 + size_of::<DelegationRecord>()

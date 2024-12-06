@@ -11,10 +11,10 @@ pub struct ProgramConfig {
 
 impl ProgramConfig {
     pub fn discriminant() -> &'static [u8; 8] {
-        return PROGRAM_CONFIG_DISCRIMINANT;
+        PROGRAM_CONFIG_DISCRIMINANT
     }
     pub fn size_with_discriminant(&self) -> usize {
-        return 8 + 4 + 32 * self.approved_validators.len();
+        8 + 4 + 32 * self.approved_validators.len()
     }
 }
 

@@ -322,15 +322,15 @@ fn get_delegated_account_and_owner(is_pda: bool) -> (Pubkey, Pubkey) {
 async fn finalize_or_undelegate(
     is_undelegate: bool,
     delegated_account: Pubkey,
-    mut banks: &mut BanksClient,
+    banks: &mut BanksClient,
     authority: &Keypair,
     blockhash: Hash,
     owner_program: Pubkey,
 ) {
     if is_undelegate {
         undelegate(UndelegateArgs {
-            banks: &mut banks,
-            authority: &authority,
+            banks,
+            authority,
             blockhash,
             delegate_account: delegated_account,
             owner_program,
@@ -338,8 +338,8 @@ async fn finalize_or_undelegate(
         .await;
     } else {
         finalize_new_state(FinalizeNewStateArgs {
-            banks: &mut banks,
-            authority: &authority,
+            banks,
+            authority,
             blockhash,
             delegate_account: delegated_account,
         })
@@ -508,7 +508,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_account.data)
             .unwrap();
-    assert_eq!(delegation_metadata.is_undelegatable, true);
+    assert!(delegation_metadata.is_undelegatable);
 }
 
 #[derive(Debug)]

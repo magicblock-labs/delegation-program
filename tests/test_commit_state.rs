@@ -79,7 +79,7 @@ async fn test_commit_new_state() {
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_account.data)
             .unwrap();
-    assert_eq!(delegation_metadata.is_undelegatable, true);
+    assert!(delegation_metadata.is_undelegatable);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

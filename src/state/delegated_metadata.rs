@@ -23,7 +23,7 @@ pub struct DelegationMetadata {
 
 impl DelegationMetadata {
     pub fn discriminant() -> &'static [u8; 8] {
-        return DELEGATION_METADATA_DISCRIMINANT;
+        DELEGATION_METADATA_DISCRIMINANT
     }
 }
 

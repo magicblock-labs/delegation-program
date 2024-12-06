@@ -24,7 +24,7 @@ pub struct CommitRecord {
 
 impl CommitRecord {
     pub fn discriminant() -> &'static [u8; 8] {
-        return COMMIT_RECORD_DISCRIMINANT;
+        COMMIT_RECORD_DISCRIMINANT
     }
     pub fn size_with_discriminant() -> usize {
         8 + size_of::<CommitRecord>()
