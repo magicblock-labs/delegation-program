@@ -7,7 +7,7 @@ use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
 use dlp::consts::FEES_VAULT;
 use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
@@ -465,10 +465,10 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let committed_state_pda = committed_state_pda_from_pubkey(&args.delegate_account);
+    let commit_state_pda = commit_state_pda_from_pubkey(&args.delegate_account);
     let new_state_account = args
         .banks
-        .get_account(committed_state_pda)
+        .get_account(commit_state_pda)
         .await
         .unwrap()
         .unwrap();
@@ -487,18 +487,17 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     );
 
     // Assert the record about the commitment exists
-    let state_commit_record_pda = committed_state_record_pda_from_pubkey(&args.delegate_account);
-    let state_commit_record_account = args
+    let commit_record_pda = commit_record_pda_from_pubkey(&args.delegate_account);
+    let commit_record_account = args
         .banks
-        .get_account(state_commit_record_pda)
+        .get_account(commit_record_pda)
         .await
         .unwrap()
         .unwrap();
-    let state_commit_record =
-        CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
-    assert_eq!(state_commit_record.account, args.delegate_account);
-    assert_eq!(state_commit_record.identity, args.authority.pubkey());
-    assert_eq!(state_commit_record.slot, 100);
+    let commit_record = CommitRecord::try_from_bytes(&commit_record_account.data).unwrap();
+    assert_eq!(commit_record.account, args.delegate_account);
+    assert_eq!(commit_record.identity, args.authority.pubkey());
+    assert_eq!(commit_record.slot, 100);
 
     let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&args.delegate_account);
     let delegation_metadata_account = args

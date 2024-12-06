@@ -1,7 +1,7 @@
 use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
 use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
@@ -55,12 +55,8 @@ async fn test_commit_new_state() {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let new_state_account = banks
-        .get_account(committed_state_pda)
-        .await
-        .unwrap()
-        .unwrap();
+    let commit_state_pda = commit_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let new_state_account = banks.get_account(commit_state_pda).await.unwrap().unwrap();
     assert_eq!(new_state_account.data, new_state.clone());
 
     // Check that the commit has enough collateral to finalize the proposed state diff
@@ -68,17 +64,12 @@ async fn test_commit_new_state() {
     assert!(new_account_balance < new_state_account.lamports + delegated_account.lamports);
 
     // Assert the record about the commitment exists
-    let state_commit_record_pda = committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let state_commit_record_account = banks
-        .get_account(state_commit_record_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    let state_commit_record =
-        CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
-    assert_eq!(state_commit_record.account, DELEGATED_PDA_ID);
-    assert_eq!(state_commit_record.identity, authority.pubkey());
-    assert_eq!(state_commit_record.slot, 100);
+    let commit_record_pda = commit_record_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let commit_record_account = banks.get_account(commit_record_pda).await.unwrap().unwrap();
+    let commit_record = CommitRecord::try_from_bytes(&commit_record_account.data).unwrap();
+    assert_eq!(commit_record.account, DELEGATED_PDA_ID);
+    assert_eq!(commit_record.identity, authority.pubkey());
+    assert_eq!(commit_record.slot, 100);
 
     let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
     let delegation_metadata_account = banks

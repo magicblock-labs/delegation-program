@@ -1,5 +1,5 @@
 use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
 };
 use solana_program::rent::Rent;
@@ -12,7 +12,7 @@ use solana_sdk::{
 };
 
 use crate::fixtures::{
-    get_commit_state_record_account_data, get_delegation_metadata_data, get_delegation_record_data,
+    get_commit_record_account_data, get_delegation_metadata_data, get_delegation_record_data,
     COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA, DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID,
     EXTERNAL_ALLOW_UNDELEGATION_INSTRUCTION_DISCRIMINATOR,
 };
@@ -97,7 +97,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the committed state PDA
     program_test.add_account(
-        committed_state_pda_from_pubkey(&DELEGATED_PDA_ID),
+        commit_state_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
@@ -108,9 +108,9 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the commit state record PDA
-    let data = get_commit_state_record_account_data(payer_alt.pubkey());
+    let data = get_commit_record_account_data(payer_alt.pubkey());
     program_test.add_account(
-        committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID),
+        commit_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: Rent::default().minimum_balance(data.len()),
             data,

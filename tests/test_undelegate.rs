@@ -1,6 +1,6 @@
 use dlp::consts::FEES_VAULT;
 use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
@@ -15,7 +15,7 @@ use solana_sdk::{
 };
 
 use crate::fixtures::{
-    get_commit_state_record_account_data, get_delegation_metadata_data, get_delegation_record_data,
+    get_commit_record_account_data, get_delegation_metadata_data, get_delegation_record_data,
     COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
@@ -28,14 +28,10 @@ async fn test_undelegate() {
 
     // Retrieve the accounts
     let delegation_pda = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let commit_state_pda = commit_state_pda_from_pubkey(&DELEGATED_PDA_ID);
 
     // Save the new state data before undelegating
-    let new_state_before_finalize = banks
-        .get_account(committed_state_pda)
-        .await
-        .unwrap()
-        .unwrap();
+    let new_state_before_finalize = banks.get_account(commit_state_pda).await.unwrap().unwrap();
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the undelegate tx
@@ -56,7 +52,7 @@ async fn test_undelegate() {
     assert!(res.is_ok());
 
     // Assert the state_diff was closed
-    let new_state_account = banks.get_account(committed_state_pda).await.unwrap();
+    let new_state_account = banks.get_account(commit_state_pda).await.unwrap();
     assert!(new_state_account.is_none());
 
     // Assert the delegation_pda was closed
@@ -132,7 +128,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the committed state PDA
     program_test.add_account(
-        committed_state_pda_from_pubkey(&DELEGATED_PDA_ID),
+        commit_state_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
@@ -143,9 +139,9 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the commit state record PDA
-    let data = get_commit_state_record_account_data(authority.pubkey());
+    let data = get_commit_record_account_data(authority.pubkey());
     program_test.add_account(
-        committed_state_record_pda_from_pubkey(&DELEGATED_PDA_ID),
+        commit_record_pda_from_pubkey(&DELEGATED_PDA_ID),
         Account {
             lamports: Rent::default().minimum_balance(data.len()),
             data,

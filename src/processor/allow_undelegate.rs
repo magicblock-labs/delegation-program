@@ -19,7 +19,9 @@ pub fn process_allow_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [delegated_account, delegation_record, delegation_metadata, buffer] = accounts else {
+    let [delegated_account, delegation_record_account, delegation_metadata_account, buffer] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -31,7 +33,7 @@ pub fn process_allow_undelegate(
 
     // Check delegation record
     load_initialized_pda(
-        delegation_record,
+        delegation_record_account,
         &[DELEGATION_RECORD, &delegated_account.key.to_bytes()],
         &crate::id(),
         false,
@@ -39,28 +41,31 @@ pub fn process_allow_undelegate(
 
     // Check delegation metadata
     load_initialized_pda(
-        delegation_metadata,
+        delegation_metadata_account,
         &[DELEGATION_METADATA, &delegated_account.key.to_bytes()],
         &crate::id(),
         true,
     )?;
 
-    let delegation_data = delegation_record.try_borrow_data()?;
-    let delegation = DelegationRecord::try_from_bytes(&delegation_data)?;
+    // Read delegation record
+    let delegation_record_data = delegation_record_account.try_borrow_data()?;
+    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record_data)?;
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
-    let pda = Pubkey::find_program_address(
+    let buffer_pda = Pubkey::find_program_address(
         &[BUFFER, &delegated_account.key.to_bytes()],
-        &delegation.owner,
+        &delegation_record.owner,
     );
-    if buffer.key.ne(&pda.0) {
+    if buffer.key.ne(&buffer_pda.0) {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // Load delegated account metadata
-    let mut metadata = DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
-    metadata.is_undelegatable = true;
-    metadata.serialize(&mut &mut delegation_metadata.try_borrow_mut_data()?.as_mut())?;
+    let mut delegation_metadata =
+        DelegationMetadata::deserialize(&mut &**delegation_metadata_account.data.borrow())?;
+    delegation_metadata.is_undelegatable = true;
+    delegation_metadata
+        .serialize(&mut &mut delegation_metadata_account.try_borrow_mut_data()?.as_mut())?;
 
     Ok(())
 }

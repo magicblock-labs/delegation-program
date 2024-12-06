@@ -1,6 +1,6 @@
 use dlp::consts::FEES_VAULT;
 use dlp::pda::{
-    committed_state_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
+    commit_state_pda_from_pubkey, delegation_metadata_pda_from_pubkey,
     delegation_record_pda_from_pubkey, validator_fees_vault_pda_from_pubkey,
 };
 use solana_program::pubkey::Pubkey;
@@ -27,7 +27,7 @@ async fn test_undelegate_without_commit() {
 
     // Retrieve the accounts
     let delegation_pda = delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID);
-    let committed_state_pda = committed_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let commit_state_pda = commit_state_pda_from_pubkey(&DELEGATED_PDA_ID);
 
     // Save the new state data before undelegating
     let delegated_pda_state_before_undelegation =
@@ -52,7 +52,7 @@ async fn test_undelegate_without_commit() {
     assert!(res.is_ok());
 
     // Assert the state_diff was closed
-    let new_state_account = banks.get_account(committed_state_pda).await.unwrap();
+    let new_state_account = banks.get_account(commit_state_pda).await.unwrap();
     assert!(new_state_account.is_none());
 
     // Assert the delegation_pda was closed

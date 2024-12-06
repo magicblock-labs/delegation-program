@@ -10,7 +10,7 @@ use crate::processor::utils::loaders::{
 };
 use crate::processor::utils::pda::create_pda;
 use crate::processor::utils::verify::verify_state;
-use crate::state::account::{AccountDeserialize, Discriminator};
+use crate::state::account::{AccountDeserialize, AccountWithDiscriminator};
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program::invoke;
@@ -39,9 +39,9 @@ pub fn process_commit_state(
     data: &[u8],
 ) -> ProgramResult {
     let args = CommitStateArgs::try_from_slice(data)?;
-    let data: &[u8] = args.data.as_ref();
+    let delegated_data: &[u8] = args.data.as_ref();
 
-    let [validator, delegated_account, commit_state_account, commit_state_record, delegation_record, delegation_metadata, validator_fees_vault, program_config, system_program] =
+    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -50,36 +50,32 @@ pub fn process_commit_state(
     // Check that the origin account is delegated
     load_owned_pda(delegated_account, &crate::id())?;
     load_signer(validator)?;
-    load_initialized_delegation_record(delegated_account, delegation_record)?;
-    load_initialized_delegation_metadata(delegated_account, delegation_metadata)?;
+    load_initialized_delegation_record(delegated_account, delegation_record_account)?;
+    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
     load_validator_fees_vault(validator, validator_fees_vault)?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
-    let mut delegation_data = delegation_record.try_borrow_mut_data()?;
-    let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
+    let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
+    let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record_data)?;
 
     // Load the program configuration and validate it, if any
-    let is_program_config = load_program_config(program_config, delegation.owner)?;
-    msg!("Is program config: {:?}", is_program_config);
-    if is_program_config {
-        let program_config_data = program_config.try_borrow_data()?;
+    let has_program_config = load_program_config(program_config_account, delegation_record.owner)?;
+    if has_program_config {
+        let program_config_data = program_config_account.try_borrow_data()?;
         let program_config = ProgramConfig::try_from_slice(&program_config_data)?;
         msg!("Program Config: {:?}", program_config);
         validate_program_config(program_config, validator.key)?;
     }
 
-    let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
-    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
-
     // Load the uninitialized PDAs
-    let state_diff_bump = load_uninitialized_pda(
+    let commit_state_bump = load_uninitialized_pda(
         commit_state_account,
         &[COMMIT_STATE, &delegated_account.key.to_bytes()],
         &crate::id(),
     )?;
-    let commit_state_bump = load_uninitialized_pda(
-        commit_state_record,
+    let commit_record_bump = load_uninitialized_pda(
+        commit_record_account,
         &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
         &crate::id(),
     )?;
@@ -88,23 +84,9 @@ pub fn process_commit_state(
     create_pda(
         commit_state_account,
         &crate::id(),
-        data.len(),
+        delegated_data.len(),
         &[
             COMMIT_STATE,
-            &delegated_account.key.to_bytes(),
-            &[state_diff_bump],
-        ],
-        system_program,
-        validator,
-    )?;
-
-    // Initialize the PDA containing the record of the committed state
-    create_pda(
-        commit_state_record,
-        &crate::id(),
-        8 + size_of::<CommitRecord>(),
-        &[
-            COMMIT_RECORD,
             &delegated_account.key.to_bytes(),
             &[commit_state_bump],
         ],
@@ -112,14 +94,29 @@ pub fn process_commit_state(
         validator,
     )?;
 
-    if delegated_account.lamports() < delegation.lamports {
+    // Initialize the PDA containing the record of the committed state
+    create_pda(
+        commit_record_account,
+        &crate::id(),
+        8 + size_of::<CommitRecord>(),
+        &[
+            COMMIT_RECORD,
+            &delegated_account.key.to_bytes(),
+            &[commit_record_bump],
+        ],
+        system_program,
+        validator,
+    )?;
+
+    // What to do in this case?
+    if delegated_account.lamports() < delegation_record.lamports {
         return Err(DlpError::InvalidDelegatedState.into());
     }
 
     // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
     // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
-    if args.lamports > delegation.lamports {
-        let difference = args.lamports - delegation.lamports;
+    if args.lamports > delegation_record.lamports {
+        let difference = args.lamports - delegation_record.lamports;
         let transfer_instruction = transfer(validator.key, commit_state_account.key, difference);
         invoke(
             &transfer_instruction,
@@ -131,7 +128,8 @@ pub fn process_commit_state(
         )?;
     }
 
-    let mut commit_record_data = commit_state_record.try_borrow_mut_data()?;
+    // Initialize the commit record
+    let mut commit_record_data = commit_record_account.try_borrow_mut_data()?;
     commit_record_data[0] = CommitRecord::discriminator() as u8;
     let commit_record = CommitRecord::try_from_bytes_mut(&mut commit_record_data)?;
     commit_record.identity = *validator.key;
@@ -139,14 +137,22 @@ pub fn process_commit_state(
     commit_record.slot = args.slot;
     commit_record.lamports = args.lamports;
 
+    // Update delegation metadata undelegation flag
+    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
+    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
     delegation_metadata.is_undelegatable = args.allow_undelegation;
     delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
 
     // Copy the new state to the initialized PDA
-    let mut buffer_data = commit_state_account.try_borrow_mut_data()?;
-    (*buffer_data).copy_from_slice(data);
+    let mut commit_state_data = commit_state_account.try_borrow_mut_data()?;
+    (*commit_state_data).copy_from_slice(delegated_data);
 
-    verify_commitment(validator, delegation, commit_record, commit_state_account)?;
+    verify_commitment(
+        validator,
+        delegation_record,
+        commit_record,
+        commit_state_account,
+    )?;
 
     Ok(())
 }
@@ -169,14 +175,14 @@ fn validate_program_config(
 fn verify_commitment(
     authority: &AccountInfo,
     delegation_record: &DelegationRecord,
-    committed_record: &CommitRecord,
-    committed_state: &AccountInfo,
+    commit_record: &CommitRecord,
+    commit_state_account: &AccountInfo,
 ) -> ProgramResult {
     // TODO - is there something special to do here?
     verify_state(
         authority,
         delegation_record,
-        committed_record,
-        committed_state,
+        commit_record,
+        commit_state_account,
     )
 }

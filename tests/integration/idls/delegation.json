@@ -113,7 +113,7 @@
           "writable": true
         },
         {
-          "name": "commit_state_record",
+          "name": "commit_record",
           "writable": true
         },
         {
@@ -168,11 +168,11 @@
           "writable": true
         },
         {
-          "name": "committed_state_account",
+          "name": "commit_state_account",
           "writable": true
         },
         {
-          "name": "committed_state_record",
+          "name": "commit_record_account",
           "writable": true
         },
         {
@@ -242,11 +242,11 @@
           }
         },
         {
-          "name": "committed_state_account",
+          "name": "commit_state_account",
           "writable": true
         },
         {
-          "name": "committed_state_record",
+          "name": "commit_record_account",
           "writable": true
         },
         {

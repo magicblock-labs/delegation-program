@@ -223,7 +223,7 @@ describe("TestDelegation", () => {
       delegationRecord,
       delegationMetadata,
       bufferPda,
-      commitStateRecordPda,
+      commitStateRecordPda: commitRecordPda,
       commitStatePda,
     } = DelegateAccounts(pda, testDelegation.programId);
 
@@ -233,8 +233,8 @@ describe("TestDelegation", () => {
       .accounts({
         validator: provider.wallet.publicKey,
         delegatedAccount: pda,
-        committedStateAccount: commitStatePda,
-        committedStateRecord: commitStateRecordPda,
+        commitStateAccount: commitStatePda,
+        commitRecordAccount: commitRecordPda,
         delegationRecord: delegationRecord,
         delegationMetadata: delegationMetadata,
         validatorFeesVault: validatorFeeVaultPda,

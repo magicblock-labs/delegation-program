@@ -1,4 +1,4 @@
-use crate::state::utils::account::{AccountDiscriminator, Discriminator};
+use crate::state::utils::account::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{impl_account_from_bytes, impl_to_bytes};
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
@@ -24,7 +24,7 @@ pub struct DelegationRecord {
     pub commit_frequency_ms: u64,
 }
 
-impl Discriminator for DelegationRecord {
+impl AccountWithDiscriminator for DelegationRecord {
     fn discriminator() -> AccountDiscriminator {
         AccountDiscriminator::DelegationRecord
     }

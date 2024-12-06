@@ -73,11 +73,11 @@ pda! { delegation_record }
 seeds! { delegation_metadata, DELEGATION_METADATA }
 pda! { delegation_metadata }
 
-seeds! { committed_state, COMMIT_STATE }
-pda! { committed_state }
+seeds! { commit_state, COMMIT_STATE }
+pda! { commit_state }
 
-seeds! { committed_state_record, COMMIT_RECORD }
-pda! { committed_state_record }
+seeds! { commit_record, COMMIT_RECORD }
+pda! { commit_record }
 
 seeds! { validator_fees_vault, VALIDATOR_FEES_VAULT }
 pda! { validator_fees_vault }
@@ -152,32 +152,32 @@ mod tests {
     // State Diff Seeds
     // -----------------
     #[test]
-    fn test_committed_state_seeds() {
+    fn test_commit_state_seeds() {
         let id = [1, 2, 3];
-        let seeds = committed_state_seeds(&id);
+        let seeds = commit_state_seeds(&id);
         assert_eq!(seeds, [COMMIT_STATE, &id]);
     }
 
     #[test]
-    fn test_committed_state_seeds_with_bump() {
+    fn test_commit_state_seeds_with_bump() {
         let id = [1, 2, 3];
         let bump = [4];
-        let seeds = committed_state_seeds_with_bump(&id, &bump);
+        let seeds = commit_state_seeds_with_bump(&id, &bump);
         assert_eq!(seeds, [COMMIT_STATE, &id, &bump]);
     }
 
     #[test]
-    fn test_committed_state_seeds_from_pubkey() {
+    fn test_commit_state_seeds_from_pubkey() {
         let id = Pubkey::new_unique();
-        let seeds = committed_state_seeds_from_pubkey(&id);
+        let seeds = commit_state_seeds_from_pubkey(&id);
         assert_eq!(seeds, [COMMIT_STATE, id.as_ref()]);
     }
 
     #[test]
-    fn test_committed_state_seeds_with_bump_from_pubkey() {
+    fn test_commit_state_seeds_with_bump_from_pubkey() {
         let id = Pubkey::new_unique();
         let bump = [4];
-        let seeds = committed_state_seeds_with_bump_from_pubkey(&id, &bump);
+        let seeds = commit_state_seeds_with_bump_from_pubkey(&id, &bump);
         assert_eq!(seeds, [COMMIT_STATE, id.as_ref(), &bump]);
     }
 
@@ -187,7 +187,7 @@ mod tests {
     #[test]
     fn test_commit_record_seeds() {
         let id = [1, 2, 3];
-        let seeds = committed_state_record_seeds(&id);
+        let seeds = commit_record_seeds(&id);
         assert_eq!(seeds, [COMMIT_RECORD, &id]);
     }
 
@@ -195,14 +195,14 @@ mod tests {
     fn test_commit_record_seeds_with_bump() {
         let id = [1, 2, 3];
         let bump = [4];
-        let seeds = committed_state_record_seeds_with_bump(&id, &bump);
+        let seeds = commit_record_seeds_with_bump(&id, &bump);
         assert_eq!(seeds, [COMMIT_RECORD, &id, &bump]);
     }
 
     #[test]
     fn test_commit_record_seeds_from_pubkey() {
         let id = Pubkey::new_unique();
-        let seeds = committed_state_record_seeds_from_pubkey(&id);
+        let seeds = commit_record_seeds_from_pubkey(&id);
         assert_eq!(seeds, [COMMIT_RECORD, id.as_ref()]);
     }
 
@@ -210,7 +210,7 @@ mod tests {
     fn test_commit_record_seeds_with_bump_from_pubkey() {
         let id = Pubkey::new_unique();
         let bump = [4];
-        let seeds = committed_state_record_seeds_with_bump_from_pubkey(&id, &bump);
+        let seeds = commit_record_seeds_with_bump_from_pubkey(&id, &bump);
         assert_eq!(seeds, [COMMIT_RECORD, id.as_ref(), &bump]);
     }
 
@@ -265,18 +265,18 @@ mod tests {
         let delegation_record_addr = "CkieZJmrj6dLhwteG69LSutpWwRHiDJY9S8ua7xJ7CRW";
         let delegation_record_id = Pubkey::from_str(delegation_record_addr).unwrap();
 
-        let committed_state_addr = "BUrsNkRnqoWUJdGotRt1odFp2NH5b9tcciXzXNbNwBHr";
-        let committed_state_id = Pubkey::from_str(committed_state_addr).unwrap();
+        let commit_state_addr = "BUrsNkRnqoWUJdGotRt1odFp2NH5b9tcciXzXNbNwBHr";
+        let commit_state_id = Pubkey::from_str(commit_state_addr).unwrap();
 
         let commit_record_addr = "GiDjQqUKeKJwLH5kdbnCgFS2XPGAVjXo73JMoeVn3UZL";
         let commit_record_id = Pubkey::from_str(commit_record_addr).unwrap();
 
         let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_id);
-        let committed_state_pda = committed_state_pda_from_pubkey(&delegated_id);
-        let commit_record_pda = committed_state_record_pda_from_pubkey(&delegated_id);
+        let commit_state_pda = commit_state_pda_from_pubkey(&delegated_id);
+        let commit_record_pda = commit_record_pda_from_pubkey(&delegated_id);
 
         assert_eq!(delegation_record_pda, delegation_record_id);
-        assert_eq!(committed_state_pda, committed_state_id);
+        assert_eq!(commit_state_pda, commit_state_id);
         assert_eq!(commit_record_pda, commit_record_id);
     }
 }

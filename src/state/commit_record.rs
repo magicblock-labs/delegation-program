@@ -1,8 +1,15 @@
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
-use crate::state::utils::account::{AccountDiscriminator, Discriminator};
+use crate::state::utils::account::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{impl_account_from_bytes, impl_to_bytes};
+
+#[repr(C)]
+#[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
+pub struct CommitRecordWithDiscriminator {
+    pub discriminant: u64,
+    pub value: CommitRecord,
+}
 
 /// The Commit State Record
 #[repr(C)]
@@ -21,7 +28,7 @@ pub struct CommitRecord {
     pub lamports: u64,
 }
 
-impl Discriminator for CommitRecord {
+impl AccountWithDiscriminator for CommitRecord {
     fn discriminator() -> AccountDiscriminator {
         AccountDiscriminator::CommitRecord
     }
