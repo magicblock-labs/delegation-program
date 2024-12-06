@@ -26,7 +26,7 @@ async fn test_undelegate_on_curve() {
     let (mut banks, validator, delegated_on_curve, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
-    let delegation_pda = delegation_record_pda_from_pubkey(&delegated_on_curve.pubkey());
+    let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_on_curve.pubkey());
 
     // Submit the undelegate tx
     let ix = dlp::instruction_builder::undelegate(
@@ -45,9 +45,9 @@ async fn test_undelegate_on_curve() {
     println!("{:?}", res);
     assert!(res.is_ok());
 
-    // Assert the delegation_pda was closed
-    let delegation_account = banks.get_account(delegation_pda).await.unwrap();
-    assert!(delegation_account.is_none());
+    // Assert the delegation_record_pda was closed
+    let delegation_record_account = banks.get_account(delegation_record_pda).await.unwrap();
+    assert!(delegation_record_account.is_none());
 
     // Assert the delegated metadata account pda was closed
     let seeds_pda = delegation_metadata_pda_from_pubkey(&delegated_on_curve.pubkey());
@@ -82,12 +82,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
-    let data = get_delegation_record_on_curve_data(payer_alt.pubkey(), Some(LAMPORTS_PER_SOL));
+    let delegation_record_data =
+        get_delegation_record_on_curve_data(payer_alt.pubkey(), Some(LAMPORTS_PER_SOL));
     program_test.add_account(
         delegation_record_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data,
+            data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -95,12 +96,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let data = get_delegation_metadata_data_on_curve(validator.pubkey(), Some(true));
+    let delegation_metadata_data =
+        get_delegation_metadata_data_on_curve(validator.pubkey(), Some(true));
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data,
+            data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

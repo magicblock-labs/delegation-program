@@ -51,7 +51,7 @@ pub fn process_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [validator, delegated_account, owner_program, buffer, committed_state_account, committed_state_record, delegation_record, delegation_metadata, delegation_rent_reimbursement, fees_vault, validator_fees_vault, system_program] =
+    let [validator, delegated_account, owner_program, buffer, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, delegation_rent_reimbursement, fees_vault, validator_fees_vault, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -60,8 +60,8 @@ pub fn process_undelegate(
     // Check accounts
     load_signer(validator)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_initialized_delegation_record(delegated_account, delegation_record)?;
-    load_initialized_delegation_metadata(delegated_account, delegation_metadata)?;
+    load_initialized_delegation_record(delegated_account, delegation_record_account)?;
+    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
     load_program(system_program, system_program::id())?;
     load_fees_vault(fees_vault)?;
     load_validator_fees_vault(validator, validator_fees_vault)?;
@@ -69,15 +69,15 @@ pub fn process_undelegate(
     // Check if there is a committed state
     let is_committed = is_state_committed(
         delegated_account,
-        committed_state_account,
-        committed_state_record,
+        commit_state_account,
+        commit_record_account,
     )?;
 
     // Load delegation record
-    let delegation_data = delegation_record.try_borrow_data()?;
-    let delegation = DelegationRecord::try_from_bytes(&delegation_data)?;
+    let delegation_record_data = delegation_record_account.try_borrow_data()?;
+    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record_data)?;
 
-    let commit_record_data = committed_state_record.try_borrow_data()?;
+    let commit_record_data = commit_record_account.try_borrow_data()?;
     let commit_record = if is_committed {
         let record = CommitRecord::try_from_bytes(&commit_record_data)?;
         Some(record)
@@ -86,15 +86,19 @@ pub fn process_undelegate(
     };
 
     // Load delegated account metadata
-    let metadata = DelegationMetadata::deserialize(&mut &**delegation_metadata.data.borrow())?;
+    let delegation_metadata =
+        DelegationMetadata::deserialize(&mut &**delegation_metadata_account.data.borrow())?;
 
     // Check if the delegated account is undelegatable
-    if !is_account_undelegatable(&metadata)? {
+    if !is_account_undelegatable(&delegation_metadata)? {
         return Err(Undelegatable.into());
     }
 
-    // Check if the delegated account is undelegatable
-    if !metadata.rent_payer.eq(delegation_rent_reimbursement.key) {
+    // Check if the rent payer is correct
+    if !delegation_metadata
+        .rent_payer
+        .eq(delegation_rent_reimbursement.key)
+    {
         return Err(InvalidReimbursementAddressForDelegationRent.into());
     }
 
@@ -109,7 +113,7 @@ pub fn process_undelegate(
         buffer,
         &crate::id(),
         match is_committed {
-            true => committed_state_account.data_len(),
+            true => commit_state_account.data_len(),
             false => delegated_account.data_len(),
         },
         &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
@@ -118,7 +122,7 @@ pub fn process_undelegate(
     )?;
 
     // Check passed owner and owner stored in the delegation record match
-    if !delegation.owner.eq(owner_program.key) {
+    if !delegation_record.owner.eq(owner_program.key) {
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -130,26 +134,26 @@ pub fn process_undelegate(
         if !record.identity.eq(validator.key) {
             return Err(InvalidAuthority.into());
         }
-        verify_state(validator, delegation, record, committed_state_account)?;
-        delegation.lamports as i64 - record.lamports as i64
+        verify_state(validator, delegation_record, record, commit_state_account)?;
+        delegation_record.lamports as i64 - record.lamports as i64
     } else {
         0
     };
 
     // Copy data in the buffer PDA
     (*buffer.try_borrow_mut_data()?).copy_from_slice(&match is_committed {
-        true => committed_state_account.try_borrow_data()?,
+        true => commit_state_account.try_borrow_data()?,
         false => delegated_account.try_borrow_data()?,
     });
 
     // Dropping References
     drop(commit_record_data);
-    drop(delegation_data);
+    drop(delegation_record_data);
 
     if is_on_curve(delegated_account.key) || buffer.try_borrow_data()?.is_empty() {
         settle_lamports_balance(
             delegated_account,
-            committed_state_account,
+            commit_state_account,
             committed_lamports_difference,
             validator_fees_vault,
         )?;
@@ -160,10 +164,10 @@ pub fn process_undelegate(
             delegated_account,
             owner_program,
             buffer,
-            committed_state_account,
+            commit_state_account,
             validator_fees_vault,
             system_program,
-            metadata,
+            delegation_metadata,
             buffer_bump,
             committed_lamports_difference,
         )?;
@@ -171,19 +175,19 @@ pub fn process_undelegate(
 
     // Closing accounts
     close_pda_with_fees(
-        delegation_record,
+        delegation_record_account,
         delegation_rent_reimbursement,
         &[fees_vault, validator_fees_vault],
         FEES_SESSION,
     )?;
     close_pda_with_fees(
-        delegation_metadata,
+        delegation_metadata_account,
         delegation_rent_reimbursement,
         &[fees_vault, validator_fees_vault],
         FEES_SESSION,
     )?;
-    close_pda(committed_state_record, validator)?;
-    close_pda(committed_state_account, validator)?;
+    close_pda(commit_record_account, validator)?;
+    close_pda(commit_state_account, validator)?;
     close_pda(buffer, validator)?;
     Ok(())
 }
@@ -198,7 +202,7 @@ fn process_undelegation_with_cpi<'a, 'info>(
     delegated_account: &'a AccountInfo<'info>,
     owner_program: &'a AccountInfo<'info>,
     buffer: &'a AccountInfo<'info>,
-    committed_state_account: &'a AccountInfo<'info>,
+    commit_state_account: &'a AccountInfo<'info>,
     validator_fees_vault: &'a AccountInfo<'info>,
     system_program: &'a AccountInfo<'info>,
     metadata: DelegationMetadata,
@@ -241,7 +245,7 @@ fn process_undelegation_with_cpi<'a, 'info>(
     settle_lamports_balance_pda(
         validator,
         delegated_account,
-        committed_state_account,
+        commit_state_account,
         validator_fees_vault,
         system_program,
         committed_lamports_difference,
@@ -254,7 +258,7 @@ fn process_undelegation_with_cpi<'a, 'info>(
 fn settle_lamports_balance_pda<'a, 'info>(
     validator: &'a AccountInfo<'info>,
     delegated_account: &'a AccountInfo<'info>,
-    committed_state_account: &'a AccountInfo<'info>,
+    commit_state_account: &'a AccountInfo<'info>,
     validator_fees_vault: &'a AccountInfo<'info>,
     system_program: &'a AccountInfo<'info>,
     committed_lamports_difference: i64,
@@ -293,7 +297,7 @@ fn settle_lamports_balance_pda<'a, 'info>(
     if committed_lamports_difference < 0 {
         settle_lamports_balance(
             delegated_account,
-            committed_state_account,
+            commit_state_account,
             committed_lamports_difference,
             validator_fees_vault,
         )?
@@ -310,26 +314,26 @@ fn is_account_undelegatable(metadata: &DelegationMetadata) -> Result<bool, Progr
 /// Check if there is a committed state loading the committed state account and record PDAs
 fn is_state_committed(
     delegated_account: &AccountInfo,
-    committed_state_account: &AccountInfo,
-    committed_state_record: &AccountInfo,
+    commit_state_account: &AccountInfo,
+    commit_record_account: &AccountInfo,
 ) -> Result<bool, ProgramError> {
-    let is_committed = if committed_state_account.owner.eq(&system_program::id())
-        && committed_state_record.owner.eq(&system_program::id())
+    let is_committed = if commit_state_account.owner.eq(&system_program::id())
+        && commit_record_account.owner.eq(&system_program::id())
     {
         load_uninitialized_pda(
-            committed_state_account,
+            commit_state_account,
             &[COMMIT_STATE, &delegated_account.key.to_bytes()],
             &crate::id(),
         )?;
         load_uninitialized_pda(
-            committed_state_record,
+            commit_record_account,
             &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
             &crate::id(),
         )?;
         false
     } else {
-        load_owned_pda(committed_state_account, &crate::id())?;
-        load_owned_pda(committed_state_record, &crate::id())?;
+        load_owned_pda(commit_state_account, &crate::id())?;
+        load_owned_pda(commit_record_account, &crate::id())?;
         true
     };
     Ok(is_committed)

@@ -7,7 +7,7 @@ use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
 use dlp::consts::FEES_VAULT;
 use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
@@ -359,7 +359,7 @@ struct UndelegateArgs<'a> {
 
 async fn undelegate(args: UndelegateArgs<'_>) {
     // Retrieve the accounts
-    let delegation_pda = delegation_record_pda_from_pubkey(&args.delegate_account);
+    let delegation_record_pda = delegation_record_pda_from_pubkey(&args.delegate_account);
 
     // Submit the undelegate tx
     let ix = dlp::instruction_builder::undelegate(
@@ -378,9 +378,9 @@ async fn undelegate(args: UndelegateArgs<'_>) {
     println!("{:?}", res);
     assert!(res.is_ok());
 
-    // Assert the delegation_pda was closed
-    let delegation_account = args.banks.get_account(delegation_pda).await.unwrap();
-    assert!(delegation_account.is_none());
+    // Assert the delegation_record_pda was closed
+    let delegation_record_account = args.banks.get_account(delegation_record_pda).await.unwrap();
+    assert!(delegation_record_account.is_none());
 
     // Assert the delegated metadata account pda was closed
     let seeds_pda = delegation_metadata_pda_from_pubkey(&args.delegate_account);
@@ -465,14 +465,14 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let committed_state_pda = committed_state_pda_from_pubkey(&args.delegate_account);
-    let new_state_account = args
+    let commit_state_pda = commit_state_pda_from_pubkey(&args.delegate_account);
+    let commit_state_account = args
         .banks
-        .get_account(committed_state_pda)
+        .get_account(commit_state_pda)
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(new_state_account.data, data);
+    assert_eq!(commit_state_account.data, data);
 
     // Check that the commit has enough collateral to finalize the proposed state diff
     let delegated_account = args
@@ -483,22 +483,21 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap();
     assert!(
         args.new_delegated_account_lamports
-            < new_state_account.lamports + delegated_account.lamports
+            < commit_state_account.lamports + delegated_account.lamports
     );
 
     // Assert the record about the commitment exists
-    let state_commit_record_pda = committed_state_record_pda_from_pubkey(&args.delegate_account);
-    let state_commit_record_account = args
+    let commit_record_pda = commit_record_pda_from_pubkey(&args.delegate_account);
+    let commit_record_account = args
         .banks
-        .get_account(state_commit_record_pda)
+        .get_account(commit_record_pda)
         .await
         .unwrap()
         .unwrap();
-    let state_commit_record =
-        CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
-    assert_eq!(state_commit_record.account, args.delegate_account);
-    assert_eq!(state_commit_record.identity, args.authority.pubkey());
-    assert_eq!(state_commit_record.slot, 100);
+    let commit_record = CommitRecord::try_from_bytes(&commit_record_account.data).unwrap();
+    assert_eq!(commit_record.account, args.delegate_account);
+    assert_eq!(commit_record.identity, args.authority.pubkey());
+    assert_eq!(commit_record.slot, 100);
 
     let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&args.delegate_account);
     let delegation_metadata_account = args
@@ -570,7 +569,7 @@ async fn setup_program_for_commit_test_env(
     );
 
     // Setup the delegated record PDA
-    let data = create_delegation_record_data(
+    let delegation_record_data = create_delegation_record_data(
         validator_keypair.pubkey(),
         args.owner_program,
         Some(args.delegated_account_init_lamports),
@@ -578,8 +577,8 @@ async fn setup_program_for_commit_test_env(
     program_test.add_account(
         delegation_record_pda_from_pubkey(&args.delegated_account),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data,
+            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

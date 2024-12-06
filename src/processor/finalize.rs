@@ -32,7 +32,7 @@ pub fn process_finalize(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [validator, delegated_account, committed_state_account, committed_state_record, delegation_record, delegation_metadata, validator_fees_vault, system_program] =
+    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -40,23 +40,23 @@ pub fn process_finalize(
 
     load_signer(validator)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_initialized_commit_state(delegated_account, committed_state_account)?;
-    load_initialized_commit_record(delegated_account, committed_state_record)?;
-    load_initialized_delegation_record(delegated_account, delegation_record)?;
-    load_initialized_delegation_metadata(delegated_account, delegation_metadata)?;
+    load_initialized_commit_state(delegated_account, commit_state_account)?;
+    load_initialized_commit_record(delegated_account, commit_record_account)?;
+    load_initialized_delegation_record(delegated_account, delegation_record_account)?;
+    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
     load_validator_fees_vault(validator, validator_fees_vault)?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
-    let mut delegation_data = delegation_record.try_borrow_mut_data()?;
-    let delegation = DelegationRecord::try_from_bytes_mut(&mut delegation_data)?;
+    let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
+    let delegation_record = DelegationRecord::try_from_bytes_mut(&mut delegation_record_data)?;
 
     // Load delegation metadata
-    let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
+    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
     let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
 
     // Load committed state
-    let commit_record_data = committed_state_record.try_borrow_data()?;
+    let commit_record_data = commit_record_account.try_borrow_data()?;
     let commit_record = CommitRecord::try_from_bytes(&commit_record_data)?;
 
     // If the commit slot is greater than the last update slot, we verify and finalize the state
@@ -64,9 +64,9 @@ pub fn process_finalize(
     if commit_record.slot > delegation_metadata.last_update_external_slot {
         verify_state(
             validator,
-            delegation,
+            delegation_record,
             commit_record,
-            committed_state_account,
+            commit_state_account,
         )?;
 
         if !commit_record.account.eq(delegated_account.key) {
@@ -77,34 +77,34 @@ pub fn process_finalize(
             return Err(DlpError::InvalidReimbursementAccount.into());
         }
 
-        let new_data = committed_state_account.try_borrow_data()?;
+        let commit_state_data = commit_state_account.try_borrow_data()?;
 
         // Balance lamports
-        let lamports_difference = delegation.lamports as i64 - commit_record.lamports as i64;
+        let lamports_difference = delegation_record.lamports as i64 - commit_record.lamports as i64;
         settle_lamports_balance(
             delegated_account,
-            committed_state_account,
+            commit_state_account,
             lamports_difference,
             validator_fees_vault,
         )?;
 
         // Copying the new state to the delegated account
-        delegated_account.realloc(new_data.len(), false)?;
+        delegated_account.realloc(commit_state_data.len(), false)?;
         let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
-        (*delegated_account_data).copy_from_slice(&new_data);
+        (*delegated_account_data).copy_from_slice(&commit_state_data);
 
         delegation_metadata.last_update_external_slot = commit_record.slot;
-        delegation.lamports = delegated_account.lamports();
+        delegation_record.lamports = delegated_account.lamports();
         delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
 
         // Dropping references
         drop(delegated_account_data);
         drop(commit_record_data);
-        drop(new_data);
+        drop(commit_state_data);
     }
 
     // Closing accounts
-    close_pda(committed_state_record, validator)?;
-    close_pda(committed_state_account, validator)?;
+    close_pda(commit_record_account, validator)?;
+    close_pda(commit_state_account, validator)?;
     Ok(())
 }

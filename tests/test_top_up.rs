@@ -220,12 +220,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
-    let data = create_delegation_record_data(validator.pubkey(), dlp::id(), Some(LAMPORTS_PER_SOL));
+    let delegation_record_data =
+        create_delegation_record_data(validator.pubkey(), dlp::id(), Some(LAMPORTS_PER_SOL));
     program_test.add_account(
         delegation_record_pda_from_pubkey(&ephemeral_balance),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data,
+            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -233,7 +234,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let data = create_delegation_metadata_data(
+    let delegation_metadata_data = create_delegation_metadata_data(
         validator.pubkey(),
         vec![
             EPHEMERAL_BALANCE.to_vec(),
@@ -245,8 +246,8 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&ephemeral_balance),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data,
+            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

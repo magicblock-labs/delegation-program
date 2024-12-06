@@ -1,7 +1,7 @@
 use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
 use dlp::pda::{
-    committed_state_pda_from_pubkey, committed_state_record_pda_from_pubkey,
+    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
     validator_fees_vault_pda_from_pubkey,
 };
@@ -54,26 +54,17 @@ async fn test_commit_on_curve() {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let committed_state_pda = committed_state_pda_from_pubkey(&payer_delegated.pubkey());
-    let new_state_account = banks
-        .get_account(committed_state_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    assert!(new_state_account.data.is_empty());
+    let commit_state_pda = commit_state_pda_from_pubkey(&payer_delegated.pubkey());
+    let commit_state_account = banks.get_account(commit_state_pda).await.unwrap().unwrap();
+    assert!(commit_state_account.data.is_empty());
 
     // Assert the record about the commitment exists
-    let state_commit_record_pda = committed_state_record_pda_from_pubkey(&payer_delegated.pubkey());
-    let state_commit_record_account = banks
-        .get_account(state_commit_record_pda)
-        .await
-        .unwrap()
-        .unwrap();
-    let state_commit_record =
-        CommitRecord::try_from_bytes(&state_commit_record_account.data).unwrap();
-    assert_eq!(state_commit_record.account, payer_delegated.pubkey());
-    assert_eq!(state_commit_record.identity, validator.pubkey());
-    assert_eq!(state_commit_record.slot, 100);
+    let commit_record_pda = commit_record_pda_from_pubkey(&payer_delegated.pubkey());
+    let commit_record_account = banks.get_account(commit_record_pda).await.unwrap().unwrap();
+    let commit_record = CommitRecord::try_from_bytes(&commit_record_account.data).unwrap();
+    assert_eq!(commit_record.account, payer_delegated.pubkey());
+    assert_eq!(commit_record.identity, validator.pubkey());
+    assert_eq!(commit_record.slot, 100);
 
     let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&payer_delegated.pubkey());
     let delegation_metadata_account = banks
@@ -117,13 +108,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
-    let data =
+    let delegation_record_data =
         get_delegation_record_on_curve_data(validator_keypair.pubkey(), Some(LAMPORTS_PER_SOL));
     program_test.add_account(
         delegation_record_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data,
+            data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -131,12 +122,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let data = get_delegation_metadata_data_on_curve(validator_keypair.pubkey(), None);
+    let delegation_metadata_data =
+        get_delegation_metadata_data_on_curve(validator_keypair.pubkey(), None);
     program_test.add_account(
         delegation_metadata_pda_from_pubkey(&payer_alt.pubkey()),
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data,
+            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

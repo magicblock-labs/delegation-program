@@ -1,5 +1,5 @@
 use borsh::BorshSerialize;
-use dlp::state::account::Discriminator;
+use dlp::state::account::AccountWithDiscriminator;
 use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
@@ -123,7 +123,7 @@ pub fn create_delegation_metadata_data(
 }
 
 #[allow(dead_code)]
-pub fn get_commit_state_record_account_data(authority: Pubkey) -> Vec<u8> {
+pub fn get_commit_record_account_data(authority: Pubkey) -> Vec<u8> {
     let commit_record = CommitRecord {
         slot: 100,
         identity: authority,

@@ -18,4 +18,4 @@ impl ProgramConfig {
     }
 }
 
-impl_try_from_bytes_with_discriminant_borsh(ProgramConfig);
+impl_try_from_bytes_with_discriminant_borsh!(ProgramConfig);
