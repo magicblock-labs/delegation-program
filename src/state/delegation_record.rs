@@ -1,5 +1,9 @@
-use crate::state::utils::account::{AccountDiscriminator, Discriminator};
-use crate::{impl_account_from_bytes, impl_to_bytes};
+use std::mem::size_of;
+
+use crate::consts::DELEGATION_RECORD_DISCRIMINANT;
+use crate::{
+    impl_to_bytes_without_discriminant_zero_copy, impl_try_from_bytes_with_discriminant_zero_copy,
+};
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
@@ -24,11 +28,14 @@ pub struct DelegationRecord {
     pub commit_frequency_ms: u64,
 }
 
-impl Discriminator for DelegationRecord {
-    fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::DelegationRecord
+impl DelegationRecord {
+    pub fn discriminant() -> &'static [u8; 8] {
+        return DELEGATION_RECORD_DISCRIMINANT;
+    }
+    pub fn size_with_discriminant() -> usize {
+        8 + size_of::<DelegationRecord>()
     }
 }
 
-impl_to_bytes!(DelegationRecord);
-impl_account_from_bytes!(DelegationRecord);
+impl_to_bytes_without_discriminant_zero_copy!(DelegationRecord);
+impl_try_from_bytes_with_discriminant_zero_copy!(DelegationRecord);

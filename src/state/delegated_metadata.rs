@@ -1,4 +1,6 @@
-use crate::state::utils::account::{AccountDiscriminator, Discriminator};
+use crate::{
+    consts::DELEGATION_METADATA_DISCRIMINANT, impl_try_from_bytes_with_discriminant_borsh,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
@@ -19,11 +21,13 @@ pub struct DelegationMetadata {
     pub rent_payer: Pubkey,
 }
 
-impl Discriminator for DelegationMetadata {
-    fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::DelegatedMetadata
+impl DelegationMetadata {
+    pub fn discriminant() -> &'static [u8; 8] {
+        return DELEGATION_METADATA_DISCRIMINANT;
     }
 }
+
+impl_try_from_bytes_with_discriminant_borsh!(DelegationMetadata);
 
 #[cfg(test)]
 mod tests {
@@ -31,7 +35,7 @@ mod tests {
 
     #[test]
     fn test_serialization() {
-        let seeds = DelegationMetadata {
+        let original = DelegationMetadata {
             seeds: vec![
                 vec![],
                 vec![
@@ -46,12 +50,12 @@ mod tests {
         };
 
         // Serialize
-        let serialized = seeds.try_to_vec().expect("Serialization failed");
+        let serialized = original.try_to_vec().expect("Serialization failed");
 
         // Deserialize
         let deserialized: DelegationMetadata =
             DelegationMetadata::try_from_slice(&serialized).expect("Deserialization failed");
 
-        assert_eq!(deserialized.seeds, seeds.seeds);
+        assert_eq!(deserialized.seeds, original.seeds);
     }
 }

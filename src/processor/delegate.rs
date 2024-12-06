@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::sysvar::Sysvar;
@@ -17,7 +15,6 @@ use crate::processor::utils::loaders::{
     load_owned_pda, load_pda, load_program, load_signer, load_uninitialized_pda,
 };
 use crate::processor::utils::pda::create_pda;
-use crate::state::account::{AccountDeserialize, Discriminator};
 use crate::state::{DelegationMetadata, DelegationRecord};
 
 /// Delegate an account
@@ -84,7 +81,7 @@ pub fn process_delegate(
     create_pda(
         delegation_record,
         &crate::id(),
-        8 + size_of::<DelegationRecord>(),
+        DelegationRecord::size_with_discriminant(),
         &[
             DELEGATION_RECORD,
             &delegate_account.key.to_bytes(),

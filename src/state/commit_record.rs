@@ -1,8 +1,12 @@
+use std::mem::size_of;
+
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
-use crate::state::utils::account::{AccountDiscriminator, Discriminator};
-use crate::{impl_account_from_bytes, impl_to_bytes};
+use crate::{
+    consts::COMMIT_RECORD_DISCRIMINANT, impl_to_bytes_without_discriminant_zero_copy,
+    impl_try_from_bytes_with_discriminant_zero_copy,
+};
 
 /// The Commit State Record
 #[repr(C)]
@@ -21,11 +25,14 @@ pub struct CommitRecord {
     pub lamports: u64,
 }
 
-impl Discriminator for CommitRecord {
-    fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::CommitRecord
+impl CommitRecord {
+    pub fn discriminant() -> &'static [u8; 8] {
+        return COMMIT_RECORD_DISCRIMINANT;
+    }
+    pub fn size_with_discriminant() -> usize {
+        8 + size_of::<CommitRecord>()
     }
 }
 
-impl_to_bytes!(CommitRecord);
-impl_account_from_bytes!(CommitRecord);
+impl_to_bytes_without_discriminant_zero_copy!(CommitRecord);
+impl_try_from_bytes_with_discriminant_zero_copy!(CommitRecord);

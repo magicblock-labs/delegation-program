@@ -7,7 +7,7 @@ use crate::processor::utils::loaders::{
 };
 use crate::processor::utils::pda::close_pda;
 use crate::processor::utils::verify::verify_state;
-use crate::state::account::AccountDeserialize;
+use crate::state::account_try_from_bytes::TryFromBytes;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;

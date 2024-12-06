@@ -47,7 +47,7 @@ pub fn process_whitelist_validator_for_program(
         create_pda(
             program_config_account,
             &crate::id(),
-            ProgramConfig::default().serialized_len(),
+            0, // It will be resized later to the proper size
             &[PROGRAM_CONFIG, program.key.as_ref(), &[program_config_bump]],
             system_program,
             authority,
@@ -70,7 +70,7 @@ pub fn process_whitelist_validator_for_program(
         authority,
         program_config_account,
         system_program,
-        program_config.serialized_len(),
+        program_config.size_with_discriminant(),
     )?;
     let mut data = program_config_account.try_borrow_mut_data()?;
     program_config.serialize(&mut &mut data.as_mut())?;

@@ -1,5 +1,3 @@
-use std::mem::size_of;
-
 use crate::args::CommitStateArgs;
 use crate::consts::{COMMIT_RECORD, COMMIT_STATE};
 use crate::error::DlpError;
@@ -10,7 +8,7 @@ use crate::processor::utils::loaders::{
 };
 use crate::processor::utils::pda::create_pda;
 use crate::processor::utils::verify::verify_state;
-use crate::state::account::{AccountDeserialize, Discriminator};
+use crate::state::account_try_from_bytes::TryFromBytes;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program::invoke;
@@ -69,9 +67,6 @@ pub fn process_commit_state(
         validate_program_config(program_config, validator.key)?;
     }
 
-    let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
-    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
-
     // Load the uninitialized PDAs
     let state_diff_bump = load_uninitialized_pda(
         commit_state_account,
@@ -102,7 +97,7 @@ pub fn process_commit_state(
     create_pda(
         commit_state_record,
         &crate::id(),
-        8 + size_of::<CommitRecord>(),
+        CommitRecord::size_with_discriminant(),
         &[
             COMMIT_RECORD,
             &delegated_account.key.to_bytes(),
@@ -132,13 +127,15 @@ pub fn process_commit_state(
     }
 
     let mut commit_record_data = commit_state_record.try_borrow_mut_data()?;
-    commit_record_data[0] = CommitRecord::discriminator() as u8;
+    commit_record_data.c = CommitRecord::discriminant();
     let commit_record = CommitRecord::try_from_bytes_mut(&mut commit_record_data)?;
     commit_record.identity = *validator.key;
     commit_record.account = *delegated_account.key;
     commit_record.slot = args.slot;
     commit_record.lamports = args.lamports;
 
+    let mut delegation_metadata_data = delegation_metadata.try_borrow_mut_data()?;
+    let mut delegation_metadata = DelegationMetadata::try_from_slice(&delegation_metadata_data)?;
     delegation_metadata.is_undelegatable = args.allow_undelegation;
     delegation_metadata.serialize(&mut &mut delegation_metadata_data.as_mut())?;
 
