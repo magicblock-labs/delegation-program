@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
-use crate::impl_to_bytes_with_discriminant_zero_copy;
-use crate::impl_try_from_bytes_with_discriminant_zero_copy;
+use crate::impl_to_bytes_with_discriminator_zero_copy;
+use crate::impl_try_from_bytes_with_discriminator_zero_copy;
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
@@ -27,13 +27,13 @@ pub struct DelegationRecord {
 }
 
 impl DelegationRecord {
-    pub fn discriminant() -> &'static [u8; 8] {
+    pub fn discriminator() -> &'static [u8; 8] {
         &[100, 0, 0, 0, 0, 0, 0, 0]
     }
-    pub fn size_with_discriminant() -> usize {
+    pub fn size_with_discriminator() -> usize {
         8 + size_of::<DelegationRecord>()
     }
 }
 
-impl_to_bytes_with_discriminant_zero_copy!(DelegationRecord);
-impl_try_from_bytes_with_discriminant_zero_copy!(DelegationRecord);
+impl_to_bytes_with_discriminator_zero_copy!(DelegationRecord);
+impl_try_from_bytes_with_discriminator_zero_copy!(DelegationRecord);

@@ -98,7 +98,7 @@ async fn test_delegate_on_curve() {
         .unwrap()
         .unwrap();
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminant(&delegation_record.data).unwrap();
+        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record.data).unwrap();
     assert_eq!(delegation_record.owner, system_program::id());
     assert_eq!(delegation_record.authority, alt_payer.pubkey());
 
@@ -110,7 +110,7 @@ async fn test_delegate_on_curve() {
         .unwrap();
     assert!(delegation_metadata.owner.eq(&dlp::id()));
     let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata.data).unwrap();
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata.data).unwrap();
     assert!(!delegation_metadata.is_undelegatable);
 }
 

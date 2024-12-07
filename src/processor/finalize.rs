@@ -48,16 +48,16 @@ pub fn process_finalize(
     // Load delegation record
     let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminant_mut(&mut delegation_record_data)?;
+        DelegationRecord::try_from_bytes_with_discriminator_mut(&mut delegation_record_data)?;
 
     // Load delegation metadata
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
     let mut delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_data)?;
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
     // Load committed state
     let commit_record_data = commit_record_account.try_borrow_data()?;
-    let commit_record = CommitRecord::try_from_bytes_with_discriminant(&commit_record_data)?;
+    let commit_record = CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)?;
 
     // If the commit slot is greater than the last update slot, we verify and finalize the state
     // If slot is equal or less, we simply close the commitment accounts
@@ -95,7 +95,7 @@ pub fn process_finalize(
 
         delegation_metadata.last_update_external_slot = commit_record.slot;
         delegation_record.lamports = delegated_account.lamports();
-        delegation_metadata.to_bytes_with_discriminant(&mut delegation_metadata_data.as_mut())?;
+        delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
 
         // Dropping references
         drop(delegated_account_data);

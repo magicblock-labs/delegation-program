@@ -75,11 +75,11 @@ pub fn process_undelegate(
     // Load delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminant(&delegation_record_data)?;
+        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)?;
 
     let commit_record_data = commit_record_account.try_borrow_data()?;
     let commit_record = if is_committed {
-        let record = CommitRecord::try_from_bytes_with_discriminant(&commit_record_data)?;
+        let record = CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)?;
         Some(record)
     } else {
         None
@@ -88,7 +88,7 @@ pub fn process_undelegate(
     // Load delegated account metadata
     let delegation_metadata_data = delegation_metadata_account.try_borrow_data()?;
     let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_data)?;
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
     // Check if the delegated account is undelegatable
     if !is_account_undelegatable(&delegation_metadata)? {

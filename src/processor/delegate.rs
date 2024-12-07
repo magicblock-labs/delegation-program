@@ -81,7 +81,7 @@ pub fn process_delegate(
     create_pda(
         delegation_record_account,
         &crate::id(),
-        DelegationRecord::size_with_discriminant(),
+        DelegationRecord::size_with_discriminator(),
         &[
             DELEGATION_RECORD,
             &delegate_account.key.to_bytes(),
@@ -100,7 +100,7 @@ pub fn process_delegate(
         lamports: delegate_account.lamports(),
     };
     let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
-    delegation_record.to_bytes_with_discriminant(&mut delegation_record_data)?;
+    delegation_record.to_bytes_with_discriminator(&mut delegation_record_data)?;
 
     // Initialize the account seeds PDA
     let mut delegation_metadata_bytes = vec![];
@@ -111,7 +111,7 @@ pub fn process_delegate(
         is_undelegatable: false,
         rent_payer: *payer.key,
     };
-    delegation_metadata.to_bytes_with_discriminant(&mut delegation_metadata_bytes)?;
+    delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_bytes)?;
 
     // Initialize the delegation metadata PDA
     create_pda(

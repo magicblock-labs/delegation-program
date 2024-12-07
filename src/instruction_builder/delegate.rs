@@ -5,7 +5,7 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::DelegateArgs;
 use crate::consts::BUFFER;
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
 
 /// Builds a delegate instruction
@@ -19,7 +19,7 @@ pub fn delegate(
     let buffer = Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &owner);
     let delegation_record = delegation_record_pda_from_pubkey(&delegate_account);
     let delegation_metadata = delegation_metadata_pda_from_pubkey(&delegate_account);
-    let mut data = DlpDiscriminant::Delegate.to_vec();
+    let mut data = DlpDiscriminator::Delegate.to_vec();
     data.extend_from_slice(&args.try_to_vec().unwrap());
 
     Instruction {

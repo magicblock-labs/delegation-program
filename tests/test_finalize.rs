@@ -32,7 +32,7 @@ async fn test_finalize() {
     // Commit state record data
     let commit_record = banks.get_account(commit_record_pda).await.unwrap().unwrap();
     let commit_record =
-        CommitRecord::try_from_bytes_with_discriminant(&commit_record.data).unwrap();
+        CommitRecord::try_from_bytes_with_discriminator(&commit_record.data).unwrap();
 
     // Save the new state data before finalizing
     let new_state_before_finalize = banks.get_account(commit_state_pda).await.unwrap().unwrap();
@@ -77,7 +77,7 @@ async fn test_finalize() {
         .unwrap()
         .unwrap();
     let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_account.data)
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
             .unwrap();
     assert_eq!(
         commit_record.slot,

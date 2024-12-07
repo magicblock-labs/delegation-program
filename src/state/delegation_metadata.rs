@@ -1,4 +1,4 @@
-use crate::{impl_to_bytes_with_discriminant_borsh, impl_try_from_bytes_with_discriminant_borsh};
+use crate::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
@@ -20,20 +20,20 @@ pub struct DelegationMetadata {
 }
 
 impl DelegationMetadata {
-    pub fn discriminant() -> &'static [u8; 8] {
+    pub fn discriminator() -> &'static [u8; 8] {
         &[102, 0, 0, 0, 0, 0, 0, 0]
     }
 }
 
-impl_to_bytes_with_discriminant_borsh!(DelegationMetadata);
-impl_try_from_bytes_with_discriminant_borsh!(DelegationMetadata);
+impl_to_bytes_with_discriminator_borsh!(DelegationMetadata);
+impl_try_from_bytes_with_discriminator_borsh!(DelegationMetadata);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_serialization_without_discriminant() {
+    fn test_serialization_without_discriminator() {
         let original = DelegationMetadata {
             seeds: vec![
                 vec![],

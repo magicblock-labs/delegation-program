@@ -78,7 +78,7 @@ async fn test_commit_new_state(valid_config: bool) {
         let commit_record_pda = commit_record_pda_from_pubkey(&DELEGATED_PDA_ID);
         let commit_record_account = banks.get_account(commit_record_pda).await.unwrap().unwrap();
         let commit_record =
-            CommitRecord::try_from_bytes_with_discriminant(&commit_record_account.data).unwrap();
+            CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
         assert_eq!(commit_record.account, DELEGATED_PDA_ID);
         assert_eq!(commit_record.identity, authority.pubkey());
         assert_eq!(commit_record.slot, 100);
@@ -89,9 +89,10 @@ async fn test_commit_new_state(valid_config: bool) {
             .await
             .unwrap()
             .unwrap();
-        let delegation_metadata =
-            DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_account.data)
-                .unwrap();
+        let delegation_metadata = DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_account.data,
+        )
+        .unwrap();
         assert!(delegation_metadata.is_undelegatable);
     }
 }

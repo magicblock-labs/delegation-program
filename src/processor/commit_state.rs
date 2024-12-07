@@ -55,13 +55,14 @@ pub fn process_commit_state(
     // Load delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminant(&delegation_record_data)?;
+        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)?;
 
     // Load the program configuration and validate it, if any
     let has_program_config = load_program_config(program_config_account, delegation_record.owner)?;
     if has_program_config {
         let program_config_data = program_config_account.try_borrow_data()?;
-        let program_config = ProgramConfig::try_from_bytes_with_discriminant(&program_config_data)?;
+        let program_config =
+            ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?;
         msg!("Program Config: {:?}", program_config);
         validate_program_config(program_config, validator.key)?;
     }
@@ -96,7 +97,7 @@ pub fn process_commit_state(
     create_pda(
         commit_record_account,
         &crate::id(),
-        CommitRecord::size_with_discriminant(),
+        CommitRecord::size_with_discriminator(),
         &[
             COMMIT_RECORD,
             &delegated_account.key.to_bytes(),
@@ -134,14 +135,14 @@ pub fn process_commit_state(
         lamports: args.lamports,
     };
     let mut commit_record_data = commit_record_account.try_borrow_mut_data()?;
-    commit_record.to_bytes_with_discriminant(&mut commit_record_data)?;
+    commit_record.to_bytes_with_discriminator(&mut commit_record_data)?;
 
     // Update delegation metadata undelegation flag
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
     let mut delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_data)?;
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
     delegation_metadata.is_undelegatable = args.allow_undelegation;
-    delegation_metadata.to_bytes_with_discriminant(&mut delegation_metadata_data.as_mut())?;
+    delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
 
     // Copy the new state to the initialized PDA
     let mut commit_state_data = commit_state_account.try_borrow_mut_data()?;

@@ -55,7 +55,7 @@ pub fn process_whitelist_validator_for_program(
         ProgramConfig::default()
     } else {
         let program_config_data = program_config_account.try_borrow_data()?;
-        ProgramConfig::try_from_bytes_with_discriminant(&program_config_data)?
+        ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?
     };
     if args.insert {
         program_config
@@ -70,10 +70,10 @@ pub fn process_whitelist_validator_for_program(
         authority,
         program_config_account,
         system_program,
-        program_config.size_with_discriminant(),
+        program_config.size_with_discriminator(),
     )?;
     let mut program_config_data = program_config_account.try_borrow_mut_data()?;
-    program_config.to_bytes_with_discriminant(&mut program_config_data.as_mut())?;
+    program_config.to_bytes_with_discriminator(&mut program_config_data.as_mut())?;
 
     Ok(())
 }

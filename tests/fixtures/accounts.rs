@@ -77,9 +77,9 @@ pub fn create_delegation_record_data(
         commit_frequency_ms: DEFAULT_COMMIT_FREQUENCY_MS,
         lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500)),
     };
-    let mut bytes = vec![0u8; DelegationRecord::size_with_discriminant()];
+    let mut bytes = vec![0u8; DelegationRecord::size_with_discriminator()];
     delegation_record
-        .to_bytes_with_discriminant(&mut bytes)
+        .to_bytes_with_discriminator(&mut bytes)
         .unwrap();
     bytes
 }
@@ -119,7 +119,7 @@ pub fn create_delegation_metadata_data(
     };
     let mut bytes = vec![];
     delegation_metadata
-        .to_bytes_with_discriminant(&mut bytes)
+        .to_bytes_with_discriminator(&mut bytes)
         .unwrap();
     bytes
 }
@@ -132,9 +132,9 @@ pub fn get_commit_record_account_data(authority: Pubkey) -> Vec<u8> {
         account: DELEGATED_PDA_ID,
         lamports: LAMPORTS_PER_SOL,
     };
-    let mut bytes = vec![0u8; CommitRecord::size_with_discriminant()];
+    let mut bytes = vec![0u8; CommitRecord::size_with_discriminator()];
     commit_record
-        .to_bytes_with_discriminant(&mut bytes)
+        .to_bytes_with_discriminator(&mut bytes)
         .unwrap();
     bytes
 }
@@ -149,7 +149,7 @@ pub fn create_program_config_data(approved_validator: Pubkey) -> Vec<u8> {
         .insert(approved_validator);
     let mut bytes = vec![];
     program_config
-        .to_bytes_with_discriminant(&mut bytes)
+        .to_bytes_with_discriminator(&mut bytes)
         .unwrap();
     bytes
 }

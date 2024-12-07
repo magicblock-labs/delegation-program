@@ -3,7 +3,7 @@ use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::consts::FEES_VAULT;
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::{
     buffer_pda_from_pubkey, commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
     delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
@@ -41,6 +41,6 @@ pub fn undelegate(
             AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminant::Undelegate.to_vec(),
+        data: DlpDiscriminator::Undelegate.to_vec(),
     }
 }

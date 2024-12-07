@@ -493,7 +493,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap()
         .unwrap();
     let commit_record =
-        CommitRecord::try_from_bytes_with_discriminant(&commit_record_account.data).unwrap();
+        CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
     assert_eq!(commit_record.account, args.delegate_account);
     assert_eq!(commit_record.identity, args.authority.pubkey());
     assert_eq!(commit_record.slot, 100);
@@ -506,7 +506,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap()
         .unwrap();
     let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminant(&delegation_metadata_account.data)
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
             .unwrap();
     assert!(delegation_metadata.is_undelegatable);
 }

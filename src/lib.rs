@@ -5,7 +5,7 @@ use solana_program::{
 
 pub mod args;
 pub mod consts;
-mod discriminant;
+mod discriminator;
 pub mod error;
 pub mod instruction_builder;
 pub mod pda;
@@ -45,44 +45,44 @@ pub fn process_instruction(
         .try_into()
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    let ix = discriminant::DlpDiscriminant::try_from(tag_array)
+    let ix = discriminator::DlpDiscriminator::try_from(tag_array)
         .or(Err(ProgramError::InvalidInstructionData))?;
     msg!("Processing instruction: {:?}", ix);
     match ix {
-        discriminant::DlpDiscriminant::Delegate => {
+        discriminator::DlpDiscriminator::Delegate => {
             processor::process_delegate(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::CommitState => {
+        discriminator::DlpDiscriminator::CommitState => {
             processor::process_commit_state(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::Finalize => {
+        discriminator::DlpDiscriminator::Finalize => {
             processor::process_finalize(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::Undelegate => {
+        discriminator::DlpDiscriminator::Undelegate => {
             processor::process_undelegate(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::AllowUndelegate => {
+        discriminator::DlpDiscriminator::AllowUndelegate => {
             processor::process_allow_undelegate(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::InitValidatorFeesVault => {
+        discriminator::DlpDiscriminator::InitValidatorFeesVault => {
             processor::process_init_validator_fees_vault(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::InitFeesVault => {
+        discriminator::DlpDiscriminator::InitFeesVault => {
             processor::process_init_fees_vault(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::ValidatorClaimFees => {
+        discriminator::DlpDiscriminator::ValidatorClaimFees => {
             processor::process_validator_claim_fees(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::WhitelistValidatorForProgram => {
+        discriminator::DlpDiscriminator::WhitelistValidatorForProgram => {
             processor::process_whitelist_validator_for_program(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::TopUpEphemeralBalance => {
+        discriminator::DlpDiscriminator::TopUpEphemeralBalance => {
             processor::process_top_up_ephemeral_balance(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::DelegateEphemeralBalance => {
+        discriminator::DlpDiscriminator::DelegateEphemeralBalance => {
             processor::process_delegate_ephemeral_balance(program_id, accounts, data)?
         }
-        discriminant::DlpDiscriminant::CloseEphemeralBalance => {
+        discriminator::DlpDiscriminator::CloseEphemeralBalance => {
             processor::process_close_ephemeral_balance(program_id, accounts, data)?
         }
     }
