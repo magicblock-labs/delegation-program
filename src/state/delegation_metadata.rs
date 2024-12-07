@@ -2,6 +2,8 @@ use crate::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_dis
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
+use super::discriminator::AccountDiscriminator;
+
 /// The Delegated Metadata includes Account Seeds, max delegation time, seeds
 /// and other meta information about the delegated account.
 /// * Everything necessary at cloning time is instead stored in the delegation record.
@@ -20,8 +22,8 @@ pub struct DelegationMetadata {
 }
 
 impl DelegationMetadata {
-    pub fn discriminator() -> &'static [u8; 8] {
-        &[102, 0, 0, 0, 0, 0, 0, 0]
+    pub fn discriminator() -> [u8; 8] {
+        AccountDiscriminator::DelegationMetadata.to_bytes()
     }
 }
 

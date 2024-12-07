@@ -4,14 +4,16 @@ use std::collections::BTreeSet;
 
 use crate::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh};
 
+use super::discriminator::AccountDiscriminator;
+
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
 pub struct ProgramConfig {
     pub approved_validators: BTreeSet<Pubkey>,
 }
 
 impl ProgramConfig {
-    pub fn discriminator() -> &'static [u8; 8] {
-        &[103, 0, 0, 0, 0, 0, 0, 0]
+    pub fn discriminator() -> [u8; 8] {
+        AccountDiscriminator::ProgramConfig.to_bytes()
     }
     pub fn size_with_discriminator(&self) -> usize {
         8 + 4 + 32 * self.approved_validators.len()

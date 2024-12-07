@@ -7,6 +7,8 @@ use crate::{
     impl_to_bytes_with_discriminator_zero_copy, impl_try_from_bytes_with_discriminator_zero_copy,
 };
 
+use super::discriminator::AccountDiscriminator;
+
 /// The Commit State Record
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
@@ -25,8 +27,8 @@ pub struct CommitRecord {
 }
 
 impl CommitRecord {
-    pub fn discriminator() -> &'static [u8; 8] {
-        &[101, 0, 0, 0, 0, 0, 0, 0]
+    pub fn discriminator() -> [u8; 8] {
+        AccountDiscriminator::CommitRecord.to_bytes()
     }
     pub fn size_with_discriminator() -> usize {
         8 + size_of::<CommitRecord>()

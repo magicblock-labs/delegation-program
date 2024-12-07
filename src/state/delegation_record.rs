@@ -5,6 +5,8 @@ use crate::impl_try_from_bytes_with_discriminator_zero_copy;
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
+use super::discriminator::AccountDiscriminator;
+
 /// The Delegation Record stores information such as the authority, the owner and the commit frequency.
 /// This is used by the ephemeral validator to update the state of the delegated account.
 #[repr(C)]
@@ -27,8 +29,8 @@ pub struct DelegationRecord {
 }
 
 impl DelegationRecord {
-    pub fn discriminator() -> &'static [u8; 8] {
-        &[100, 0, 0, 0, 0, 0, 0, 0]
+    pub fn discriminator() -> [u8; 8] {
+        AccountDiscriminator::DelegationRecord.to_bytes()
     }
     pub fn size_with_discriminator() -> usize {
         8 + size_of::<DelegationRecord>()

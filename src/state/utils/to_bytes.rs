@@ -6,7 +6,7 @@ macro_rules! impl_to_bytes_with_discriminator_zero_copy {
                 &self,
                 data: &mut [u8],
             ) -> Result<(), solana_program::program_error::ProgramError> {
-                data[..8].copy_from_slice(Self::discriminator());
+                data[..8].copy_from_slice(&Self::discriminator());
                 data[8..].copy_from_slice(bytemuck::bytes_of(self));
                 Ok(())
             }
@@ -22,7 +22,7 @@ macro_rules! impl_to_bytes_with_discriminator_borsh {
                 &self,
                 data: &mut W,
             ) -> Result<(), solana_program::program_error::ProgramError> {
-                data.write_all(Self::discriminator())?;
+                data.write_all(&Self::discriminator())?;
                 self.serialize(data)?;
                 Ok(())
             }
