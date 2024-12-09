@@ -19,7 +19,7 @@ pub fn process_top_up_ephemeral_balance(
     let args = TopUpEphemeralBalanceArgs::try_from_slice(data)?;
 
     // Load Accounts
-    let [payer, pubkey, ephemeral_balance_pda, system_program] = accounts else {
+    let [payer, pubkey, ephemeral_balance_account, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -27,16 +27,16 @@ pub fn process_top_up_ephemeral_balance(
     load_program(system_program, system_program::id())?;
 
     let bump_ephemeral_balance = load_pda(
-        ephemeral_balance_pda,
+        ephemeral_balance_account,
         ephemeral_balance_seeds_from_payer!(pubkey.key, args.index),
         &crate::id(),
         true,
     )?;
 
     // Create the ephemeral balance PDA if it does not exist
-    if ephemeral_balance_pda.owner.eq(&system_program::id()) {
+    if ephemeral_balance_account.owner.eq(&system_program::id()) {
         create_pda(
-            ephemeral_balance_pda,
+            ephemeral_balance_account,
             &system_program::id(),
             0,
             ephemeral_balance_seeds_from_payer!(pubkey.key, args.index),
@@ -48,12 +48,12 @@ pub fn process_top_up_ephemeral_balance(
 
     // Transfer lamports from payer to ephemeral PDA (with a system program call)
     if args.amount > 0 {
-        let transfer_instruction = transfer(payer.key, ephemeral_balance_pda.key, args.amount);
+        let transfer_instruction = transfer(payer.key, ephemeral_balance_account.key, args.amount);
         invoke(
             &transfer_instruction,
             &[
                 payer.clone(),
-                ephemeral_balance_pda.clone(),
+                ephemeral_balance_account.clone(),
                 system_program.clone(),
             ],
         )?;

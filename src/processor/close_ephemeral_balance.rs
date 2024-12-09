@@ -12,20 +12,20 @@ pub fn process_close_ephemeral_balance(
     let index = *data.first().ok_or(ProgramError::InvalidInstructionData)?;
 
     // Load Accounts
-    let [payer, ephemeral_balance_pda] = accounts else {
+    let [payer, ephemeral_balance_account] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     load_signer(payer)?;
 
     load_initialized_pda(
-        ephemeral_balance_pda,
+        ephemeral_balance_account,
         ephemeral_balance_seeds_from_payer!(payer.key, index),
         &crate::id(),
         true,
     )?;
 
-    close_pda(ephemeral_balance_pda, payer)?;
+    close_pda(ephemeral_balance_account, payer)?;
 
     Ok(())
 }

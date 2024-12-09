@@ -29,9 +29,9 @@ pub fn process_delegate_ephemeral_balance(
     // Check seeds and derive bump
     let ephemeral_balance_seeds: &[&[u8]] =
         ephemeral_balance_seeds_from_payer!(pubkey.key, args.index);
-    let (ephemeral_balance_address, ephemeral_balance_bump) =
+    let (ephemeral_balance_key, ephemeral_balance_bump) =
         Pubkey::find_program_address(ephemeral_balance_seeds, &crate::id());
-    if !ephemeral_balance_address.eq(delegate_account.key) {
+    if !ephemeral_balance_key.eq(delegate_account.key) {
         return Err(ProgramError::InvalidSeeds);
     }
 
