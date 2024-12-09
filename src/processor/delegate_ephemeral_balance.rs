@@ -27,7 +27,8 @@ pub fn process_delegate_ephemeral_balance(
     load_program(delegation_program, crate::id())?;
 
     // Check seeds and derive bump
-    let ephemeral_balance_seeds = ephemeral_balance_seeds_from_payer!(pubkey.key, args.index);
+    let ephemeral_balance_seeds: &[&[u8]] =
+        ephemeral_balance_seeds_from_payer!(pubkey.key, args.index);
     let (ephemeral_balance_address, ephemeral_balance_bump) =
         Pubkey::find_program_address(ephemeral_balance_seeds, &crate::id());
     if !ephemeral_balance_address.eq(delegate_account.key) {
@@ -46,7 +47,7 @@ pub fn process_delegate_ephemeral_balance(
     invoke_signed(
         &system_instruction::assign(delegate_account.key, &crate::id()),
         &[delegate_account.clone(), system_program.clone()],
-        ephemeral_balance_signer_seeds,
+        &[&ephemeral_balance_signer_seeds],
     )?;
 
     // Create the delegation ix
@@ -69,7 +70,7 @@ pub fn process_delegate_ephemeral_balance(
             delegation_metadata.clone(),
             system_program.clone(),
         ],
-        ephemeral_balance_signer_seeds,
+        &[&ephemeral_balance_signer_seeds],
     )?;
 
     Ok(())

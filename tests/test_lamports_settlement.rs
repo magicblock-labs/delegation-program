@@ -5,11 +5,10 @@ use crate::fixtures::{
 };
 use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
-use dlp::consts::FEES_VAULT;
 use dlp::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    validator_fees_vault_pda_from_validator,
+    fees_vault_pda, validator_fees_vault_pda_from_validator,
 };
 use dlp::state::account::AccountDeserialize;
 use dlp::state::{CommitRecord, DelegationMetadata};
@@ -589,7 +588,7 @@ async fn setup_program_for_commit_test_env(
 
     // Setup the protocol fees vault
     program_test.add_account(
-        Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0,
+        fees_vault_pda(),
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],

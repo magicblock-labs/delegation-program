@@ -2,12 +2,11 @@ use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data, TEST_AUTHORITY,
 };
 use dlp::args::DelegateEphemeralBalanceArgs;
-use dlp::consts::{EPHEMERAL_BALANCE, FEES_VAULT};
+use dlp::ephemeral_balance_seeds_from_payer;
 use dlp::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    ephemeral_balance_pda_from_payer, validator_fees_vault_pda_from_validator,
+    ephemeral_balance_pda_from_payer, fees_vault_pda, validator_fees_vault_pda_from_validator,
 };
-use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -35,11 +34,12 @@ async fn test_top_up_ephemeral_balance() {
     assert!(res.is_ok());
 
     // Check account exists and it's owned by the system program
-    let (ephemeral_balance, _) = Pubkey::find_program_address(
-        &[EPHEMERAL_BALANCE, &payer.pubkey().to_bytes(), &[0]],
-        &dlp::id(),
-    );
-    let balance_account = banks.get_account(ephemeral_balance).await.unwrap().unwrap();
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 0);
+    let balance_account = banks
+        .get_account(ephemeral_balance_pda)
+        .await
+        .unwrap()
+        .unwrap();
 
     assert_eq!(balance_account.owner, system_program::id());
     assert!(balance_account.lamports > 0);
@@ -87,8 +87,12 @@ async fn test_top_up_ephemeral_balance_for_pubkey() {
     assert!(res.is_ok());
 
     // Check account exists and it's owned by the system program
-    let ephemeral_balance = ephemeral_balance_pda_from_payer(&pubkey, 0);
-    let balance_account = banks.get_account(ephemeral_balance).await.unwrap().unwrap();
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&pubkey, 0);
+    let balance_account = banks
+        .get_account(ephemeral_balance_pda)
+        .await
+        .unwrap()
+        .unwrap();
 
     assert_eq!(balance_account.owner, system_program::id());
     assert!(balance_account.lamports > 0);
@@ -128,10 +132,7 @@ async fn test_undelegate_and_close() {
 
     let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 
-    let (ephemeral_balance, _) = Pubkey::find_program_address(
-        &[EPHEMERAL_BALANCE, &payer_alt.pubkey().to_bytes(), &[0]],
-        &dlp::id(),
-    );
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer_alt.pubkey(), 0);
 
     let prev_payer_lamports = banks
         .get_account(payer_alt.pubkey())
@@ -141,7 +142,7 @@ async fn test_undelegate_and_close() {
         .lamports;
 
     let ephemeral_balance_lamports = banks
-        .get_account(ephemeral_balance)
+        .get_account(ephemeral_balance_pda)
         .await
         .unwrap()
         .unwrap()
@@ -150,7 +151,7 @@ async fn test_undelegate_and_close() {
     // Undelegate ephemeral balance Ix
     let ix = dlp::instruction_builder::undelegate(
         validator.pubkey(),
-        ephemeral_balance,
+        ephemeral_balance_pda,
         dlp::id(),
         validator.pubkey(),
     );
@@ -167,13 +168,8 @@ async fn test_undelegate_and_close() {
     assert!(res.is_ok());
 
     // Assert that the ephemeral balance account is closed
-    let (ephemeral_balance, _) = Pubkey::find_program_address(
-        &[EPHEMERAL_BALANCE, &payer_alt.pubkey().to_bytes(), &[0]],
-        &dlp::id(),
-    );
-    let balance_account = banks.get_account(ephemeral_balance).await.unwrap();
-
-    assert!(balance_account.is_none());
+    let ephemeral_balance_account = banks.get_account(ephemeral_balance_pda).await.unwrap();
+    assert!(ephemeral_balance_account.is_none());
 
     let payer_lamports = banks
         .get_account(payer_alt.pubkey())
@@ -236,11 +232,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     // Setup the delegated account metadata PDA
     let delegation_metadata_data = create_delegation_metadata_data(
         validator.pubkey(),
-        vec![
-            EPHEMERAL_BALANCE.to_vec(),
-            payer_alt.pubkey().to_bytes().to_vec(),
-            vec![0],
-        ],
+        ephemeral_balance_seeds_from_payer!(payer_alt.pubkey(), 0),
         true,
     );
     program_test.add_account(
@@ -268,7 +260,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the protocol fees vault
     program_test.add_account(
-        Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0,
+        fees_vault_pda(),
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],

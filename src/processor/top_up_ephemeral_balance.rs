@@ -26,10 +26,9 @@ pub fn process_top_up_ephemeral_balance(
     load_signer(payer)?;
     load_program(system_program, system_program::id())?;
 
-    let seeds_ephemeral_balance_pda = ephemeral_balance_seeds_from_payer!(pubkey.key, args.index);
     let bump_ephemeral_balance = load_pda(
         ephemeral_balance_pda,
-        &seeds_ephemeral_balance_pda,
+        ephemeral_balance_seeds_from_payer!(pubkey.key, args.index),
         &crate::id(),
         true,
     )?;

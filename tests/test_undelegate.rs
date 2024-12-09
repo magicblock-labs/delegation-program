@@ -1,10 +1,8 @@
-use dlp::consts::FEES_VAULT;
 use dlp::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    validator_fees_vault_pda_from_validator,
+    fees_vault_pda, validator_fees_vault_pda_from_validator,
 };
-use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
@@ -166,7 +164,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the protocol fees vault
     program_test.add_account(
-        Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0,
+        fees_vault_pda(),
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],

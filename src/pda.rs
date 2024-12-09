@@ -82,7 +82,7 @@ macro_rules! ephemeral_balance_seeds_from_payer {
         &[
             $crate::pda::EPHEMERAL_BALANCE_SEEDS_PREFIX,
             &$payer.to_bytes(),
-            &[index],
+            &[$index],
         ]
     };
 }
