@@ -62,7 +62,8 @@ pub fn process_commit_state(
     let delegation_record = DelegationRecord::try_from_bytes(&delegation_record_data)?;
 
     // Load the program configuration and validate it, if any
-    let has_program_config = load_program_config(program_config_account, delegation_record.owner)?;
+    let has_program_config =
+        load_program_config(program_config_account, delegation_record.owner, false)?;
     if has_program_config {
         let program_config_data = program_config_account.try_borrow_data()?;
         let program_config = ProgramConfig::try_from_slice(&program_config_data)?;

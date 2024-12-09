@@ -383,9 +383,14 @@ async fn undelegate(args: UndelegateArgs<'_>) {
     assert!(delegation_record_account.is_none());
 
     // Assert the delegated metadata account pda was closed
-    let seeds_pda = delegation_metadata_pda_from_delegated_account(&args.delegate_account);
-    let seeds_pda_account = args.banks.get_account(seeds_pda).await.unwrap();
-    assert!(seeds_pda_account.is_none());
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&args.delegate_account);
+    let delegation_metadata_account = args
+        .banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap();
+    assert!(delegation_metadata_account.is_none());
 
     // Assert that the account owner is now set to the original owner program
     let pda_account = args

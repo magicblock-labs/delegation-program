@@ -49,9 +49,10 @@ async fn test_undelegate_on_curve() {
     assert!(delegation_record_account.is_none());
 
     // Assert the delegated metadata account pda was closed
-    let seeds_pda = delegation_metadata_pda_from_delegated_account(&delegated_on_curve.pubkey());
-    let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
-    assert!(seeds_pda_account.is_none());
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&delegated_on_curve.pubkey());
+    let delegation_metadata_account = banks.get_account(delegation_metadata_pda).await.unwrap();
+    assert!(delegation_metadata_account.is_none());
 
     // Assert that the account owner is now set to the system program
     let pda_account = banks

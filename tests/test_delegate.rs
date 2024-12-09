@@ -62,9 +62,13 @@ async fn test_delegate() {
     assert_eq!(pda_data_before_delegation, pda_account.data);
 
     // Assert that the PDA seeds account exists
-    let seeds_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let pda_account = banks.get_account(seeds_pda).await.unwrap().unwrap();
-    assert!(pda_account.owner.eq(&dlp::id()));
+    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_account = banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(delegation_metadata_account.owner.eq(&dlp::id()));
 
     // Assert that the delegation record exists and can be parsed
     let delegation_record = banks

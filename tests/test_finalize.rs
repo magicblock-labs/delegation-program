@@ -27,7 +27,7 @@ async fn test_finalize() {
     let (mut banks, _, authority, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
-    let delegation_record = delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_record_pda = delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let commit_state_pda = commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let commit_record_pda = commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
 
@@ -56,7 +56,7 @@ async fn test_finalize() {
     assert!(commit_state_account.is_none());
 
     // Assert the delegation_record was not closed
-    let delegation_record = banks.get_account(delegation_record).await.unwrap();
+    let delegation_record = banks.get_account(delegation_record_pda).await.unwrap();
     assert!(delegation_record.is_some());
 
     // Assert the commit_record_pda was closed

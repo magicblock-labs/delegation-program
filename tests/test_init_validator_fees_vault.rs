@@ -32,9 +32,9 @@ async fn test_init_validator_fees_vault() {
     assert!(res.is_ok());
 
     // Assert the fees vault was created successfully
-    let fees_vault = validator_fees_vault_pda_from_validator(&validator_identity);
-    let fees_vault_account = banks.get_account(fees_vault).await.unwrap();
-    assert!(fees_vault_account.is_some());
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator_identity);
+    let validator_fees_vault_account = banks.get_account(validator_fees_vault_pda).await.unwrap();
+    assert!(validator_fees_vault_account.is_some());
 
     // Assert record cannot be created if the admin is not the correct one
     let validator_identity = Pubkey::new_unique();

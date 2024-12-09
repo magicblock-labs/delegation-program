@@ -91,19 +91,25 @@ async fn test_delegate_on_curve() {
     assert!(pda_account.owner.eq(&dlp::id()));
 
     // Assert that the PDA seeds account exists
-    let seeds_pda = delegation_metadata_pda_from_delegated_account(&accounts_to_delegate);
-    let pda_account = banks.get_account(seeds_pda).await.unwrap().unwrap();
-    assert!(pda_account.owner.eq(&dlp::id()));
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&accounts_to_delegate);
+    let delegation_metadata_account = banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(delegation_metadata_account.owner.eq(&dlp::id()));
 
     // Assert that the delegation record exists and can be parsed
-    let delegation_record = banks
+    let delegation_record_account = banks
         .get_account(delegation_record_pda_from_delegated_account(
             &accounts_to_delegate,
         ))
         .await
         .unwrap()
         .unwrap();
-    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record.data).unwrap();
+    let delegation_record =
+        DelegationRecord::try_from_bytes(&delegation_record_account.data).unwrap();
     assert_eq!(delegation_record.owner, system_program::id());
     assert_eq!(delegation_record.authority, alt_payer.pubkey());
 

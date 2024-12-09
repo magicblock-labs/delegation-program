@@ -176,8 +176,11 @@ pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError>
 
 /// Load fee vault PDA
 /// - Protocol fees vault PDA
-pub fn load_initialized_fees_vault(fees_vault: &AccountInfo) -> Result<(), ProgramError> {
-    load_initialized_pda(fees_vault, fees_vault_seeds!(), &crate::id(), true)?;
+pub fn load_initialized_fees_vault(
+    fees_vault: &AccountInfo,
+    is_writable: bool,
+) -> Result<(), ProgramError> {
+    load_initialized_pda(fees_vault, fees_vault_seeds!(), &crate::id(), is_writable)?;
     Ok(())
 }
 
@@ -206,6 +209,7 @@ pub fn load_initialized_validator_fees_vault(
 pub fn load_program_config(
     program_config: &AccountInfo,
     program: Pubkey,
+    is_writable: bool,
 ) -> Result<bool, ProgramError> {
     if !program_config_from_program_id(&program).eq(program_config.key) {
         return Err(InvalidAuthority.into());
@@ -214,7 +218,7 @@ pub fn load_program_config(
         program_config,
         program_config_seeds_from_program_id!(program),
         &crate::id(),
-        false,
+        is_writable,
     )?;
     Ok(!program_config.owner.eq(&system_program::ID))
 }

@@ -63,9 +63,9 @@ async fn test_undelegate_without_commit() {
     assert!(delegation_record_account.is_none());
 
     // Assert the delegated account seeds pda was closed
-    let seeds_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
-    assert!(seeds_pda_account.is_none());
+    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_account = banks.get_account(delegation_metadata_pda).await.unwrap();
+    assert!(delegation_metadata_account.is_none());
 
     // Assert that the account owner is now set to the owner program
     let pda_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();

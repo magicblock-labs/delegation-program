@@ -24,9 +24,9 @@ async fn test_validator_claim_fees() {
         .unwrap()
         .lamports;
 
-    let validator_fees_vault = validator_fees_vault_pda_from_validator(&validator.pubkey());
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator.pubkey());
     let validator_fees_vault_init_lamports = banks
-        .get_account(validator_fees_vault)
+        .get_account(validator_fees_vault_pda)
         .await
         .unwrap()
         .unwrap()
@@ -53,7 +53,7 @@ async fn test_validator_claim_fees() {
     assert!(res.is_ok());
 
     // Assert the validator fees vault now has less lamports
-    let validator_fees_vault_account = banks.get_account(validator_fees_vault).await.unwrap();
+    let validator_fees_vault_account = banks.get_account(validator_fees_vault_pda).await.unwrap();
     assert!(validator_fees_vault_account.is_some());
     assert_eq!(
         validator_fees_vault_account.unwrap().lamports,
