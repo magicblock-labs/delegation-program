@@ -1,89 +1,58 @@
 use solana_program::pubkey::Pubkey;
 
-pub const DELEGATION_RECORD_SEEDS_PREFIX: &[u8] = b"delegation";
-pub const DELEGATION_METADATA_SEEDS_PREFIX: &[u8] = b"delegation-metadata";
-pub const COMMIT_STATE_SEEDS_PREFIX: &[u8] = b"state-diff";
-pub const COMMIT_RECORD_SEEDS_PREFIX: &[u8] = b"commit-state-record";
-pub const FEES_VAULT_SEEDS_PREFIX: &[u8] = b"fees-vault";
-pub const VALIDATOR_FEES_VAULT_SEEDS_PREFIX: &[u8] = b"v-fees-vault";
-pub const PROGRAM_CONFIG_SEEDS_PREFIX: &[u8] = b"p-conf";
-pub const EPHEMERAL_BALANCE_SEEDS_PREFIX: &[u8] = b"balance";
-
 #[macro_export]
 macro_rules! delegation_record_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[
-            $crate::pda::DELEGATION_RECORD_SEEDS_PREFIX,
-            &$delegated_account.to_bytes(),
-        ]
+        &[b"delegation", &$delegated_account.to_bytes()]
     };
 }
 
 #[macro_export]
 macro_rules! delegation_metadata_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[
-            $crate::pda::DELEGATION_METADATA_SEEDS_PREFIX,
-            &$delegated_account.to_bytes(),
-        ]
+        &[b"delegation-metadata", &$delegated_account.to_bytes()]
     };
 }
 
 #[macro_export]
 macro_rules! commit_state_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[
-            $crate::pda::COMMIT_STATE_SEEDS_PREFIX,
-            &$delegated_account.to_bytes(),
-        ]
+        &[b"state-diff", &$delegated_account.to_bytes()]
     };
 }
 
 #[macro_export]
 macro_rules! commit_record_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[
-            $crate::pda::COMMIT_RECORD_SEEDS_PREFIX,
-            &$delegated_account.to_bytes(),
-        ]
+        &[b"commit-state-record", &$delegated_account.to_bytes()]
     };
 }
 
 #[macro_export]
 macro_rules! fees_vault_seeds {
     () => {
-        &[$crate::pda::FEES_VAULT_SEEDS_PREFIX]
+        &[b"fees-vault"]
     };
 }
 
 #[macro_export]
 macro_rules! validator_fees_vault_seeds_from_validator {
     ($validator: expr) => {
-        &[
-            $crate::pda::VALIDATOR_FEES_VAULT_SEEDS_PREFIX,
-            &$validator.to_bytes(),
-        ]
+        &[b"v-fees-vault", &$validator.to_bytes()]
     };
 }
 
 #[macro_export]
 macro_rules! program_config_seeds_from_program_id {
     ($program_id: expr) => {
-        &[
-            $crate::pda::PROGRAM_CONFIG_SEEDS_PREFIX,
-            &$program_id.to_bytes(),
-        ]
+        &[b"p-conf", &$program_id.to_bytes()]
     };
 }
 
 #[macro_export]
 macro_rules! ephemeral_balance_seeds_from_payer {
     ($payer: expr, $index: expr) => {
-        &[
-            $crate::pda::EPHEMERAL_BALANCE_SEEDS_PREFIX,
-            &$payer.to_bytes(),
-            &[$index],
-        ]
+        &[b"balance", &$payer.to_bytes(), &[$index]]
     };
 }
 
