@@ -66,7 +66,7 @@ pub fn process_undelegate(
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
     load_program(system_program, system_program::id())?;
     load_initialized_fees_vault(fees_vault)?;
-    load_initialized_validator_fees_vault(validator, validator_fees_vault)?;
+    load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
 
     // Check if there is a committed state
     let is_committed = is_state_committed(

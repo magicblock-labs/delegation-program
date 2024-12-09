@@ -187,6 +187,7 @@ pub fn load_initialized_fees_vault(fees_vault: &AccountInfo) -> Result<(), Progr
 pub fn load_initialized_validator_fees_vault(
     validator: &AccountInfo,
     validator_fees_vault: &AccountInfo,
+    is_writable: bool,
 ) -> Result<(), ProgramError> {
     if !validator_fees_vault_pda_from_validator(validator.key).eq(validator_fees_vault.key) {
         return Err(InvalidAuthority.into());
@@ -195,7 +196,7 @@ pub fn load_initialized_validator_fees_vault(
         validator_fees_vault,
         validator_fees_vault_seeds_from_validator!(validator.key),
         &crate::id(),
-        true,
+        is_writable,
     )?;
     Ok(())
 }
@@ -255,12 +256,13 @@ pub fn load_initialized_delegation_metadata(
 pub fn load_initialized_commit_state(
     delegated_account: &AccountInfo,
     commit_state: &AccountInfo,
+    is_writable: bool,
 ) -> Result<(), ProgramError> {
     load_initialized_pda(
         commit_state,
         commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
-        true,
+        is_writable,
     )?;
     Ok(())
 }
@@ -270,12 +272,13 @@ pub fn load_initialized_commit_state(
 pub fn load_initialized_commit_record(
     delegated_account: &AccountInfo,
     commit_record: &AccountInfo,
+    is_writable: bool,
 ) -> Result<(), ProgramError> {
     load_initialized_pda(
         commit_record,
         commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
-        true,
+        is_writable,
     )?;
     Ok(())
 }

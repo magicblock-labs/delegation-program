@@ -30,7 +30,7 @@ pub fn process_validator_claim_fees(
 
     load_signer(validator)?;
     load_initialized_fees_vault(fees_vault)?;
-    load_initialized_validator_fees_vault(validator, validator_fees_vault)?;
+    load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
 
     // Calculate the amount to transfer
     let min_rent = Rent::default().minimum_balance(0);

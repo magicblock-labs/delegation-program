@@ -40,11 +40,11 @@ pub fn process_finalize(
 
     load_signer(validator)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_initialized_commit_state(delegated_account, commit_state_account)?;
-    load_initialized_commit_record(delegated_account, commit_record_account)?;
+    load_initialized_commit_state(delegated_account, commit_state_account, true)?;
+    load_initialized_commit_record(delegated_account, commit_record_account, true)?;
     load_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
-    load_initialized_validator_fees_vault(validator, validator_fees_vault)?;
+    load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record

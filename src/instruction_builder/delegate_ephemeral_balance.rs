@@ -29,7 +29,7 @@ pub fn delegate_ephemeral_balance(
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(pubkey, true),
+            AccountMeta::new_readonly(pubkey, true),
             AccountMeta::new(delegate_account, false),
             AccountMeta::new(buffer.0, false),
             AccountMeta::new(delegation_record_pda, false),
