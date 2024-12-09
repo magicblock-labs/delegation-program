@@ -4,8 +4,8 @@ use crate::fixtures::{
 use dlp::args::DelegateEphemeralBalanceArgs;
 use dlp::consts::{EPHEMERAL_BALANCE, FEES_VAULT};
 use dlp::pda::{
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-    ephemeral_balance_from_payer, validator_fees_vault_pda_from_pubkey,
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+    ephemeral_balance_pda_from_payer, validator_fees_vault_pda_from_validator,
 };
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
@@ -87,7 +87,7 @@ async fn test_top_up_ephemeral_balance_for_pubkey() {
     assert!(res.is_ok());
 
     // Check account exists and it's owned by the system program
-    let ephemeral_balance = ephemeral_balance_from_payer(&pubkey, 0);
+    let ephemeral_balance = ephemeral_balance_pda_from_payer(&pubkey, 0);
     let balance_account = banks.get_account(ephemeral_balance).await.unwrap().unwrap();
 
     assert_eq!(balance_account.owner, system_program::id());
@@ -205,7 +205,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    let ephemeral_balance = ephemeral_balance_from_payer(&payer_alt.pubkey(), 0);
+    let ephemeral_balance = ephemeral_balance_pda_from_payer(&payer_alt.pubkey(), 0);
 
     // Setup the delegated account PDA
     program_test.add_account(
@@ -223,7 +223,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let delegation_record_data =
         create_delegation_record_data(validator.pubkey(), dlp::id(), Some(LAMPORTS_PER_SOL));
     program_test.add_account(
-        delegation_record_pda_from_pubkey(&ephemeral_balance),
+        delegation_record_pda_from_delegated_account(&ephemeral_balance),
         Account {
             lamports: Rent::default().minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
@@ -244,7 +244,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         true,
     );
     program_test.add_account(
-        delegation_metadata_pda_from_pubkey(&ephemeral_balance),
+        delegation_metadata_pda_from_delegated_account(&ephemeral_balance),
         Account {
             lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
@@ -280,7 +280,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the validator fees vault
     program_test.add_account(
-        validator_fees_vault_pda_from_pubkey(&validator.pubkey()),
+        validator_fees_vault_pda_from_validator(&validator.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],

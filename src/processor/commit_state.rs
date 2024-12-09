@@ -1,17 +1,19 @@
 use std::mem::size_of;
 
 use crate::args::CommitStateArgs;
-use crate::consts::{COMMIT_RECORD, COMMIT_STATE};
 use crate::error::DlpError;
 use crate::processor::utils::loaders::{
-    load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
-    load_program, load_program_config, load_signer, load_uninitialized_pda,
-    load_validator_fees_vault,
+    load_initialized_delegation_metadata, load_initialized_delegation_record,
+    load_initialized_validator_fees_vault, load_owned_pda, load_program, load_program_config,
+    load_signer, load_uninitialized_pda,
 };
 use crate::processor::utils::pda::create_pda;
 use crate::processor::utils::verify::verify_state;
 use crate::state::account::{AccountDeserialize, AccountWithDiscriminator};
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
+use crate::{
+    commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
@@ -52,7 +54,7 @@ pub fn process_commit_state(
     load_signer(validator)?;
     load_initialized_delegation_record(delegated_account, delegation_record_account)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
-    load_validator_fees_vault(validator, validator_fees_vault)?;
+    load_initialized_validator_fees_vault(validator, validator_fees_vault)?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
@@ -71,12 +73,12 @@ pub fn process_commit_state(
     // Load the uninitialized PDAs
     let commit_state_bump = load_uninitialized_pda(
         commit_state_account,
-        &[COMMIT_STATE, &delegated_account.key.to_bytes()],
+        commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
     )?;
     let commit_record_bump = load_uninitialized_pda(
         commit_record_account,
-        &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
+        commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
     )?;
 
@@ -85,11 +87,8 @@ pub fn process_commit_state(
         commit_state_account,
         &crate::id(),
         delegated_data.len(),
-        &[
-            COMMIT_STATE,
-            &delegated_account.key.to_bytes(),
-            &[commit_state_bump],
-        ],
+        commit_state_seeds_from_delegated_account!(delegated_account.key),
+        commit_state_bump,
         system_program,
         validator,
     )?;
@@ -99,11 +98,8 @@ pub fn process_commit_state(
         commit_record_account,
         &crate::id(),
         8 + size_of::<CommitRecord>(),
-        &[
-            COMMIT_RECORD,
-            &delegated_account.key.to_bytes(),
-            &[commit_record_bump],
-        ],
+        commit_record_seeds_from_delegated_account!(delegated_account.key),
+        commit_record_bump,
         system_program,
         validator,
     )?;

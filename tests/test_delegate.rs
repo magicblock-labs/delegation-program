@@ -9,7 +9,9 @@ use solana_sdk::{
 };
 
 use dlp::consts::BUFFER;
-use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
+use dlp::pda::{
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+};
 use dlp::state::account::AccountDeserialize;
 use dlp::state::DelegationRecord;
 
@@ -60,13 +62,15 @@ async fn test_delegate() {
     assert_eq!(pda_data_before_delegation, pda_account.data);
 
     // Assert that the PDA seeds account exists
-    let seeds_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let seeds_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let pda_account = banks.get_account(seeds_pda).await.unwrap().unwrap();
     assert!(pda_account.owner.eq(&dlp::id()));
 
     // Assert that the delegation record exists and can be parsed
     let delegation_record = banks
-        .get_account(delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID))
+        .get_account(delegation_record_pda_from_delegated_account(
+            &DELEGATED_PDA_ID,
+        ))
         .await
         .unwrap()
         .unwrap();

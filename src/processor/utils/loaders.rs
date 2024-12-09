@@ -1,9 +1,11 @@
-use crate::consts::{
-    COMMIT_RECORD, COMMIT_STATE, DELEGATION_METADATA, DELEGATION_RECORD, FEES_VAULT,
-    PROGRAM_CONFIG, VALIDATOR_FEES_VAULT,
-};
 use crate::error::DlpError::InvalidAuthority;
-use crate::pda::{program_config_pda_from_pubkey, validator_fees_vault_pda_from_pubkey};
+use crate::pda::{program_config_from_program_id, validator_fees_vault_pda_from_validator};
+use crate::{
+    commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
+    delegation_metadata_seeds_from_delegated_account,
+    delegation_record_seeds_from_delegated_account, fees_vault_seeds,
+    program_config_seeds_from_program_id, validator_fees_vault_seeds_from_validator,
+};
 use solana_program::{
     account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, system_program,
     sysvar,
@@ -174,24 +176,24 @@ pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError>
 
 /// Load fee vault PDA
 /// - Protocol fees vault PDA
-pub fn load_fees_vault(fees_vault: &AccountInfo) -> Result<(), ProgramError> {
-    load_initialized_pda(fees_vault, &[FEES_VAULT], &crate::id(), true)?;
+pub fn load_initialized_fees_vault(fees_vault: &AccountInfo) -> Result<(), ProgramError> {
+    load_initialized_pda(fees_vault, fees_vault_seeds!(), &crate::id(), true)?;
     Ok(())
 }
 
 /// Load validator fee vault PDA
 /// - Validator fees vault PDA must be derived from the validator pubkey
 /// - Validator fees vault PDA must be initialized with the expected seeds and owner
-pub fn load_validator_fees_vault(
+pub fn load_initialized_validator_fees_vault(
     validator: &AccountInfo,
     validator_fees_vault: &AccountInfo,
 ) -> Result<(), ProgramError> {
-    if !validator_fees_vault_pda_from_pubkey(validator.key).eq(validator_fees_vault.key) {
+    if !validator_fees_vault_pda_from_validator(validator.key).eq(validator_fees_vault.key) {
         return Err(InvalidAuthority.into());
     }
     load_initialized_pda(
         validator_fees_vault,
-        &[VALIDATOR_FEES_VAULT, &validator.key.to_bytes()],
+        validator_fees_vault_seeds_from_validator!(validator.key),
         &crate::id(),
         true,
     )?;
@@ -204,12 +206,12 @@ pub fn load_program_config(
     program_config: &AccountInfo,
     program: Pubkey,
 ) -> Result<bool, ProgramError> {
-    if !program_config_pda_from_pubkey(&program).eq(program_config.key) {
+    if !program_config_from_program_id(&program).eq(program_config.key) {
         return Err(InvalidAuthority.into());
     }
     load_pda(
         program_config,
-        &[PROGRAM_CONFIG, program.as_ref()],
+        program_config_seeds_from_program_id!(program),
         &crate::id(),
         false,
     )?;
@@ -224,7 +226,7 @@ pub fn load_initialized_delegation_record(
 ) -> Result<(), ProgramError> {
     load_initialized_pda(
         delegation_record,
-        &[DELEGATION_RECORD, &delegated_account.key.to_bytes()],
+        delegation_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         true,
     )?;
@@ -239,7 +241,7 @@ pub fn load_initialized_delegation_metadata(
 ) -> Result<(), ProgramError> {
     load_initialized_pda(
         delegation_metadata,
-        &[DELEGATION_METADATA, &delegated_account.key.to_bytes()],
+        delegation_metadata_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         true,
     )?;
@@ -254,7 +256,7 @@ pub fn load_initialized_commit_state(
 ) -> Result<(), ProgramError> {
     load_initialized_pda(
         commit_state,
-        &[COMMIT_STATE, &delegated_account.key.to_bytes()],
+        commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         true,
     )?;
@@ -269,7 +271,7 @@ pub fn load_initialized_commit_record(
 ) -> Result<(), ProgramError> {
     load_initialized_pda(
         commit_record,
-        &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
+        commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         true,
     )?;

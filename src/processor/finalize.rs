@@ -2,8 +2,8 @@ use crate::error::DlpError;
 use crate::processor::utils::lamports::settle_lamports_balance;
 use crate::processor::utils::loaders::{
     load_initialized_commit_record, load_initialized_commit_state,
-    load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
-    load_program, load_signer, load_validator_fees_vault,
+    load_initialized_delegation_metadata, load_initialized_delegation_record,
+    load_initialized_validator_fees_vault, load_owned_pda, load_program, load_signer,
 };
 use crate::processor::utils::pda::close_pda;
 use crate::processor::utils::verify::verify_state;
@@ -44,7 +44,7 @@ pub fn process_finalize(
     load_initialized_commit_record(delegated_account, commit_record_account)?;
     load_initialized_delegation_record(delegated_account, delegation_record_account)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
-    load_validator_fees_vault(validator, validator_fees_vault)?;
+    load_initialized_validator_fees_vault(validator, validator_fees_vault)?;
     load_program(system_program, system_program::id())?;
 
     // Load delegation record

@@ -1,5 +1,5 @@
 use crate::args::TopUpEphemeralBalanceArgs;
-use crate::consts::EPHEMERAL_BALANCE;
+use crate::ephemeral_balance_seeds_from_payer;
 use crate::processor::utils::loaders::{load_pda, load_program, load_signer};
 use crate::processor::utils::pda::create_pda;
 use borsh::BorshDeserialize;
@@ -26,7 +26,7 @@ pub fn process_top_up_ephemeral_balance(
     load_signer(payer)?;
     load_program(system_program, system_program::id())?;
 
-    let seeds_ephemeral_balance_pda = [EPHEMERAL_BALANCE, &pubkey.key.to_bytes(), &[args.index]];
+    let seeds_ephemeral_balance_pda = ephemeral_balance_seeds_from_payer!(pubkey.key, args.index);
     let bump_ephemeral_balance = load_pda(
         ephemeral_balance_pda,
         &seeds_ephemeral_balance_pda,
@@ -40,12 +40,8 @@ pub fn process_top_up_ephemeral_balance(
             ephemeral_balance_pda,
             &system_program::id(),
             0,
-            &[
-                EPHEMERAL_BALANCE,
-                &pubkey.key.to_bytes(),
-                &[args.index],
-                &[bump_ephemeral_balance],
-            ],
+            ephemeral_balance_seeds_from_payer!(pubkey.key, args.index),
+            bump_ephemeral_balance,
             system_program,
             payer,
         )?;

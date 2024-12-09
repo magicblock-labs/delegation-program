@@ -6,7 +6,7 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::WhitelistValidatorForProgramArgs;
 use crate::discriminant::DlpDiscriminant;
-use crate::pda::program_config_pda_from_pubkey;
+use crate::pda::program_config_from_program_id;
 
 /// Whitelist validator for program
 pub fn whitelist_validator_for_program(
@@ -18,7 +18,7 @@ pub fn whitelist_validator_for_program(
     let args = WhitelistValidatorForProgramArgs { insert };
     let program_data =
         Pubkey::find_program_address(&[program.as_ref()], &bpf_loader_upgradeable::id()).0;
-    let program_config = program_config_pda_from_pubkey(&program);
+    let program_config = program_config_from_program_id(&program);
     Instruction {
         program_id: crate::id(),
         accounts: vec![

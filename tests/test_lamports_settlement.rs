@@ -7,9 +7,9 @@ use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
 use dlp::consts::FEES_VAULT;
 use dlp::pda::{
-    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-    validator_fees_vault_pda_from_pubkey,
+    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+    validator_fees_vault_pda_from_validator,
 };
 use dlp::state::account::AccountDeserialize;
 use dlp::state::{CommitRecord, DelegationMetadata};
@@ -146,7 +146,7 @@ pub async fn test_commit_system_account_after_balance_decrease(is_undelegate: bo
 
     // Assert the vault own the difference
     let validator_vault = banks
-        .get_account(validator_fees_vault_pda_from_pubkey(&authority.pubkey()))
+        .get_account(validator_fees_vault_pda_from_validator(&authority.pubkey()))
         .await
         .unwrap()
         .unwrap();
@@ -194,7 +194,7 @@ async fn test_commit_system_account_after_balance_increase(is_undelegate: bool, 
 
     // Assert the vault own the difference
     let validator_vault = banks
-        .get_account(validator_fees_vault_pda_from_pubkey(&authority.pubkey()))
+        .get_account(validator_fees_vault_pda_from_validator(&authority.pubkey()))
         .await
         .unwrap()
         .unwrap();
@@ -248,7 +248,7 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
 
     // Assert the vault own the difference
     let validator_vault = banks
-        .get_account(validator_fees_vault_pda_from_pubkey(&authority.pubkey()))
+        .get_account(validator_fees_vault_pda_from_validator(&authority.pubkey()))
         .await
         .unwrap()
         .unwrap();
@@ -302,7 +302,7 @@ async fn test_commit_system_account_after_balance_increase_and_increase_mainchai
 
     // Assert the vault own the difference
     let validator_vault = banks
-        .get_account(validator_fees_vault_pda_from_pubkey(&authority.pubkey()))
+        .get_account(validator_fees_vault_pda_from_validator(&authority.pubkey()))
         .await
         .unwrap()
         .unwrap();
@@ -359,7 +359,8 @@ struct UndelegateArgs<'a> {
 
 async fn undelegate(args: UndelegateArgs<'_>) {
     // Retrieve the accounts
-    let delegation_record_pda = delegation_record_pda_from_pubkey(&args.delegate_account);
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&args.delegate_account);
 
     // Submit the undelegate tx
     let ix = dlp::instruction_builder::undelegate(
@@ -383,7 +384,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
     assert!(delegation_record_account.is_none());
 
     // Assert the delegated metadata account pda was closed
-    let seeds_pda = delegation_metadata_pda_from_pubkey(&args.delegate_account);
+    let seeds_pda = delegation_metadata_pda_from_delegated_account(&args.delegate_account);
     let seeds_pda_account = args.banks.get_account(seeds_pda).await.unwrap();
     assert!(seeds_pda_account.is_none());
 
@@ -465,7 +466,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let commit_state_pda = commit_state_pda_from_pubkey(&args.delegate_account);
+    let commit_state_pda = commit_state_pda_from_delegated_account(&args.delegate_account);
     let commit_state_account = args
         .banks
         .get_account(commit_state_pda)
@@ -487,7 +488,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     );
 
     // Assert the record about the commitment exists
-    let commit_record_pda = commit_record_pda_from_pubkey(&args.delegate_account);
+    let commit_record_pda = commit_record_pda_from_delegated_account(&args.delegate_account);
     let commit_record_account = args
         .banks
         .get_account(commit_record_pda)
@@ -499,7 +500,8 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     assert_eq!(commit_record.identity, args.authority.pubkey());
     assert_eq!(commit_record.slot, 100);
 
-    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&args.delegate_account);
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&args.delegate_account);
     let delegation_metadata_account = args
         .banks
         .get_account(delegation_metadata_pda)
@@ -558,7 +560,7 @@ async fn setup_program_for_commit_test_env(
         get_delegation_metadata_data_on_curve(validator_keypair.pubkey(), None)
     };
     program_test.add_account(
-        delegation_metadata_pda_from_pubkey(&args.delegated_account),
+        delegation_metadata_pda_from_delegated_account(&args.delegated_account),
         Account {
             lamports: Rent::default().minimum_balance(data.len()),
             data,
@@ -575,7 +577,7 @@ async fn setup_program_for_commit_test_env(
         Some(args.delegated_account_init_lamports),
     );
     program_test.add_account(
-        delegation_record_pda_from_pubkey(&args.delegated_account),
+        delegation_record_pda_from_delegated_account(&args.delegated_account),
         Account {
             lamports: Rent::default().minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
@@ -599,7 +601,7 @@ async fn setup_program_for_commit_test_env(
 
     // Setup the validator fees vault
     program_test.add_account(
-        validator_fees_vault_pda_from_pubkey(&validator_keypair.pubkey()),
+        validator_fees_vault_pda_from_validator(&validator_keypair.pubkey()),
         Account {
             lamports: args.validator_vault_init_lamports,
             data: vec![],

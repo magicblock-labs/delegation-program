@@ -1,6 +1,6 @@
 use dlp::pda::{
-    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
+    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
 };
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
@@ -25,7 +25,7 @@ async fn test_allow_undelegate() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // // Assert the delegated account seeds pda was closed
-    // let seeds_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
+    // let seeds_pda = delegation_metadata_for_delegated_account(&DELEGATED_PDA_ID);
     // let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
     // assert!(seeds_pda_account.is_none());
 
@@ -72,7 +72,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     // Setup the delegated record PDA
     let delegation_record_data = get_delegation_record_data(payer_alt.pubkey(), None);
     program_test.add_account(
-        delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
+        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
             lamports: Rent::default().minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
@@ -85,7 +85,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     // Setup the delegated account metadata PDA
     let delegation_metadata_data = get_delegation_metadata_data(payer_alt.pubkey(), None);
     program_test.add_account(
-        delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
             lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
@@ -97,7 +97,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the commit state PDA
     program_test.add_account(
-        commit_state_pda_from_pubkey(&DELEGATED_PDA_ID),
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
@@ -110,7 +110,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     // Setup the commit state record PDA
     let commit_record_data = get_commit_record_account_data(payer_alt.pubkey());
     program_test.add_account(
-        commit_record_pda_from_pubkey(&DELEGATED_PDA_ID),
+        commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
             lamports: Rent::default().minimum_balance(commit_record_data.len()),
             data: commit_record_data,

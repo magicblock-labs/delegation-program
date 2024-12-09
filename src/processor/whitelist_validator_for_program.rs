@@ -1,8 +1,9 @@
 use crate::args::WhitelistValidatorForProgramArgs;
-use crate::consts::{ADMIN_PUBKEY, PROGRAM_CONFIG};
+use crate::consts::ADMIN_PUBKEY;
 use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{load_pda, load_program, load_signer};
 use crate::processor::utils::pda::{create_pda, resize_pda};
+use crate::program_config_seeds_from_program_id;
 use crate::state::ProgramConfig;
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
@@ -37,7 +38,7 @@ pub fn process_whitelist_validator_for_program(
 
     let program_config_bump = load_pda(
         program_config_account,
-        &[PROGRAM_CONFIG, program.key.as_ref()],
+        program_config_seeds_from_program_id!(program.key),
         &crate::id(),
         true,
     )?;
@@ -48,7 +49,8 @@ pub fn process_whitelist_validator_for_program(
             program_config_account,
             &crate::id(),
             ProgramConfig::default().serialized_len(),
-            &[PROGRAM_CONFIG, program.key.as_ref(), &[program_config_bump]],
+            program_config_seeds_from_program_id!(program.key),
+            program_config_bump,
             system_program,
             authority,
         )?;

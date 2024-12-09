@@ -1,5 +1,4 @@
 use crate::args::DelegateEphemeralBalanceArgs;
-use crate::consts::EPHEMERAL_BALANCE;
 use crate::processor::utils::loaders::{load_program, load_signer};
 use borsh::BorshDeserialize;
 use solana_program::program::invoke_signed;

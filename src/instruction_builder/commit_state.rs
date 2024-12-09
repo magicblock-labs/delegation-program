@@ -6,9 +6,9 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 use crate::args::CommitStateArgs;
 use crate::discriminant::DlpDiscriminant;
 use crate::pda::{
-    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-    program_config_pda_from_pubkey, validator_fees_vault_pda_from_pubkey,
+    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+    program_config_from_program_id, validator_fees_vault_pda_from_validator,
 };
 
 /// Builds a commit state instruction.
@@ -19,12 +19,13 @@ pub fn commit_state(
     commit_args: CommitStateArgs,
 ) -> Instruction {
     let commit_args = commit_args.try_to_vec().unwrap();
-    let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_account);
-    let commit_state_pda = commit_state_pda_from_pubkey(&delegated_account);
-    let commit_record_pda = commit_record_pda_from_pubkey(&delegated_account);
-    let validator_fees_vault_pda = validator_fees_vault_pda_from_pubkey(&validator);
-    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&delegated_account);
-    let program_config = program_config_pda_from_pubkey(&delegated_account_owner);
+    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
+    let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
+    let commit_record_pda = commit_record_pda_from_delegated_account(&delegated_account);
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator);
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&delegated_account);
+    let program_config = program_config_from_program_id(&delegated_account_owner);
     Instruction {
         program_id: crate::id(),
         accounts: vec![

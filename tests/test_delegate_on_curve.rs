@@ -11,7 +11,9 @@ use solana_sdk::{
 use crate::fixtures::ON_CURVE_KEYPAIR;
 use dlp::args::DelegateArgs;
 use dlp::consts::BUFFER;
-use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
+use dlp::pda::{
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+};
 use dlp::state::account::AccountDeserialize;
 use dlp::state::{DelegationMetadata, DelegationRecord};
 
@@ -89,13 +91,15 @@ async fn test_delegate_on_curve() {
     assert!(pda_account.owner.eq(&dlp::id()));
 
     // Assert that the PDA seeds account exists
-    let seeds_pda = delegation_metadata_pda_from_pubkey(&accounts_to_delegate);
+    let seeds_pda = delegation_metadata_pda_from_delegated_account(&accounts_to_delegate);
     let pda_account = banks.get_account(seeds_pda).await.unwrap().unwrap();
     assert!(pda_account.owner.eq(&dlp::id()));
 
     // Assert that the delegation record exists and can be parsed
     let delegation_record = banks
-        .get_account(delegation_record_pda_from_pubkey(&accounts_to_delegate))
+        .get_account(delegation_record_pda_from_delegated_account(
+            &accounts_to_delegate,
+        ))
         .await
         .unwrap()
         .unwrap();
@@ -105,7 +109,9 @@ async fn test_delegate_on_curve() {
 
     // Assert that the delegation metadata exists and can be parsed
     let delegation_metadata = banks
-        .get_account(delegation_metadata_pda_from_pubkey(&accounts_to_delegate))
+        .get_account(delegation_metadata_pda_from_delegated_account(
+            &accounts_to_delegate,
+        ))
         .await
         .unwrap()
         .unwrap();

@@ -7,8 +7,11 @@ use solana_program::{
     {self},
 };
 
-use crate::consts::{BUFFER, DELEGATION_METADATA, DELEGATION_RECORD};
-use crate::processor::utils::loaders::{load_initialized_pda, load_owned_pda, load_signer};
+use crate::consts::BUFFER;
+use crate::processor::utils::loaders::{
+    load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
+    load_signer,
+};
 use crate::state::account::AccountDeserialize;
 use crate::state::{DelegationMetadata, DelegationRecord};
 
@@ -31,21 +34,9 @@ pub fn process_allow_undelegate(
     // Check that the account is owned by the delegation program
     load_owned_pda(delegated_account, &crate::id())?;
 
-    // Check delegation record
-    load_initialized_pda(
-        delegation_record_account,
-        &[DELEGATION_RECORD, &delegated_account.key.to_bytes()],
-        &crate::id(),
-        false,
-    )?;
-
-    // Check delegation metadata
-    load_initialized_pda(
-        delegation_metadata_account,
-        &[DELEGATION_METADATA, &delegated_account.key.to_bytes()],
-        &crate::id(),
-        true,
-    )?;
+    // Check delegation record/metadata
+    load_initialized_delegation_record(delegated_account, delegation_record_account)?;
+    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
 
     // Read delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;

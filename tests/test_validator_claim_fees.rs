@@ -1,6 +1,6 @@
 use crate::fixtures::TEST_AUTHORITY;
 use dlp::consts::{FEES_VAULT, FEES_VOLUME};
-use dlp::pda::validator_fees_vault_pda_from_pubkey;
+use dlp::pda::validator_fees_vault_pda_from_validator;
 use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -25,7 +25,7 @@ async fn test_validator_claim_fees() {
         .unwrap()
         .lamports;
 
-    let validator_fees_vault = validator_fees_vault_pda_from_pubkey(&validator.pubkey());
+    let validator_fees_vault = validator_fees_vault_pda_from_validator(&validator.pubkey());
     let validator_fees_vault_init_lamports = banks
         .get_account(validator_fees_vault)
         .await
@@ -108,7 +108,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the validator fees vault
     program_test.add_account(
-        validator_fees_vault_pda_from_pubkey(&validator.pubkey()),
+        validator_fees_vault_pda_from_validator(&validator.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],

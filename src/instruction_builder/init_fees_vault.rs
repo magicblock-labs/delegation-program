@@ -2,12 +2,12 @@ use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
-use crate::consts::FEES_VAULT;
 use crate::discriminant::DlpDiscriminant;
+use crate::pda::fees_vault_pda;
 
 /// Initialize the fees vault PDA.
 pub fn init_fees_vault(payer: Pubkey) -> Instruction {
-    let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &crate::id()).0;
+    let fees_vault = fees_vault_pda();
     Instruction {
         program_id: crate::id(),
         accounts: vec![
