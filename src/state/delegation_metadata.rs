@@ -2,7 +2,7 @@ use crate::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_dis
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
 
-use super::discriminator::AccountDiscriminator;
+use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 
 /// The Delegated Metadata includes Account Seeds, max delegation time, seeds
 /// and other meta information about the delegated account.
@@ -21,9 +21,9 @@ pub struct DelegationMetadata {
     pub rent_payer: Pubkey,
 }
 
-impl DelegationMetadata {
-    pub fn discriminator() -> [u8; 8] {
-        AccountDiscriminator::DelegationMetadata.to_bytes()
+impl AccountWithDiscriminator for DelegationMetadata {
+    fn discriminator() -> AccountDiscriminator {
+        AccountDiscriminator::DelegationMetadata
     }
 }
 

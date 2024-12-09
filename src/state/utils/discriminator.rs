@@ -15,3 +15,7 @@ impl AccountDiscriminator {
         num.to_le_bytes()
     }
 }
+
+pub trait AccountWithDiscriminator {
+    fn discriminator() -> AccountDiscriminator;
+}
