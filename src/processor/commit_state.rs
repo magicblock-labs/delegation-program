@@ -58,8 +58,8 @@ pub fn process_commit_state(
     load_program(system_program, system_program::id())?;
 
     // Load delegation record
-    let mut delegation_record_data = delegation_record_account.try_borrow_data()?;
-    let delegation_record = DelegationRecord::try_from_bytes(&mut delegation_record_data)?;
+    let delegation_record_data = delegation_record_account.try_borrow_data()?;
+    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record_data)?;
 
     // Load the program configuration and validate it, if any
     let has_program_config = load_program_config(program_config_account, delegation_record.owner)?;
