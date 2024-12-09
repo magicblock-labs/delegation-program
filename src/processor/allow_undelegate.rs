@@ -35,8 +35,8 @@ pub fn process_allow_undelegate(
     load_owned_pda(delegated_account, &crate::id())?;
 
     // Check delegation record/metadata
-    load_initialized_delegation_record(delegated_account, delegation_record_account)?;
-    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
+    load_initialized_delegation_record(delegated_account, delegation_record_account, false)?;
+    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
 
     // Read delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;

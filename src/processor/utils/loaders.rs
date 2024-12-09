@@ -223,12 +223,13 @@ pub fn load_program_config(
 pub fn load_initialized_delegation_record(
     delegated_account: &AccountInfo,
     delegation_record: &AccountInfo,
+    is_writable: bool,
 ) -> Result<(), ProgramError> {
     load_initialized_pda(
         delegation_record,
         delegation_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
-        true,
+        is_writable,
     )?;
     Ok(())
 }
@@ -238,12 +239,13 @@ pub fn load_initialized_delegation_record(
 pub fn load_initialized_delegation_metadata(
     delegated_account: &AccountInfo,
     delegation_metadata: &AccountInfo,
+    is_writable: bool,
 ) -> Result<(), ProgramError> {
     load_initialized_pda(
         delegation_metadata,
         delegation_metadata_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
-        true,
+        is_writable,
     )?;
     Ok(())
 }

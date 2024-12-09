@@ -62,8 +62,8 @@ pub fn process_undelegate(
     // Check accounts
     load_signer(validator)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_initialized_delegation_record(delegated_account, delegation_record_account)?;
-    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
+    load_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
+    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
     load_program(system_program, system_program::id())?;
     load_initialized_fees_vault(fees_vault)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault)?;
