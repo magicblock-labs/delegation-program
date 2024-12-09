@@ -14,6 +14,9 @@ use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
 use crate::processor::utils::verify::verify_state;
 use crate::state::account::AccountDeserialize;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
+use crate::{
+    commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::{invoke, invoke_signed};
@@ -322,12 +325,12 @@ fn is_state_committed(
     {
         load_uninitialized_pda(
             commit_state_account,
-            &[COMMIT_STATE, &delegated_account.key.to_bytes()],
+            commit_state_seeds_from_delegated_account!(delegated_account.key),
             &crate::id(),
         )?;
         load_uninitialized_pda(
             commit_record_account,
-            &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
+            commit_record_seeds_from_delegated_account!(delegated_account.key),
             &crate::id(),
         )?;
         false

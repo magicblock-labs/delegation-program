@@ -11,12 +11,12 @@ use crate::pda::{
 
 /// Builds a finalize state instruction.
 pub fn finalize(validator: Pubkey, delegated_account: Pubkey) -> Instruction {
+    let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
+    let commit_record_pda = commit_record_pda_from_delegated_account(&delegated_account);
     let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
-    let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
     let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator);
-    let commit_record_pda = commit_record_pda_from_delegated_account(&delegated_account);
     Instruction {
         program_id: crate::id(),
         accounts: vec![

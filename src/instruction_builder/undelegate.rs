@@ -18,15 +18,15 @@ pub fn undelegate(
     owner_program: Pubkey,
     rent_reimbursement: Pubkey,
 ) -> Instruction {
+    let undelegation_buffer_pda =
+        Pubkey::find_program_address(&[BUFFER, delegated_account.as_ref()], &crate::id()).0;
     let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
     let commit_record_pda = commit_record_pda_from_delegated_account(&delegated_account);
     let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
-    let undelegation_buffer_pda =
-        Pubkey::find_program_address(&[BUFFER, delegated_account.as_ref()], &crate::id()).0;
-    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator);
     let fees_vault_pda = fees_vault_pda();
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator);
     Instruction {
         program_id: crate::id(),
         accounts: vec![

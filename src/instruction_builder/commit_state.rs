@@ -25,7 +25,7 @@ pub fn commit_state(
     let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
-    let program_config = program_config_from_program_id(&delegated_account_owner);
+    let program_config_pda = program_config_from_program_id(&delegated_account_owner);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
@@ -36,7 +36,7 @@ pub fn commit_state(
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new(validator_fees_vault_pda, false),
-            AccountMeta::new_readonly(program_config, false),
+            AccountMeta::new_readonly(program_config_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [DlpDiscriminant::CommitState.to_vec(), commit_args].concat(),

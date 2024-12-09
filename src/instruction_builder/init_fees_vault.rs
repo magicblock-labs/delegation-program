@@ -7,12 +7,12 @@ use crate::pda::fees_vault_pda;
 
 /// Initialize the fees vault PDA.
 pub fn init_fees_vault(payer: Pubkey) -> Instruction {
-    let fees_vault = fees_vault_pda();
+    let fees_vault_pda = fees_vault_pda();
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(fees_vault, false),
+            AccountMeta::new(fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpDiscriminant::InitFeesVault.to_vec(),
