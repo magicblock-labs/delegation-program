@@ -1,8 +1,8 @@
 use dlp::args::CommitStateArgs;
 use dlp::pda::{
-    commit_record_pda_from_pubkey, commit_state_pda_from_pubkey,
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-    validator_fees_vault_pda_from_pubkey,
+    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+    validator_fees_vault_pda_from_validator,
 };
 use dlp::state::{CommitRecord, DelegationMetadata};
 use solana_program::rent::Rent;
@@ -53,7 +53,7 @@ async fn test_commit_new_state() {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let commit_state_pda = commit_state_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let commit_state_pda = commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let commit_state_account = banks.get_account(commit_state_pda).await.unwrap().unwrap();
     assert_eq!(commit_state_account.data, new_state.clone());
 
@@ -62,7 +62,7 @@ async fn test_commit_new_state() {
     assert!(new_account_balance < commit_state_account.lamports + delegated_account.lamports);
 
     // Assert the record about the commitment exists
-    let commit_record_pda = commit_record_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let commit_record_pda = commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let commit_record_account = banks.get_account(commit_record_pda).await.unwrap().unwrap();
     let commit_record =
         CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
@@ -70,7 +70,7 @@ async fn test_commit_new_state() {
     assert_eq!(commit_record.identity, authority.pubkey());
     assert_eq!(commit_record.slot, 100);
 
-    let delegation_metadata_pda = delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID);
+    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let delegation_metadata_account = banks
         .get_account(delegation_metadata_pda)
         .await
@@ -114,7 +114,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     // Setup the delegated account metadata PDA
     let delegation_metadata_data = get_delegation_metadata_data(validator_keypair.pubkey(), None);
     program_test.add_account(
-        delegation_metadata_pda_from_pubkey(&DELEGATED_PDA_ID),
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
             lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
@@ -127,7 +127,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     // Setup the delegated record PDA
     let delegation_record_data = get_delegation_record_data(validator_keypair.pubkey(), None);
     program_test.add_account(
-        delegation_record_pda_from_pubkey(&DELEGATED_PDA_ID),
+        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
             lamports: Rent::default().minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
@@ -139,7 +139,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the validator fees vault
     program_test.add_account(
-        validator_fees_vault_pda_from_pubkey(&validator_keypair.pubkey()),
+        validator_fees_vault_pda_from_validator(&validator_keypair.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],

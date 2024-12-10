@@ -1,6 +1,4 @@
-use crate::consts::{
-    BUFFER, COMMIT_RECORD, COMMIT_STATE, EXTERNAL_UNDELEGATE_DISCRIMINATOR, FEES_SESSION,
-};
+use crate::consts::{BUFFER, EXTERNAL_UNDELEGATE_DISCRIMINATOR, FEES_SESSION};
 use crate::error::DlpError::{
     InvalidAccountDataAfterCPI, InvalidAuthority, InvalidDelegatedAccount,
     InvalidReimbursementAddressForDelegationRent, InvalidValidatorBalanceAfterCPI, Undelegatable,
@@ -8,12 +6,16 @@ use crate::error::DlpError::{
 use crate::processor::utils::curve::is_on_curve;
 use crate::processor::utils::lamports::settle_lamports_balance;
 use crate::processor::utils::loaders::{
-    load_fees_vault, load_initialized_delegation_metadata, load_initialized_delegation_record,
-    load_owned_pda, load_program, load_signer, load_uninitialized_pda, load_validator_fees_vault,
+    load_initialized_delegation_metadata, load_initialized_delegation_record,
+    load_initialized_fees_vault, load_initialized_validator_fees_vault, load_owned_pda,
+    load_program, load_signer, load_uninitialized_pda,
 };
 use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
 use crate::processor::utils::verify::verify_state;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
+use crate::{
+    commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
+};
 use borsh::BorshSerialize;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::{invoke, invoke_signed};
@@ -59,11 +61,11 @@ pub fn process_undelegate(
     // Check accounts
     load_signer(validator)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_initialized_delegation_record(delegated_account, delegation_record_account)?;
-    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account)?;
+    load_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
+    load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
+    load_initialized_fees_vault(fees_vault, true)?;
+    load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
     load_program(system_program, system_program::id())?;
-    load_fees_vault(fees_vault)?;
-    load_validator_fees_vault(validator, validator_fees_vault)?;
 
     // Check if there is a committed state
     let is_committed = is_state_committed(
@@ -117,7 +119,8 @@ pub fn process_undelegate(
             true => commit_state_account.data_len(),
             false => delegated_account.data_len(),
         },
-        &[BUFFER, &delegated_account.key.to_bytes(), &[buffer_bump]],
+        &[BUFFER, &delegated_account.key.to_bytes()],
+        buffer_bump,
         system_program,
         validator,
     )?;
@@ -324,12 +327,12 @@ fn is_state_committed(
     {
         load_uninitialized_pda(
             commit_state_account,
-            &[COMMIT_STATE, &delegated_account.key.to_bytes()],
+            commit_state_seeds_from_delegated_account!(delegated_account.key),
             &crate::id(),
         )?;
         load_uninitialized_pda(
             commit_record_account,
-            &[COMMIT_RECORD, &delegated_account.key.to_bytes()],
+            commit_record_seeds_from_delegated_account!(delegated_account.key),
             &crate::id(),
         )?;
         false

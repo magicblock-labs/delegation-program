@@ -1,9 +1,7 @@
-use dlp::consts::FEES_VAULT;
 use dlp::pda::{
-    delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey,
-    validator_fees_vault_pda_from_pubkey,
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+    fees_vault_pda, validator_fees_vault_pda_from_validator,
 };
-use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -26,7 +24,8 @@ async fn test_undelegate_on_curve() {
     let (mut banks, validator, delegated_on_curve, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
-    let delegation_record_pda = delegation_record_pda_from_pubkey(&delegated_on_curve.pubkey());
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&delegated_on_curve.pubkey());
 
     // Submit the undelegate tx
     let ix = dlp::instruction_builder::undelegate(
@@ -50,9 +49,10 @@ async fn test_undelegate_on_curve() {
     assert!(delegation_record_account.is_none());
 
     // Assert the delegated metadata account pda was closed
-    let seeds_pda = delegation_metadata_pda_from_pubkey(&delegated_on_curve.pubkey());
-    let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
-    assert!(seeds_pda_account.is_none());
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&delegated_on_curve.pubkey());
+    let delegation_metadata_account = banks.get_account(delegation_metadata_pda).await.unwrap();
+    assert!(delegation_metadata_account.is_none());
 
     // Assert that the account owner is now set to the system program
     let pda_account = banks
@@ -85,7 +85,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let delegation_record_data =
         get_delegation_record_on_curve_data(payer_alt.pubkey(), Some(LAMPORTS_PER_SOL));
     program_test.add_account(
-        delegation_record_pda_from_pubkey(&payer_alt.pubkey()),
+        delegation_record_pda_from_delegated_account(&payer_alt.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: delegation_record_data,
@@ -99,7 +99,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let delegation_metadata_data =
         get_delegation_metadata_data_on_curve(validator.pubkey(), Some(true));
     program_test.add_account(
-        delegation_metadata_pda_from_pubkey(&payer_alt.pubkey()),
+        delegation_metadata_pda_from_delegated_account(&payer_alt.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: delegation_metadata_data,
@@ -123,7 +123,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the protocol fees vault
     program_test.add_account(
-        Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0,
+        fees_vault_pda(),
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
@@ -135,7 +135,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the validator fees vault
     program_test.add_account(
-        validator_fees_vault_pda_from_pubkey(&validator.pubkey()),
+        validator_fees_vault_pda_from_validator(&validator.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],

@@ -1,6 +1,8 @@
 use crate::args::ValidatorClaimFeesArgs;
 use crate::consts::FEES_VOLUME;
-use crate::processor::utils::loaders::{load_fees_vault, load_signer, load_validator_fees_vault};
+use crate::processor::utils::loaders::{
+    load_initialized_fees_vault, load_initialized_validator_fees_vault, load_signer,
+};
 use borsh::BorshDeserialize;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -27,8 +29,8 @@ pub fn process_validator_claim_fees(
     };
 
     load_signer(validator)?;
-    load_fees_vault(fees_vault)?;
-    load_validator_fees_vault(validator, validator_fees_vault)?;
+    load_initialized_fees_vault(fees_vault, true)?;
+    load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
 
     // Calculate the amount to transfer
     let min_rent = Rent::default().minimum_balance(0);

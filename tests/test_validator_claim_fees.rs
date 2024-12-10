@@ -1,7 +1,6 @@
 use crate::fixtures::TEST_AUTHORITY;
-use dlp::consts::{FEES_VAULT, FEES_VOLUME};
-use dlp::pda::validator_fees_vault_pda_from_pubkey;
-use solana_program::pubkey::Pubkey;
+use dlp::consts::FEES_VOLUME;
+use dlp::pda::{fees_vault_pda, validator_fees_vault_pda_from_validator};
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -17,17 +16,17 @@ async fn test_validator_claim_fees() {
     // Setup
     let (mut banks, payer, validator, blockhash) = setup_program_test_env().await;
 
-    let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0;
+    let fees_vault_pda = fees_vault_pda();
     let fees_vault_init_lamports = banks
-        .get_account(fees_vault)
+        .get_account(fees_vault_pda)
         .await
         .unwrap()
         .unwrap()
         .lamports;
 
-    let validator_fees_vault = validator_fees_vault_pda_from_pubkey(&validator.pubkey());
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator.pubkey());
     let validator_fees_vault_init_lamports = banks
-        .get_account(validator_fees_vault)
+        .get_account(validator_fees_vault_pda)
         .await
         .unwrap()
         .unwrap()
@@ -54,7 +53,7 @@ async fn test_validator_claim_fees() {
     assert!(res.is_ok());
 
     // Assert the validator fees vault now has less lamports
-    let validator_fees_vault_account = banks.get_account(validator_fees_vault).await.unwrap();
+    let validator_fees_vault_account = banks.get_account(validator_fees_vault_pda).await.unwrap();
     assert!(validator_fees_vault_account.is_some());
     assert_eq!(
         validator_fees_vault_account.unwrap().lamports,
@@ -63,7 +62,7 @@ async fn test_validator_claim_fees() {
 
     // Assert the fees vault now has prev lamports + fees
     let fees = (withdrawal_amount * u64::from(FEES_VOLUME)) / 100;
-    let fees_vault_account = banks.get_account(fees_vault).await.unwrap();
+    let fees_vault_account = banks.get_account(fees_vault_pda).await.unwrap();
     assert!(fees_vault_account.is_some());
     assert_eq!(
         fees_vault_account.unwrap().lamports,
@@ -96,7 +95,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the fees vault account
     program_test.add_account(
-        Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0,
+        fees_vault_pda(),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
@@ -108,7 +107,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the validator fees vault
     program_test.add_account(
-        validator_fees_vault_pda_from_pubkey(&validator.pubkey()),
+        validator_fees_vault_pda_from_validator(&validator.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],

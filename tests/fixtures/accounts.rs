@@ -91,7 +91,7 @@ pub fn get_delegation_metadata_data_on_curve(
 ) -> Vec<u8> {
     create_delegation_metadata_data(
         rent_payer,
-        vec![],
+        &[],
         is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
     )
 }
@@ -100,21 +100,21 @@ pub fn get_delegation_metadata_data_on_curve(
 pub fn get_delegation_metadata_data(rent_payer: Pubkey, is_undelegatable: Option<bool>) -> Vec<u8> {
     create_delegation_metadata_data(
         rent_payer,
-        DEFAULT_SEEDS.iter().map(|s| s.to_vec()).collect(),
+        DEFAULT_SEEDS,
         is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
     )
 }
 
 pub fn create_delegation_metadata_data(
     rent_payer: Pubkey,
-    seeds: Vec<Vec<u8>>,
+    seeds: &[&[u8]],
     is_undelegatable: bool,
 ) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
         valid_until: DEFAULT_VALID_UNTIL,
         last_update_external_slot: DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
         is_undelegatable,
-        seeds: seeds.clone(),
+        seeds: seeds.iter().map(|s| s.to_vec()).collect(),
         rent_payer,
     };
     let mut bytes = vec![];

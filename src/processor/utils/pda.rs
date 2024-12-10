@@ -12,9 +12,14 @@ pub(crate) fn create_pda<'a, 'info>(
     owner: &Pubkey,
     space: usize,
     pda_seeds: &[&[u8]],
+    pda_bump: u8,
     system_program: &'a AccountInfo<'info>,
     payer: &'a AccountInfo<'info>,
 ) -> ProgramResult {
+    // Generate the PDA's signer seeds
+    let pda_bump_slice = &[pda_bump];
+    let pda_signer_seeds = [pda_seeds, &[pda_bump_slice]].concat();
+    // Create the account manually or using the create instruction
     let rent = Rent::get()?;
     if target_account.lamports().eq(&0) {
         // If balance is zero, create account
@@ -31,7 +36,7 @@ pub(crate) fn create_pda<'a, 'info>(
                 target_account.clone(),
                 system_program.clone(),
             ],
-            &[pda_seeds],
+            &[&pda_signer_seeds],
         )?;
     } else {
         // Otherwise, if balance is nonzero:
@@ -53,7 +58,6 @@ pub(crate) fn create_pda<'a, 'info>(
                 ],
             )?;
         }
-
         // 2) allocate space for the account
         solana_program::program::invoke_signed(
             &solana_program::system_instruction::allocate(target_account.key, space as u64),
@@ -61,9 +65,8 @@ pub(crate) fn create_pda<'a, 'info>(
                 target_account.as_ref().clone(),
                 system_program.as_ref().clone(),
             ],
-            &[pda_seeds],
+            &[&pda_signer_seeds],
         )?;
-
         // 3) assign our program as the owner
         solana_program::program::invoke_signed(
             &solana_program::system_instruction::assign(target_account.key, owner),
@@ -71,7 +74,7 @@ pub(crate) fn create_pda<'a, 'info>(
                 target_account.as_ref().clone(),
                 system_program.as_ref().clone(),
             ],
-            &[pda_seeds],
+            &[&pda_signer_seeds],
         )?;
     }
 

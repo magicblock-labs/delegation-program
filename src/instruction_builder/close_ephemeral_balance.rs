@@ -2,15 +2,15 @@ use solana_program::instruction::Instruction;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::discriminator::DlpDiscriminator;
-use crate::pda::ephemeral_balance_from_payer;
+use crate::pda::ephemeral_balance_pda_from_payer;
 
 pub fn close_ephemeral_balance(payer: Pubkey, index: u8) -> Instruction {
-    let ephemeral_balance = ephemeral_balance_from_payer(&payer, index);
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer, index);
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(ephemeral_balance, false),
+            AccountMeta::new(ephemeral_balance_pda, false),
         ],
         data: [
             DlpDiscriminator::CloseEphemeralBalance.to_vec(),

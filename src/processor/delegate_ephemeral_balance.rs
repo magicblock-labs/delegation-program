@@ -1,5 +1,5 @@
 use crate::args::DelegateEphemeralBalanceArgs;
-use crate::consts::EPHEMERAL_BALANCE;
+use crate::ephemeral_balance_seeds_from_payer;
 use crate::processor::utils::loaders::{load_program, load_signer};
 use borsh::BorshDeserialize;
 use solana_program::program::invoke_signed;
@@ -26,27 +26,28 @@ pub fn process_delegate_ephemeral_balance(
     load_program(system_program, system_program::id())?;
     load_program(delegation_program, crate::id())?;
 
-    // Check seeds and derive bump of ephemeral balance
-    let ephemeral_balance_seeds = &[EPHEMERAL_BALANCE, &pubkey.key.to_bytes(), &[args.index]];
-    let (ephemeral_balance_address, ephemeral_balance_bump) =
+    // Check seeds and derive bump
+    let ephemeral_balance_seeds: &[&[u8]] =
+        ephemeral_balance_seeds_from_payer!(pubkey.key, args.index);
+    let (ephemeral_balance_key, ephemeral_balance_bump) =
         Pubkey::find_program_address(ephemeral_balance_seeds, &crate::id());
-    if !ephemeral_balance_address.eq(ephemeral_balance_account.key) {
+    if !ephemeral_balance_key.eq(ephemeral_balance_account.key) {
         return Err(ProgramError::InvalidSeeds);
     }
 
     // Set the delegation seeds
     args.delegate_args.seeds = ephemeral_balance_seeds.iter().map(|s| s.to_vec()).collect();
 
+    // Generate the ephemeral balance PDA's signer seeds
+    let ephemeral_balance_bump_slice = &[ephemeral_balance_bump];
+    let ephemeral_balance_signer_seeds =
+        [ephemeral_balance_seeds, &[ephemeral_balance_bump_slice]].concat();
+
     // Assign as owner the delegation program
     invoke_signed(
         &system_instruction::assign(ephemeral_balance_account.key, &crate::id()),
         &[ephemeral_balance_account.clone(), system_program.clone()],
-        &[&[
-            EPHEMERAL_BALANCE,
-            &pubkey.key.to_bytes(),
-            &[args.index],
-            &[ephemeral_balance_bump],
-        ]],
+        &[&ephemeral_balance_signer_seeds],
     )?;
 
     // Create the delegation ix
@@ -69,12 +70,7 @@ pub fn process_delegate_ephemeral_balance(
             delegation_metadata.clone(),
             system_program.clone(),
         ],
-        &[&[
-            EPHEMERAL_BALANCE,
-            &pubkey.key.to_bytes(),
-            &[args.index],
-            &[ephemeral_balance_bump],
-        ]],
+        &[&ephemeral_balance_signer_seeds],
     )?;
 
     Ok(())

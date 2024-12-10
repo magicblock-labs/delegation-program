@@ -6,10 +6,11 @@ use solana_program::{
     system_program, {self},
 };
 
-use crate::consts::{ADMIN_PUBKEY, VALIDATOR_FEES_VAULT};
+use crate::consts::ADMIN_PUBKEY;
 use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
 use crate::processor::utils::pda::create_pda;
+use crate::validator_fees_vault_seeds_from_validator;
 
 /// Process the initialization of the validator fees vault
 ///
@@ -35,9 +36,9 @@ pub fn process_init_validator_fees_vault(
         return Err(Unauthorized.into());
     }
 
-    let bump_fees_vault_record = load_uninitialized_pda(
+    let validator_fees_vault_bump = load_uninitialized_pda(
         validator_fees_vault,
-        &[VALIDATOR_FEES_VAULT, validator_identity.key.as_ref()],
+        validator_fees_vault_seeds_from_validator!(validator_identity.key),
         &crate::id(),
     )?;
 
@@ -46,11 +47,8 @@ pub fn process_init_validator_fees_vault(
         validator_fees_vault,
         &crate::id(),
         8,
-        &[
-            VALIDATOR_FEES_VAULT,
-            validator_identity.key.as_ref(),
-            &[bump_fees_vault_record],
-        ],
+        validator_fees_vault_seeds_from_validator!(validator_identity.key),
+        validator_fees_vault_bump,
         system_program,
         payer,
     )?;

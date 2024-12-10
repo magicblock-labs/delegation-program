@@ -1,4 +1,4 @@
-use crate::consts::EPHEMERAL_BALANCE;
+use crate::ephemeral_balance_seeds_from_payer;
 use crate::processor::utils::loaders::{load_initialized_pda, load_signer};
 use crate::processor::utils::pda::close_pda;
 use solana_program::program_error::ProgramError;
@@ -12,20 +12,20 @@ pub fn process_close_ephemeral_balance(
     let index = *data.first().ok_or(ProgramError::InvalidInstructionData)?;
 
     // Load Accounts
-    let [payer, ephemeral_balance_pda] = accounts else {
+    let [payer, ephemeral_balance_account] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     load_signer(payer)?;
 
     load_initialized_pda(
-        ephemeral_balance_pda,
-        &[EPHEMERAL_BALANCE, &payer.key.to_bytes(), &[index]],
+        ephemeral_balance_account,
+        ephemeral_balance_seeds_from_payer!(payer.key, index),
         &crate::id(),
         true,
     )?;
 
-    close_pda(ephemeral_balance_pda, payer)?;
+    close_pda(ephemeral_balance_account, payer)?;
 
     Ok(())
 }

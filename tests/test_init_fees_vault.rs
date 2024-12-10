@@ -1,5 +1,4 @@
-use dlp::consts::FEES_VAULT;
-use solana_program::pubkey::Pubkey;
+use dlp::pda::fees_vault_pda;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -21,8 +20,8 @@ async fn test_init_fees_vault() {
     assert!(res.is_ok());
 
     // Assert the fees vault was created
-    let fees_vault = Pubkey::find_program_address(&[FEES_VAULT], &dlp::id()).0;
-    let fees_vault_account = banks.get_account(fees_vault).await.unwrap();
+    let fees_vault_pda = fees_vault_pda();
+    let fees_vault_account = banks.get_account(fees_vault_pda).await.unwrap();
     assert!(fees_vault_account.is_some());
 }
 
