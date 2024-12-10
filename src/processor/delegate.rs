@@ -131,9 +131,9 @@ pub fn process_delegate(
 
     // Copy the data from the buffer into the original account
     if !buffer_account.data_is_empty() {
-        let mut delegate_data = delegated_account.try_borrow_mut_data()?;
+        let mut delegated_data = delegated_account.try_borrow_mut_data()?;
         let buffer_data = buffer_account.try_borrow_data()?;
-        (*delegate_data).copy_from_slice(&buffer_data);
+        (*delegated_data).copy_from_slice(&buffer_data);
     }
 
     Ok(())

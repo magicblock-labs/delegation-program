@@ -48,7 +48,7 @@ pub fn process_whitelist_validator_for_program(
         create_pda(
             program_config_account,
             &crate::id(),
-            0,
+            0, // It will be resized later to the proper size
             program_config_seeds_from_program_id!(program.key),
             program_config_bump,
             system_program,

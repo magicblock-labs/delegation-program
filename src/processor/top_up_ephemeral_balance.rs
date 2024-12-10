@@ -38,7 +38,7 @@ pub fn process_top_up_ephemeral_balance(
         create_pda(
             ephemeral_balance_account,
             &system_program::id(),
-            0,
+            8,
             ephemeral_balance_seeds_from_payer!(pubkey.key, args.index),
             bump_ephemeral_balance,
             system_program,

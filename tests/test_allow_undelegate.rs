@@ -25,9 +25,9 @@ async fn test_allow_undelegate() {
     let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // // Assert the delegated account seeds pda was closed
-    // let seeds_pda = delegation_metadata_for_delegated_account(&DELEGATED_PDA_ID);
-    // let seeds_pda_account = banks.get_account(seeds_pda).await.unwrap();
-    // assert!(seeds_pda_account.is_none());
+    // let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    // let delegation_metadata_account = banks.get_account(delegation_metadata_pda).await.unwrap();
+    // assert!(delegation_metadata_account.is_none());
 
     // Submit the allow undelegation tx
     let ix = dlp::instruction_builder::allow_undelegate(
