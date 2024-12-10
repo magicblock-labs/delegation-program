@@ -2,7 +2,7 @@ use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
@@ -29,6 +29,6 @@ pub fn finalize(validator: Pubkey, delegated_account: Pubkey) -> Instruction {
             AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminant::Finalize.to_vec(),
+        data: DlpDiscriminator::Finalize.to_vec(),
     }
 }

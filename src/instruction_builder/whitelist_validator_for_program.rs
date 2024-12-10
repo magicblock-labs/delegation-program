@@ -5,7 +5,7 @@ use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::WhitelistValidatorForProgramArgs;
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::program_config_from_program_id;
 
 /// Whitelist validator for program
@@ -30,7 +30,7 @@ pub fn whitelist_validator_for_program(
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
-            DlpDiscriminant::WhitelistValidatorForProgram.to_vec(),
+            DlpDiscriminator::WhitelistValidatorForProgram.to_vec(),
             args.try_to_vec().unwrap(),
         ]
         .concat(),

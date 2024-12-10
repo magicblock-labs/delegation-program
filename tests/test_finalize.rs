@@ -2,13 +2,11 @@ use crate::fixtures::{
     get_commit_record_account_data, get_delegation_metadata_data, get_delegation_record_data,
     COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID, TEST_AUTHORITY,
 };
-use borsh::BorshDeserialize;
 use dlp::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     validator_fees_vault_pda_from_validator,
 };
-use dlp::state::account::AccountDeserialize;
 use dlp::state::{CommitRecord, DelegationMetadata};
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
@@ -33,7 +31,8 @@ async fn test_finalize() {
 
     // Commit state record data
     let commit_record = banks.get_account(commit_record_pda).await.unwrap().unwrap();
-    let commit_record = CommitRecord::try_from_bytes(&commit_record.data).unwrap();
+    let commit_record =
+        CommitRecord::try_from_bytes_with_discriminator(&commit_record.data).unwrap();
 
     // Save the new state data before finalizing
     let new_state_before_finalize = banks.get_account(commit_state_pda).await.unwrap().unwrap();
@@ -78,7 +77,8 @@ async fn test_finalize() {
         .unwrap()
         .unwrap();
     let delegation_metadata =
-        DelegationMetadata::try_from_slice(&delegation_metadata_account.data).unwrap();
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
+            .unwrap();
     assert_eq!(
         commit_record.slot,
         delegation_metadata.last_update_external_slot

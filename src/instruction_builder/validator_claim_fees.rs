@@ -3,7 +3,7 @@ use solana_program::instruction::Instruction;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::ValidatorClaimFeesArgs;
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::{fees_vault_pda, validator_fees_vault_pda_from_validator};
 
 /// Claim the accrued fees from the fees vault.
@@ -19,7 +19,7 @@ pub fn validator_claim_fees(validator: Pubkey, amount: Option<u64>) -> Instructi
             AccountMeta::new(validator_fees_vault_pda, false),
         ],
         data: [
-            DlpDiscriminant::ValidatorClaimFees.to_vec(),
+            DlpDiscriminator::ValidatorClaimFees.to_vec(),
             args.try_to_vec().unwrap(),
         ]
         .concat(),

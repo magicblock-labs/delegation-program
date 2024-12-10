@@ -1,6 +1,8 @@
-use crate::state::utils::account::{AccountDiscriminator, AccountWithDiscriminator};
+use crate::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh};
 use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::pubkey::Pubkey;
+
+use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 
 /// The Delegated Metadata includes Account Seeds, max delegation time, seeds
 /// and other meta information about the delegated account.
@@ -21,17 +23,20 @@ pub struct DelegationMetadata {
 
 impl AccountWithDiscriminator for DelegationMetadata {
     fn discriminator() -> AccountDiscriminator {
-        AccountDiscriminator::DelegatedMetadata
+        AccountDiscriminator::DelegationMetadata
     }
 }
+
+impl_to_bytes_with_discriminator_borsh!(DelegationMetadata);
+impl_try_from_bytes_with_discriminator_borsh!(DelegationMetadata);
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
     #[test]
-    fn test_serialization() {
-        let seeds = DelegationMetadata {
+    fn test_serialization_without_discriminator() {
+        let original = DelegationMetadata {
             seeds: vec![
                 vec![],
                 vec![
@@ -46,12 +51,12 @@ mod tests {
         };
 
         // Serialize
-        let serialized = seeds.try_to_vec().expect("Serialization failed");
+        let serialized = original.try_to_vec().expect("Serialization failed");
 
         // Deserialize
         let deserialized: DelegationMetadata =
             DelegationMetadata::try_from_slice(&serialized).expect("Deserialization failed");
 
-        assert_eq!(deserialized.seeds, seeds.seeds);
+        assert_eq!(deserialized.seeds, original.seeds);
     }
 }

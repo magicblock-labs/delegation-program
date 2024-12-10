@@ -2,7 +2,7 @@ use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::validator_fees_vault_pda_from_validator;
 
 /// Initialize a validator fees vault PDA.
@@ -21,6 +21,6 @@ pub fn init_validator_fees_vault(
             AccountMeta::new(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminant::InitValidatorFeesVault.to_vec(),
+        data: DlpDiscriminator::InitValidatorFeesVault.to_vec(),
     }
 }

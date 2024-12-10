@@ -12,12 +12,11 @@ use crate::processor::utils::loaders::{
 };
 use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
 use crate::processor::utils::verify::verify_state;
-use crate::state::account::AccountDeserialize;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use crate::{
     commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
 };
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshSerialize;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
@@ -77,19 +76,21 @@ pub fn process_undelegate(
 
     // Load delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;
-    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record_data)?;
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)?;
 
     let commit_record_data = commit_record_account.try_borrow_data()?;
     let commit_record = if is_committed {
-        let record = CommitRecord::try_from_bytes(&commit_record_data)?;
+        let record = CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)?;
         Some(record)
     } else {
         None
     };
 
     // Load delegated account metadata
+    let delegation_metadata_data = delegation_metadata_account.try_borrow_data()?;
     let delegation_metadata =
-        DelegationMetadata::deserialize(&mut &**delegation_metadata_account.data.borrow())?;
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
     // Check if the delegated account is undelegatable
     if !is_account_undelegatable(&delegation_metadata)? {
@@ -152,6 +153,7 @@ pub fn process_undelegate(
     // Dropping References
     drop(commit_record_data);
     drop(delegation_record_data);
+    drop(delegation_metadata_data);
 
     if is_on_curve(delegated_account.key) || buffer.try_borrow_data()?.is_empty() {
         settle_lamports_balance(

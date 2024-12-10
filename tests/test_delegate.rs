@@ -12,7 +12,6 @@ use dlp::consts::BUFFER;
 use dlp::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
 };
-use dlp::state::account::AccountDeserialize;
 use dlp::state::DelegationRecord;
 
 use crate::fixtures::{
@@ -78,7 +77,8 @@ async fn test_delegate() {
         .await
         .unwrap()
         .unwrap();
-    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record.data).unwrap();
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record.data).unwrap();
     assert_eq!(delegation_record.owner, DELEGATED_PDA_OWNER_ID);
 }
 

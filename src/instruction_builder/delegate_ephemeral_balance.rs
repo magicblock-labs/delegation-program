@@ -5,7 +5,7 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::DelegateEphemeralBalanceArgs;
 use crate::consts::BUFFER;
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     ephemeral_balance_pda_from_payer,
@@ -22,7 +22,7 @@ pub fn delegate_ephemeral_balance(
         Pubkey::find_program_address(&[BUFFER, &delegate_account.to_bytes()], &crate::id());
     let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegate_account);
     let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&delegate_account);
-    let mut data = DlpDiscriminant::DelegateEphemeralBalance.to_vec();
+    let mut data = DlpDiscriminator::DelegateEphemeralBalance.to_vec();
     data.extend_from_slice(&args.try_to_vec().unwrap());
 
     Instruction {

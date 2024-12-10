@@ -4,7 +4,7 @@ use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::CommitStateArgs;
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
@@ -39,6 +39,6 @@ pub fn commit_state(
             AccountMeta::new_readonly(program_config_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: [DlpDiscriminant::CommitState.to_vec(), commit_args].concat(),
+        data: [DlpDiscriminator::CommitState.to_vec(), commit_args].concat(),
     }
 }

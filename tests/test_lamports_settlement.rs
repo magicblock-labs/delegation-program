@@ -3,14 +3,12 @@ use crate::fixtures::{
     get_delegation_metadata_data_on_curve, COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID,
     DELEGATED_PDA_OWNER_ID, ON_CURVE_KEYPAIR, TEST_AUTHORITY,
 };
-use borsh::BorshDeserialize;
 use dlp::args::CommitStateArgs;
 use dlp::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     fees_vault_pda, validator_fees_vault_pda_from_validator,
 };
-use dlp::state::account::AccountDeserialize;
 use dlp::state::{CommitRecord, DelegationMetadata};
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
@@ -323,15 +321,15 @@ fn get_delegated_account_and_owner(is_pda: bool) -> (Pubkey, Pubkey) {
 async fn finalize_or_undelegate(
     is_undelegate: bool,
     delegated_account: Pubkey,
-    mut banks: &mut BanksClient,
+    banks: &mut BanksClient,
     authority: &Keypair,
     blockhash: Hash,
     owner_program: Pubkey,
 ) {
     if is_undelegate {
         undelegate(UndelegateArgs {
-            banks: &mut banks,
-            authority: &authority,
+            banks,
+            authority,
             blockhash,
             delegate_account: delegated_account,
             owner_program,
@@ -339,8 +337,8 @@ async fn finalize_or_undelegate(
         .await;
     } else {
         finalize_new_state(FinalizeNewStateArgs {
-            banks: &mut banks,
-            authority: &authority,
+            banks,
+            authority,
             blockhash,
             delegate_account: delegated_account,
         })
@@ -499,7 +497,8 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .await
         .unwrap()
         .unwrap();
-    let commit_record = CommitRecord::try_from_bytes(&commit_record_account.data).unwrap();
+    let commit_record =
+        CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
     assert_eq!(commit_record.account, args.delegate_account);
     assert_eq!(commit_record.identity, args.authority.pubkey());
     assert_eq!(commit_record.slot, 100);
@@ -513,8 +512,9 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap()
         .unwrap();
     let delegation_metadata =
-        DelegationMetadata::try_from_slice(&delegation_metadata_account.data).unwrap();
-    assert_eq!(delegation_metadata.is_undelegatable, true);
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
+            .unwrap();
+    assert!(delegation_metadata.is_undelegatable);
 }
 
 #[derive(Debug)]

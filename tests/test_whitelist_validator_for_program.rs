@@ -1,5 +1,4 @@
 use crate::fixtures::{DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY};
-use borsh::BorshDeserialize;
 use dlp::pda::program_config_from_program_id;
 use dlp::state::ProgramConfig;
 use solana_program::rent::Rent;
@@ -38,8 +37,10 @@ async fn test_whitelist_validator_for_program() {
     let program_config_account = banks
         .get_account(program_config_from_program_id(&DELEGATED_PDA_OWNER_ID))
         .await;
-    let program_config =
-        ProgramConfig::try_from_slice(&program_config_account.unwrap().unwrap().data).unwrap();
+    let program_config = ProgramConfig::try_from_bytes_with_discriminator(
+        &program_config_account.unwrap().unwrap().data,
+    )
+    .unwrap();
     assert!(program_config
         .approved_validators
         .contains(&validator.pubkey()));
@@ -87,8 +88,10 @@ async fn test_remove_validator_for_program() {
     let program_config_account = banks
         .get_account(program_config_from_program_id(&DELEGATED_PDA_OWNER_ID))
         .await;
-    let program_config =
-        ProgramConfig::try_from_slice(&program_config_account.unwrap().unwrap().data).unwrap();
+    let program_config = ProgramConfig::try_from_bytes_with_discriminator(
+        &program_config_account.unwrap().unwrap().data,
+    )
+    .unwrap();
     assert!(!program_config
         .approved_validators
         .contains(&validator.pubkey()));

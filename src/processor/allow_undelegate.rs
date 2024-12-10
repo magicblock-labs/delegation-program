@@ -1,4 +1,3 @@
-use borsh::{BorshDeserialize, BorshSerialize};
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo,
@@ -12,7 +11,6 @@ use crate::processor::utils::loaders::{
     load_initialized_delegation_metadata, load_initialized_delegation_record, load_owned_pda,
     load_signer,
 };
-use crate::state::account::AccountDeserialize;
 use crate::state::{DelegationMetadata, DelegationRecord};
 
 /// Called through CPI to allow the undelegation of a delegated account
@@ -40,7 +38,8 @@ pub fn process_allow_undelegate(
 
     // Read delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;
-    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record_data)?;
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)?;
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
     let buffer_pda = Pubkey::find_program_address(
@@ -51,12 +50,12 @@ pub fn process_allow_undelegate(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    // Load delegated account metadata
+    // Load and update delegated account metadata
+    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
     let mut delegation_metadata =
-        DelegationMetadata::deserialize(&mut &**delegation_metadata_account.data.borrow())?;
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
     delegation_metadata.is_undelegatable = true;
-    delegation_metadata
-        .serialize(&mut &mut delegation_metadata_account.try_borrow_mut_data()?.as_mut())?;
+    delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
 
     Ok(())
 }

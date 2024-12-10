@@ -2,7 +2,7 @@ use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
-use crate::discriminant::DlpDiscriminant;
+use crate::discriminator::DlpDiscriminator;
 use crate::pda::fees_vault_pda;
 
 /// Initialize the fees vault PDA.
@@ -15,6 +15,6 @@ pub fn init_fees_vault(payer: Pubkey) -> Instruction {
             AccountMeta::new(fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminant::InitFeesVault.to_vec(),
+        data: DlpDiscriminator::InitFeesVault.to_vec(),
     }
 }
