@@ -1,6 +1,4 @@
-use borsh::BorshSerialize;
-use dlp::state::account::AccountWithDiscriminator;
-use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord};
+use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
@@ -79,11 +77,11 @@ pub fn create_delegation_record_data(
         commit_frequency_ms: DEFAULT_COMMIT_FREQUENCY_MS,
         lamports: last_update_lamports.unwrap_or(Rent::default().minimum_balance(500)),
     };
-    [
-        &DelegationRecord::discriminator().to_bytes(),
-        DelegationRecord::to_bytes(&delegation_record),
-    ]
-    .concat()
+    let mut bytes = vec![0u8; DelegationRecord::size_with_discriminator()];
+    delegation_record
+        .to_bytes_with_discriminator(&mut bytes)
+        .unwrap();
+    bytes
 }
 
 #[allow(dead_code)]
@@ -119,7 +117,11 @@ pub fn create_delegation_metadata_data(
         seeds: seeds.clone(),
         rent_payer,
     };
-    delegation_metadata.try_to_vec().unwrap()
+    let mut bytes = vec![];
+    delegation_metadata
+        .to_bytes_with_discriminator(&mut bytes)
+        .unwrap();
+    bytes
 }
 
 #[allow(dead_code)]
@@ -130,9 +132,24 @@ pub fn get_commit_record_account_data(authority: Pubkey) -> Vec<u8> {
         account: DELEGATED_PDA_ID,
         lamports: LAMPORTS_PER_SOL,
     };
-    [
-        &CommitRecord::discriminator().to_bytes(),
-        CommitRecord::to_bytes(&commit_record),
-    ]
-    .concat()
+    let mut bytes = vec![0u8; CommitRecord::size_with_discriminator()];
+    commit_record
+        .to_bytes_with_discriminator(&mut bytes)
+        .unwrap();
+    bytes
+}
+
+#[allow(dead_code)]
+pub fn create_program_config_data(approved_validator: Pubkey) -> Vec<u8> {
+    let mut program_config = ProgramConfig {
+        approved_validators: Default::default(),
+    };
+    program_config
+        .approved_validators
+        .insert(approved_validator);
+    let mut bytes = vec![];
+    program_config
+        .to_bytes_with_discriminator(&mut bytes)
+        .unwrap();
+    bytes
 }

@@ -4,7 +4,7 @@ use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{load_pda, load_program, load_signer};
 use crate::processor::utils::pda::{create_pda, resize_pda};
 use crate::state::ProgramConfig;
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::BorshDeserialize;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::program_error::ProgramError;
 use solana_program::{
@@ -47,7 +47,7 @@ pub fn process_whitelist_validator_for_program(
         create_pda(
             program_config_account,
             &crate::id(),
-            ProgramConfig::default().serialized_len(),
+            0, // It will be resized later to the proper size
             &[PROGRAM_CONFIG, program.key.as_ref(), &[program_config_bump]],
             system_program,
             authority,
@@ -55,7 +55,7 @@ pub fn process_whitelist_validator_for_program(
         ProgramConfig::default()
     } else {
         let program_config_data = program_config_account.try_borrow_data()?;
-        ProgramConfig::try_from_slice(&program_config_data)?
+        ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?
     };
     if args.insert {
         program_config
@@ -70,10 +70,10 @@ pub fn process_whitelist_validator_for_program(
         authority,
         program_config_account,
         system_program,
-        program_config.serialized_len(),
+        program_config.size_with_discriminator(),
     )?;
     let mut program_config_data = program_config_account.try_borrow_mut_data()?;
-    program_config.serialize(&mut &mut program_config_data.as_mut())?;
+    program_config.to_bytes_with_discriminator(&mut program_config_data.as_mut())?;
 
     Ok(())
 }

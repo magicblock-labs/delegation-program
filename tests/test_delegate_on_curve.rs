@@ -1,4 +1,3 @@
-use borsh::BorshDeserialize;
 use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -12,7 +11,6 @@ use crate::fixtures::ON_CURVE_KEYPAIR;
 use dlp::args::DelegateArgs;
 use dlp::consts::BUFFER;
 use dlp::pda::{delegation_metadata_pda_from_pubkey, delegation_record_pda_from_pubkey};
-use dlp::state::account::AccountDeserialize;
 use dlp::state::{DelegationMetadata, DelegationRecord};
 
 mod fixtures;
@@ -99,7 +97,8 @@ async fn test_delegate_on_curve() {
         .await
         .unwrap()
         .unwrap();
-    let delegation_record = DelegationRecord::try_from_bytes(&delegation_record.data).unwrap();
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record.data).unwrap();
     assert_eq!(delegation_record.owner, system_program::id());
     assert_eq!(delegation_record.authority, alt_payer.pubkey());
 
@@ -111,8 +110,8 @@ async fn test_delegate_on_curve() {
         .unwrap();
     assert!(delegation_metadata.owner.eq(&dlp::id()));
     let delegation_metadata =
-        DelegationMetadata::try_from_slice(&delegation_metadata.data).unwrap();
-    assert_eq!(delegation_metadata.is_undelegatable, false);
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata.data).unwrap();
+    assert!(!delegation_metadata.is_undelegatable);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
