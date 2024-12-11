@@ -1,4 +1,3 @@
-mod allow_undelegate;
 mod close_ephemeral_balance;
 mod commit_state;
 mod delegate;
@@ -12,7 +11,6 @@ mod utils;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
 
-pub use allow_undelegate::*;
 pub use close_ephemeral_balance::*;
 pub use commit_state::*;
 pub use delegate::*;

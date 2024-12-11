@@ -54,7 +54,6 @@ async fn test_delegate_on_curve() {
         accounts_to_delegate,
         None,
         DelegateArgs {
-            valid_until: 0,
             commit_frequency_ms: u32::MAX,
             seeds: vec![],
             validator: Some(alt_payer.pubkey()),
