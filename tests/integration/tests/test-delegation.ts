@@ -119,11 +119,6 @@ describe("TestDelegation", () => {
     console.log("Your transaction signature", tx);
   });
 
-  it("Allow Undelegation and Undelegate", async () => {
-    await allow_undelegation(pda);
-    await undelegate(pda);
-  });
-
   it("Delegate two PDAs", async () => {
     // Delegate, Close PDA, and Lock PDA in a single instruction
     const tx = await testDelegation.methods
@@ -286,28 +281,6 @@ describe("TestDelegation", () => {
     const txSign = await provider.sendAndConfirm(tx);
 
     console.log("Commit state signature", txSign);
-  });
-
-  async function allow_undelegation(pda: web3.PublicKey) {
-    const {
-      delegationRecord,
-      delegationMetadata,
-      bufferPda,
-    } = DelegateAccounts(pda, testDelegation.programId);
-    const txSign = await testDelegation.methods
-        .allowUndelegation()
-        .accounts({
-          delegationRecord: delegationRecord,
-          delegationMetadata: delegationMetadata,
-          buffer: bufferPda,
-          delegationProgram: DELEGATION_PROGRAM_ID,
-        })
-        .rpc({skipPreflight: true});
-    console.log("Allow Undelegation signature", txSign);
-  }
-
-  it("Allow Undelegation", async () => {
-    await allow_undelegation(pda);
   });
 
   async function undelegate(pda: web3.PublicKey) {

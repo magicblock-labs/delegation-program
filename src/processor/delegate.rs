@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::sysvar::Sysvar;
 use solana_program::{
@@ -40,10 +41,16 @@ pub fn process_delegate(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
+    msg!("hello0: {:?}", data);
+
     let args = DelegateArgs::try_from_slice(data)?;
+
+    msg!("hello1");
 
     load_owned_pda(delegated_account, &crate::id())?;
     load_program(system_program, system_program::id())?;
+
+    msg!("hello2");
 
     // Validate seeds if the delegate account is not on curve, i.e. is a PDA
     if !is_on_curve(delegated_account.key) {
@@ -54,6 +61,8 @@ pub fn process_delegate(
             return Err(ProgramError::InvalidSeeds);
         }
     }
+
+    msg!("hello3");
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
     load_pda(
@@ -77,6 +86,8 @@ pub fn process_delegate(
         &crate::id(),
     )?;
 
+    msg!("hello4");
+
     // Check that payer and delegate_account are signers, this ensures the instruction is being called from CPI
     load_signer(payer)?;
     load_signer(delegated_account)?;
@@ -92,6 +103,8 @@ pub fn process_delegate(
         payer,
     )?;
 
+    msg!("hello5");
+
     // Initialize the delegation record
     let delegation_record = DelegationRecord {
         owner: *owner_program.key,
@@ -103,6 +116,8 @@ pub fn process_delegate(
     let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
     delegation_record.to_bytes_with_discriminator(&mut delegation_record_data)?;
 
+    msg!("hello6");
+
     // Initialize the account seeds PDA
     let mut delegation_metadata_bytes = vec![];
     let delegation_metadata = DelegationMetadata {
@@ -112,6 +127,8 @@ pub fn process_delegate(
         rent_payer: *payer.key,
     };
     delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_bytes)?;
+
+    msg!("hello7");
 
     // Initialize the delegation metadata PDA
     create_pda(
@@ -123,6 +140,8 @@ pub fn process_delegate(
         system_program,
         payer,
     )?;
+
+    msg!("hello8");
 
     // Copy the seeds to the delegated metadata PDA
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;

@@ -1,6 +1,6 @@
 use bolt_lang::*;
 use ephemeral_rollups_sdk_v2::anchor::{delegate, ephemeral};
-use ephemeral_rollups_sdk_v2::cpi::{DelegateConfig};
+use ephemeral_rollups_sdk_v2::cpi::DelegateConfig;
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
@@ -30,37 +30,28 @@ pub mod test_delegation {
         Ok(())
     }
 
-    pub fn allow_undelegation(ctx: Context<AllowUndelegation>) -> Result<()> {
-        let counter =
-            Counter::try_deserialize_unchecked(&mut (&**ctx.accounts.counter.try_borrow_data()?))?;
-        msg!("Counter: {:?}", counter.count);
-        if counter.count > 0 {
-            msg!("Counter is greater than 0, undelegation is allowed");
-            ephemeral_rollups_sdk_v2::cpi::allow_undelegation(
-                &ctx.accounts.counter,
-                &ctx.accounts.delegation_record,
-                &ctx.accounts.delegation_metadata,
-                &ctx.accounts.buffer,
-                &ctx.accounts.delegation_program,
-                &id(),
-            )?;
-        }
-        Ok(())
-    }
-
     /// Delegate the account to the delegation program
     pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
-        ctx.accounts
-            .delegate_pda(&ctx.accounts.payer, &[TEST_PDA_SEED], DelegateConfig::default())?;
+        ctx.accounts.delegate_pda(
+            &ctx.accounts.payer,
+            &[TEST_PDA_SEED],
+            DelegateConfig::default(),
+        )?;
         Ok(())
     }
 
     /// Delegate two accounts to the delegation program
     pub fn delegate_two(ctx: Context<DelegateInputTwo>) -> Result<()> {
-        ctx.accounts
-            .delegate_pda(&ctx.accounts.payer, &[TEST_PDA_SEED], DelegateConfig::default())?;
-        ctx.accounts
-            .delegate_pda_other(&ctx.accounts.payer, &[TEST_PDA_SEED_OTHER], DelegateConfig::default())?;
+        ctx.accounts.delegate_pda(
+            &ctx.accounts.payer,
+            &[TEST_PDA_SEED],
+            DelegateConfig::default(),
+        )?;
+        ctx.accounts.delegate_pda_other(
+            &ctx.accounts.payer,
+            &[TEST_PDA_SEED_OTHER],
+            DelegateConfig::default(),
+        )?;
         Ok(())
     }
 }
@@ -108,25 +99,6 @@ pub struct InitializeOther<'info> {
 pub struct Increment<'info> {
     #[account(mut, seeds = [TEST_PDA_SEED], bump)]
     pub counter: Account<'info, Counter>,
-}
-
-#[derive(Accounts)]
-pub struct AllowUndelegation<'info> {
-    #[account(seeds = [TEST_PDA_SEED], bump)]
-    /// CHECK: The counter pda
-    pub counter: AccountInfo<'info>,
-    #[account()]
-    /// CHECK: delegation record
-    pub delegation_record: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK: delegation metadata
-    pub delegation_metadata: AccountInfo<'info>,
-    #[account()]
-    /// CHECK: singer buffer to enforce CPI
-    pub buffer: AccountInfo<'info>,
-    #[account()]
-    /// CHECK:`
-    pub delegation_program: AccountInfo<'info>,
 }
 
 #[account]

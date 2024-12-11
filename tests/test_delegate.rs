@@ -2,6 +2,7 @@ use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -30,14 +31,7 @@ async fn test_delegate() {
     let pda_data_before_delegation = pda_before_delegation.data.clone();
 
     // Submit the delegate tx
-    let ix = dlp::instruction_builder::delegate_from_wrapper_program(
-        payer.pubkey(),
-        DELEGATED_PDA_ID,
-        system_program::id(),
-        dlp::id(),
-        DELEGATED_PDA_OWNER_ID,
-        EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR.to_vec(),
-    );
+    let ix = delegate_from_wrapper_program(payer.pubkey(), DELEGATED_PDA_ID);
 
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
@@ -125,4 +119,28 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     let (banks, payer, blockhash) = program_test.start().await;
     (banks, payer, payer_alt, blockhash)
+}
+
+/// Builds a delegate instruction for the test program
+fn delegate_from_wrapper_program(payer: Pubkey, delegate_account: Pubkey) -> Instruction {
+    let buffer = Pubkey::find_program_address(
+        &[BUFFER, &delegate_account.to_bytes()],
+        &DELEGATED_PDA_OWNER_ID,
+    );
+    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegate_account);
+    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&delegate_account);
+    Instruction {
+        program_id: DELEGATED_PDA_OWNER_ID,
+        accounts: vec![
+            AccountMeta::new(payer, true),
+            AccountMeta::new(buffer.0, false),
+            AccountMeta::new(delegation_record_pda, false),
+            AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new(delegate_account, false),
+            AccountMeta::new_readonly(DELEGATED_PDA_OWNER_ID, false),
+            AccountMeta::new_readonly(dlp::id(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR.to_vec(),
+    }
 }
