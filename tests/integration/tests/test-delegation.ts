@@ -108,17 +108,6 @@ describe("TestDelegation", () => {
     console.log("Counter: ", counterAccount.count.toString());
   });
 
-  it("Delegate a PDA", async () => {
-    // Delegate, Close PDA, and Lock PDA in a single instruction
-    const tx = await testDelegation.methods
-      .delegate()
-      .accounts({
-        payer: provider.wallet.publicKey,
-      })
-      .rpc({ skipPreflight: true });
-    console.log("Your transaction signature", tx);
-  });
-
   it("Delegate two PDAs", async () => {
     // Delegate, Close PDA, and Lock PDA in a single instruction
     const tx = await testDelegation.methods

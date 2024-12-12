@@ -70,7 +70,7 @@
       ],
       "args": [
         {
-          "name": "deprecated_valid_until",
+          "name": "unused_valid_until",
           "type": "i64"
         },
         {
