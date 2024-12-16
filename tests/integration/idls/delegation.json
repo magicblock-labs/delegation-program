@@ -70,10 +70,6 @@
       ],
       "args": [
         {
-          "name": "unused_valid_until",
-          "type": "i64"
-        },
-        {
           "name": "commit_frequency_ms",
           "type": "u32"
         },
