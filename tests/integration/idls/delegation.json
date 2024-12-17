@@ -9,16 +9,7 @@
   "instructions": [
     {
       "name": "delegate",
-      "discriminator": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
+      "discriminator": [0, 0, 0, 0, 0, 0, 0, 0],
       "accounts": [
         {
           "name": "payer",
@@ -40,14 +31,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  98,
-                  117,
-                  102,
-                  102,
-                  101,
-                  114
-                ]
+                "value": [98, 117, 102, 102, 101, 114]
               },
               {
                 "kind": "account",
@@ -85,16 +69,7 @@
     },
     {
       "name": "commit_state",
-      "discriminator": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
+      "discriminator": [1, 0, 0, 0, 0, 0, 0, 0],
       "accounts": [
         {
           "name": "authority",
@@ -105,11 +80,11 @@
           "name": "delegated_account"
         },
         {
-          "name": "commit_state_account",
+          "name": "commit_state",
           "writable": true
         },
         {
-          "name": "commit_state_record",
+          "name": "commit_record",
           "writable": true
         },
         {
@@ -126,8 +101,8 @@
       ],
       "args": [
         {
-        "name": "slot",
-        "type": "u64"
+          "name": "slot",
+          "type": "u64"
         },
         {
           "name": "allow_undelegation",
@@ -143,16 +118,7 @@
     },
     {
       "name": "finalize",
-      "discriminator": [
-        2,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
+      "discriminator": [2, 0, 0, 0, 0, 0, 0, 0],
       "accounts": [
         {
           "name": "validator",
@@ -164,11 +130,11 @@
           "writable": true
         },
         {
-          "name": "committed_state_account",
+          "name": "commit_state",
           "writable": true
         },
         {
-          "name": "committed_state_record",
+          "name": "commit_record",
           "writable": true
         },
         {
@@ -191,16 +157,7 @@
     },
     {
       "name": "undelegate",
-      "discriminator": [
-        3,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
+      "discriminator": [3, 0, 0, 0, 0, 0, 0, 0],
       "accounts": [
         {
           "name": "validator",
@@ -221,14 +178,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  98,
-                  117,
-                  102,
-                  102,
-                  101,
-                  114
-                ]
+                "value": [98, 117, 102, 102, 101, 114]
               },
               {
                 "kind": "account",
@@ -238,11 +188,11 @@
           }
         },
         {
-          "name": "committed_state_account",
+          "name": "commit_state",
           "writable": true
         },
         {
-          "name": "committed_state_record",
+          "name": "commit_record",
           "writable": true
         },
         {
@@ -252,19 +202,7 @@
             "seeds": [
               {
                 "kind": "const",
-                "value": [
-                  100,
-                  101,
-                  108,
-                  101,
-                  103,
-                  103,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
+                "value": [100, 101, 108, 101, 103, 103, 97, 116, 105, 111, 110]
               },
               {
                 "kind": "account",
