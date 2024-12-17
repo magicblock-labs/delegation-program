@@ -12,8 +12,6 @@ import { ON_CURVE_ACCOUNT } from "./fixtures/consts";
 
 const SEED_TEST_PDA = "test-pda";
 
-const delegationProgramIdlPath = "./idls/delegation.json";
-
 describe("TestDelegation", () => {
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env();
@@ -21,44 +19,26 @@ describe("TestDelegation", () => {
 
   const testDelegation = anchor.workspace
     .TestDelegation as Program<TestDelegation>;
-  const idl = JSON.parse(
-    require("fs").readFileSync(delegationProgramIdlPath, "utf8")
-  );
-  const dlpProgram = new Program(idl, provider);
 
   const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
     [Buffer.from(SEED_TEST_PDA)],
     testDelegation.programId
   );
-
-  const validatorFeesVault = web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("v-fees-vault"), provider.wallet.publicKey.toBuffer()],
-    dlpProgram.programId
-  )[0];
+  const payer = provider.wallet.publicKey;
+  const admin = provider.wallet.publicKey;
+  const validator = provider.wallet.publicKey;
+  const ownerProgram = testDelegation.programId;
+  const reimbursement = provider.wallet.publicKey;
 
   it("Initialize protocol fees vault", async () => {
-    const ix = createInitFeesVaultInstruction(provider.wallet.publicKey);
-    const tx = new web3.Transaction().add(ix);
-    tx.recentBlockhash = (
-      await provider.connection.getLatestBlockhash()
-    ).blockhash;
-    tx.feePayer = provider.wallet.publicKey;
-    const txId = await provider.sendAndConfirm(tx, [], { skipPreflight: true });
+    const ix = createInitFeesVaultInstruction(payer);
+    const txId = await processInstruction(ix);
     console.log("Initialize protocol fees vault tx:", txId);
   });
 
   it("Initialize validator fee vault", async () => {
-    const ix = createInitValidatorFeesVaultInstruction(
-      provider.wallet.publicKey,
-      provider.wallet.publicKey,
-      provider.wallet.publicKey
-    );
-    const tx = new web3.Transaction().add(ix);
-    tx.recentBlockhash = (
-      await provider.connection.getLatestBlockhash()
-    ).blockhash;
-    tx.feePayer = provider.wallet.publicKey;
-    const txId = await provider.sendAndConfirm(tx);
+    const ix = createInitValidatorFeesVaultInstruction(payer, admin, validator);
+    const txId = await processInstruction(ix);
     console.log("Initialize validator fee vault tx:", txId);
   });
 
@@ -74,7 +54,6 @@ describe("TestDelegation", () => {
         .rpc({ skipPreflight: true });
       console.log("Init Pda Tx: ", tx);
     }
-
     const counterAccount = await testDelegation.account.counter.fetch(pda);
     console.log("Counter: ", counterAccount.count.toString());
   });
@@ -91,7 +70,6 @@ describe("TestDelegation", () => {
         .rpc({ skipPreflight: true });
       console.log("Init Pda Tx: ", tx);
     }
-
     const counterAccount = await testDelegation.account.counter.fetch(pda);
     console.log("Counter: ", counterAccount.count.toString());
   });
@@ -104,7 +82,6 @@ describe("TestDelegation", () => {
       })
       .rpc({ skipPreflight: true });
     console.log("Increment Tx: ", tx);
-
     const counterAccount = await testDelegation.account.counter.fetch(pda);
     console.log("Counter: ", counterAccount.count.toString());
   });
@@ -158,12 +135,6 @@ describe("TestDelegation", () => {
   });
 
   it("Commit a new state to the PDA", async () => {
-    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
-    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
-
-    const commitState = commitStatePdaFromDelegatedAccount(pda);
-    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
-
     let account = await provider.connection.getAccountInfo(pda);
     let new_data = account.data;
     new_data[-1] = (new_data[-1] + 1) % 256;
@@ -174,64 +145,23 @@ describe("TestDelegation", () => {
       allow_undelegation: false,
       data: new_data,
     };
-
     const ix = createCommitAccountInstruction(
-      {
-        authority: provider.wallet.publicKey,
-        delegatedAccount: pda,
-        delegatedAccountOwner: testDelegation.programId,
-        commitState,
-        commitRecord,
-        delegationRecord,
-        delegationMetadata,
-      },
+      validator,
+      pda,
+      ownerProgram,
       args
     );
-
-    let tx = new anchor.web3.Transaction().add(ix);
-    tx.recentBlockhash = (
-      await provider.connection.getLatestBlockhash()
-    ).blockhash;
-    tx.feePayer = provider.wallet.publicKey;
-    tx = await provider.wallet.signTransaction(tx);
-    const txSign = await provider.sendAndConfirm(tx, [], {
-      skipPreflight: true,
-    });
-
-    console.log("Commit state signature", txSign);
+    const txId = await processInstruction(ix);
+    console.log("Commit state signature", txId);
   });
 
   it("Finalize account state", async () => {
-    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
-    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
-
-    const commitState = commitStatePdaFromDelegatedAccount(pda);
-    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
-
-    // @ts-ignore
-    const tx = await dlpProgram.methods
-      .finalize()
-      .accounts({
-        validator: provider.wallet.publicKey,
-        delegatedAccount: pda,
-        commitState,
-        commitRecord,
-        delegationRecord,
-        delegationMetadata,
-        validatorFeesVault,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .rpc({ skipPreflight: true });
-    console.log("Finalize signature", tx);
+    const ix = createFinalizeInstruction(validator, pda);
+    const txId = await processInstruction(ix);
+    console.log("Finalize signature", txId);
   });
 
   it("Commit a new state to the PDA", async () => {
-    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
-    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
-
-    const commitState = commitStatePdaFromDelegatedAccount(pda);
-    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
-
     let account = await provider.connection.getAccountInfo(pda);
     let new_data = account.data;
     new_data[-1] = (new_data[-1] + 1) % 256;
@@ -242,86 +172,47 @@ describe("TestDelegation", () => {
       allow_undelegation: true,
       data: new_data,
     };
-
     const ix = createCommitAccountInstruction(
-      {
-        authority: provider.wallet.publicKey,
-        delegatedAccount: pda,
-        delegatedAccountOwner: testDelegation.programId,
-        commitState,
-        commitRecord,
-        delegationRecord,
-        delegationMetadata,
-      },
+      validator,
+      pda,
+      ownerProgram,
       args
     );
-
-    let tx = new anchor.web3.Transaction().add(ix);
-    tx.recentBlockhash = (
-      await provider.connection.getLatestBlockhash()
-    ).blockhash;
-    tx.feePayer = provider.wallet.publicKey;
-    tx = await provider.wallet.signTransaction(tx);
-    const txSign = await provider.sendAndConfirm(tx);
-
-    console.log("Commit state signature", txSign);
+    const txId = await processInstruction(ix);
+    console.log("Commit state signature", txId);
   });
 
   it("Undelegate account", async () => {
-    const validator = provider.wallet.publicKey;
-    const ownerProgram = testDelegation.programId;
-
-    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
-    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
-
-    const commitState = commitStatePdaFromDelegatedAccount(pda);
-    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
-
-    const feesVault = feesVaultPda();
-    const validatorFeesVault = validatorFeesVaultPdaFromValidatorId(validator);
-
-    const buffer = web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("buffer"), pda.toBytes()],
-      DELEGATION_PROGRAM_ID
-    )[0];
-
-    // @ts-ignore
-    const tx = await dlpProgram.methods
-      .undelegate()
-      .accounts({
-        validator,
-        delegatedAccount: pda,
-        ownerProgram,
-        buffer,
-        commitState,
-        commitRecord,
-        delegationRecord,
-        delegationMetadata,
-        reimbursement: provider.wallet.publicKey,
-        feesVault,
-        validatorFeesVault,
-        systemProgram: anchor.web3.SystemProgram.programId,
-      })
-      .rpc({ skipPreflight: true });
-
-    console.log("Undelegate signature", tx);
+    const ix = createUndelegateInstruction(
+      validator,
+      pda,
+      ownerProgram,
+      reimbursement
+    );
+    const txId = await processInstruction(ix);
+    console.log("Undelegate signature", txId);
   });
 
   it("Whitelist a validator for a program", async () => {
     const ix = createWhitelistValidatorForProgramInstruction(
-      provider.wallet.publicKey,
-      provider.wallet.publicKey,
+      admin,
+      validator,
       testDelegation.programId,
       true
     );
+    const txId = await processInstruction(ix);
+    console.log("Whitelist a validator for a program:", txId);
+  });
+
+  async function processInstruction(ix: web3.TransactionInstruction) {
     const tx = new web3.Transaction().add(ix);
     tx.recentBlockhash = (
       await provider.connection.getLatestBlockhash()
     ).blockhash;
     tx.feePayer = provider.wallet.publicKey;
     const txId = await provider.sendAndConfirm(tx, [], { skipPreflight: true });
-    console.log("Whitelist a validator for a program:", txId);
-  });
+    return txId;
+  }
 
   /// Instruction to commit a new state to the PDA
 
@@ -358,39 +249,24 @@ describe("TestDelegation", () => {
   );
 
   function createCommitAccountInstruction(
-    accounts: CommitStateAccounts,
-    args: CommitAccountInstructionArgs,
-    programId = dlpProgram.programId
+    validator: web3.PublicKey,
+    delegatedAccount: web3.PublicKey,
+    ownerProgramId: web3.PublicKey,
+    args: CommitAccountInstructionArgs
   ) {
-    const [data] = commitAccountStruct.serialize({
-      instructionDiscriminator: [1, 0, 0, 0, 0, 0, 0, 0],
-      ...args,
-    });
-    const validatorFeesVault = validatorFeesVaultPdaFromValidatorId(
-      accounts.authority
-    );
-    const programConfig = programConfigPdaFromProgramId(
-      accounts.delegatedAccountOwner
-    );
+    const commitState = commitStatePdaFromDelegatedAccount(pda);
+    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
+    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
+    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
+    const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
+    const programConfig = programConfigPdaFromProgramId(ownerProgramId);
     const keys = [
-      { pubkey: accounts.authority, isSigner: true, isWritable: false },
-      { pubkey: accounts.delegatedAccount, isSigner: false, isWritable: false },
-      { pubkey: accounts.commitState, isSigner: false, isWritable: true },
-      {
-        pubkey: accounts.commitRecord,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: accounts.delegationRecord,
-        isSigner: false,
-        isWritable: true,
-      },
-      {
-        pubkey: accounts.delegationMetadata,
-        isSigner: false,
-        isWritable: true,
-      },
+      { pubkey: validator, isSigner: true, isWritable: false },
+      { pubkey: delegatedAccount, isSigner: false, isWritable: false },
+      { pubkey: commitState, isSigner: false, isWritable: true },
+      { pubkey: commitRecord, isSigner: false, isWritable: true },
+      { pubkey: delegationRecord, isSigner: false, isWritable: true },
+      { pubkey: delegationMetadata, isSigner: false, isWritable: true },
       { pubkey: validatorFeesVault, isSigner: false, isWritable: true },
       { pubkey: programConfig, isSigner: false, isWritable: false },
       {
@@ -399,9 +275,87 @@ describe("TestDelegation", () => {
         isWritable: false,
       },
     ];
-
+    const [data] = commitAccountStruct.serialize({
+      instructionDiscriminator: [1, 0, 0, 0, 0, 0, 0, 0],
+      ...args,
+    });
     const ix = new web3.TransactionInstruction({
-      programId,
+      programId: DELEGATION_PROGRAM_ID,
+      keys,
+      data,
+    });
+    return ix;
+  }
+
+  function createFinalizeInstruction(
+    validator: web3.PublicKey,
+    delegatedAccount: web3.PublicKey
+  ) {
+    const commitState = commitStatePdaFromDelegatedAccount(pda);
+    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
+    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
+    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
+    const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
+    const keys = [
+      { pubkey: validator, isSigner: true, isWritable: false },
+      { pubkey: delegatedAccount, isSigner: false, isWritable: true },
+      { pubkey: commitState, isSigner: false, isWritable: true },
+      { pubkey: commitRecord, isSigner: false, isWritable: true },
+      { pubkey: delegationRecord, isSigner: false, isWritable: true },
+      { pubkey: delegationMetadata, isSigner: false, isWritable: true },
+      { pubkey: validatorFeesVault, isSigner: false, isWritable: true },
+      {
+        pubkey: web3.SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
+      },
+    ];
+    const data = Buffer.from([2, 0, 0, 0, 0, 0, 0, 0]);
+    const ix = new web3.TransactionInstruction({
+      programId: DELEGATION_PROGRAM_ID,
+      keys,
+      data,
+    });
+    return ix;
+  }
+
+  function createUndelegateInstruction(
+    validator: web3.PublicKey,
+    delegatedAccount: web3.PublicKey,
+    ownerProgramId: web3.PublicKey,
+    reimbursement: web3.PublicKey
+  ) {
+    const buffer = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("buffer"), pda.toBytes()],
+      DELEGATION_PROGRAM_ID
+    )[0];
+    const commitState = commitStatePdaFromDelegatedAccount(pda);
+    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
+    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
+    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
+    const feesVault = feesVaultPda();
+    const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
+    const keys = [
+      { pubkey: validator, isSigner: true, isWritable: false },
+      { pubkey: delegatedAccount, isSigner: false, isWritable: true },
+      { pubkey: ownerProgramId, isSigner: false, isWritable: false },
+      { pubkey: buffer, isSigner: false, isWritable: true },
+      { pubkey: commitState, isSigner: false, isWritable: true },
+      { pubkey: commitRecord, isSigner: false, isWritable: true },
+      { pubkey: delegationRecord, isSigner: false, isWritable: true },
+      { pubkey: delegationMetadata, isSigner: false, isWritable: true },
+      { pubkey: reimbursement, isSigner: false, isWritable: true },
+      { pubkey: feesVault, isSigner: false, isWritable: true },
+      { pubkey: validatorFeesVault, isSigner: false, isWritable: true },
+      {
+        pubkey: web3.SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
+      },
+    ];
+    const data = Buffer.from([3, 0, 0, 0, 0, 0, 0, 0]);
+    const ix = new web3.TransactionInstruction({
+      programId: DELEGATION_PROGRAM_ID,
       keys,
       data,
     });
@@ -409,12 +363,8 @@ describe("TestDelegation", () => {
   }
 
   /// Instruction to initialize protocol fees vault
-  function createInitFeesVaultInstruction(
-    payer: web3.PublicKey,
-    programId = DELEGATION_PROGRAM_ID
-  ) {
+  function createInitFeesVaultInstruction(payer: web3.PublicKey) {
     const feesVault = feesVaultPda();
-
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
       { pubkey: feesVault, isSigner: false, isWritable: true },
@@ -424,11 +374,9 @@ describe("TestDelegation", () => {
         isWritable: false,
       },
     ];
-
     const data = Buffer.from([5, 0, 0, 0, 0, 0, 0, 0]);
-
     const ix = new web3.TransactionInstruction({
-      programId,
+      programId: DELEGATION_PROGRAM_ID,
       keys,
       data,
     });
@@ -439,16 +387,13 @@ describe("TestDelegation", () => {
   function createInitValidatorFeesVaultInstruction(
     payer: web3.PublicKey,
     admin: web3.PublicKey,
-    validatorId: web3.PublicKey,
-    programId = DELEGATION_PROGRAM_ID
+    validator: web3.PublicKey
   ) {
-    const validatorFeesVault =
-      validatorFeesVaultPdaFromValidatorId(validatorId);
-
+    const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
       { pubkey: admin, isSigner: true, isWritable: false },
-      { pubkey: validatorId, isSigner: false, isWritable: false },
+      { pubkey: validator, isSigner: false, isWritable: false },
       { pubkey: validatorFeesVault, isSigner: false, isWritable: true },
       {
         pubkey: web3.SystemProgram.programId,
@@ -456,11 +401,9 @@ describe("TestDelegation", () => {
         isWritable: false,
       },
     ];
-
     const data = Buffer.from([6, 0, 0, 0, 0, 0, 0, 0]);
-
     const ix = new web3.TransactionInstruction({
-      programId,
+      programId: DELEGATION_PROGRAM_ID,
       keys,
       data,
     });
@@ -468,22 +411,19 @@ describe("TestDelegation", () => {
   }
 
   function createWhitelistValidatorForProgramInstruction(
-    authority: web3.PublicKey,
-    validatorIdentity: web3.PublicKey,
+    admin: web3.PublicKey,
+    validator: web3.PublicKey,
     program: web3.PublicKey,
-    insert: boolean,
-    programId = DELEGATION_PROGRAM_ID
+    insert: boolean
   ) {
     const programData = web3.PublicKey.findProgramAddressSync(
       [program.toBuffer()],
       new web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
     )[0];
-
     const programConfig = programConfigPdaFromProgramId(program);
-
     const keys = [
-      { pubkey: authority, isSigner: true, isWritable: false },
-      { pubkey: validatorIdentity, isSigner: false, isWritable: false },
+      { pubkey: admin, isSigner: true, isWritable: false },
+      { pubkey: validator, isSigner: false, isWritable: false },
       { pubkey: program, isSigner: false, isWritable: false },
       { pubkey: programData, isSigner: false, isWritable: false },
       { pubkey: programConfig, isSigner: false, isWritable: true },
@@ -493,11 +433,9 @@ describe("TestDelegation", () => {
         isWritable: false,
       },
     ];
-
     const data = Buffer.from([8, 0, 0, 0, 0, 0, 0, 0, insert ? 1 : 0]);
-
     const ix = new web3.TransactionInstruction({
-      programId,
+      programId: DELEGATION_PROGRAM_ID,
       keys,
       data,
     });
@@ -526,9 +464,9 @@ function feesVaultPda() {
   )[0];
 }
 
-function validatorFeesVaultPdaFromValidatorId(validatorId: web3.PublicKey) {
+function validatorFeesVaultPdaFromValidator(validator: web3.PublicKey) {
   return web3.PublicKey.findProgramAddressSync(
-    [Buffer.from("v-fees-vault"), validatorId.toBuffer()],
+    [Buffer.from("v-fees-vault"), validator.toBuffer()],
     DELEGATION_PROGRAM_ID
   )[0];
 }
@@ -536,6 +474,6 @@ function validatorFeesVaultPdaFromValidatorId(validatorId: web3.PublicKey) {
 function programConfigPdaFromProgramId(programId: web3.PublicKey) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("p-conf"), programId.toBuffer()],
-    programId
+    DELEGATION_PROGRAM_ID
   )[0];
 }
