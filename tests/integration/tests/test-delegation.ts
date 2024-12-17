@@ -134,7 +134,7 @@ describe("TestDelegation", () => {
       .add(
         web3.SystemProgram.assign({
           accountPubkey: delegateOnCurve.publicKey,
-          programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
+          programId: DELEGATION_PROGRAM_ID,
         })
       )
       .add(
@@ -268,8 +268,8 @@ describe("TestDelegation", () => {
   });
 
   it("Undelegate account", async () => {
-    const validatorId = provider.wallet.publicKey;
-    const ownerProgramId = testDelegation.programId;
+    const validator = provider.wallet.publicKey;
+    const ownerProgram = testDelegation.programId;
 
     const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
     const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
@@ -278,50 +278,31 @@ describe("TestDelegation", () => {
     const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
 
     const feesVault = feesVaultPda();
-    const validatorFeesVault =
-      validatorFeesVaultPdaFromValidatorId(validatorId);
+    const validatorFeesVault = validatorFeesVaultPdaFromValidatorId(validator);
 
     const buffer = web3.PublicKey.findProgramAddressSync(
       [Buffer.from("buffer"), pda.toBytes()],
       DELEGATION_PROGRAM_ID
     )[0];
 
+    // @ts-ignore
     const tx = await dlpProgram.methods
       .undelegate()
       .accounts({
-        validator: validatorId,
+        validator,
         delegatedAccount: pda,
-        ownerProgram: ownerProgramId,
-        buffer: buffer,
-        commitState: commitState,
-        commitRecord: commitRecord,
-        delegationRecord: delegationRecord,
-        delegationMetadata: delegationMetadata,
+        ownerProgram,
+        buffer,
+        commitState,
+        commitRecord,
+        delegationRecord,
+        delegationMetadata,
         reimbursement: provider.wallet.publicKey,
-        feesVault: feesVault,
-        validatorFeesVault: validatorFeesVault,
+        feesVault,
+        validatorFeesVault,
         systemProgram: anchor.web3.SystemProgram.programId,
       })
       .rpc({ skipPreflight: true });
-
-    /*
-    const ix = createUndelegateInstruction({
-      validator: provider.wallet.publicKey,
-      delegatedAccount: pda,
-      ownerProgram: testDelegation.programId,
-      reimbursement: provider.wallet.publicKey,
-    });
-
-    let tx = new anchor.web3.Transaction().add(ix);
-    tx.recentBlockhash = (
-      await provider.connection.getLatestBlockhash()
-    ).blockhash;
-    tx.feePayer = provider.wallet.publicKey;
-    tx = await provider.wallet.signTransaction(tx);
-    const txSign = await provider.sendAndConfirm(tx, [], {
-      skipPreflight: true,
-    });
-    */
 
     console.log("Undelegate signature", tx);
   });
@@ -430,7 +411,7 @@ describe("TestDelegation", () => {
   /// Instruction to initialize protocol fees vault
   function createInitFeesVaultInstruction(
     payer: web3.PublicKey,
-    programId = new web3.PublicKey(DELEGATION_PROGRAM_ID)
+    programId = DELEGATION_PROGRAM_ID
   ) {
     const feesVault = feesVaultPda();
 
@@ -459,7 +440,7 @@ describe("TestDelegation", () => {
     payer: web3.PublicKey,
     admin: web3.PublicKey,
     validatorId: web3.PublicKey,
-    programId = new web3.PublicKey(DELEGATION_PROGRAM_ID)
+    programId = DELEGATION_PROGRAM_ID
   ) {
     const validatorFeesVault =
       validatorFeesVaultPdaFromValidatorId(validatorId);
@@ -491,7 +472,7 @@ describe("TestDelegation", () => {
     validatorIdentity: web3.PublicKey,
     program: web3.PublicKey,
     insert: boolean,
-    programId = new web3.PublicKey(DELEGATION_PROGRAM_ID)
+    programId = DELEGATION_PROGRAM_ID
   ) {
     const programData = web3.PublicKey.findProgramAddressSync(
       [program.toBuffer()],
@@ -553,7 +534,7 @@ function validatorFeesVaultPdaFromValidatorId(validatorId: web3.PublicKey) {
 }
 
 function programConfigPdaFromProgramId(programId: web3.PublicKey) {
-  web3.PublicKey.findProgramAddressSync(
+  return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("p-conf"), programId.toBuffer()],
     programId
   )[0];
