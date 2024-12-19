@@ -27,7 +27,6 @@ use solana_program::{
 
 /// Undelegate a delegated account
 ///
-/// 1. If the new state is valid, copy the committed state to the buffer
 /// 2. Close the locked account
 /// 3a. If on curve account or no data, close and reopen with prev owner
 /// 3b. CPI to the original owner to re-open the PDA with the original owner and the new state
@@ -225,6 +224,7 @@ fn cpi_external_undelegate<'a, 'info>(
     program_id: &Pubkey,
     delegation_metadata: DelegationMetadata,
 ) -> ProgramResult {
+    // Generate the instruction to be called in the owner program
     let mut data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
     let serialized_seeds = delegation_metadata.seeds.try_to_vec()?;
     data.extend_from_slice(&serialized_seeds);

@@ -1,5 +1,6 @@
 use crate::args::ValidatorClaimFeesArgs;
 use crate::consts::FEES_VOLUME;
+use crate::error::DlpError;
 use crate::processor::utils::loaders::{
     load_initialized_fees_vault, load_initialized_validator_fees_vault, load_signer,
 };
@@ -51,7 +52,7 @@ pub fn process_validator_claim_fees(
     **fees_vault.try_borrow_mut_lamports()? = fees_vault
         .lamports()
         .checked_add(fees)
-        .ok_or(ProgramError::InvalidArgument)?;
+        .ok_or(DlpError::Overflow)?;
 
     // Transfer remaining amount from validator_fees_vault to validator
     **validator_fees_vault.try_borrow_mut_lamports()? = validator_fees_vault
@@ -62,7 +63,7 @@ pub fn process_validator_claim_fees(
     **validator.try_borrow_mut_lamports()? = validator
         .lamports()
         .checked_add(remaining_amount)
-        .ok_or(ProgramError::InvalidArgument)?;
+        .ok_or(DlpError::Overflow)?;
 
     Ok(())
 }

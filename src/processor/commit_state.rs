@@ -30,7 +30,6 @@ use solana_program::{
 /// 2. Init a new PDA to store the new state
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
-/// 5. Increase the commits counter in the delegation record
 ///
 pub fn process_commit_state(
     _program_id: &Pubkey,
@@ -112,10 +111,12 @@ pub fn process_commit_state(
     // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
     // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
     if args.lamports > delegation_record.lamports {
-        let difference = args.lamports - delegation_record.lamports;
-        let transfer_instruction = transfer(validator.key, commit_state_account.key, difference);
+        let difference = args
+            .lamports
+            .checked_sub(delegation_record.lamports)
+            .ok_or(DlpError::Overflow)?;
         invoke(
-            &transfer_instruction,
+            &transfer(validator.key, commit_state_account.key, difference),
             &[
                 validator.clone(),
                 commit_state_account.clone(),
@@ -145,7 +146,8 @@ pub fn process_commit_state(
     let mut commit_state_data = commit_state_account.try_borrow_mut_data()?;
     (*commit_state_data).copy_from_slice(delegated_data);
 
-    verify_commitment(
+    // TODO - We'll need to implement state validation
+    verify_state(
         validator,
         delegation_record,
         &commit_record,
@@ -167,20 +169,4 @@ fn validate_program_config(
     }
     msg!("Valid config");
     Ok(())
-}
-
-/// Verify the committed state
-fn verify_commitment(
-    authority: &AccountInfo,
-    delegation_record: &DelegationRecord,
-    commit_record: &CommitRecord,
-    commit_state_account: &AccountInfo,
-) -> ProgramResult {
-    // TODO - is there something special to do here?
-    verify_state(
-        authority,
-        delegation_record,
-        commit_record,
-        commit_state_account,
-    )
 }
