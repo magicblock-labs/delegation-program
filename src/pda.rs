@@ -29,6 +29,13 @@ macro_rules! commit_record_seeds_from_delegated_account {
 }
 
 #[macro_export]
+macro_rules! undelegation_buffer_seeds_from_delegated_account {
+    ($delegated_account: expr) => {
+        &[b"buffer", &$delegated_account.as_ref()]
+    };
+}
+
+#[macro_export]
 macro_rules! fees_vault_seeds {
     () => {
         &[b"fees-vault"]
@@ -83,6 +90,14 @@ pub fn commit_state_pda_from_delegated_account(delegated_account: &Pubkey) -> Pu
 pub fn commit_record_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         commit_record_seeds_from_delegated_account!(delegated_account),
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn undelegation_buffer_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        undelegation_buffer_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
     )
     .0
