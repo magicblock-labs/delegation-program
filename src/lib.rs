@@ -61,9 +61,6 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::Undelegate => {
             processor::process_undelegate(program_id, accounts, data)?
         }
-        discriminator::DlpDiscriminator::AllowUndelegate => {
-            processor::process_allow_undelegate(program_id, accounts, data)?
-        }
         discriminator::DlpDiscriminator::InitValidatorFeesVault => {
             processor::process_init_validator_fees_vault(program_id, accounts, data)?
         }

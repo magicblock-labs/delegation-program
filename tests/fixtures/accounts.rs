@@ -8,7 +8,6 @@ use solana_sdk::pubkey;
 // Constants for default values
 const DEFAULT_DELEGATION_SLOT: u64 = 0;
 const DEFAULT_COMMIT_FREQUENCY_MS: u64 = 0;
-const DEFAULT_VALID_UNTIL: i64 = 0;
 const DEFAULT_LAST_UPDATE_EXTERNAL_SLOT: u64 = 0;
 const DEFAULT_IS_UNDELEGATABLE: bool = false;
 const DEFAULT_SEEDS: &[&[u8]] = &[&[116, 101, 115, 116, 45, 112, 100, 97]];
@@ -111,7 +110,6 @@ pub fn create_delegation_metadata_data(
     is_undelegatable: bool,
 ) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
-        valid_until: DEFAULT_VALID_UNTIL,
         last_update_external_slot: DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
         is_undelegatable,
         seeds: seeds.iter().map(|s| s.to_vec()).collect(),

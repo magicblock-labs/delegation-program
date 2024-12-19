@@ -22,7 +22,6 @@ use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::system_instruction::transfer;
-use solana_program::sysvar::Sysvar;
 use solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
@@ -93,7 +92,7 @@ pub fn process_undelegate(
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
     // Check if the delegated account is undelegatable
-    if !is_account_undelegatable(&delegation_metadata)? {
+    if !delegation_metadata.is_undelegatable {
         return Err(Undelegatable.into());
     }
 
@@ -308,12 +307,6 @@ fn settle_lamports_balance_pda<'a, 'info>(
         )?
     }
     Ok(())
-}
-
-/// Check if the account is undelegatable
-fn is_account_undelegatable(metadata: &DelegationMetadata) -> Result<bool, ProgramError> {
-    Ok(metadata.is_undelegatable
-        || metadata.valid_until >= solana_program::clock::Clock::get()?.unix_timestamp)
 }
 
 /// Check if there is a committed state loading the committed state account and record PDAs

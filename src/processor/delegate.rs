@@ -107,7 +107,6 @@ pub fn process_delegate(
     let mut delegation_metadata_bytes = vec![];
     let delegation_metadata = DelegationMetadata {
         seeds: args.seeds,
-        valid_until: args.valid_until,
         last_update_external_slot: 0,
         is_undelegatable: false,
         rent_payer: *payer.key,

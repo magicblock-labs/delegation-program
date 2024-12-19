@@ -7,10 +7,8 @@ use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 /// The Delegated Metadata includes Account Seeds, max delegation time, seeds
 /// and other meta information about the delegated account.
 /// * Everything necessary at cloning time is instead stored in the delegation record.
-#[derive(BorshSerialize, BorshDeserialize, Debug)]
+#[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
 pub struct DelegationMetadata {
-    /// The delegation validity
-    pub valid_until: i64,
     /// The last slot at which the delegation was updated
     pub last_update_external_slot: u64,
     /// Whether the account can be undelegated or not
@@ -46,7 +44,6 @@ mod tests {
             ],
             is_undelegatable: false,
             last_update_external_slot: 0,
-            valid_until: 0,
             rent_payer: Pubkey::default(),
         };
 
@@ -57,6 +54,6 @@ mod tests {
         let deserialized: DelegationMetadata =
             DelegationMetadata::try_from_slice(&serialized).expect("Deserialization failed");
 
-        assert_eq!(deserialized.seeds, original.seeds);
+        assert_eq!(deserialized, original);
     }
 }
