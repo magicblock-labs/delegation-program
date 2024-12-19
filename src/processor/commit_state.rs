@@ -66,7 +66,9 @@ pub fn process_commit_state(
         let program_config =
             ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?;
         msg!("Program Config: {:?}", program_config);
-        validate_program_config(program_config, validator.key)?;
+        if !program_config.approved_validators.contains(validator.key) {
+            return Err(DlpError::InvalidWhitelistProgramConfig.into());
+        }
     }
 
     // Load the uninitialized PDAs
@@ -111,12 +113,12 @@ pub fn process_commit_state(
     // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
     // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
     if args.lamports > delegation_record.lamports {
-        let difference = args
+        let extra_lamports = args
             .lamports
             .checked_sub(delegation_record.lamports)
             .ok_or(DlpError::Overflow)?;
         invoke(
-            &transfer(validator.key, commit_state_account.key, difference),
+            &transfer(validator.key, commit_state_account.key, extra_lamports),
             &[
                 validator.clone(),
                 commit_state_account.clone(),
@@ -154,19 +156,5 @@ pub fn process_commit_state(
         commit_state_account,
     )?;
 
-    Ok(())
-}
-
-/// If there exists a validators whitelist for the delegated account program owner, check that the validator is whitelisted for it
-fn validate_program_config(
-    program_config: ProgramConfig,
-    validator: &Pubkey,
-) -> Result<(), ProgramError> {
-    if !program_config.approved_validators.is_empty()
-        && !program_config.approved_validators.contains(validator)
-    {
-        return Err(DlpError::InvalidWhitelistProgramConfig.into());
-    }
-    msg!("Valid config");
     Ok(())
 }

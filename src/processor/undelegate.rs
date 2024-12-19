@@ -127,7 +127,7 @@ pub fn process_undelegate(
         FEES_SESSION,
     )?;
 
-    // If there is an owner program, let the program give back ownership to the delegated account
+    // If there is an owner program, give it back ownership to the delegated account
     if is_on_curve(delegated_account.key) {
         delegated_account.assign(owner_program.key);
     } else {
@@ -163,9 +163,10 @@ fn process_undelegation_with_cpi<'a, 'info>(
     system_program: &'a AccountInfo<'info>,
 ) -> ProgramResult {
     let delegated_account_balance_before_cpi = delegated_account.lamports();
-    let validator_balance_before_cpi = validator.lamports();
 
     close_pda(delegated_account, validator)?;
+
+    let validator_balance_after_close_and_before_cpi = validator.lamports();
 
     cpi_external_undelegate(
         validator,
@@ -177,31 +178,32 @@ fn process_undelegation_with_cpi<'a, 'info>(
         delegation_metadata,
     )?;
 
-    let min_rent = Rent::default().minimum_balance(delegated_account.data_len());
-    if validator_balance_before_cpi
+    let delegated_account_min_rent = Rent::default().minimum_balance(delegated_account.data_len());
+    if validator_balance_after_close_and_before_cpi
         != validator
             .lamports()
-            .checked_add(min_rent)
+            .checked_add(delegated_account_min_rent)
             .ok_or(InvalidValidatorBalanceAfterCPI)?
     {
         return Err(InvalidValidatorBalanceAfterCPI.into());
     }
 
-    if delegated_account.try_borrow_data()?.as_ref()
-        != undelegation_buffer_account.try_borrow_data()?.as_ref()
-    {
+    let delegated_account_data_after_cpi = delegated_account.try_borrow_data()?;
+    let undelegation_buffer_data_after_cpi = undelegation_buffer_account.try_borrow_data()?;
+    if delegated_account_data_after_cpi.as_ref() != undelegation_buffer_data_after_cpi.as_ref() {
         return Err(InvalidAccountDataAfterCPI.into());
     }
 
-    let delegated_account_lamports_difference = delegated_account_balance_before_cpi
-        .checked_sub(min_rent)
+    let delegated_account_extra_lamports = delegated_account_balance_before_cpi
+        .checked_sub(delegated_account_min_rent)
         .ok_or(InvalidDelegatedAccount)?;
-    if delegated_account_lamports_difference > 0 {
+
+    if delegated_account_extra_lamports > 0 {
         invoke(
             &transfer(
                 validator.key,
                 delegated_account.key,
-                delegated_account_lamports_difference,
+                delegated_account_extra_lamports,
             ),
             &[
                 validator.clone(),
