@@ -1,9 +1,6 @@
 use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    system_program, {self},
+    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
 
 use crate::fees_vault_seeds;

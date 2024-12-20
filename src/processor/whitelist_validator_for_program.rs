@@ -9,11 +9,8 @@ use borsh::BorshDeserialize;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo,
-    bpf_loader_upgradeable,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    system_program, {self},
+    account_info::AccountInfo, bpf_loader_upgradeable, entrypoint::ProgramResult, pubkey::Pubkey,
+    system_program,
 };
 
 /// Whitelist a validator for a program

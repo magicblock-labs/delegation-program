@@ -1,5 +1,5 @@
 use solana_program::{
-    self, account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
+    account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey,
 };
 

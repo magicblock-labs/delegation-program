@@ -16,13 +16,7 @@ use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
 use solana_program::system_program;
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    msg,
-    pubkey::Pubkey,
-    {self},
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 
 /// Commit a new state of a delegated Pda
 ///
@@ -37,7 +31,10 @@ pub fn process_commit_state(
     data: &[u8],
 ) -> ProgramResult {
     let args = CommitStateArgs::try_from_slice(data)?;
+
     let commit_state_bytes: &[u8] = args.data.as_ref();
+    let commit_record_lamports = args.lamports;
+    let commit_record_slot = args.slot;
 
     let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, system_program] =
         accounts
@@ -67,9 +64,8 @@ pub fn process_commit_state(
     // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
     // We need to do that so that the finalizer already have all the lamports from the validators ready at finalize time
     // The finalizer can return any extra lamport to the validator during finalize, but this acts as the validator's proof of collateral
-    if args.lamports > delegation_record.lamports {
-        let extra_lamports = args
-            .lamports
+    if commit_record_lamports > delegation_record.lamports {
+        let extra_lamports = commit_record_lamports
             .checked_sub(delegation_record.lamports)
             .ok_or(DlpError::Overflow)?;
         invoke(
@@ -133,8 +129,8 @@ pub fn process_commit_state(
     let commit_record = CommitRecord {
         identity: *validator.key,
         account: *delegated_account.key,
-        slot: args.slot,
-        lamports: args.lamports,
+        slot: commit_record_slot,
+        lamports: commit_record_lamports,
     };
     let mut commit_record_data = commit_record_account.try_borrow_mut_data()?;
     commit_record.to_bytes_with_discriminator(&mut commit_record_data)?;

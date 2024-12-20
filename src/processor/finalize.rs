@@ -9,10 +9,7 @@ use crate::processor::utils::verify::verify_state;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    system_program, {self},
+    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
 
 /// Finalize a committed state, after validation, to a delegated account
@@ -108,6 +105,7 @@ pub fn process_finalize(
     // Closing accounts
     close_pda(commit_state_account, validator)?;
     close_pda(commit_record_account, validator)?;
+
     Ok(())
 }
 

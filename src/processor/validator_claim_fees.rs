@@ -7,12 +7,7 @@ use crate::processor::utils::loaders::{
 use borsh::BorshDeserialize;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    {self},
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 /// Process validator request to claim fees from the fees vault
 ///
