@@ -4,6 +4,7 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::discriminator::DlpDiscriminator;
 use crate::pda::{
+    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     fees_vault_pda, undelegation_buffer_pda_from_delegated_account,
     validator_fees_vault_pda_from_validator,
@@ -19,6 +20,8 @@ pub fn undelegate(
 ) -> Instruction {
     let undelegation_buffer_pda =
         undelegation_buffer_pda_from_delegated_account(&delegated_account);
+    let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
+    let commit_record_pda = commit_record_pda_from_delegated_account(&delegated_account);
     let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
@@ -31,6 +34,8 @@ pub fn undelegate(
             AccountMeta::new(delegated_account, false),
             AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(undelegation_buffer_pda, false),
+            AccountMeta::new(commit_state_pda, false),
+            AccountMeta::new(commit_record_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new(rent_reimbursement, false),

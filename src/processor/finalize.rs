@@ -55,6 +55,7 @@ pub fn process_finalize(
 
     // If the commit slot is greater than the last update slot, we verify and finalize the state
     // If slot is equal or less, we simply close the commitment accounts
+    // TODO - this is weird because what if a commit gets discarded and it matches with is_undelegatable tmings
     if commit_record.slot > delegation_metadata.last_update_external_slot {
         // Load delegation record
         let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
@@ -97,14 +98,16 @@ pub fn process_finalize(
         delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
 
         // Dropping references
-        drop(delegated_account_data);
-        drop(commit_record_data);
         drop(commit_state_data);
+        drop(delegated_account_data);
     }
 
+    // Drop reference before closing accounts
+    drop(commit_record_data);
+
     // Closing accounts
-    close_pda(commit_record_account, validator)?;
     close_pda(commit_state_account, validator)?;
+    close_pda(commit_record_account, validator)?;
     Ok(())
 }
 

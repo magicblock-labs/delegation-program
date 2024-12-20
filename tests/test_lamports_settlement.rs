@@ -127,7 +127,7 @@ pub async fn test_commit_system_account_after_balance_decrease(is_undelegate: bo
     })
     .await;
 
-    finalize_or_undelegate(
+    finalize_and_maybe_undelegate(
         is_undelegate,
         delegated_account,
         &mut banks,
@@ -175,7 +175,7 @@ async fn test_commit_system_account_after_balance_increase(is_undelegate: bool, 
     })
     .await;
 
-    finalize_or_undelegate(
+    finalize_and_maybe_undelegate(
         is_undelegate,
         delegated_account,
         &mut banks,
@@ -226,7 +226,7 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
     })
     .await;
 
-    finalize_or_undelegate(
+    finalize_and_maybe_undelegate(
         is_undelegate,
         delegated_account,
         &mut banks,
@@ -280,7 +280,7 @@ async fn test_commit_system_account_after_balance_increase_and_increase_mainchai
     })
     .await;
 
-    finalize_or_undelegate(
+    finalize_and_maybe_undelegate(
         is_undelegate,
         delegated_account,
         &mut banks,
@@ -318,7 +318,7 @@ fn get_delegated_account_and_owner(is_pda: bool) -> (Pubkey, Pubkey) {
     (delegated_account, owner_program)
 }
 
-async fn finalize_or_undelegate(
+async fn finalize_and_maybe_undelegate(
     is_undelegate: bool,
     delegated_account: Pubkey,
     banks: &mut BanksClient,
@@ -326,6 +326,13 @@ async fn finalize_or_undelegate(
     blockhash: Hash,
     owner_program: Pubkey,
 ) {
+    finalize_new_state(FinalizeNewStateArgs {
+        banks,
+        authority,
+        blockhash,
+        delegate_account: delegated_account,
+    })
+    .await;
     if is_undelegate {
         undelegate(UndelegateArgs {
             banks,
@@ -333,14 +340,6 @@ async fn finalize_or_undelegate(
             blockhash,
             delegate_account: delegated_account,
             owner_program,
-        })
-        .await;
-    } else {
-        finalize_new_state(FinalizeNewStateArgs {
-            banks,
-            authority,
-            blockhash,
-            delegate_account: delegated_account,
         })
         .await;
     }
