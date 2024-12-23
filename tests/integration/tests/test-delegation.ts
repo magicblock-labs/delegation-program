@@ -182,6 +182,12 @@ describe("TestDelegation", () => {
     console.log("Commit state signature", txId);
   });
 
+  it("Finalize account state again", async () => {
+    const ix = createFinalizeInstruction(validator, pda);
+    const txId = await processInstruction(ix);
+    console.log("Finalize signature", txId);
+  });
+
   it("Undelegate account", async () => {
     const ix = createUndelegateInstruction(
       validator,
