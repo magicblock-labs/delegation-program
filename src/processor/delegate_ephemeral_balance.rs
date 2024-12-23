@@ -15,7 +15,7 @@ pub fn process_delegate_ephemeral_balance(
     data: &[u8],
 ) -> ProgramResult {
     let mut args = DelegateEphemeralBalanceArgs::try_from_slice(data)?;
-    let [payer, pubkey, ephemeral_balance_account, buffer, delegation_record, delegation_metadata, system_program, delegation_program] =
+    let [payer, pubkey, ephemeral_balance_account, delegate_buffer, delegation_record, delegation_metadata, system_program, delegation_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -65,7 +65,7 @@ pub fn process_delegate_ephemeral_balance(
             delegation_program.clone(),
             payer.clone(),
             ephemeral_balance_account.clone(),
-            buffer.clone(),
+            delegate_buffer.clone(),
             delegation_record.clone(),
             delegation_metadata.clone(),
             system_program.clone(),

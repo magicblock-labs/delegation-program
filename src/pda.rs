@@ -29,9 +29,16 @@ macro_rules! commit_record_seeds_from_delegated_account {
 }
 
 #[macro_export]
-macro_rules! undelegation_buffer_seeds_from_delegated_account {
+macro_rules! delegate_buffer_seeds_from_delegated_account {
     ($delegated_account: expr) => {
         &[b"buffer", &$delegated_account.as_ref()]
+    };
+}
+
+#[macro_export]
+macro_rules! undelegate_buffer_seeds_from_delegated_account {
+    ($delegated_account: expr) => {
+        &[b"undelegate-buffer", &$delegated_account.as_ref()]
     };
 }
 
@@ -95,9 +102,20 @@ pub fn commit_record_pda_from_delegated_account(delegated_account: &Pubkey) -> P
     .0
 }
 
-pub fn undelegation_buffer_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
+pub fn delegate_buffer_pda_from_delegated_account_and_owner_program(
+    delegated_account: &Pubkey,
+    owner_program: &Pubkey,
+) -> Pubkey {
     Pubkey::find_program_address(
-        undelegation_buffer_seeds_from_delegated_account!(delegated_account),
+        delegate_buffer_seeds_from_delegated_account!(delegated_account),
+        owner_program,
+    )
+    .0
+}
+
+pub fn undelegate_buffer_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        undelegate_buffer_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
     )
     .0

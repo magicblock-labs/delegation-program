@@ -102,7 +102,10 @@ async fn test_commit_undelegate_pda_after_balance_increase_and_increase_mainchai
     test_commit_system_account_after_balance_increase_and_increase_mainchain(true, true).await;
 }
 
-pub async fn test_commit_system_account_after_balance_decrease(is_undelegate: bool, is_pda: bool) {
+pub async fn test_commit_system_account_after_balance_decrease(
+    also_undelegate: bool,
+    is_pda: bool,
+) {
     // Setup
     let (delegated_account, owner_program) = get_delegated_account_and_owner(is_pda);
     let (mut banks, _, authority, blockhash) =
@@ -122,13 +125,13 @@ pub async fn test_commit_system_account_after_balance_decrease(is_undelegate: bo
         authority: &authority,
         blockhash,
         new_delegated_account_lamports,
-        delegate_account: delegated_account,
-        delegate_account_owner: owner_program,
+        delegated_account,
+        delegated_account_owner: owner_program,
     })
     .await;
 
     finalize_and_maybe_undelegate(
-        is_undelegate,
+        also_undelegate,
         delegated_account,
         &mut banks,
         &authority,
@@ -150,7 +153,7 @@ pub async fn test_commit_system_account_after_balance_decrease(is_undelegate: bo
     assert!(validator_vault.lamports >= Rent::default().minimum_balance(0) + 100);
 }
 
-async fn test_commit_system_account_after_balance_increase(is_undelegate: bool, is_pda: bool) {
+async fn test_commit_system_account_after_balance_increase(also_undelegate: bool, is_pda: bool) {
     // Setup
     let (delegated_account, owner_program) = get_delegated_account_and_owner(is_pda);
     let (mut banks, _, authority, blockhash) =
@@ -170,13 +173,13 @@ async fn test_commit_system_account_after_balance_increase(is_undelegate: bool, 
         authority: &authority,
         blockhash,
         new_delegated_account_lamports,
-        delegate_account: delegated_account,
-        delegate_account_owner: owner_program,
+        delegated_account,
+        delegated_account_owner: owner_program,
     })
     .await;
 
     finalize_and_maybe_undelegate(
-        is_undelegate,
+        also_undelegate,
         delegated_account,
         &mut banks,
         &authority,
@@ -199,7 +202,7 @@ async fn test_commit_system_account_after_balance_increase(is_undelegate: bool, 
 }
 
 async fn test_commit_system_account_after_balance_decrease_and_increase_mainchain(
-    is_undelegate: bool,
+    also_undelegate: bool,
     is_pda: bool,
 ) {
     // Setup
@@ -221,13 +224,13 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
         authority: &authority,
         blockhash,
         new_delegated_account_lamports,
-        delegate_account: delegated_account,
-        delegate_account_owner: owner_program,
+        delegated_account,
+        delegated_account_owner: owner_program,
     })
     .await;
 
     finalize_and_maybe_undelegate(
-        is_undelegate,
+        also_undelegate,
         delegated_account,
         &mut banks,
         &authority,
@@ -253,7 +256,7 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
 }
 
 async fn test_commit_system_account_after_balance_increase_and_increase_mainchain(
-    is_undelegate: bool,
+    also_undelegate: bool,
     is_pda: bool,
 ) {
     // Setup
@@ -275,13 +278,13 @@ async fn test_commit_system_account_after_balance_increase_and_increase_mainchai
         authority: &authority,
         blockhash,
         new_delegated_account_lamports,
-        delegate_account: delegated_account,
-        delegate_account_owner: owner_program,
+        delegated_account,
+        delegated_account_owner: owner_program,
     })
     .await;
 
     finalize_and_maybe_undelegate(
-        is_undelegate,
+        also_undelegate,
         delegated_account,
         &mut banks,
         &authority,
@@ -319,7 +322,7 @@ fn get_delegated_account_and_owner(is_pda: bool) -> (Pubkey, Pubkey) {
 }
 
 async fn finalize_and_maybe_undelegate(
-    is_undelegate: bool,
+    also_undelegate: bool,
     delegated_account: Pubkey,
     banks: &mut BanksClient,
     authority: &Keypair,
@@ -330,15 +333,15 @@ async fn finalize_and_maybe_undelegate(
         banks,
         authority,
         blockhash,
-        delegate_account: delegated_account,
+        delegated_account,
     })
     .await;
-    if is_undelegate {
+    if also_undelegate {
         undelegate(UndelegateArgs {
             banks,
             authority,
             blockhash,
-            delegate_account: delegated_account,
+            delegated_account,
             owner_program,
         })
         .await;
@@ -349,19 +352,19 @@ struct UndelegateArgs<'a> {
     banks: &'a mut BanksClient,
     authority: &'a Keypair,
     blockhash: Hash,
-    delegate_account: Pubkey,
+    delegated_account: Pubkey,
     owner_program: Pubkey,
 }
 
 async fn undelegate(args: UndelegateArgs<'_>) {
     // Retrieve the accounts
     let delegation_record_pda =
-        delegation_record_pda_from_delegated_account(&args.delegate_account);
+        delegation_record_pda_from_delegated_account(&args.delegated_account);
 
     // Submit the undelegate tx
     let ix = dlp::instruction_builder::undelegate(
         args.authority.pubkey(),
-        args.delegate_account,
+        args.delegated_account,
         args.owner_program,
         args.authority.pubkey(),
     );
@@ -381,7 +384,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
 
     // Assert the delegated metadata account pda was closed
     let delegation_metadata_pda =
-        delegation_metadata_pda_from_delegated_account(&args.delegate_account);
+        delegation_metadata_pda_from_delegated_account(&args.delegated_account);
     let delegation_metadata_account = args
         .banks
         .get_account(delegation_metadata_pda)
@@ -392,7 +395,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
     // Assert that the account owner is now set to the original owner program
     let pda_account = args
         .banks
-        .get_account(args.delegate_account)
+        .get_account(args.delegated_account)
         .await
         .unwrap()
         .unwrap();
@@ -403,11 +406,11 @@ struct FinalizeNewStateArgs<'a> {
     banks: &'a mut BanksClient,
     authority: &'a Keypair,
     blockhash: Hash,
-    delegate_account: Pubkey,
+    delegated_account: Pubkey,
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = dlp::instruction_builder::finalize(args.authority.pubkey(), args.delegate_account);
+    let ix = dlp::instruction_builder::finalize(args.authority.pubkey(), args.delegated_account);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&args.authority.pubkey()),
@@ -420,7 +423,7 @@ async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
     // Assert that the account owner is still the delegation program
     let pda_account = args
         .banks
-        .get_account(args.delegate_account)
+        .get_account(args.delegated_account)
         .await
         .unwrap()
         .unwrap();
@@ -432,12 +435,12 @@ struct CommitNewStateArgs<'a> {
     authority: &'a Keypair,
     blockhash: Hash,
     new_delegated_account_lamports: u64,
-    delegate_account: Pubkey,
-    delegate_account_owner: Pubkey,
+    delegated_account: Pubkey,
+    delegated_account_owner: Pubkey,
 }
 
 async fn commit_new_state(args: CommitNewStateArgs<'_>) {
-    let data = if args.delegate_account.eq(&DELEGATED_PDA_ID) {
+    let data = if args.delegated_account.eq(&DELEGATED_PDA_ID) {
         COMMIT_NEW_STATE_ACCOUNT_DATA.to_vec()
     } else {
         vec![]
@@ -452,8 +455,8 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     // Commit the state for the delegated account
     let ix = dlp::instruction_builder::commit_state(
         args.authority.pubkey(),
-        args.delegate_account,
-        args.delegate_account_owner,
+        args.delegated_account,
+        args.delegated_account_owner,
         commit_args,
     );
     let tx = Transaction::new_signed_with_payer(
@@ -467,7 +470,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let commit_state_pda = commit_state_pda_from_delegated_account(&args.delegate_account);
+    let commit_state_pda = commit_state_pda_from_delegated_account(&args.delegated_account);
     let commit_state_account = args
         .banks
         .get_account(commit_state_pda)
@@ -479,7 +482,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     // Check that the commit has enough collateral to finalize the proposed state diff
     let delegated_account = args
         .banks
-        .get_account(args.delegate_account)
+        .get_account(args.delegated_account)
         .await
         .unwrap()
         .unwrap();
@@ -489,7 +492,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     );
 
     // Assert the record about the commitment exists
-    let commit_record_pda = commit_record_pda_from_delegated_account(&args.delegate_account);
+    let commit_record_pda = commit_record_pda_from_delegated_account(&args.delegated_account);
     let commit_record_account = args
         .banks
         .get_account(commit_record_pda)
@@ -498,12 +501,12 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap();
     let commit_record =
         CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
-    assert_eq!(commit_record.account, args.delegate_account);
+    assert_eq!(commit_record.account, args.delegated_account);
     assert_eq!(commit_record.identity, args.authority.pubkey());
     assert_eq!(commit_record.slot, 100);
 
     let delegation_metadata_pda =
-        delegation_metadata_pda_from_delegated_account(&args.delegate_account);
+        delegation_metadata_pda_from_delegated_account(&args.delegated_account);
     let delegation_metadata_account = args
         .banks
         .get_account(delegation_metadata_pda)

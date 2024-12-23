@@ -9,8 +9,8 @@ use solana_sdk::{
     transaction::Transaction,
 };
 
-use dlp::consts::BUFFER;
 use dlp::pda::{
+    delegate_buffer_pda_from_delegated_account_and_owner_program,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
 };
 use dlp::state::DelegationRecord;
@@ -40,11 +40,11 @@ async fn test_delegate() {
     assert!(res.is_ok());
 
     // Assert the buffer was closed
-    let buffer_pda = Pubkey::find_program_address(
-        &[BUFFER, &DELEGATED_PDA_ID.to_bytes()],
+    let delegate_buffer_pda = delegate_buffer_pda_from_delegated_account_and_owner_program(
+        &DELEGATED_PDA_ID,
         &DELEGATED_PDA_OWNER_ID,
     );
-    let buffer_account = banks.get_account(buffer_pda.0).await.unwrap();
+    let buffer_account = banks.get_account(delegate_buffer_pda).await.unwrap();
     assert!(buffer_account.is_none());
 
     // Assert the PDA was delegated => owner is set to the delegation program
@@ -122,21 +122,22 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 }
 
 /// Builds a delegate instruction for the test program
-fn delegate_from_wrapper_program(payer: Pubkey, delegate_account: Pubkey) -> Instruction {
-    let buffer = Pubkey::find_program_address(
-        &[BUFFER, &delegate_account.to_bytes()],
+fn delegate_from_wrapper_program(payer: Pubkey, delegated_account: Pubkey) -> Instruction {
+    let delegate_buffer_pda = delegate_buffer_pda_from_delegated_account_and_owner_program(
+        &delegated_account,
         &DELEGATED_PDA_OWNER_ID,
     );
-    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegate_account);
-    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&delegate_account);
+    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&delegated_account);
     Instruction {
         program_id: DELEGATED_PDA_OWNER_ID,
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new(buffer.0, false),
+            AccountMeta::new(delegate_buffer_pda, false),
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
-            AccountMeta::new(delegate_account, false),
+            AccountMeta::new(delegated_account, false),
             AccountMeta::new_readonly(DELEGATED_PDA_OWNER_ID, false),
             AccountMeta::new_readonly(dlp::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),

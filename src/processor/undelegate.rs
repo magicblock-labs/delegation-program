@@ -9,7 +9,7 @@ use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
 use crate::state::{DelegationMetadata, DelegationRecord};
 use crate::{
     commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
-    undelegation_buffer_seeds_from_delegated_account,
+    undelegate_buffer_seeds_from_delegated_account,
 };
 use borsh::BorshSerialize;
 use solana_program::instruction::{AccountMeta, Instruction};
@@ -26,7 +26,7 @@ use solana_program::{
 /// - Close the delegation metadata
 /// - Close the delegation record
 /// - If delegated account has no data, assign to prev owner (and stop here)
-/// - If there's data, create an "undelegation_buffer" and store the data in it
+/// - If there's data, create an "undelegate_buffer" and store the data in it
 /// - Close the original delegated account
 /// - CPI to the original owner to re-open the PDA with the original owner and the new state
 /// - CPI will be signed by the undelegation buffer PDA and will call the external program
@@ -41,7 +41,7 @@ pub fn process_undelegate(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [validator, delegated_account, owner_program, undelegation_buffer_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, rent_reimbursement, fees_vault, validator_fees_vault, system_program] =
+    let [validator, delegated_account, owner_program, undelegate_buffer_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, rent_reimbursement, fees_vault, validator_fees_vault, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -114,46 +114,46 @@ pub fn process_undelegate(
     }
 
     // Initialize the undelegation buffer PDA
-    let undelegation_buffer_seeds: &[&[u8]] =
-        undelegation_buffer_seeds_from_delegated_account!(delegated_account.key);
-    let undelegation_buffer_bump: u8 = load_uninitialized_pda(
-        undelegation_buffer_account,
-        undelegation_buffer_seeds,
+    let undelegate_buffer_seeds: &[&[u8]] =
+        undelegate_buffer_seeds_from_delegated_account!(delegated_account.key);
+    let undelegate_buffer_bump: u8 = load_uninitialized_pda(
+        undelegate_buffer_account,
+        undelegate_buffer_seeds,
         &crate::id(),
         true,
     )?;
     create_pda(
-        undelegation_buffer_account,
+        undelegate_buffer_account,
         &crate::id(),
         delegated_account.data_len(),
-        undelegation_buffer_seeds,
-        undelegation_buffer_bump,
+        undelegate_buffer_seeds,
+        undelegate_buffer_bump,
         system_program,
         validator,
     )?;
 
     // Copy data in the undelegation buffer PDA
-    (*undelegation_buffer_account.try_borrow_mut_data()?)
+    (*undelegate_buffer_account.try_borrow_mut_data()?)
         .copy_from_slice(&delegated_account.try_borrow_data()?);
 
     // Generate the ephemeral balance PDA's signer seeds
-    let undelegation_buffer_bump_slice = &[undelegation_buffer_bump];
-    let undelegation_buffer_signer_seeds =
-        [undelegation_buffer_seeds, &[undelegation_buffer_bump_slice]].concat();
+    let undelegate_buffer_bump_slice = &[undelegate_buffer_bump];
+    let undelegate_buffer_signer_seeds =
+        [undelegate_buffer_seeds, &[undelegate_buffer_bump_slice]].concat();
 
     // Call a CPI to the owner program to give it back the new state
     process_undelegation_with_cpi(
         validator,
         delegated_account,
         owner_program,
-        undelegation_buffer_account,
-        &undelegation_buffer_signer_seeds,
+        undelegate_buffer_account,
+        &undelegate_buffer_signer_seeds,
         delegation_metadata,
         system_program,
     )?;
 
     // Done, close undelegation buffer
-    close_pda(undelegation_buffer_account, validator)?;
+    close_pda(undelegate_buffer_account, validator)?;
 
     // Closing delegation accounts
     process_delegation_cleanup(
@@ -175,8 +175,8 @@ fn process_undelegation_with_cpi<'a, 'info>(
     validator: &'a AccountInfo<'info>,
     delegated_account: &'a AccountInfo<'info>,
     owner_program: &'a AccountInfo<'info>,
-    undelegation_buffer_account: &'a AccountInfo<'info>,
-    undelegation_buffer_signer_seeds: &[&[u8]],
+    undelegate_buffer_account: &'a AccountInfo<'info>,
+    undelegate_buffer_signer_seeds: &[&[u8]],
     delegation_metadata: DelegationMetadata,
     system_program: &'a AccountInfo<'info>,
 ) -> ProgramResult {
@@ -188,8 +188,8 @@ fn process_undelegation_with_cpi<'a, 'info>(
     cpi_external_undelegate(
         validator,
         delegated_account,
-        undelegation_buffer_account,
-        undelegation_buffer_signer_seeds,
+        undelegate_buffer_account,
+        undelegate_buffer_signer_seeds,
         system_program,
         owner_program.key,
         delegation_metadata,
@@ -208,7 +208,7 @@ fn process_undelegation_with_cpi<'a, 'info>(
 
     // Check that the owner program properly moved the state back into the original account during CPI
     if delegated_account.try_borrow_data()?.as_ref()
-        != undelegation_buffer_account.try_borrow_data()?.as_ref()
+        != undelegate_buffer_account.try_borrow_data()?.as_ref()
     {
         return Err(DlpError::InvalidAccountDataAfterCPI.into());
     }
@@ -237,8 +237,8 @@ fn process_undelegation_with_cpi<'a, 'info>(
 fn cpi_external_undelegate<'a, 'info>(
     payer: &'a AccountInfo<'info>,
     delegated_account: &'a AccountInfo<'info>,
-    undelegation_buffer_account: &'a AccountInfo<'info>,
-    undelegation_buffer_signer_seeds: &[&[u8]],
+    undelegate_buffer_account: &'a AccountInfo<'info>,
+    undelegate_buffer_signer_seeds: &[&[u8]],
     system_program: &'a AccountInfo<'info>,
     owner_program_id: &Pubkey,
     delegation_metadata: DelegationMetadata,
@@ -250,7 +250,7 @@ fn cpi_external_undelegate<'a, 'info>(
         program_id: *owner_program_id,
         accounts: vec![
             AccountMeta::new(*delegated_account.key, false),
-            AccountMeta::new(*undelegation_buffer_account.key, true),
+            AccountMeta::new(*undelegate_buffer_account.key, true),
             AccountMeta::new(*payer.key, true),
             AccountMeta::new_readonly(*system_program.key, false),
         ],
@@ -260,11 +260,11 @@ fn cpi_external_undelegate<'a, 'info>(
         &external_undelegate_instruction,
         &[
             delegated_account.clone(),
-            undelegation_buffer_account.clone(),
+            undelegate_buffer_account.clone(),
             payer.clone(),
             system_program.clone(),
         ],
-        &[undelegation_buffer_signer_seeds],
+        &[undelegate_buffer_signer_seeds],
     )
 }
 

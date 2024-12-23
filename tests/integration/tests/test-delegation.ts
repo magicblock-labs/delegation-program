@@ -332,7 +332,7 @@ describe("TestDelegation", () => {
     reimbursement: web3.PublicKey
   ) {
     const buffer = web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("buffer"), pda.toBytes()],
+      [Buffer.from("undelegate-buffer"), pda.toBytes()],
       DELEGATION_PROGRAM_ID
     )[0];
     const commitState = commitStatePdaFromDelegatedAccount(pda);
