@@ -99,8 +99,9 @@ pub fn process_finalize(
         drop(delegated_account_data);
     }
 
-    // Drop reference before closing accounts
+    // Drop remaining reference before closing accounts
     drop(commit_record_data);
+    drop(delegation_metadata_data);
 
     // Closing accounts
     close_pda(commit_state_account, validator)?;

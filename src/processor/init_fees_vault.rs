@@ -23,7 +23,8 @@ pub fn process_init_fees_vault(
     load_signer(payer)?;
     load_program(system_program, system_program::id())?;
 
-    let bump_fees_vault = load_uninitialized_pda(fees_vault, fees_vault_seeds!(), &crate::id())?;
+    let bump_fees_vault =
+        load_uninitialized_pda(fees_vault, fees_vault_seeds!(), &crate::id(), true)?;
 
     // Create the fees vault account
     create_pda(

@@ -37,6 +37,7 @@ pub fn process_init_validator_fees_vault(
         validator_fees_vault,
         validator_fees_vault_seeds_from_validator!(validator_identity.key),
         &crate::id(),
+        true,
     )?;
 
     // Create the fees vault PDA

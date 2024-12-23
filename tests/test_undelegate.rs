@@ -20,7 +20,7 @@ use crate::fixtures::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_undelegate() {
+async fn test_finalize_and_undelegate() {
     // Setup
     let (mut banks, _, authority, blockhash) = setup_program_test_env().await;
 
@@ -32,15 +32,20 @@ async fn test_undelegate() {
     let new_state_before_finalize = banks.get_account(commit_state_pda).await.unwrap().unwrap();
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
-    // Submit the undelegate tx
-    let ix = dlp::instruction_builder::undelegate(
+    // Create the finalize tx
+    let ix_finalize = dlp::instruction_builder::finalize(authority.pubkey(), DELEGATED_PDA_ID);
+
+    // Create the undelegate tx
+    let ix_undelegate = dlp::instruction_builder::undelegate(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         authority.pubkey(),
     );
+
+    // Submit the transaction
     let tx = Transaction::new_signed_with_payer(
-        &[ix],
+        &[ix_finalize, ix_undelegate],
         Some(&authority.pubkey()),
         &[&authority],
         blockhash,

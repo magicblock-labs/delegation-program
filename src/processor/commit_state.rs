@@ -96,11 +96,13 @@ pub fn process_commit_state(
         commit_state_account,
         commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        true,
     )?;
     let commit_record_bump = load_uninitialized_pda(
         commit_record_account,
         commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        true,
     )?;
 
     // Initialize the PDA containing the new committed state

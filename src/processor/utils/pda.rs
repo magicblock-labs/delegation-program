@@ -77,7 +77,6 @@ pub(crate) fn create_pda<'a, 'info>(
             &[&pda_signer_seeds],
         )?;
     }
-
     Ok(())
 }
 
@@ -106,14 +105,16 @@ pub(crate) fn close_pda<'a, 'info>(
     destination: &'a AccountInfo<'info>,
 ) -> ProgramResult {
     // Transfer tokens from the account to the destination.
-    let dest_starting_lamports = destination.lamports();
-    **destination.lamports.borrow_mut() = dest_starting_lamports
+    **destination.lamports.borrow_mut() = destination
+        .lamports()
         .checked_add(target_account.lamports())
         .unwrap();
     **target_account.lamports.borrow_mut() = 0;
 
+    target_account.realloc(0, false)?;
     target_account.assign(&solana_program::system_program::ID);
-    target_account.realloc(0, false).map_err(Into::into)
+
+    Ok(())
 }
 
 /// Close PDA with fees, distributing the fees to the specified addresses in sequence
@@ -151,6 +152,8 @@ pub(crate) fn close_pda_with_fees<'a, 'info>(
         .unwrap();
 
     **target_account.lamports.borrow_mut() = 0;
+    target_account.realloc(0, false)?;
     target_account.assign(&solana_program::system_program::ID);
-    target_account.realloc(0, false).map_err(Into::into)
+
+    Ok(())
 }

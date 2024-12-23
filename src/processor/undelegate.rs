@@ -61,11 +61,13 @@ pub fn process_undelegate(
         commit_state_account,
         commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        false,
     )?;
     load_uninitialized_pda(
         commit_record_account,
         commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        false,
     )?;
 
     // Load delegation record
@@ -101,6 +103,13 @@ pub fn process_undelegate(
     if delegated_account.data_is_empty() {
         // TODO - we could also do this fast-path if the data was non-empty but zeroed-out
         delegated_account.assign(owner_program.key);
+        process_delegation_cleanup(
+            delegation_record_account,
+            delegation_metadata_account,
+            rent_reimbursement,
+            fees_vault,
+            validator_fees_vault,
+        )?;
         return Ok(());
     }
 
@@ -111,6 +120,7 @@ pub fn process_undelegate(
         undelegation_buffer_account,
         undelegation_buffer_seeds,
         &crate::id(),
+        true,
     )?;
     create_pda(
         undelegation_buffer_account,
@@ -142,23 +152,17 @@ pub fn process_undelegate(
         system_program,
     )?;
 
-    // Closing delegation accounts
-    close_pda(
-        delegation_record_account,
-        rent_reimbursement,
-        //&[fees_vault, validator_fees_vault],
-        //FEES_SESSION,
-    )?;
-    close_pda(
-        delegation_metadata_account,
-        rent_reimbursement,
-        //&[fees_vault, validator_fees_vault],
-        //FEES_SESSION,
-    )?;
-
     // Done, close undelegation buffer
     close_pda(undelegation_buffer_account, validator)?;
 
+    // Closing delegation accounts
+    process_delegation_cleanup(
+        delegation_record_account,
+        delegation_metadata_account,
+        rent_reimbursement,
+        fees_vault,
+        validator_fees_vault,
+    )?;
     Ok(())
 }
 
@@ -260,6 +264,28 @@ fn cpi_external_undelegate<'a, 'info>(
             payer.clone(),
             system_program.clone(),
         ],
-        &[&undelegation_buffer_signer_seeds],
+        &[undelegation_buffer_signer_seeds],
     )
+}
+
+fn process_delegation_cleanup<'a, 'info>(
+    delegation_record_account: &'a AccountInfo<'info>,
+    delegation_metadata_account: &'a AccountInfo<'info>,
+    rent_reimbursement: &'a AccountInfo<'info>,
+    fees_vault: &'a AccountInfo<'info>,
+    validator_fees_vault: &'a AccountInfo<'info>,
+) -> ProgramResult {
+    close_pda_with_fees(
+        delegation_record_account,
+        rent_reimbursement,
+        &[fees_vault, validator_fees_vault],
+        FEES_SESSION,
+    )?;
+    close_pda_with_fees(
+        delegation_metadata_account,
+        rent_reimbursement,
+        &[fees_vault, validator_fees_vault],
+        FEES_SESSION,
+    )?;
+    Ok(())
 }

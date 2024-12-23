@@ -65,6 +65,7 @@ pub fn process_delegate(
         delegation_record_account,
         delegation_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        true,
     )?;
 
     // Check that the delegation metadata PDA is uninitialized
@@ -72,6 +73,7 @@ pub fn process_delegate(
         delegation_metadata_account,
         delegation_metadata_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        true,
     )?;
 
     // Check that payer and delegate_account are signers, this ensures the instruction is being called from CPI

@@ -60,6 +60,7 @@ pub fn load_uninitialized_pda(
     info: &AccountInfo,
     seeds: &[&[u8]],
     program_id: &Pubkey,
+    is_writable: bool,
 ) -> Result<u8, ProgramError> {
     let pda = Pubkey::find_program_address(seeds, program_id);
 
@@ -68,7 +69,7 @@ pub fn load_uninitialized_pda(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    load_uninitialized_account(info)?;
+    load_uninitialized_account(info, is_writable)?;
     Ok(pda.1)
 }
 
@@ -104,7 +105,10 @@ pub fn load_initialized_pda(
 /// - Data is not empty.
 /// - Account is not writable.
 #[allow(dead_code)]
-pub fn load_uninitialized_account(info: &AccountInfo) -> Result<(), ProgramError> {
+pub fn load_uninitialized_account(
+    info: &AccountInfo,
+    is_writable: bool,
+) -> Result<(), ProgramError> {
     if info.owner.ne(&system_program::id()) {
         msg!("Invalid owner for account: {:?}", info.key);
         return Err(ProgramError::InvalidAccountOwner);
@@ -115,7 +119,7 @@ pub fn load_uninitialized_account(info: &AccountInfo) -> Result<(), ProgramError
         return Err(ProgramError::AccountAlreadyInitialized);
     }
 
-    if !info.is_writable {
+    if is_writable && !info.is_writable {
         msg!("Account {:?} is not writable", info.key);
         return Err(ProgramError::InvalidAccountData);
     }
@@ -332,7 +336,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info).is_err());
+        assert!(load_uninitialized_account(&info, true).is_err());
     }
 
     #[test]
@@ -351,7 +355,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info).is_err());
+        assert!(load_uninitialized_account(&info, true).is_err());
     }
 
     #[test]
@@ -370,7 +374,26 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info).is_err());
+        assert!(load_uninitialized_account(&info, true).is_err());
+    }
+
+    #[test]
+    pub fn test_load_uninitialized_account_not_writeable_on_purpose() {
+        let key = Pubkey::new_unique();
+        let mut lamports = 1_000_000_000;
+        let mut data = [];
+        let owner = system_program::id();
+        let info = AccountInfo::new(
+            &key,
+            false,
+            false,
+            &mut lamports,
+            &mut data,
+            &owner,
+            false,
+            0,
+        );
+        assert!(load_uninitialized_account(&info, false).is_ok());
     }
 
     #[test]
