@@ -377,6 +377,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
 
     // Assert the delegation_record_pda was closed
     let delegation_record_account = args.banks.get_account(delegation_record_pda).await.unwrap();
+    eprintln!("delegation_record_account:{:?}", delegation_record_account);
     assert!(delegation_record_account.is_none());
 
     // Assert the delegated metadata account pda was closed

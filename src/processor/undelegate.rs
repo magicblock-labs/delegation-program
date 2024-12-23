@@ -1,6 +1,5 @@
 use crate::consts::{EXTERNAL_UNDELEGATE_DISCRIMINATOR, FEES_SESSION};
 use crate::error::DlpError;
-use crate::processor::utils::curve::is_on_curve;
 use crate::processor::utils::loaders::{
     load_initialized_delegation_metadata, load_initialized_delegation_record,
     load_initialized_fees_vault, load_initialized_validator_fees_vault, load_owned_pda,
@@ -14,7 +13,6 @@ use crate::{
 };
 use borsh::BorshSerialize;
 use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::msg;
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -27,9 +25,9 @@ use solana_program::{
 ///
 /// - Close the delegation metadata
 /// - Close the delegation record
-/// - Close the delegated account
-/// - If no data, assign to prev owner (and stop here)
+/// - If delegated account has no data, assign to prev owner (and stop here)
 /// - If there's data, create an "undelegation_buffer" and store the data in it
+/// - Close the original delegated account
 /// - CPI to the original owner to re-open the PDA with the original owner and the new state
 /// - CPI will be signed by the undelegation buffer PDA and will call the external program
 ///   using the discriminator EXTERNAL_UNDELEGATE_DISCRIMINATOR
@@ -58,8 +56,6 @@ pub fn process_undelegate(
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
     load_program(system_program, system_program::id())?;
 
-    msg!("Hello 1");
-
     // Make sure there is no pending commits to be finalized before this call
     load_uninitialized_pda(
         commit_state_account,
@@ -72,8 +68,6 @@ pub fn process_undelegate(
         &crate::id(),
     )?;
 
-    msg!("Hello 2");
-
     // Load delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;
     let delegation_record =
@@ -83,8 +77,6 @@ pub fn process_undelegate(
     if !delegation_record.owner.eq(owner_program.key) {
         return Err(ProgramError::InvalidAccountOwner);
     }
-
-    msg!("Hello 3");
 
     // Load delegated account metadata
     let delegation_metadata_data = delegation_metadata_account.try_borrow_data()?;
@@ -101,42 +93,16 @@ pub fn process_undelegate(
         return Err(DlpError::InvalidReimbursementAddressForDelegationRent.into());
     }
 
-    msg!("Hello 4");
-
     // Dropping delegation references
     drop(delegation_record_data);
     drop(delegation_metadata_data);
 
-    // Closing delegation accounts
-    close_pda_with_fees(
-        delegation_record_account,
-        rent_reimbursement,
-        &[fees_vault, validator_fees_vault],
-        FEES_SESSION,
-    )?;
-    close_pda_with_fees(
-        delegation_metadata_account,
-        rent_reimbursement,
-        &[fees_vault, validator_fees_vault],
-        FEES_SESSION,
-    )?;
-
-    msg!("Hello 5");
-
     // If there is no program to call CPI to, we can just assign the owner back and we're done
-    // TODO - is there any reason why we would care that the account is on or off curve?
-    if owner_program.key.eq(&system_program::id()) {
-        msg!("HELLO STOP");
+    if delegated_account.data_is_empty() {
+        // TODO - we could also do this fast-path if the data was non-empty but zeroed-out
         delegated_account.assign(owner_program.key);
         return Ok(());
     }
-
-    msg!("Hello 6");
-    msg!(
-        "Hello delegated_account.data_len(): {:?}",
-        delegated_account.data_len()
-    );
-    msg!("Hello validator.lamports(): {:?}", validator.lamports());
 
     // Initialize the undelegation buffer PDA
     let undelegation_buffer_seeds: &[&[u8]] =
@@ -156,8 +122,6 @@ pub fn process_undelegate(
         validator,
     )?;
 
-    msg!("Hello 7");
-
     // Copy data in the undelegation buffer PDA
     (*undelegation_buffer_account.try_borrow_mut_data()?)
         .copy_from_slice(&delegated_account.try_borrow_data()?);
@@ -176,6 +140,20 @@ pub fn process_undelegate(
         &undelegation_buffer_signer_seeds,
         delegation_metadata,
         system_program,
+    )?;
+
+    // Closing delegation accounts
+    close_pda(
+        delegation_record_account,
+        rent_reimbursement,
+        //&[fees_vault, validator_fees_vault],
+        //FEES_SESSION,
+    )?;
+    close_pda(
+        delegation_metadata_account,
+        rent_reimbursement,
+        //&[fees_vault, validator_fees_vault],
+        //FEES_SESSION,
     )?;
 
     // Done, close undelegation buffer
@@ -198,21 +176,11 @@ fn process_undelegation_with_cpi<'a, 'info>(
     delegation_metadata: DelegationMetadata,
     system_program: &'a AccountInfo<'info>,
 ) -> ProgramResult {
-    // TODO - we might need to zero it out before assigning it right ?
-    // Return the delegated account back to its owner
-    //delegated_account.assign(owner_program.key);
-    // TODO - why did we need to close this account?
-
     let delegated_account_lamports_before_close = delegated_account.lamports();
-
     close_pda(delegated_account, validator)?;
 
     // Invoke the owner program's post-undelegation IX, to give the state back to the original program
     let validator_lamports_before_cpi = validator.lamports();
-    msg!(
-        "validator_lamports_before_cpi:{:?}",
-        validator_lamports_before_cpi
-    );
     cpi_external_undelegate(
         validator,
         delegated_account,
@@ -223,12 +191,8 @@ fn process_undelegation_with_cpi<'a, 'info>(
         delegation_metadata,
     )?;
     let validator_lamports_after_cpi = validator.lamports();
-    msg!(
-        "validator_lamports_after_cpi:{:?}",
-        validator_lamports_after_cpi
-    );
 
-    // Check that the validator lamports are as expected
+    // Check that the validator lamports are exactly as expected
     let delegated_account_min_rent = Rent::default().minimum_balance(delegated_account.data_len());
     if validator_lamports_before_cpi
         != validator_lamports_after_cpi
@@ -239,9 +203,9 @@ fn process_undelegation_with_cpi<'a, 'info>(
     }
 
     // Check that the owner program properly moved the state back into the original account during CPI
-    let delegated_account_data_after_cpi = delegated_account.try_borrow_data()?;
-    let undelegation_buffer_data_after_cpi = undelegation_buffer_account.try_borrow_data()?;
-    if delegated_account_data_after_cpi.as_ref() != undelegation_buffer_data_after_cpi.as_ref() {
+    if delegated_account.try_borrow_data()?.as_ref()
+        != undelegation_buffer_account.try_borrow_data()?.as_ref()
+    {
         return Err(DlpError::InvalidAccountDataAfterCPI.into());
     }
 
