@@ -60,6 +60,7 @@ pub fn process_finalize(
             DelegationRecord::try_from_bytes_with_discriminator_mut(&mut delegation_record_data)?;
 
         // TODO - We'll need to implement state validation
+        // TODO - fix: this logic should probably be done in either commit_state OR finalize IX, not both
         verify_state(
             validator,
             delegation_record,

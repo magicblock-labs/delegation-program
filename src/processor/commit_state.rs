@@ -156,6 +156,7 @@ pub fn process_commit_state(
     (*commit_state_data).copy_from_slice(commit_state_bytes);
 
     // TODO - We'll need to implement state validation
+    // TODO - fix: this logic should probably be done in either commit_state OR finalize IX, not both
     verify_state(
         validator,
         delegation_record,
