@@ -1,5 +1,5 @@
 use crate::args::ValidatorClaimFeesArgs;
-use crate::consts::FEES_VOLUME;
+use crate::consts::PROTOCOL_FEES_PERCENTAGE;
 use crate::error::DlpError;
 use crate::processor::utils::loaders::{
     load_initialized_fees_vault, load_initialized_validator_fees_vault, load_signer,
@@ -40,13 +40,13 @@ pub fn process_validator_claim_fees(
     }
 
     // Calculate fees and remaining amount
-    let fees = (amount * u64::from(FEES_VOLUME)) / 100;
-    let remaining_amount = amount.saturating_sub(fees);
+    let protocol_fees = (amount * u64::from(PROTOCOL_FEES_PERCENTAGE)) / 100;
+    let remaining_amount = amount.saturating_sub(protocol_fees);
 
     // Transfer fees to fees_vault
     **fees_vault.try_borrow_mut_lamports()? = fees_vault
         .lamports()
-        .checked_add(fees)
+        .checked_add(protocol_fees)
         .ok_or(DlpError::Overflow)?;
 
     // Transfer remaining amount from validator_fees_vault to validator
