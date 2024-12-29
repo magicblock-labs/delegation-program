@@ -11,7 +11,7 @@ use crate::{
     commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
     undelegate_buffer_seeds_from_delegated_account,
 };
-use borsh::BorshSerialize;
+use borsh::to_vec;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
@@ -244,7 +244,7 @@ fn cpi_external_undelegate<'a, 'info>(
     delegation_metadata: DelegationMetadata,
 ) -> ProgramResult {
     let mut data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
-    let serialized_seeds = delegation_metadata.seeds.try_to_vec()?;
+    let serialized_seeds = to_vec(&delegation_metadata.seeds)?;
     data.extend_from_slice(&serialized_seeds);
     let external_undelegate_instruction = Instruction {
         program_id: *owner_program_id,

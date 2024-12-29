@@ -21,7 +21,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_undelegate_on_curve() {
     // Setup
-    let (mut banks, validator, delegated_on_curve, blockhash) = setup_program_test_env().await;
+    let (banks, validator, delegated_on_curve, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
     let delegation_record_pda =

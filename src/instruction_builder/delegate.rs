@@ -1,4 +1,4 @@
-use borsh::BorshSerialize;
+use borsh::to_vec;
 use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
@@ -24,7 +24,7 @@ pub fn delegate(
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
     let mut data = DlpDiscriminator::Delegate.to_vec();
-    data.extend_from_slice(&args.try_to_vec().unwrap());
+    data.extend_from_slice(&to_vec(&args).unwrap());
 
     Instruction {
         program_id: crate::id(),

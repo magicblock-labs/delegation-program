@@ -24,7 +24,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_delegate() {
     // Setup
-    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+    let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Save the PDA before delegation
     let pda_before_delegation = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();

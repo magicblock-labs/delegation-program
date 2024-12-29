@@ -14,7 +14,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_validator_claim_fees() {
     // Setup
-    let (mut banks, payer, validator, blockhash) = setup_program_test_env().await;
+    let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let fees_vault_pda = fees_vault_pda();
     let fees_vault_init_lamports = banks

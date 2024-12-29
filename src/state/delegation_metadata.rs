@@ -30,6 +30,8 @@ impl_try_from_bytes_with_discriminator_borsh!(DelegationMetadata);
 
 #[cfg(test)]
 mod tests {
+    use borsh::to_vec;
+
     use super::*;
 
     #[test]
@@ -48,7 +50,7 @@ mod tests {
         };
 
         // Serialize
-        let serialized = original.try_to_vec().expect("Serialization failed");
+        let serialized = to_vec(&original).expect("Serialization failed");
 
         // Deserialize
         let deserialized: DelegationMetadata =

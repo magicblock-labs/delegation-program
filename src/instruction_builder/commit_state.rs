@@ -1,4 +1,4 @@
-use borsh::BorshSerialize;
+use borsh::to_vec;
 use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
@@ -18,7 +18,7 @@ pub fn commit_state(
     delegated_account_owner: Pubkey,
     commit_args: CommitStateArgs,
 ) -> Instruction {
-    let commit_args = commit_args.try_to_vec().unwrap();
+    let commit_args = to_vec(&commit_args).unwrap();
     let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
     let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
     let commit_record_pda = commit_record_pda_from_delegated_account(&delegated_account);

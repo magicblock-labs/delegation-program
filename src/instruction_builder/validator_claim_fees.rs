@@ -1,4 +1,4 @@
-use borsh::BorshSerialize;
+use borsh::to_vec;
 use solana_program::instruction::Instruction;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
@@ -20,7 +20,7 @@ pub fn validator_claim_fees(validator: Pubkey, amount: Option<u64>) -> Instructi
         ],
         data: [
             DlpDiscriminator::ValidatorClaimFees.to_vec(),
-            args.try_to_vec().unwrap(),
+            to_vec(&args).unwrap(),
         ]
         .concat(),
     }
