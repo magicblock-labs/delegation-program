@@ -63,6 +63,7 @@ pub fn process_commit_state(
     // If the commit slot is greater than the last update slot, we can proceed
     // If slot is equal or less, we simply do not commit
     if commit_record_slot <= delegation_metadata.last_update_external_slot {
+        // TODO - should the IX fail or succeed as a no-op in this case?
         return Err(DlpError::OutdatedSlot.into());
     }
 
