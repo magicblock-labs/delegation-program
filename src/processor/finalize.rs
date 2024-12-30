@@ -52,7 +52,8 @@ pub fn process_finalize(
 
     // If the commit slot is greater than the last update slot, we verify and finalize the state
     // If slot is equal or less, we simply close the commitment accounts
-    // TODO - This could probably be done in the commit_state IX since allowing commiting an obsolete state is counter-productive in the first place?
+    // TODO - This could probably be done in the commit_state IX
+    // TODO - since allowing commiting an obsolete state is counter-productive in the first place?
     if commit_record.slot > delegation_metadata.last_update_external_slot {
         // Load delegation record
         let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
@@ -68,7 +69,7 @@ pub fn process_finalize(
             commit_state_account,
         )?;
 
-        // Check that the commit record is the right onw
+        // Check that the commit record is the right now
         if !commit_record.account.eq(delegated_account.key) {
             return Err(DlpError::InvalidDelegatedAccount.into());
         }
