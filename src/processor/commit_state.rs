@@ -16,7 +16,7 @@ use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
 use solana_program::system_program;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 /// Commit a new state of a delegated Pda
 ///
@@ -106,7 +106,6 @@ pub fn process_commit_state(
         let program_config_data = program_config_account.try_borrow_data()?;
         let program_config =
             ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?;
-        msg!("Program Config: {:?}", program_config);
         if !program_config.approved_validators.contains(validator.key) {
             return Err(DlpError::InvalidWhitelistProgramConfig.into());
         }

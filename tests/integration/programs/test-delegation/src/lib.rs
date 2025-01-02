@@ -1,4 +1,4 @@
-use bolt_lang::*;
+use anchor_lang::prelude::*;
 use ephemeral_rollups_sdk_v2::anchor::{delegate, ephemeral};
 use ephemeral_rollups_sdk_v2::cpi::DelegateConfig;
 

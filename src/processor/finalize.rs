@@ -19,7 +19,6 @@ use solana_program::{
 /// 3. Close the state diff account
 /// 4. Close the commit state record
 ///
-///
 /// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
 pub fn process_finalize(
     _program_id: &Pubkey,
@@ -55,8 +54,6 @@ pub fn process_finalize(
     let commit_record_data = commit_record_account.try_borrow_data()?;
     let commit_record = CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)?;
 
-    // TODO - We'll need to implement state validation
-    // TODO - fix: this logic should probably be done in either commit_state OR finalize IX, not both
     verify_state(
         validator,
         delegation_record,
@@ -64,7 +61,7 @@ pub fn process_finalize(
         commit_state_account,
     )?;
 
-    // Check that the commit record is the right now
+    // Check that the commit record is the right one
     if !commit_record.account.eq(delegated_account.key) {
         return Err(DlpError::InvalidDelegatedAccount.into());
     }
