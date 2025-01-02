@@ -16,13 +16,7 @@ use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
 use solana_program::system_program;
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    msg,
-    pubkey::Pubkey,
-    {self},
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 
 /// Commit a new state of a delegated Pda
 ///
@@ -30,7 +24,6 @@ use solana_program::{
 /// 2. Init a new PDA to store the new state
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
-/// 5. Increase the commits counter in the delegation record
 ///
 pub fn process_commit_state(
     _program_id: &Pubkey,
@@ -38,7 +31,10 @@ pub fn process_commit_state(
     data: &[u8],
 ) -> ProgramResult {
     let args = CommitStateArgs::try_from_slice(data)?;
-    let delegated_data: &[u8] = args.data.as_ref();
+
+    let commit_state_bytes: &[u8] = args.data.as_ref();
+    let commit_record_lamports = args.lamports;
+    let commit_record_slot = args.slot;
 
     let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, system_program] =
         accounts
@@ -59,6 +55,29 @@ pub fn process_commit_state(
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)?;
 
+    // If there was an issue with the lamport accounting in the past, abort (this should never happen)
+    if delegated_account.lamports() < delegation_record.lamports {
+        return Err(DlpError::InvalidDelegatedState.into());
+    }
+
+    // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
+    // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
+    // We need to do that so that the finalizer already have all the lamports from the validators ready at finalize time
+    // The finalizer can return any extra lamport to the validator during finalize, but this acts as the validator's proof of collateral
+    if commit_record_lamports > delegation_record.lamports {
+        let extra_lamports = commit_record_lamports
+            .checked_sub(delegation_record.lamports)
+            .ok_or(DlpError::Overflow)?;
+        invoke(
+            &transfer(validator.key, commit_state_account.key, extra_lamports),
+            &[
+                validator.clone(),
+                commit_state_account.clone(),
+                system_program.clone(),
+            ],
+        )?;
+    }
+
     // Load the program configuration and validate it, if any
     let has_program_config =
         load_program_config(program_config_account, delegation_record.owner, false)?;
@@ -67,7 +86,9 @@ pub fn process_commit_state(
         let program_config =
             ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?;
         msg!("Program Config: {:?}", program_config);
-        validate_program_config(program_config, validator.key)?;
+        if !program_config.approved_validators.contains(validator.key) {
+            return Err(DlpError::InvalidWhitelistProgramConfig.into());
+        }
     }
 
     // Load the uninitialized PDAs
@@ -75,18 +96,20 @@ pub fn process_commit_state(
         commit_state_account,
         commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        true,
     )?;
     let commit_record_bump = load_uninitialized_pda(
         commit_record_account,
         commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        true,
     )?;
 
     // Initialize the PDA containing the new committed state
     create_pda(
         commit_state_account,
         &crate::id(),
-        delegated_data.len(),
+        commit_state_bytes.len(),
         commit_state_seeds_from_delegated_account!(delegated_account.key),
         commit_state_bump,
         system_program,
@@ -104,48 +127,37 @@ pub fn process_commit_state(
         validator,
     )?;
 
-    // What to do in this case?
-    if delegated_account.lamports() < delegation_record.lamports {
-        return Err(DlpError::InvalidDelegatedState.into());
-    }
-
-    // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
-    // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
-    if args.lamports > delegation_record.lamports {
-        let difference = args.lamports - delegation_record.lamports;
-        let transfer_instruction = transfer(validator.key, commit_state_account.key, difference);
-        invoke(
-            &transfer_instruction,
-            &[
-                validator.clone(),
-                commit_state_account.clone(),
-                system_program.clone(),
-            ],
-        )?;
-    }
-
     // Initialize the commit record
     let commit_record = CommitRecord {
         identity: *validator.key,
         account: *delegated_account.key,
-        slot: args.slot,
-        lamports: args.lamports,
+        slot: commit_record_slot,
+        lamports: commit_record_lamports,
     };
     let mut commit_record_data = commit_record_account.try_borrow_mut_data()?;
     commit_record.to_bytes_with_discriminator(&mut commit_record_data)?;
 
-    // Update delegation metadata undelegation flag
+    // Read undelegation metadata
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
+
+    // Once the account is marked as undelegatable, any subsequent commit should fail
+    if delegation_metadata.is_undelegatable {
+        return Err(DlpError::AlreadyUndelegated.into());
+    }
+
+    // Update delegation metadata undelegation flag
     delegation_metadata.is_undelegatable = args.allow_undelegation;
     delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
 
     // Copy the new state to the initialized PDA
     let mut commit_state_data = commit_state_account.try_borrow_mut_data()?;
-    (*commit_state_data).copy_from_slice(delegated_data);
+    (*commit_state_data).copy_from_slice(commit_state_bytes);
 
-    verify_commitment(
+    // TODO - We'll need to implement state validation
+    // TODO - fix: this logic should probably be done in either commit_state OR finalize IX, not both
+    verify_state(
         validator,
         delegation_record,
         &commit_record,
@@ -153,34 +165,4 @@ pub fn process_commit_state(
     )?;
 
     Ok(())
-}
-
-/// If there exists a validators whitelist for the delegated account program owner, check that the validator is whitelisted for it
-fn validate_program_config(
-    program_config: ProgramConfig,
-    validator: &Pubkey,
-) -> Result<(), ProgramError> {
-    if !program_config.approved_validators.is_empty()
-        && !program_config.approved_validators.contains(validator)
-    {
-        return Err(DlpError::InvalidWhitelistProgramConfig.into());
-    }
-    msg!("Valid config");
-    Ok(())
-}
-
-/// Verify the committed state
-fn verify_commitment(
-    authority: &AccountInfo,
-    delegation_record: &DelegationRecord,
-    commit_record: &CommitRecord,
-    commit_state_account: &AccountInfo,
-) -> ProgramResult {
-    // TODO - is there something special to do here?
-    verify_state(
-        authority,
-        delegation_record,
-        commit_record,
-        commit_state_account,
-    )
 }

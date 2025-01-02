@@ -1,9 +1,6 @@
 use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    system_program, {self},
+    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
 
 use crate::consts::ADMIN_PUBKEY;
@@ -40,6 +37,7 @@ pub fn process_init_validator_fees_vault(
         validator_fees_vault,
         validator_fees_vault_seeds_from_validator!(validator_identity.key),
         &crate::id(),
+        true,
     )?;
 
     // Create the fees vault PDA

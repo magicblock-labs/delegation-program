@@ -1,4 +1,3 @@
-use solana_program::pubkey::Pubkey;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -9,8 +8,8 @@ use solana_sdk::{
 
 use crate::fixtures::ON_CURVE_KEYPAIR;
 use dlp::args::DelegateArgs;
-use dlp::consts::BUFFER;
 use dlp::pda::{
+    delegate_buffer_pda_from_delegated_account_and_owner_program,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
 };
 use dlp::state::{DelegationMetadata, DelegationRecord};
@@ -23,7 +22,7 @@ async fn test_delegate_on_curve() {
     let (mut banks, payer, alt_payer, blockhash) = setup_program_test_env().await;
 
     // Save the PDA before delegation
-    let accounts_to_delegate = alt_payer.pubkey();
+    let delegated_account = alt_payer.pubkey();
 
     // Create transaction to change the owner of alt_payer
     let change_owner_ix =
@@ -51,7 +50,7 @@ async fn test_delegate_on_curve() {
     // Submit the delegate tx
     let ix = dlp::instruction_builder::delegate(
         payer.pubkey(),
-        accounts_to_delegate,
+        delegated_account,
         None,
         DelegateArgs {
             commit_frequency_ms: u32::MAX,
@@ -72,24 +71,20 @@ async fn test_delegate_on_curve() {
     assert!(res.is_ok());
 
     // Assert the buffer doesn't exist
-    let buffer_pda = Pubkey::find_program_address(
-        &[BUFFER, &accounts_to_delegate.to_bytes()],
+    let delegate_buffer_pda = delegate_buffer_pda_from_delegated_account_and_owner_program(
+        &delegated_account,
         &system_program::id(),
     );
-    let buffer_account = banks.get_account(buffer_pda.0).await.unwrap();
+    let buffer_account = banks.get_account(delegate_buffer_pda).await.unwrap();
     assert!(buffer_account.is_none());
 
     // Assert the PDA was delegated => owner is set to the delegation program
-    let pda_account = banks
-        .get_account(accounts_to_delegate)
-        .await
-        .unwrap()
-        .unwrap();
+    let pda_account = banks.get_account(delegated_account).await.unwrap().unwrap();
     assert!(pda_account.owner.eq(&dlp::id()));
 
     // Assert that the PDA seeds account exists
     let delegation_metadata_pda =
-        delegation_metadata_pda_from_delegated_account(&accounts_to_delegate);
+        delegation_metadata_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_account = banks
         .get_account(delegation_metadata_pda)
         .await
@@ -100,7 +95,7 @@ async fn test_delegate_on_curve() {
     // Assert that the delegation record exists and can be parsed
     let delegation_record_account = banks
         .get_account(delegation_record_pda_from_delegated_account(
-            &accounts_to_delegate,
+            &delegated_account,
         ))
         .await
         .unwrap()
@@ -114,7 +109,7 @@ async fn test_delegate_on_curve() {
     // Assert that the delegation metadata exists and can be parsed
     let delegation_metadata = banks
         .get_account(delegation_metadata_pda_from_delegated_account(
-            &accounts_to_delegate,
+            &delegated_account,
         ))
         .await
         .unwrap()

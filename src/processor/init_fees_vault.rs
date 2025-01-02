@@ -1,9 +1,6 @@
 use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    system_program, {self},
+    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
 
 use crate::fees_vault_seeds;
@@ -18,6 +15,8 @@ pub fn process_init_fees_vault(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
+    // TODO - nit: for naming convention this vault (account+IX) could be named the "protocol_fees_vault"
+
     // Load Accounts
     let [payer, fees_vault, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -26,7 +25,8 @@ pub fn process_init_fees_vault(
     load_signer(payer)?;
     load_program(system_program, system_program::id())?;
 
-    let bump_fees_vault = load_uninitialized_pda(fees_vault, fees_vault_seeds!(), &crate::id())?;
+    let bump_fees_vault =
+        load_uninitialized_pda(fees_vault, fees_vault_seeds!(), &crate::id(), true)?;
 
     // Create the fees vault account
     create_pda(

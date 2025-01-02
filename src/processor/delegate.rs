@@ -2,14 +2,10 @@ use borsh::BorshDeserialize;
 use solana_program::program_error::ProgramError;
 use solana_program::sysvar::Sysvar;
 use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    system_program, {self},
+    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
 
 use crate::args::DelegateArgs;
-use crate::consts::BUFFER;
 use crate::processor::utils::curve::is_on_curve;
 use crate::processor::utils::loaders::{
     load_owned_pda, load_pda, load_program, load_signer, load_uninitialized_pda,
@@ -17,14 +13,14 @@ use crate::processor::utils::loaders::{
 use crate::processor::utils::pda::create_pda;
 use crate::state::{DelegationMetadata, DelegationRecord};
 use crate::{
-    delegation_metadata_seeds_from_delegated_account,
+    delegate_buffer_seeds_from_delegated_account, delegation_metadata_seeds_from_delegated_account,
     delegation_record_seeds_from_delegated_account,
 };
 
 /// Delegate an account
 ///
 /// 1. Checks that the account is owned by the delegation program, that the buffer is initialized and derived correctly from the PDA
-///  - Also checks that the delegate_account is a signer (enforcing that the instruction is being called from CPI) & other constraints
+///  - Also checks that the delegated_account is a signer (enforcing that the instruction is being called from CPI) & other constraints
 /// 2. Copy the data from the buffer into the original account
 /// 3. Create a Delegation Record to store useful information about the delegation event
 /// 4. Create a Delegated Account Seeds to store the seeds used to derive the delegate account. Needed for undelegation.
@@ -34,7 +30,7 @@ pub fn process_delegate(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, buffer_account, delegation_record_account, delegation_metadata_account, system_program] =
+    let [payer, delegated_account, owner_program, delegate_buffer_account, delegation_record_account, delegation_metadata_account, system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -57,8 +53,8 @@ pub fn process_delegate(
 
     // Check that the buffer PDA is initialized and derived correctly from the PDA
     load_pda(
-        buffer_account,
-        &[BUFFER, &delegated_account.key.to_bytes()],
+        delegate_buffer_account,
+        delegate_buffer_seeds_from_delegated_account!(delegated_account.key),
         owner_program.key,
         true,
     )?;
@@ -68,6 +64,7 @@ pub fn process_delegate(
         delegation_record_account,
         delegation_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        true,
     )?;
 
     // Check that the delegation metadata PDA is uninitialized
@@ -75,9 +72,10 @@ pub fn process_delegate(
         delegation_metadata_account,
         delegation_metadata_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
+        true,
     )?;
 
-    // Check that payer and delegate_account are signers, this ensures the instruction is being called from CPI
+    // Check that payer and delegated_account are signers, this ensures the instruction is being called from CPI
     load_signer(payer)?;
     load_signer(delegated_account)?;
 
@@ -129,10 +127,10 @@ pub fn process_delegate(
     delegation_metadata_data.copy_from_slice(&delegation_metadata_bytes);
 
     // Copy the data from the buffer into the original account
-    if !buffer_account.data_is_empty() {
+    if !delegate_buffer_account.data_is_empty() {
         let mut delegated_data = delegated_account.try_borrow_mut_data()?;
-        let buffer_data = buffer_account.try_borrow_data()?;
-        (*delegated_data).copy_from_slice(&buffer_data);
+        let delegate_buffer_data = delegate_buffer_account.try_borrow_data()?;
+        (*delegated_data).copy_from_slice(&delegate_buffer_data);
     }
 
     Ok(())

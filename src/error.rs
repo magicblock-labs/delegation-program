@@ -27,6 +27,10 @@ pub enum DlpError {
     InvalidReimbursementAddressForDelegationRent = 9,
     #[error("Authority is invalid for the delegated account program owner")]
     InvalidWhitelistProgramConfig = 10,
+    #[error("Account already undelegated")]
+    AlreadyUndelegated = 11,
+    #[error("Computation overflow detected")]
+    Overflow = 12,
 }
 
 impl From<DlpError> for ProgramError {

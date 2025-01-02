@@ -1,17 +1,13 @@
 use crate::args::ValidatorClaimFeesArgs;
-use crate::consts::FEES_VOLUME;
+use crate::consts::PROTOCOL_FEES_PERCENTAGE;
+use crate::error::DlpError;
 use crate::processor::utils::loaders::{
     load_initialized_fees_vault, load_initialized_validator_fees_vault, load_signer,
 };
 use borsh::BorshDeserialize;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    pubkey::Pubkey,
-    {self},
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 /// Process validator request to claim fees from the fees vault
 ///
@@ -44,14 +40,14 @@ pub fn process_validator_claim_fees(
     }
 
     // Calculate fees and remaining amount
-    let fees = (amount * u64::from(FEES_VOLUME)) / 100;
-    let remaining_amount = amount.saturating_sub(fees);
+    let protocol_fees = (amount * u64::from(PROTOCOL_FEES_PERCENTAGE)) / 100;
+    let remaining_amount = amount.saturating_sub(protocol_fees);
 
     // Transfer fees to fees_vault
     **fees_vault.try_borrow_mut_lamports()? = fees_vault
         .lamports()
-        .checked_add(fees)
-        .ok_or(ProgramError::InvalidArgument)?;
+        .checked_add(protocol_fees)
+        .ok_or(DlpError::Overflow)?;
 
     // Transfer remaining amount from validator_fees_vault to validator
     **validator_fees_vault.try_borrow_mut_lamports()? = validator_fees_vault
@@ -62,7 +58,7 @@ pub fn process_validator_claim_fees(
     **validator.try_borrow_mut_lamports()? = validator
         .lamports()
         .checked_add(remaining_amount)
-        .ok_or(ProgramError::InvalidArgument)?;
+        .ok_or(DlpError::Overflow)?;
 
     Ok(())
 }

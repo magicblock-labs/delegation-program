@@ -2,13 +2,10 @@ use solana_program::pubkey;
 use solana_program::pubkey::Pubkey;
 
 /// The delegation session fees (extracted in percentage from the delegation PDAs rent on closure).
-pub const FEES_SESSION: u8 = 30;
+pub const RENT_FEES_PERCENTAGE: u8 = 30;
 
 /// The fees extracted from the validator earnings (extracted in percentage from the validator fees claims).
-pub const FEES_VOLUME: u8 = 10;
-
-/// The seed prefix of the buffer account PDA.
-pub const BUFFER: &[u8] = b"buffer";
+pub const PROTOCOL_FEES_PERCENTAGE: u8 = 10;
 
 /// The discriminator for the external undelegate instruction.
 pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37, 51, 167];

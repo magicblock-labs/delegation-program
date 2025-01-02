@@ -182,6 +182,12 @@ describe("TestDelegation", () => {
     console.log("Commit state signature", txId);
   });
 
+  it("Finalize account state again", async () => {
+    const ix = createFinalizeInstruction(validator, pda);
+    const txId = await processInstruction(ix);
+    console.log("Finalize signature", txId);
+  });
+
   it("Undelegate account", async () => {
     const ix = createUndelegateInstruction(
       validator,
@@ -326,7 +332,7 @@ describe("TestDelegation", () => {
     reimbursement: web3.PublicKey
   ) {
     const buffer = web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("buffer"), pda.toBytes()],
+      [Buffer.from("undelegate-buffer"), pda.toBytes()],
       DELEGATION_PROGRAM_ID
     )[0];
     const commitState = commitStatePdaFromDelegatedAccount(pda);
