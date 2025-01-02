@@ -140,7 +140,7 @@ describe("TestDelegation", () => {
     new_data[-1] = (new_data[-1] + 1) % 256;
 
     const args: CommitAccountInstructionArgs = {
-      slot: new anchor.BN(1000),
+      slot: new anchor.BN(10),
       lamports: new anchor.BN(1000000000),
       allow_undelegation: false,
       data: new_data,
@@ -167,7 +167,7 @@ describe("TestDelegation", () => {
     new_data[-1] = (new_data[-1] + 1) % 256;
 
     const args: CommitAccountInstructionArgs = {
-      slot: new anchor.BN(10000),
+      slot: new anchor.BN(20),
       lamports: new anchor.BN(1000000000),
       allow_undelegation: true,
       data: new_data,
