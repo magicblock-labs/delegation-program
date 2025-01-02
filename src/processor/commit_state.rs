@@ -16,7 +16,7 @@ use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
 use solana_program::system_program;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 /// Commit a new state of a delegated Pda
 ///
@@ -49,6 +49,26 @@ pub fn process_commit_state(
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, false)?;
     load_program(system_program, system_program::id())?;
+
+    // Read delegation metadata
+    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
+    let mut delegation_metadata =
+        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
+
+    // Once the account is marked as undelegatable, any subsequent commit should fail
+    if delegation_metadata.is_undelegatable {
+        return Err(DlpError::AlreadyUndelegated.into());
+    }
+
+    // If the commit slot is greater than the last update slot, we can proceed
+    // If slot is equal or less, we simply do not commit
+    if commit_record_slot <= delegation_metadata.last_update_external_slot {
+        return Err(DlpError::OutdatedSlot.into());
+    }
+
+    // Update delegation metadata undelegation flag
+    delegation_metadata.is_undelegatable = args.allow_undelegation;
+    delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
 
     // Load delegation record
     let delegation_record_data = delegation_record_account.try_borrow_data()?;
@@ -85,7 +105,6 @@ pub fn process_commit_state(
         let program_config_data = program_config_account.try_borrow_data()?;
         let program_config =
             ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?;
-        msg!("Program Config: {:?}", program_config);
         if !program_config.approved_validators.contains(validator.key) {
             return Err(DlpError::InvalidWhitelistProgramConfig.into());
         }
@@ -136,20 +155,6 @@ pub fn process_commit_state(
     };
     let mut commit_record_data = commit_record_account.try_borrow_mut_data()?;
     commit_record.to_bytes_with_discriminator(&mut commit_record_data)?;
-
-    // Read undelegation metadata
-    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
-    let mut delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
-
-    // Once the account is marked as undelegatable, any subsequent commit should fail
-    if delegation_metadata.is_undelegatable {
-        return Err(DlpError::AlreadyUndelegated.into());
-    }
-
-    // Update delegation metadata undelegation flag
-    delegation_metadata.is_undelegatable = args.allow_undelegation;
-    delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
 
     // Copy the new state to the initialized PDA
     let mut commit_state_data = commit_state_account.try_borrow_mut_data()?;

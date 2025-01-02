@@ -29,8 +29,10 @@ pub enum DlpError {
     InvalidWhitelistProgramConfig = 10,
     #[error("Account already undelegated")]
     AlreadyUndelegated = 11,
+    #[error("Committed state slot is outdated")]
+    OutdatedSlot = 12,
     #[error("Computation overflow detected")]
-    Overflow = 12,
+    Overflow = 13,
 }
 
 impl From<DlpError> for ProgramError {

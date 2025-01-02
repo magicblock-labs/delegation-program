@@ -19,7 +19,6 @@ use solana_program::{
 /// 3. Close the state diff account
 /// 4. Close the commit state record
 ///
-///
 /// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
 pub fn process_finalize(
     _program_id: &Pubkey,
@@ -46,64 +45,57 @@ pub fn process_finalize(
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
-    // Load committed state
+    // Load delegation record
+    let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminator_mut(&mut delegation_record_data)?;
+
+    // Load commit record
     let commit_record_data = commit_record_account.try_borrow_data()?;
     let commit_record = CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)?;
 
-    // If the commit slot is greater than the last update slot, we verify and finalize the state
-    // If slot is equal or less, we simply close the commitment accounts
-    // TODO - This could probably be done in the commit_state IX
-    // TODO - since allowing commiting an obsolete state is counter-productive in the first place?
-    if commit_record.slot > delegation_metadata.last_update_external_slot {
-        // Load delegation record
-        let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
-        let delegation_record =
-            DelegationRecord::try_from_bytes_with_discriminator_mut(&mut delegation_record_data)?;
+    verify_state(
+        validator,
+        delegation_record,
+        commit_record,
+        commit_state_account,
+    )?;
 
-        // TODO - We'll need to implement state validation
-        // TODO - fix: this logic should probably be done in either commit_state OR finalize IX, not both
-        verify_state(
-            validator,
-            delegation_record,
-            commit_record,
-            commit_state_account,
-        )?;
-
-        // Check that the commit record is the right now
-        if !commit_record.account.eq(delegated_account.key) {
-            return Err(DlpError::InvalidDelegatedAccount.into());
-        }
-        if !commit_record.identity.eq(validator.key) {
-            return Err(DlpError::InvalidReimbursementAccount.into());
-        }
-
-        // Settle accounts lamports
-        settle_lamports_balance(
-            delegated_account,
-            commit_state_account,
-            validator_fees_vault,
-            delegation_record.lamports,
-            commit_record.lamports,
-        )?;
-
-        // Copying the new state to the delegated account
-        let commit_state_data = commit_state_account.try_borrow_data()?;
-        delegated_account.realloc(commit_state_data.len(), false)?;
-        let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
-        (*delegated_account_data).copy_from_slice(&commit_state_data);
-
-        delegation_metadata.last_update_external_slot = commit_record.slot;
-        delegation_record.lamports = delegated_account.lamports();
-        delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
-
-        // Dropping references
-        drop(commit_state_data);
-        drop(delegated_account_data);
+    // Check that the commit record is the right one
+    if !commit_record.account.eq(delegated_account.key) {
+        return Err(DlpError::InvalidDelegatedAccount.into());
     }
+    if !commit_record.identity.eq(validator.key) {
+        return Err(DlpError::InvalidReimbursementAccount.into());
+    }
+
+    // Settle accounts lamports
+    settle_lamports_balance(
+        delegated_account,
+        commit_state_account,
+        validator_fees_vault,
+        delegation_record.lamports,
+        commit_record.lamports,
+    )?;
+
+    // Update the delegation metadata
+    delegation_metadata.last_update_external_slot = commit_record.slot;
+    delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
+
+    // Update the delegation record
+    delegation_record.lamports = delegated_account.lamports();
+
+    // Load commit state
+    let commit_state_data = commit_state_account.try_borrow_data()?;
+
+    // Copying the new commit state to the delegated account
+    delegated_account.realloc(commit_state_data.len(), false)?;
+    let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
+    (*delegated_account_data).copy_from_slice(&commit_state_data);
 
     // Drop remaining reference before closing accounts
     drop(commit_record_data);
-    drop(delegation_metadata_data);
+    drop(commit_state_data);
 
     // Closing accounts
     close_pda(commit_state_account, validator)?;

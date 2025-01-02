@@ -111,13 +111,13 @@ describe("TestDelegation", () => {
       .add(
         web3.SystemProgram.assign({
           accountPubkey: delegateOnCurve.publicKey,
-          programId: DELEGATION_PROGRAM_ID,
+          programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
         })
       )
       .add(
         createDelegateInstruction({
           payer: provider.wallet.publicKey,
-          delegateAccount: delegateOnCurve.publicKey,
+          delegatedAccount: delegateOnCurve.publicKey,
           ownerProgram: web3.SystemProgram.programId,
         })
       );
@@ -140,7 +140,7 @@ describe("TestDelegation", () => {
     new_data[-1] = (new_data[-1] + 1) % 256;
 
     const args: CommitAccountInstructionArgs = {
-      slot: new anchor.BN(40),
+      slot: new anchor.BN(10),
       lamports: new anchor.BN(1000000000),
       allow_undelegation: false,
       data: new_data,
@@ -167,7 +167,7 @@ describe("TestDelegation", () => {
     new_data[-1] = (new_data[-1] + 1) % 256;
 
     const args: CommitAccountInstructionArgs = {
-      slot: new anchor.BN(40),
+      slot: new anchor.BN(20),
       lamports: new anchor.BN(1000000000),
       allow_undelegation: true,
       data: new_data,
@@ -286,7 +286,7 @@ describe("TestDelegation", () => {
       ...args,
     });
     const ix = new web3.TransactionInstruction({
-      programId: DELEGATION_PROGRAM_ID,
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
       keys,
       data,
     });
@@ -318,7 +318,7 @@ describe("TestDelegation", () => {
     ];
     const data = Buffer.from([2, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({
-      programId: DELEGATION_PROGRAM_ID,
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
       keys,
       data,
     });
@@ -333,7 +333,7 @@ describe("TestDelegation", () => {
   ) {
     const buffer = web3.PublicKey.findProgramAddressSync(
       [Buffer.from("undelegate-buffer"), pda.toBytes()],
-      DELEGATION_PROGRAM_ID
+      new web3.PublicKey(DELEGATION_PROGRAM_ID)
     )[0];
     const commitState = commitStatePdaFromDelegatedAccount(pda);
     const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
@@ -361,7 +361,7 @@ describe("TestDelegation", () => {
     ];
     const data = Buffer.from([3, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({
-      programId: DELEGATION_PROGRAM_ID,
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
       keys,
       data,
     });
@@ -382,7 +382,7 @@ describe("TestDelegation", () => {
     ];
     const data = Buffer.from([5, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({
-      programId: DELEGATION_PROGRAM_ID,
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
       keys,
       data,
     });
@@ -409,7 +409,7 @@ describe("TestDelegation", () => {
     ];
     const data = Buffer.from([6, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({
-      programId: DELEGATION_PROGRAM_ID,
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
       keys,
       data,
     });
@@ -441,7 +441,7 @@ describe("TestDelegation", () => {
     ];
     const data = Buffer.from([8, 0, 0, 0, 0, 0, 0, 0, insert ? 1 : 0]);
     const ix = new web3.TransactionInstruction({
-      programId: DELEGATION_PROGRAM_ID,
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
       keys,
       data,
     });
@@ -452,34 +452,34 @@ describe("TestDelegation", () => {
 function commitStatePdaFromDelegatedAccount(delegatedAccount: web3.PublicKey) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("state-diff"), delegatedAccount.toBytes()],
-    DELEGATION_PROGRAM_ID
+    new web3.PublicKey(DELEGATION_PROGRAM_ID)
   )[0];
 }
 
 function commitRecordPdaFromDelegatedAccount(delegatedAccount: web3.PublicKey) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("commit-state-record"), delegatedAccount.toBytes()],
-    DELEGATION_PROGRAM_ID
+    new web3.PublicKey(DELEGATION_PROGRAM_ID)
   )[0];
 }
 
 function feesVaultPda() {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("fees-vault")],
-    DELEGATION_PROGRAM_ID
+    new web3.PublicKey(DELEGATION_PROGRAM_ID)
   )[0];
 }
 
 function validatorFeesVaultPdaFromValidator(validator: web3.PublicKey) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("v-fees-vault"), validator.toBuffer()],
-    DELEGATION_PROGRAM_ID
+    new web3.PublicKey(DELEGATION_PROGRAM_ID)
   )[0];
 }
 
 function programConfigPdaFromProgramId(programId: web3.PublicKey) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("p-conf"), programId.toBuffer()],
-    DELEGATION_PROGRAM_ID
+    new web3.PublicKey(DELEGATION_PROGRAM_ID)
   )[0];
 }
