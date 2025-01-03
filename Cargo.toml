@@ -1,5 +1,5 @@
 [package]
-name = "delegation-program"
+name = "magicblock-delegation-program"
 description = "Delegation program for the Ephemeral Rollups"
 version = "1.0.0"
 authors = ["Magicblock Labs <dev@magicblock.gg>"]
@@ -37,4 +37,4 @@ rand = "0.8.5"
 solana-program-test = "1.18.26"
 solana-sdk = "1.18.26"
 tokio = { version = "1.40.0", features = ["full"] }
-delegation-program = { path = ".", features = ["unit_test_config"] }
+magicblock-delegation-program = { path = ".", features = ["unit_test_config"] }
