@@ -100,6 +100,13 @@ pub fn load_initialized_pda(
     Ok(pda.1)
 }
 
+/// Returns true if the account is uninitialized based on the following conditions:
+/// - Owner is the system program.
+/// - Data is empty.
+pub fn is_uninitialized_account(info: &AccountInfo) -> bool {
+    info.owner.eq(&system_program::id()) && info.data_is_empty()
+}
+
 /// Errors if:
 /// - Owner is not the system program.
 /// - Data is not empty.

@@ -275,18 +275,16 @@ fn process_delegation_cleanup<'a, 'info>(
     fees_vault: &'a AccountInfo<'info>,
     validator_fees_vault: &'a AccountInfo<'info>,
 ) -> ProgramResult {
-    // TODO - fix: there is a double-fee being applied because validator_claim_fees also applies protocol level fees
-    // TODO - fix: we should probably only let the validator apply fees there? or not apply extra fees during validator_fees_claim
     close_pda_with_fees(
         delegation_record_account,
         rent_reimbursement,
-        &[fees_vault, validator_fees_vault],
+        &[validator_fees_vault, fees_vault],
         RENT_FEES_PERCENTAGE,
     )?;
     close_pda_with_fees(
         delegation_metadata_account,
         rent_reimbursement,
-        &[fees_vault, validator_fees_vault],
+        &[validator_fees_vault, fees_vault],
         RENT_FEES_PERCENTAGE,
     )?;
     Ok(())

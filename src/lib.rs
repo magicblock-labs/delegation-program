@@ -65,7 +65,7 @@ pub fn process_instruction(
             processor::process_init_validator_fees_vault(program_id, accounts, data)?
         }
         discriminator::DlpDiscriminator::InitFeesVault => {
-            processor::process_init_fees_vault(program_id, accounts, data)?
+            processor::process_init_protocol_fees_vault(program_id, accounts, data)?
         }
         discriminator::DlpDiscriminator::ValidatorClaimFees => {
             processor::process_validator_claim_fees(program_id, accounts, data)?

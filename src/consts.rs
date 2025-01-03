@@ -2,7 +2,7 @@ use solana_program::pubkey;
 use solana_program::pubkey::Pubkey;
 
 /// The delegation session fees (extracted in percentage from the delegation PDAs rent on closure).
-pub const RENT_FEES_PERCENTAGE: u8 = 30;
+pub const RENT_FEES_PERCENTAGE: u8 = 10;
 
 /// The fees extracted from the validator earnings (extracted in percentage from the validator fees claims).
 pub const PROTOCOL_FEES_PERCENTAGE: u8 = 10;

@@ -1,6 +1,6 @@
 use crate::error::DlpError;
 use crate::processor::utils::loaders::{
-    load_initialized_commit_record, load_initialized_commit_state,
+    is_uninitialized_account, load_initialized_commit_record, load_initialized_commit_state,
     load_initialized_delegation_metadata, load_initialized_delegation_record,
     load_initialized_validator_fees_vault, load_owned_pda, load_program, load_signer,
 };
@@ -9,7 +9,7 @@ use crate::processor::utils::verify::verify_state;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey, system_program,
 };
 
 /// Finalize a committed state, after validation, to a delegated account
@@ -33,12 +33,27 @@ pub fn process_finalize(
 
     load_signer(validator)?;
     load_owned_pda(delegated_account, &crate::id())?;
-    load_initialized_commit_state(delegated_account, commit_state_account, true)?;
-    load_initialized_commit_record(delegated_account, commit_record_account, true)?;
     load_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
     load_program(system_program, system_program::id())?;
+    let load_cs = load_initialized_commit_state(delegated_account, commit_state_account, true);
+    let load_cr = load_initialized_commit_record(delegated_account, commit_record_account, true);
+
+    // Since finalize instructions are typically bundled, we return without error
+    // if there is nothing to be finalized, so that correct finalizes are executed
+    if let (Err(ProgramError::InvalidAccountOwner), Err(ProgramError::InvalidAccountOwner)) =
+        (&load_cs, &load_cr)
+    {
+        if is_uninitialized_account(commit_state_account)
+            && is_uninitialized_account(commit_record_account)
+        {
+            msg!("No state to be finalized. Skipping finalize.");
+            return Ok(());
+        }
+    }
+    load_cs?;
+    load_cr?;
 
     // Load delegation metadata
     let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
