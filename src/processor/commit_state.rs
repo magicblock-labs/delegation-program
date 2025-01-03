@@ -6,7 +6,6 @@ use crate::processor::utils::loaders::{
     load_signer, load_uninitialized_pda,
 };
 use crate::processor::utils::pda::create_pda;
-use crate::processor::utils::verify::verify_state;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 use crate::{
     commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
@@ -15,8 +14,8 @@ use borsh::BorshDeserialize;
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
-use solana_program::system_program;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+use solana_program::{msg, system_program};
 
 /// Commit a new state of a delegated Pda
 ///
@@ -55,15 +54,22 @@ pub fn process_commit_state(
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
+    // If the commit slot is greater than the last update slot, we can proceed.
+    // If the slot is equal or less, we simply do not commit.
+    // Since commit instructions are typically bundled, we return without error
+    // so that correct commits are executed.
+    if commit_record_slot <= delegation_metadata.last_update_external_slot {
+        msg!(
+            "Slot {} is outdated, previous slot is {}. Skipping commit",
+            commit_record_slot,
+            delegation_metadata.last_update_external_slot
+        );
+        return Ok(());
+    }
+
     // Once the account is marked as undelegatable, any subsequent commit should fail
     if delegation_metadata.is_undelegatable {
         return Err(DlpError::AlreadyUndelegated.into());
-    }
-
-    // If the commit slot is greater than the last update slot, we can proceed
-    // If slot is equal or less, we simply do not commit
-    if commit_record_slot <= delegation_metadata.last_update_external_slot {
-        return Err(DlpError::OutdatedSlot.into());
     }
 
     // Update delegation metadata undelegation flag
@@ -160,14 +166,7 @@ pub fn process_commit_state(
     let mut commit_state_data = commit_state_account.try_borrow_mut_data()?;
     (*commit_state_data).copy_from_slice(commit_state_bytes);
 
-    // TODO - We'll need to implement state validation
-    // TODO - fix: this logic should probably be done in either commit_state OR finalize IX, not both
-    verify_state(
-        validator,
-        delegation_record,
-        &commit_record,
-        commit_state_account,
-    )?;
+    // TODO - Add additional validation for the commitment, e.g. sufficient validator stake
 
     Ok(())
 }

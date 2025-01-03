@@ -1,7 +1,7 @@
 [package]
 name = "delegation-program"
 description = "Delegation program for the Ephemeral Rollups"
-version = "0.1.3"
+version = "1.0.0"
 authors = ["Magicblock Labs <dev@magicblock.gg>"]
 edition = "2021"
 license = "MIT"

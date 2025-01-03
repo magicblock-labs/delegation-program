@@ -127,6 +127,7 @@ pub(crate) fn close_pda_with_fees<'a, 'info>(
     let total_lamports = target_account.lamports();
     let mut remaining_amount = total_lamports;
 
+    // TODO - simplify fees charging logic
     for fee_address in fees_addresses.iter() {
         let fee_amount = (remaining_amount as u128)
             .checked_mul(fee_percentage as u128)
