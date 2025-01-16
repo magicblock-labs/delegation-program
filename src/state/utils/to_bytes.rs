@@ -6,6 +6,9 @@ macro_rules! impl_to_bytes_with_discriminator_zero_copy {
                 &self,
                 data: &mut [u8],
             ) -> Result<(), solana_program::program_error::ProgramError> {
+                if data.len() < 8 {
+                    return Err(solana_program::program_error::ProgramError::InvalidAccountData);
+                }
                 data[..8].copy_from_slice(&Self::discriminator().to_bytes());
                 data[8..].copy_from_slice(bytemuck::bytes_of(self));
                 Ok(())

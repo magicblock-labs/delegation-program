@@ -5,6 +5,9 @@ macro_rules! impl_try_from_bytes_with_discriminator_zero_copy {
             pub fn try_from_bytes_with_discriminator(
                 data: &[u8],
             ) -> Result<&Self, solana_program::program_error::ProgramError> {
+                if data.len() < 8 {
+                    return Err(solana_program::program_error::ProgramError::InvalidAccountData);
+                }
                 if Self::discriminator().to_bytes().ne(&data[..8]) {
                     return Err(solana_program::program_error::ProgramError::InvalidAccountData);
                 }
@@ -15,6 +18,9 @@ macro_rules! impl_try_from_bytes_with_discriminator_zero_copy {
             pub fn try_from_bytes_with_discriminator_mut(
                 data: &mut [u8],
             ) -> Result<&mut Self, solana_program::program_error::ProgramError> {
+                if data.len() < 8 {
+                    return Err(solana_program::program_error::ProgramError::InvalidAccountData);
+                }
                 if Self::discriminator().to_bytes().ne(&data[..8]) {
                     return Err(solana_program::program_error::ProgramError::InvalidAccountData);
                 }
@@ -33,6 +39,9 @@ macro_rules! impl_try_from_bytes_with_discriminator_borsh {
             pub fn try_from_bytes_with_discriminator(
                 data: &[u8],
             ) -> Result<Self, solana_program::program_error::ProgramError> {
+                if data.len() < 8 {
+                    return Err(solana_program::program_error::ProgramError::InvalidAccountData);
+                }
                 if Self::discriminator().to_bytes().ne(&data[..8]) {
                     return Err(solana_program::program_error::ProgramError::InvalidAccountData);
                 }
