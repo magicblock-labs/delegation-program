@@ -21,7 +21,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_top_up_ephemeral_balance() {
     // Setup
-    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+    let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     let ix = dlp::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
@@ -48,7 +48,7 @@ async fn test_top_up_ephemeral_balance() {
 #[tokio::test]
 async fn test_top_up_ephemeral_balance_and_delegate() {
     // Setup
-    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+    let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Top-up Ix
     let ix = dlp::instruction_builder::top_up_ephemeral_balance(
@@ -77,7 +77,7 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
 #[tokio::test]
 async fn test_top_up_ephemeral_balance_for_pubkey() {
     // Setup
-    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+    let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     let pubkey = Keypair::new().pubkey();
 
@@ -101,7 +101,7 @@ async fn test_top_up_ephemeral_balance_for_pubkey() {
 #[tokio::test]
 async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
     // Setup
-    let (mut banks, payer, _, blockhash) = setup_program_test_env().await;
+    let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     let key = Keypair::new();
     let pubkey = key.pubkey();
@@ -128,7 +128,7 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
 #[tokio::test]
 async fn test_undelegate_and_close() {
     // Setup
-    let (mut banks, _, payer_alt, blockhash) = setup_program_test_env().await;
+    let (banks, _, payer_alt, blockhash) = setup_program_test_env().await;
 
     let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 

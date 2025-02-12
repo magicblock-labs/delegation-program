@@ -1,4 +1,4 @@
-use borsh::BorshSerialize;
+use borsh::to_vec;
 use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
@@ -29,7 +29,7 @@ pub fn top_up_ephemeral_balance(
         ],
         data: [
             DlpDiscriminator::TopUpEphemeralBalance.to_vec(),
-            args.try_to_vec().unwrap(),
+            to_vec(&args).unwrap(),
         ]
         .concat(),
     }

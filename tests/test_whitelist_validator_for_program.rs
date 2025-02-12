@@ -15,7 +15,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_whitelist_validator_for_program() {
     // Setup
-    let (mut banks, _, validator, blockhash) = setup_program_test_env().await;
+    let (banks, _, validator, blockhash) = setup_program_test_env().await;
 
     let ix = dlp::instruction_builder::whitelist_validator_for_program(
         validator.pubkey(),
@@ -49,7 +49,7 @@ async fn test_whitelist_validator_for_program() {
 #[tokio::test]
 async fn test_remove_validator_for_program() {
     // Setup
-    let (mut banks, _, validator, blockhash) = setup_program_test_env().await;
+    let (banks, _, validator, blockhash) = setup_program_test_env().await;
 
     let ix = dlp::instruction_builder::whitelist_validator_for_program(
         validator.pubkey(),

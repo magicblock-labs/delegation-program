@@ -1,3 +1,5 @@
+#![allow(unexpected_cfgs)] // silence clippy for target_os solana and other solana program custom features
+
 use solana_program::{
     account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey,

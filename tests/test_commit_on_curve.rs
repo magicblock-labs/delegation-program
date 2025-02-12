@@ -24,7 +24,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_commit_on_curve() {
     // Setup
-    let (mut banks, payer_delegated, validator, blockhash) = setup_program_test_env().await;
+    let (banks, payer_delegated, validator, blockhash) = setup_program_test_env().await;
 
     let new_account_balance = 1_000_000;
     let commit_args = CommitStateArgs {

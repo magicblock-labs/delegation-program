@@ -1,4 +1,4 @@
-use borsh::BorshSerialize;
+use borsh::to_vec;
 use solana_program::bpf_loader_upgradeable;
 use solana_program::instruction::Instruction;
 use solana_program::system_program;
@@ -31,7 +31,7 @@ pub fn whitelist_validator_for_program(
         ],
         data: [
             DlpDiscriminator::WhitelistValidatorForProgram.to_vec(),
-            args.try_to_vec().unwrap(),
+            to_vec(&args).unwrap(),
         ]
         .concat(),
     }

@@ -14,7 +14,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_init_validator_fees_vault() {
     // Setup
-    let (mut banks, payer, admin, blockhash) = setup_program_test_env().await;
+    let (banks, payer, admin, blockhash) = setup_program_test_env().await;
 
     let validator_identity = Pubkey::new_unique();
     let ix = dlp::instruction_builder::init_validator_fees_vault(

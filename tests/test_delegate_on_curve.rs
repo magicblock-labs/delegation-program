@@ -19,7 +19,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_delegate_on_curve() {
     // Setup
-    let (mut banks, payer, alt_payer, blockhash) = setup_program_test_env().await;
+    let (banks, payer, alt_payer, blockhash) = setup_program_test_env().await;
 
     // Save the PDA before delegation
     let delegated_account = alt_payer.pubkey();

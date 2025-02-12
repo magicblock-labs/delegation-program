@@ -24,7 +24,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_commit_new_state() {
     // Setup
-    let (mut banks, _, authority, blockhash) = setup_program_test_env().await;
+    let (banks, _, authority, blockhash) = setup_program_test_env().await;
     let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
 
     let new_account_balance = 1_000_000;

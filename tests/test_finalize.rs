@@ -22,7 +22,7 @@ mod fixtures;
 #[tokio::test]
 async fn test_finalize() {
     // Setup
-    let (mut banks, _, authority, blockhash) = setup_program_test_env().await;
+    let (banks, _, authority, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
     let delegation_record_pda = delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
