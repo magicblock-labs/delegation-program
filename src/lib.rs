@@ -84,6 +84,9 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CloseEphemeralBalance => {
             processor::process_close_ephemeral_balance(program_id, accounts, data)?
         }
+        discriminator::DlpDiscriminator::ProtocolClaimFees => {
+            processor::process_protocol_claim_fees(program_id, accounts, data)?
+        }
     }
     Ok(())
 }
