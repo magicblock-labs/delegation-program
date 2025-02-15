@@ -29,6 +29,9 @@ pub fn process_protocol_claim_fees(
 
     // Calculate the amount to transfer
     let min_rent = Rent::default().minimum_balance(8);
+    if fees_vault.lamports() < min_rent {
+        return Err(ProgramError::InsufficientFunds);
+    }
     let amount = fees_vault.lamports() - min_rent;
 
     // Transfer fees to the admin pubkey
