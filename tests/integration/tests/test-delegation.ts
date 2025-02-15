@@ -51,7 +51,7 @@ describe("TestDelegation", () => {
   it("Claim protocol fees", async () => {
     const ix = createClaimProtocolFeesVaultInstruction(admin);
     const txId = await processInstruction(ix);
-    console.log("Claim validator fee vault tx:", txId);
+    console.log("Claim protocol fee vault tx:", txId);
   });
 
   it("Initializes the counter", async () => {
