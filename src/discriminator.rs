@@ -15,7 +15,8 @@ pub enum DlpDiscriminator {
     WhitelistValidatorForProgram = 8,
     TopUpEphemeralBalance = 9,
     DelegateEphemeralBalance = 10,
-    CloseEphemeralBalance = 11
+    CloseEphemeralBalance = 11,
+    ProtocolClaimFees = 12,
 }
 
 impl DlpDiscriminator {
@@ -40,6 +41,7 @@ impl TryFrom<[u8; 8]> for DlpDiscriminator {
             0x9 => Ok(DlpDiscriminator::TopUpEphemeralBalance),
             0xa => Ok(DlpDiscriminator::DelegateEphemeralBalance),
             0xb => Ok(DlpDiscriminator::CloseEphemeralBalance),
+            0xc => Ok(DlpDiscriminator::ProtocolClaimFees),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

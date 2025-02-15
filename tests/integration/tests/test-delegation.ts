@@ -48,6 +48,12 @@ describe("TestDelegation", () => {
     console.log("Claim validator fee vault tx:", txId);
   });
 
+  it("Claim protocol fees", async () => {
+    const ix = createClaimProtocolFeesVaultInstruction(admin);
+    const txId = await processInstruction(ix);
+    console.log("Claim validator fee vault tx:", txId);
+  });
+
   it("Initializes the counter", async () => {
     // Check if the counter is initialized
     const counterAccountInfo = await provider.connection.getAccountInfo(pda);
@@ -434,6 +440,24 @@ describe("TestDelegation", () => {
       { pubkey: validatorFeesVault, isSigner: false, isWritable: true },
     ];
     const data = Buffer.from([7, 0, 0, 0, 0, 0, 0, 0, 0]);
+    const ix = new web3.TransactionInstruction({
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
+      keys,
+      data,
+    });
+    return ix;
+  }
+
+  /// Instruction to claim fees from the protocol vault
+  function createClaimProtocolFeesVaultInstruction(
+      admin: web3.PublicKey
+  ) {
+    const feesVault = feesVaultPda();
+    const keys = [
+      { pubkey: admin, isSigner: true, isWritable: true },
+      { pubkey: feesVault, isSigner: false, isWritable: true },
+    ];
+    const data = Buffer.from([12, 0, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({
       programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
       keys,

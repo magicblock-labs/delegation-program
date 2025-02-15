@@ -39,7 +39,7 @@ async fn test_validator_claim_fees() {
         .unwrap()
         .lamports;
 
-    // Submit the undelegate tx
+    // Submit the withdrawal tx
     let withdrawal_amount = 100000;
     let ix =
         dlp::instruction_builder::validator_claim_fees(validator.pubkey(), Some(withdrawal_amount));
