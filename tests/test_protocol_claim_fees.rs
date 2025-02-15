@@ -12,7 +12,7 @@ use solana_sdk::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_validator_claim_fees() {
+async fn test_protocol_claim_fees() {
     // Setup
     let (banks, payer, admin, blockhash) = setup_program_test_env().await;
 
