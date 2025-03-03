@@ -36,7 +36,7 @@ pub fn commit_state_from_buffer(
             AccountMeta::new(commit_record_pda, false),
             AccountMeta::new_readonly(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
-            AccountMeta::new(commit_state_buffer, false),
+            AccountMeta::new_readonly(commit_state_buffer, false),
             AccountMeta::new_readonly(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(program_config_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
