@@ -1,5 +1,6 @@
 mod close_ephemeral_balance;
 mod commit_state;
+mod commit_state_from_buffer;
 mod delegate;
 mod delegate_ephemeral_balance;
 mod finalize;
@@ -14,6 +15,7 @@ mod whitelist_validator_for_program;
 
 pub use close_ephemeral_balance::*;
 pub use commit_state::*;
+pub use commit_state_from_buffer::*;
 pub use delegate::*;
 pub use delegate_ephemeral_balance::*;
 pub use finalize::*;
