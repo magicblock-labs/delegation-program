@@ -57,6 +57,9 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CommitState => {
             processor::process_commit_state(program_id, accounts, data)?
         }
+        discriminator::DlpDiscriminator::CommitStateFromBuffer => {
+            processor::process_commit_state_from_buffer(program_id, accounts, data)?
+        }
         discriminator::DlpDiscriminator::Finalize => {
             processor::process_finalize(program_id, accounts, data)?
         }

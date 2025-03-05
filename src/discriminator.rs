@@ -17,6 +17,7 @@ pub enum DlpDiscriminator {
     DelegateEphemeralBalance = 10,
     CloseEphemeralBalance = 11,
     ProtocolClaimFees = 12,
+    CommitStateFromBuffer = 13,
 }
 
 impl DlpDiscriminator {
@@ -42,6 +43,7 @@ impl TryFrom<[u8; 8]> for DlpDiscriminator {
             0xa => Ok(DlpDiscriminator::DelegateEphemeralBalance),
             0xb => Ok(DlpDiscriminator::CloseEphemeralBalance),
             0xc => Ok(DlpDiscriminator::ProtocolClaimFees),
+            0xd => Ok(DlpDiscriminator::CommitStateFromBuffer),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

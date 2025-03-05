@@ -7,3 +7,10 @@ pub struct CommitStateArgs {
     pub allow_undelegation: bool,
     pub data: Vec<u8>,
 }
+
+#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
+pub struct CommitStateFromBufferArgs {
+    pub slot: u64,
+    pub lamports: u64,
+    pub allow_undelegation: bool,
+}
