@@ -10,6 +10,7 @@ pub enum DlpDiscriminator {
     Delegate = 0,
     /// See [crate::processor::process_commit_state] for docs.
     CommitState = 1,
+    /// See [crate::processor::process_finalize] for docs.
     Finalize = 2,
     Undelegate = 3,
     InitFeesVault = 5,

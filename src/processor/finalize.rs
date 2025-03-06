@@ -14,12 +14,39 @@ use solana_program::{
 
 /// Finalize a committed state, after validation, to a delegated account
 ///
+/// Accounts:
+///
+/// - `[signer]`   the validator account
+/// - `[writable]` the delegated account
+/// - `[writable]` the commit state account
+/// - `[writable]` the commit record account
+/// - `[writable]` the delegation record account
+/// - `[writable]` the delegation metadata account
+/// - `[writable]` the validator fees vault account
+/// - `[]`         the system program
+///
+/// Requirements:
+///
+/// - delegated account is owned by delegation program
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - protocol fees vault is initialized
+/// - validator fees vault is initialized
+/// - commit state is initialized and derived from the delegated account key
+/// - commit record is initialized and derived from the delegated account key
+/// - account mentioned in commit record is the same as the delegated account
+/// - identity mentioned in commit record is the same as the validator
+///
+/// NOTE: that if neither commit state nor commit record are as required then
+///       we skip the finalize without an error in order to not affect other finalize
+///       instructions that may be bundled in the same transaction.
+///
+/// Steps:
+///
 /// 1. Validate the new state
 /// 2. If the state is valid, copy the committed state to the delegated account
 /// 3. Close the state diff account
 /// 4. Close the commit state record
-///
-/// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
 pub fn process_finalize(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
