@@ -24,6 +24,36 @@ use solana_program::{
 
 /// Undelegate a delegated account
 ///
+/// Accounts:
+///
+/// - `[signer]`   the validator account
+/// - `[writable]` the delegated account
+/// - `[]`         the owner program of the delegated account
+/// - `[writable]` the undelegate buffer PDA we use to store the data temporarily
+/// - `[]`         the commit state PDA
+/// - `[]`         the commit record PDA
+/// - `[writable]` the delegation record PDA
+/// - `[writable]` the delegation metadata PDA
+/// - `[]`         the rent reimbursement account
+/// - `[writable]` the protocol fees vault account
+/// - `[writable]` the validator fees vault account
+/// - `[]`         the system program
+///
+/// Requirements:
+///
+/// - delegated account is owned by delegation program
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - protocol fees vault is initialized
+/// - validator fees vault is initialized
+/// - commit state is uninitialized
+/// - commit record is uninitialized
+/// - delegated account is NOT undelegatable
+/// - owner program account matches the owner in the delegation record
+/// - rent reimbursement account matches the rent payer in the delegation metadata
+///
+/// Steps:
+///
 /// - Close the delegation metadata
 /// - Close the delegation record
 /// - If delegated account has no data, assign to prev owner (and stop here)
@@ -34,9 +64,6 @@ use solana_program::{
 ///   using the discriminator EXTERNAL_UNDELEGATE_DISCRIMINATOR
 /// - Verify that the new state is the same as the committed state
 /// - Close the undelegation buffer PDA
-///
-///
-/// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
 pub fn process_undelegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
