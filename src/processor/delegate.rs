@@ -18,14 +18,35 @@ use crate::{
     delegation_record_seeds_from_delegated_account,
 };
 
-/// Delegate an account
+/// Delegates an account
 ///
+/// Accounts:
+/// - [signer]   the account paying for the transaction
+/// - [signer]   the account to delegate
+/// - []         the owner of the account to delegate
+/// - [writable] the buffer account we use to temporarily store the account data
+///              during owner change
+/// - [writable] the delegation record account
+/// - [writable] the delegation metadata account
+/// - []         the system program
+///
+/// Requirements:
+///
+/// - delegation buffer is initialized
+/// - delegation record is uninitialized
+/// - delegation metadata is uninitialized
+///
+/// Steps:
 /// 1. Checks that the account is owned by the delegation program, that the buffer is initialized and derived correctly from the PDA
 ///  - Also checks that the delegated_account is a signer (enforcing that the instruction is being called from CPI) & other constraints
-/// 2. Copy the data from the buffer into the original account
-/// 3. Create a Delegation Record to store useful information about the delegation event
-/// 4. Create a Delegated Account Seeds to store the seeds used to derive the delegate account. Needed for undelegation.
+/// 2. Copies the data from the buffer into the original account
+/// 3. Creates a Delegation Record to store useful information about the delegation event
+/// 4. Creates a Delegated Account Seeds to store the seeds used to derive the delegate account. Needed for undelegation.
 ///
+/// Usage:
+///
+/// This instruction is meant to be called via CPI with the owning program signing for the
+/// delegated account.
 pub fn process_delegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],

@@ -99,7 +99,7 @@ pub fn process_undelegate(
             "delegation metadata ({}) indicates the account is not undelegatable",
             delegation_metadata_account.key
         );
-        return Err(DlpError::Undelegatable.into());
+        return Err(DlpError::NotUndelegatable.into());
     }
 
     // Check if the rent payer is correct
