@@ -11,6 +11,7 @@ use crate::pda::{
 };
 
 /// Builds a delegate instruction
+/// See [crate::processor::process_delegate] for docs.
 pub fn delegate(
     payer: Pubkey,
     delegated_account: Pubkey,
