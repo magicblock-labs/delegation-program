@@ -13,6 +13,7 @@ use crate::{
 };
 use borsh::to_vec;
 use solana_program::instruction::{AccountMeta, Instruction};
+use solana_program::msg;
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -79,6 +80,11 @@ pub fn process_undelegate(
 
     // Check passed owner and owner stored in the delegation record match
     if !delegation_record.owner.eq(owner_program.key) {
+        msg!(
+            "Expected delegation record owner to be {}, but got {}",
+            delegation_record.owner,
+            owner_program.key
+        );
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -89,11 +95,20 @@ pub fn process_undelegate(
 
     // Check if the delegated account is undelegatable
     if !delegation_metadata.is_undelegatable {
+        msg!(
+            "delegation metadata ({}) indicates the account is not undelegatable",
+            delegation_metadata_account.key
+        );
         return Err(DlpError::Undelegatable.into());
     }
 
     // Check if the rent payer is correct
     if !delegation_metadata.rent_payer.eq(rent_reimbursement.key) {
+        msg!(
+            "Expected rent payer to be {}, but got {}",
+            delegation_metadata.rent_payer,
+            rent_reimbursement.key
+        );
         return Err(DlpError::InvalidReimbursementAddressForDelegationRent.into());
     }
 

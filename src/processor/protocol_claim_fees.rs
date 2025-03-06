@@ -1,6 +1,7 @@
 use crate::consts::ADMIN_PUBKEY;
 use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{load_initialized_fees_vault, load_signer};
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
@@ -24,6 +25,11 @@ pub fn process_protocol_claim_fees(
 
     // Check if the admin is the correct one
     if !admin.key.eq(&ADMIN_PUBKEY) {
+        msg!(
+            "Expected admin pubkey: {} but got {}",
+            ADMIN_PUBKEY,
+            admin.key
+        );
         return Err(Unauthorized.into());
     }
 

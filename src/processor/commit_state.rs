@@ -118,6 +118,10 @@ pub(crate) fn process_commit_state_internal(
 
     // Once the account is marked as undelegatable, any subsequent commit should fail
     if delegation_metadata.is_undelegatable {
+        msg!(
+            "delegation metadata ({}) is already undelegated",
+            args.delegation_metadata_account.key
+        );
         return Err(DlpError::AlreadyUndelegated.into());
     }
 
@@ -132,6 +136,10 @@ pub(crate) fn process_commit_state_internal(
 
     // If there was an issue with the lamport accounting in the past, abort (this should never happen)
     if args.delegated_account.lamports() < delegation_record.lamports {
+        msg!(
+            "delegated account ({}) has less lamports than the delegation record",
+            args.delegated_account.key
+        );
         return Err(DlpError::InvalidDelegatedState.into());
     }
 
@@ -169,6 +177,10 @@ pub(crate) fn process_commit_state_internal(
             .approved_validators
             .contains(args.validator.key)
         {
+            msg!(
+                "validator ({}) is not whitelisted in the program config",
+                args.validator.key
+            );
             return Err(DlpError::InvalidWhitelistProgramConfig.into());
         }
     }

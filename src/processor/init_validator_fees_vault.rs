@@ -1,3 +1,4 @@
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
@@ -30,6 +31,11 @@ pub fn process_init_validator_fees_vault(
 
     // Check if the admin is the correct one
     if !admin.key.eq(&ADMIN_PUBKEY) {
+        msg!(
+            "Expected admin pubkey: {} but got {}",
+            ADMIN_PUBKEY,
+            admin.key
+        );
         return Err(Unauthorized.into());
     }
 

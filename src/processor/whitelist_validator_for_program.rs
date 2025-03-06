@@ -7,6 +7,7 @@ use crate::program_config_seeds_from_program_id;
 use crate::state::ProgramConfig;
 use borsh::BorshDeserialize;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo, bpf_loader_upgradeable, entrypoint::ProgramResult, pubkey::Pubkey,
@@ -91,6 +92,11 @@ fn validate_authority(
     {
         Ok(())
     } else {
+        msg!(
+            "Expected authority to be {} or program upgrade authority, but got {}",
+            ADMIN_PUBKEY,
+            authority.key
+        );
         Err(Unauthorized.into())
     }
 }
@@ -104,6 +110,11 @@ fn get_program_upgrade_authority(
         Pubkey::find_program_address(&[program.key.as_ref()], &bpf_loader_upgradeable::id()).0;
 
     if !program_data_address.eq(program_data.key) {
+        msg!(
+            "Expected program data address to be {}, but got {}",
+            program_data_address,
+            program_data.key
+        );
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -116,6 +127,10 @@ fn get_program_upgrade_authority(
     {
         Ok(upgrade_authority_address)
     } else {
+        msg!(
+            "Expected program account {} to hold ProgramData",
+            program.key
+        );
         Err(ProgramError::InvalidAccountData)
     }
 }

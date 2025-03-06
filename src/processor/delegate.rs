@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::sysvar::Sysvar;
 use solana_program::{
@@ -47,6 +48,11 @@ pub fn process_delegate(
         let (derived_pda, _) =
             Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);
         if derived_pda.ne(delegated_account.key) {
+            msg!(
+                "Expected delegated PDA to be {}, but got {}",
+                derived_pda,
+                delegated_account.key
+            );
             return Err(ProgramError::InvalidSeeds);
         }
     }

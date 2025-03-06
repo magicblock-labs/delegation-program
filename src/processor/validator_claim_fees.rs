@@ -5,6 +5,7 @@ use crate::processor::utils::loaders::{
     load_initialized_fees_vault, load_initialized_validator_fees_vault, load_signer,
 };
 use borsh::BorshDeserialize;
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
@@ -36,6 +37,12 @@ pub fn process_validator_claim_fees(
 
     // Ensure vault has enough lamports
     if validator_fees_vault.lamports() - min_rent < amount {
+        msg!(
+            "Vault ({}) has insufficient funds: {} < {}",
+            validator_fees_vault.key,
+            validator_fees_vault.lamports() - min_rent,
+            amount
+        );
         return Err(ProgramError::InsufficientFunds);
     }
 
