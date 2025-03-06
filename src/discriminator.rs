@@ -8,6 +8,7 @@ pub enum DlpDiscriminator {
     /// Delegates an account
     /// See [crate::processor::process_delegate] for docs.
     Delegate = 0,
+    /// See [crate::processor::process_commit_state] for docs.
     CommitState = 1,
     Finalize = 2,
     Undelegate = 3,

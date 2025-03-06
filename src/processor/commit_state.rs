@@ -17,13 +17,36 @@ use solana_program::system_instruction::transfer;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 use solana_program::{msg, system_program};
 
-/// Commit a new state of a delegated Pda
+/// Commit a new state of a delegated PDA
 ///
+/// Accounts:
+///
+/// - [signer]   the validator requesting the commit
+/// - []         the delegated account
+/// - [writable] the PDA storing the new state
+/// - [writable] the PDA storing the commit record
+/// - []         the delegation record
+/// - [writable] the delegation metadata
+/// - []         the validator fees vault
+/// - []         the program config account
+/// - []         the system program
+///
+/// Requirements:
+///
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - validator fees vault is initialized
+/// - program config is initialized
+/// - commit state is uninitialized
+/// - commit record is uninitialized
+/// - delegated account holds at least the lamports indicated in the delegation record
+/// - account was not committed at a later slot
+///
+/// Steps:
 /// 1. Check that the pda is delegated
 /// 2. Init a new PDA to store the new state
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
-///
 pub fn process_commit_state(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -137,7 +160,7 @@ pub(crate) fn process_commit_state_internal(
     // If there was an issue with the lamport accounting in the past, abort (this should never happen)
     if args.delegated_account.lamports() < delegation_record.lamports {
         msg!(
-            "delegated account ({}) has less lamports than the delegation record",
+            "delegated account ({}) has less lamports than the delegation record indicates",
             args.delegated_account.key
         );
         return Err(DlpError::InvalidDelegatedState.into());
