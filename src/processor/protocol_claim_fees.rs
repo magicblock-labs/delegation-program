@@ -19,7 +19,7 @@ pub fn process_protocol_claim_fees(
     };
 
     // Check if the admin is signer
-    load_signer(admin)?;
+    load_signer(admin, "admin")?;
     load_initialized_fees_vault(fees_vault, true)?;
 
     // Check if the admin is the correct one

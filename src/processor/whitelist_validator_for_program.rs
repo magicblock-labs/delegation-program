@@ -29,15 +29,16 @@ pub fn process_whitelist_validator_for_program(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(authority)?;
+    load_signer(authority, "authority")?;
     validate_authority(authority, program, program_data)?;
-    load_program(system_program, system_program::id())?;
+    load_program(system_program, system_program::id(), "system program")?;
 
     let program_config_bump = load_pda(
         program_config_account,
         program_config_seeds_from_program_id!(program.key),
         &crate::id(),
         true,
+        "program config",
     )?;
 
     // Get the program config. If the account doesn't exist, create it

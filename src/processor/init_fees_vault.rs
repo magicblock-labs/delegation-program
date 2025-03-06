@@ -20,11 +20,16 @@ pub fn process_init_protocol_fees_vault(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(payer)?;
-    load_program(system_program, system_program::id())?;
+    load_signer(payer, "payer")?;
+    load_program(system_program, system_program::id(), "system program")?;
 
-    let bump_fees_vault =
-        load_uninitialized_pda(protocol_fees_vault, fees_vault_seeds!(), &crate::id(), true)?;
+    let bump_fees_vault = load_uninitialized_pda(
+        protocol_fees_vault,
+        fees_vault_seeds!(),
+        &crate::id(),
+        true,
+        "fees vault",
+    )?;
 
     // Create the fees vault account
     create_pda(

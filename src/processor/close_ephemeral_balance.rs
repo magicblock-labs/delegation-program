@@ -16,13 +16,14 @@ pub fn process_close_ephemeral_balance(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(payer)?;
+    load_signer(payer, "payer")?;
 
     load_initialized_pda(
         ephemeral_balance_account,
         ephemeral_balance_seeds_from_payer!(payer.key, index),
         &crate::id(),
         true,
+        "ephemeral balance",
     )?;
 
     close_pda(ephemeral_balance_account, payer)?;

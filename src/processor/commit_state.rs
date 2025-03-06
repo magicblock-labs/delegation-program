@@ -83,8 +83,8 @@ pub(crate) fn process_commit_state_internal(
     args: CommitStateInternalArgs,
 ) -> Result<(), ProgramError> {
     // Check that the origin account is delegated
-    load_owned_pda(args.delegated_account, &crate::id())?;
-    load_signer(args.validator)?;
+    load_owned_pda(args.delegated_account, &crate::id(), "delegated account")?;
+    load_signer(args.validator, "validator account")?;
     load_initialized_delegation_record(
         args.delegated_account,
         args.delegation_record_account,
@@ -96,7 +96,7 @@ pub(crate) fn process_commit_state_internal(
         true,
     )?;
     load_initialized_validator_fees_vault(args.validator, args.validator_fees_vault, false)?;
-    load_program(args.system_program, system_program::id())?;
+    load_program(args.system_program, system_program::id(), "system program")?;
 
     // Read delegation metadata
     let mut delegation_metadata_data = args.delegation_metadata_account.try_borrow_mut_data()?;
@@ -179,12 +179,14 @@ pub(crate) fn process_commit_state_internal(
         commit_state_seeds_from_delegated_account!(args.delegated_account.key),
         &crate::id(),
         true,
+        "commit state account",
     )?;
     let commit_record_bump = load_uninitialized_pda(
         args.commit_record_account,
         commit_record_seeds_from_delegated_account!(args.delegated_account.key),
         &crate::id(),
         true,
+        "commit record",
     )?;
 
     // Initialize the PDA containing the new committed state

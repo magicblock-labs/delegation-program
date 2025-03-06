@@ -38,8 +38,8 @@ pub fn process_delegate(
 
     let args = DelegateArgs::try_from_slice(data)?;
 
-    load_owned_pda(delegated_account, &crate::id())?;
-    load_program(system_program, system_program::id())?;
+    load_owned_pda(delegated_account, &crate::id(), "delegated account")?;
+    load_program(system_program, system_program::id(), "system program")?;
 
     // Validate seeds if the delegate account is not on curve, i.e. is a PDA
     if !is_on_curve(delegated_account.key) {
@@ -57,6 +57,7 @@ pub fn process_delegate(
         delegate_buffer_seeds_from_delegated_account!(delegated_account.key),
         owner_program.key,
         true,
+        "delegate buffer",
     )?;
 
     // Check that the delegation record PDA is uninitialized
@@ -65,6 +66,7 @@ pub fn process_delegate(
         delegation_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         true,
+        "delegation record",
     )?;
 
     // Check that the delegation metadata PDA is uninitialized
@@ -73,11 +75,12 @@ pub fn process_delegate(
         delegation_metadata_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         true,
+        "delegation metadata",
     )?;
 
     // Check that payer and delegated_account are signers, this ensures the instruction is being called from CPI
-    load_signer(payer)?;
-    load_signer(delegated_account)?;
+    load_signer(payer, "payer")?;
+    load_signer(delegated_account, "delegated account")?;
 
     // Initialize the delegation record PDA
     create_pda(

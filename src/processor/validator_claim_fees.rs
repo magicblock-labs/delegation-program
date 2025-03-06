@@ -24,7 +24,7 @@ pub fn process_validator_claim_fees(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(validator)?;
+    load_signer(validator, "validator")?;
     load_initialized_fees_vault(fees_vault, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
 

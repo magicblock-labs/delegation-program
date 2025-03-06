@@ -21,10 +21,10 @@ pub fn process_delegate_ephemeral_balance(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(payer)?;
-    load_signer(pubkey)?;
-    load_program(system_program, system_program::id())?;
-    load_program(delegation_program, crate::id())?;
+    load_signer(payer, "payer")?;
+    load_signer(pubkey, "delegatee")?;
+    load_program(system_program, system_program::id(), "system program")?;
+    load_program(delegation_program, crate::id(), "delegation program")?;
 
     // Check seeds and derive bump
     let ephemeral_balance_seeds: &[&[u8]] =

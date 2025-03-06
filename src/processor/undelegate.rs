@@ -48,13 +48,13 @@ pub fn process_undelegate(
     };
 
     // Check accounts
-    load_signer(validator)?;
-    load_owned_pda(delegated_account, &crate::id())?;
+    load_signer(validator, "validator")?;
+    load_owned_pda(delegated_account, &crate::id(), "delegated account")?;
     load_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
     load_initialized_fees_vault(fees_vault, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
-    load_program(system_program, system_program::id())?;
+    load_program(system_program, system_program::id(), "system program")?;
 
     // Make sure there is no pending commits to be finalized before this call
     load_uninitialized_pda(
@@ -62,12 +62,14 @@ pub fn process_undelegate(
         commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         false,
+        "commit state",
     )?;
     load_uninitialized_pda(
         commit_record_account,
         commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         false,
+        "commit record",
     )?;
 
     // Load delegation record
@@ -121,6 +123,7 @@ pub fn process_undelegate(
         undelegate_buffer_seeds,
         &crate::id(),
         true,
+        "undelegate buffer",
     )?;
     create_pda(
         undelegate_buffer_account,

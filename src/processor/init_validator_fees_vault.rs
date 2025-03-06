@@ -24,9 +24,9 @@ pub fn process_init_validator_fees_vault(
     };
 
     // Check if the payer and admin are signers
-    load_signer(payer)?;
-    load_signer(admin)?;
-    load_program(system_program, system_program::id())?;
+    load_signer(payer, "payer")?;
+    load_signer(admin, "admin")?;
+    load_program(system_program, system_program::id(), "system program")?;
 
     // Check if the admin is the correct one
     if !admin.key.eq(&ADMIN_PUBKEY) {
@@ -38,6 +38,7 @@ pub fn process_init_validator_fees_vault(
         validator_fees_vault_seeds_from_validator!(validator_identity.key),
         &crate::id(),
         true,
+        "validator fees vault",
     )?;
 
     // Create the fees vault PDA
