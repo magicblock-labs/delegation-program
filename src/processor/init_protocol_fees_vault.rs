@@ -9,6 +9,17 @@ use crate::processor::utils::pda::create_pda;
 
 /// Initialize the global fees vault
 ///
+/// Accounts:
+/// - `[signer]` The account paying for the transaction
+/// - `[writable]` The fees vault PDA we are initializing
+/// - `[]` The system program
+///
+/// Requirements:
+///
+/// - fees vault is uninitialized
+///
+/// Steps:
+///
 /// 1. Create the protocol fees vault PDA
 pub fn process_init_protocol_fees_vault(
     _program_id: &Pubkey,
