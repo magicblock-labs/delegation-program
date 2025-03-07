@@ -19,6 +19,8 @@ use solana_program::{
 /// Accounts:
 ///
 /// 0: `[signer]`   authority that has rights to whitelist validators
+/// TODO: @@@ this is not mutated and could be readonly
+/// see ./../instruction_builder/whitelist_validator_for_program.rs line 28
 /// 1: `[writable]` validator identity to whitelist
 /// 2: `[]`         program to whitelist the validator for
 /// 3: `[]`         program data account

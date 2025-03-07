@@ -87,6 +87,9 @@ pub fn process_finalize(
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
     // Load delegation record
+    // TODO: @@@ we borrow mut here but never modify the data, thus delegation_record
+    //       does not need to be writable
+    //       Modify also ../instruction_builder/finalize.rs line 28
     let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator_mut(&mut delegation_record_data)?;
