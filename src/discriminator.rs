@@ -22,6 +22,7 @@ pub enum DlpDiscriminator {
     ValidatorClaimFees = 7,
     /// See [crate::processor::process_whitelist_validator_for_program] for docs.
     WhitelistValidatorForProgram = 8,
+    /// See [crate::processor::process_top_up_ephemeral_balance] for docs.
     TopUpEphemeralBalance = 9,
     DelegateEphemeralBalance = 10,
     CloseEphemeralBalance = 11,

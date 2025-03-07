@@ -10,6 +10,23 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
 
+/// Tops up the ephemeral balance account.
+///
+/// Accounts:
+///
+/// - `[writable]` payer account who funds the topup
+/// - `[]` pubkey account that the ephemeral balance PDA was derived from
+/// - `[writable]` ephemeral balance account to top up
+/// - `[]` system program
+///
+/// Requirements:
+///
+/// - the payer account has enough lamports to fund the transfer
+///
+/// Steps:
+///
+/// 1. Create the ephemeral balance PDA if it does not exist
+/// 2. Transfer lamports from payer to ephemeral PDA
 pub fn process_top_up_ephemeral_balance(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
