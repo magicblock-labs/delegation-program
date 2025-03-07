@@ -15,6 +15,6 @@ pub fn init_fees_vault(payer: Pubkey) -> Instruction {
             AccountMeta::new(fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminator::InitFeesVault.to_vec(),
+        data: DlpDiscriminator::InitProtocolFeesVault.to_vec(),
     }
 }

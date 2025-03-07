@@ -14,7 +14,8 @@ pub enum DlpDiscriminator {
     Finalize = 2,
     /// See [crate::processor::process_undelegate] for docs.
     Undelegate = 3,
-    InitFeesVault = 5,
+    /// See [crate::processor::process_init_protocol_fees_vault] for docs.
+    InitProtocolFeesVault = 5,
     InitValidatorFeesVault = 6,
     ValidatorClaimFees = 7,
     WhitelistValidatorForProgram = 8,
@@ -40,7 +41,7 @@ impl TryFrom<[u8; 8]> for DlpDiscriminator {
             0x1 => Ok(DlpDiscriminator::CommitState),
             0x2 => Ok(DlpDiscriminator::Finalize),
             0x3 => Ok(DlpDiscriminator::Undelegate),
-            0x5 => Ok(DlpDiscriminator::InitFeesVault),
+            0x5 => Ok(DlpDiscriminator::InitProtocolFeesVault),
             0x6 => Ok(DlpDiscriminator::InitValidatorFeesVault),
             0x7 => Ok(DlpDiscriminator::ValidatorClaimFees),
             0x8 => Ok(DlpDiscriminator::WhitelistValidatorForProgram),
