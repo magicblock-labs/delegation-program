@@ -27,7 +27,6 @@ use solana_program::{
 ///
 /// Requirements:
 ///
-/// - validator admin is whitelisted
 /// - authority is either the ADMIN_PUBKEY or the program upgrade authority
 /// - program config is initialized or owned by the system program in
 ///   which case it is created

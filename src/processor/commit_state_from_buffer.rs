@@ -38,10 +38,6 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 /// 2. Init a new PDA to store the new state
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
-/// 1. Check that the pda is delegated
-/// 2. Init a new PDA to store the new state
-/// 3. Copy the new state to the new PDA
-/// 4. Init a new PDA to store the record of the new state commitment
 pub fn process_commit_state_from_buffer(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],

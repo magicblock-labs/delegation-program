@@ -134,7 +134,7 @@ pub fn load_uninitialized_account(
     }
 
     if is_writable && !info.is_writable {
-        msg!("Account {} ({}) is needs to be writable", label, info.key);
+        msg!("Account {} ({}) needs to be writable", label, info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -169,7 +169,7 @@ pub fn load_account(
     }
 
     if is_writable && !info.is_writable {
-        msg!("Account {} ({}) is needs to be writable", label, info.key);
+        msg!("Account {} ({}) needs to be writable", label, info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 

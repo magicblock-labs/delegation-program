@@ -30,7 +30,6 @@ use solana_program::{
 /// - delegated account is owned by delegation program
 /// - delegation record is initialized
 /// - delegation metadata is initialized
-/// - protocol fees vault is initialized
 /// - validator fees vault is initialized
 /// - commit state is initialized and derived from the delegated account key
 /// - commit record is initialized and derived from the delegated account key

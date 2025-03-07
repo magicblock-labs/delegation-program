@@ -5,7 +5,6 @@ use solana_program::program_error::ProgramError;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive)]
 #[rustfmt::skip]
 pub enum DlpDiscriminator {
-    /// Delegates an account
     /// See [crate::processor::process_delegate] for docs.
     Delegate = 0,
     /// See [crate::processor::process_commit_state] for docs.
