@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct CommitStateArgs {
-    /// The ephemeral slot at whih the account data is committed
+    /// The ephemeral slot at which the account data is committed
     pub slot: u64,
     /// The lamports that the account holds in the ephemeral validator
     pub lamports: u64,
