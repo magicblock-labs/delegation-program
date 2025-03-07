@@ -21,15 +21,15 @@ use solana_program::{msg, system_program};
 ///
 /// Accounts:
 ///
-/// - `[signer]`   the validator requesting the commit
-/// - `[]`         the delegated account
-/// - `[writable]` the PDA storing the new state
-/// - `[writable]` the PDA storing the commit record
-/// - `[]`         the delegation record
-/// - `[writable]` the delegation metadata
-/// - `[]`         the validator fees vault
-/// - `[]`         the program config account
-/// - `[]`         the system program
+/// 0: `[signer]`   the validator requesting the commit
+/// 1: `[]`         the delegated account
+/// 2: `[writable]` the PDA storing the new state
+/// 3: `[writable]` the PDA storing the commit record
+/// 4: `[]`         the delegation record
+/// 5: `[writable]` the delegation metadata
+/// 6: `[]`         the validator fees vault
+/// 7: `[]`         the program config account
+/// 8: `[]`         the system program
 ///
 /// Requirements:
 ///

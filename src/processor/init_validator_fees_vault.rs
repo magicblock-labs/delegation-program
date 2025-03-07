@@ -14,12 +14,12 @@ use crate::validator_fees_vault_seeds_from_validator;
 ///
 /// Accounts:
 ///
-/// - `[signer]` payer
+/// 0; `[signer]` payer
 /// TODO: @@@ why does this need to be a signer?
-/// - `[signer]` admin that controls the vault
-/// - `[]` validator_identity
-/// - `[]` validator_fees_vault_pda
-/// - `[]` system_program
+/// 1; `[signer]` admin that controls the vault
+/// 2; `[]` validator_identity
+/// 3; `[]` validator_fees_vault_pda
+/// 4; `[]` system_program
 ///
 /// Requirements:
 ///

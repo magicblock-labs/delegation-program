@@ -14,14 +14,14 @@ use solana_program::{
 ///
 /// Accounts:
 ///
-/// 0. `[writable]` payer account
-/// 1. `[signer]`   delegatee account from which the delegated account is derived
-/// 2. `[writable]` ephemeral balance account
-/// 3. `[writable]` delegate buffer PDA
-/// 4. `[writable]` delegation record PDA
-/// 5. `[writable]` delegation metadata PDA
-/// 6. `[]`         system program
-/// 7. `[]`         this program
+/// 0: `[writable]` payer account
+/// 1: `[signer]`   delegatee account from which the delegated account is derived
+/// 2: `[writable]` ephemeral balance account
+/// 3: `[writable]` delegate buffer PDA
+/// 4: `[writable]` delegation record PDA
+/// 5: `[writable]` delegation metadata PDA
+/// 6: `[]`         system program
+/// 7: `[]`         this program
 ///
 /// Requirements:
 ///

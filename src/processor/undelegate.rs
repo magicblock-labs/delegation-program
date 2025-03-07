@@ -26,18 +26,18 @@ use solana_program::{
 ///
 /// Accounts:
 ///
-/// - `[signer]`   the validator account
-/// - `[writable]` the delegated account
-/// - `[]`         the owner program of the delegated account
-/// - `[writable]` the undelegate buffer PDA we use to store the data temporarily
-/// - `[]`         the commit state PDA
-/// - `[]`         the commit record PDA
-/// - `[writable]` the delegation record PDA
-/// - `[writable]` the delegation metadata PDA
-/// - `[]`         the rent reimbursement account
-/// - `[writable]` the protocol fees vault account
-/// - `[writable]` the validator fees vault account
-/// - `[]`         the system program
+///  0: `[signer]`   the validator account
+///  1: `[writable]` the delegated account
+///  2: `[]`         the owner program of the delegated account
+///  3: `[writable]` the undelegate buffer PDA we use to store the data temporarily
+///  4: `[]`         the commit state PDA
+///  5: `[]`         the commit record PDA
+///  6: `[writable]` the delegation record PDA
+///  7: `[writable]` the delegation metadata PDA
+///  8: `[]`         the rent reimbursement account
+///  9: `[writable]` the protocol fees vault account
+/// 10: `[writable]` the validator fees vault account
+/// 11: `[]`         the system program
 ///
 /// Requirements:
 ///

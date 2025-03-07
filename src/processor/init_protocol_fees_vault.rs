@@ -10,9 +10,9 @@ use crate::processor::utils::pda::create_pda;
 /// Initialize the global fees vault
 ///
 /// Accounts:
-/// - `[signer]` The account paying for the transaction
-/// - `[writable]` The fees vault PDA we are initializing
-/// - `[]` The system program
+/// 0: `[signer]`   the account paying for the transaction
+/// 1: `[writable]` the fees vault PDA we are initializing
+/// 2: `[]`         the system program
 ///
 /// Requirements:
 ///

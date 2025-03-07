@@ -14,9 +14,9 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 ///
 /// Accounts:
 ///
-/// - `[signer]`   The validator account.
-/// - `[writable]` The fees vault PDA.
-/// - `[writable]` The validator fees vault PDA.
+/// 0: `[signer]`   the validator account.
+/// 1: `[writable]` the fees vault PDA.
+/// 2: `[writable]` the validator fees vault PDA.
 ///
 /// Requirements:
 ///

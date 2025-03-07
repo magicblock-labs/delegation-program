@@ -21,14 +21,14 @@ use crate::{
 /// Delegates an account
 ///
 /// Accounts:
-/// - `[signer]`   the account paying for the transaction
-/// - `[signer]`   the account to delegate
-/// - `[]`         the owner of the account to delegate
-/// - `[writable]` the buffer account we use to temporarily store the account data
-///                during owner change
-/// - `[writable]` the delegation record account
-/// - `[writable]` the delegation metadata account
-/// - `[]`         the system program
+/// 0: `[signer]`   the account paying for the transaction
+/// 1: `[signer]`   the account to delegate
+/// 2: `[]`         the owner of the account to delegate
+/// 3: `[writable]` the buffer account we use to temporarily store the account data
+///                 during owner change
+/// 4: `[writable]` the delegation record account
+/// 5: `[writable]` the delegation metadata account
+/// 6: `[]`         the system program
 ///
 /// Requirements:
 ///

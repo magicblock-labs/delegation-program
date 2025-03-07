@@ -18,12 +18,12 @@ use solana_program::{
 ///
 /// Accounts:
 ///
-/// - `[signer]` authority that has rights to whitelist validators
-/// - `[writable]` validator identity to whitelist
-/// - `[]` program to whitelist the validator for
-/// - `[]` program data account
-/// - `[writable]` program config PDA
-/// - `[]` system program
+/// 0: `[signer]`   authority that has rights to whitelist validators
+/// 1: `[writable]` validator identity to whitelist
+/// 2: `[]`         program to whitelist the validator for
+/// 3: `[]`         program data account
+/// 4: `[writable]` program config PDA
+/// 5: `[]`         system program
 ///
 /// Requirements:
 ///

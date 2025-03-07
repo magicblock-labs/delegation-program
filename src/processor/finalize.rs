@@ -16,14 +16,14 @@ use solana_program::{
 ///
 /// Accounts:
 ///
-/// - `[signer]`   the validator account
-/// - `[writable]` the delegated account
-/// - `[writable]` the commit state account
-/// - `[writable]` the commit record account
-/// - `[writable]` the delegation record account
-/// - `[writable]` the delegation metadata account
-/// - `[writable]` the validator fees vault account
-/// - `[]`         the system program
+/// 0: `[signer]`   the validator account
+/// 1: `[writable]` the delegated account
+/// 2: `[writable]` the commit state account
+/// 3: `[writable]` the commit record account
+/// 4: `[writable]` the delegation record account
+/// 5: `[writable]` the delegation metadata account
+/// 6: `[writable]` the validator fees vault account
+/// 7: `[]`         the system program
 ///
 /// Requirements:
 ///

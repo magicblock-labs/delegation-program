@@ -14,10 +14,10 @@ use solana_program::{
 ///
 /// Accounts:
 ///
-/// - `[writable]` payer account who funds the topup
-/// - `[]` pubkey account that the ephemeral balance PDA was derived from
-/// - `[writable]` ephemeral balance account to top up
-/// - `[]` system program
+/// 0: `[writable]` payer account who funds the topup
+/// 1: `[]` pubkey account that the ephemeral balance PDA was derived from
+/// 2: `[writable]` ephemeral balance account to top up
+/// 3: `[]` system program
 ///
 /// Requirements:
 ///
