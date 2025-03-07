@@ -8,6 +8,18 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 
 /// Process request to claim fees from the protocol fees vault
 ///
+/// Accounts:
+///
+/// 1. `[signer]` admin account that can claim the fees
+/// 2. `[]` protocol fees vault PDA
+///
+/// Requirements:
+///
+/// - protocol fees vault is initialized
+/// - protocol fees vault has enough lamports to claim fees and still be
+///   rent exempt
+/// - admin is the protocol fees vault admin
+///
 /// 1. Transfer lamports from protocol fees_vault PDA to the admin authority
 pub fn process_protocol_claim_fees(
     _program_id: &Pubkey,
