@@ -26,6 +26,7 @@ pub enum DlpDiscriminator {
     TopUpEphemeralBalance = 9,
     /// See [crate::processor::process_delegate_ephemeral_balance] for docs.
     DelegateEphemeralBalance = 10,
+    /// See [crate::processor::process_close_ephemeral_balance] for docs.
     CloseEphemeralBalance = 11,
     ProtocolClaimFees = 12,
     CommitStateFromBuffer = 13,
