@@ -9,6 +9,28 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_instruction,
 };
 
+/// Delegates an account to transfer lamports which are used to fund it inside
+/// the ephemeral.
+///
+/// Accounts:
+///
+/// 0. `[writable]` payer account
+/// 1. `[signer]`   delegatee account from which the delegated account is derived
+/// 2. `[writable]` ephemeral balance account
+/// 3. `[writable]` delegate buffer PDA
+/// 4. `[writable]` delegation record PDA
+/// 5. `[writable]` delegation metadata PDA
+/// 6. `[]`         system program
+/// 7. `[]`         this program
+///
+/// Requirements:
+///
+/// - same as [crate::processor::delegate::process_delegate]
+///
+/// Steps:
+///
+/// 1. Delegates the ephemeral balance account to the delegation program so it can
+///    act as an escrow
 pub fn process_delegate_ephemeral_balance(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],

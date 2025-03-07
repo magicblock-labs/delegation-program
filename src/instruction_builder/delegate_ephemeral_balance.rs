@@ -12,6 +12,7 @@ use crate::pda::{
 };
 
 /// Delegate ephemeral balance
+/// See [crate::processor::process_delegate_ephemeral_balance] for docs.
 pub fn delegate_ephemeral_balance(
     payer: Pubkey,
     pubkey: Pubkey,
