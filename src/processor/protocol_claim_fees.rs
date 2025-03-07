@@ -10,8 +10,8 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 ///
 /// Accounts:
 ///
-/// 1. `[signer]` admin account that can claim the fees
-/// 2. `[]` protocol fees vault PDA
+/// 1. `[signer]`   admin account that can claim the fees
+/// 2. `[writable]` protocol fees vault PDA
 ///
 /// Requirements:
 ///
