@@ -15,14 +15,15 @@ use crate::validator_fees_vault_seeds_from_validator;
 /// Accounts:
 ///
 /// 0; `[signer]` payer
-/// TODO: @@@ why does this need to be a signer?
 /// 1; `[signer]` admin that controls the vault
-/// 2; `[]` validator_identity
-/// 3; `[]` validator_fees_vault_pda
-/// 4; `[]` system_program
+/// 2; `[]`       validator_identity
+/// 3; `[]`       validator_fees_vault_pda
+/// 4; `[]`       system_program
 ///
 /// Requirements:
 ///
+/// - validator admin need to be signer since the existence of the validator fees vault
+///   is used as proof later that the validator is whitelisted
 /// - validator admin is whitelisted
 /// - validator fees vault is not initialized
 ///
