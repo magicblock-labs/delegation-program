@@ -2,7 +2,7 @@ use crate::consts::{EXTERNAL_UNDELEGATE_DISCRIMINATOR, RENT_FEES_PERCENTAGE};
 use crate::error::DlpError;
 use crate::processor::utils::loaders::{
     load_initialized_delegation_metadata, load_initialized_delegation_record,
-    load_initialized_fees_vault, load_initialized_validator_fees_vault, load_owned_pda,
+    load_initialized_protocol_fees_vault, load_initialized_validator_fees_vault, load_owned_pda,
     load_program, load_signer, load_uninitialized_pda,
 };
 use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
@@ -80,7 +80,7 @@ pub fn process_undelegate(
     load_owned_pda(delegated_account, &crate::id(), "delegated account")?;
     load_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
-    load_initialized_fees_vault(fees_vault, true)?;
+    load_initialized_protocol_fees_vault(fees_vault, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
     load_program(system_program, system_program::id(), "system program")?;
 

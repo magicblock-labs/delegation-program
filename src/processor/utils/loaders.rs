@@ -195,7 +195,7 @@ pub fn load_program(info: &AccountInfo, key: Pubkey, label: &str) -> Result<(), 
 
 /// Load fee vault PDA
 /// - Protocol fees vault PDA
-pub fn load_initialized_fees_vault(
+pub fn load_initialized_protocol_fees_vault(
     fees_vault: &AccountInfo,
     is_writable: bool,
 ) -> Result<(), ProgramError> {

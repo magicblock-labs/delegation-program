@@ -2,7 +2,7 @@ use crate::args::ValidatorClaimFeesArgs;
 use crate::consts::PROTOCOL_FEES_PERCENTAGE;
 use crate::error::DlpError;
 use crate::processor::utils::loaders::{
-    load_initialized_fees_vault, load_initialized_validator_fees_vault, load_signer,
+    load_initialized_protocol_fees_vault, load_initialized_validator_fees_vault, load_signer,
 };
 use borsh::BorshDeserialize;
 use solana_program::msg;
@@ -26,7 +26,7 @@ pub fn process_validator_claim_fees(
     };
 
     load_signer(validator, "validator")?;
-    load_initialized_fees_vault(fees_vault, true)?;
+    load_initialized_protocol_fees_vault(fees_vault, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
 
     // Calculate the amount to transfer

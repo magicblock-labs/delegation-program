@@ -1,6 +1,6 @@
 use crate::consts::ADMIN_PUBKEY;
 use crate::error::DlpError::Unauthorized;
-use crate::processor::utils::loaders::{load_initialized_fees_vault, load_signer};
+use crate::processor::utils::loaders::{load_initialized_protocol_fees_vault, load_signer};
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -21,7 +21,7 @@ pub fn process_protocol_claim_fees(
 
     // Check if the admin is signer
     load_signer(admin, "admin")?;
-    load_initialized_fees_vault(fees_vault, true)?;
+    load_initialized_protocol_fees_vault(fees_vault, true)?;
 
     // Check if the admin is the correct one
     if !admin.key.eq(&ADMIN_PUBKEY) {
