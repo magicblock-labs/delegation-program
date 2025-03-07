@@ -9,6 +9,8 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pda::program_config_from_program_id;
 
 /// Whitelist validator for program
+///
+/// See [crate::processor::process_whitelist_validator_for_program] for docs.
 pub fn whitelist_validator_for_program(
     authority: Pubkey,
     validator_identity: Pubkey,

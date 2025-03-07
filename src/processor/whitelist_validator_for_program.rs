@@ -16,6 +16,27 @@ use solana_program::{
 
 /// Whitelist a validator for a program
 ///
+/// Accounts:
+///
+/// - `[signer]` authority that has rights to whitelist validators
+/// - `[writable]` validator identity to whitelist
+/// - `[]` program to whitelist the validator for
+/// - `[]` program data account
+/// - `[writable]` program config PDA
+/// - `[]` system program
+///
+/// Requirements:
+///
+/// - validator admin is whitelisted
+/// - authority is either the ADMIN_PUBKEY or the program upgrade authority
+/// - program config is initialized or owned by the system program in
+///   which case it is created
+///
+/// Steps:
+///
+/// 1. Load the authority and validate it
+/// 2. Load the program config or create it and insert the validator to the `approved_validators`
+///    set, resizing the account if necessary
 pub fn process_whitelist_validator_for_program(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
