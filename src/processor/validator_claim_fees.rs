@@ -12,6 +12,18 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 
 /// Process validator request to claim fees from the fees vault
 ///
+/// Accounts:
+///
+/// - `[signer]`   The validator account.
+/// - `[writable]` The fees vault PDA.
+/// - `[writable]` The validator fees vault PDA.
+///
+/// Requirements:
+///
+/// - protocol fees vault is initialized
+/// - validator fees vault is initialized
+/// - validators fees vault needs to hold enough lamports to claim
+///
 /// 1. Transfer lamports from validator fees_vault PDA to the validator authority
 pub fn process_validator_claim_fees(
     _program_id: &Pubkey,

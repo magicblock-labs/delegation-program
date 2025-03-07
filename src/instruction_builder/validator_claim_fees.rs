@@ -7,6 +7,7 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pda::{fees_vault_pda, validator_fees_vault_pda_from_validator};
 
 /// Claim the accrued fees from the fees vault.
+/// See [crate::processor::process_validator_claim_fees] for docs.
 pub fn validator_claim_fees(validator: Pubkey, amount: Option<u64>) -> Instruction {
     let args = ValidatorClaimFeesArgs { amount };
     let fees_vault_pda = fees_vault_pda();
