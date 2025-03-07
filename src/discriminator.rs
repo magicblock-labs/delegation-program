@@ -16,6 +16,7 @@ pub enum DlpDiscriminator {
     Undelegate = 3,
     /// See [crate::processor::process_init_protocol_fees_vault] for docs.
     InitProtocolFeesVault = 5,
+    /// See [crate::processor::process_init_validator_fees_vault] for docs.
     InitValidatorFeesVault = 6,
     ValidatorClaimFees = 7,
     WhitelistValidatorForProgram = 8,
