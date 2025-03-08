@@ -31,6 +31,8 @@ pub enum DlpDiscriminator {
     ProtocolClaimFees = 12,
     /// See [crate::processor::process_commit_state_from_buffer] for docs.
     CommitStateFromBuffer = 13,
+    /// See [crate::processor::process_close_validator_fees_vault] for docs.
+    CloseValidatorFeesVault = 14,
 }
 
 impl DlpDiscriminator {
@@ -57,6 +59,7 @@ impl TryFrom<[u8; 8]> for DlpDiscriminator {
             0xb => Ok(DlpDiscriminator::CloseEphemeralBalance),
             0xc => Ok(DlpDiscriminator::ProtocolClaimFees),
             0xd => Ok(DlpDiscriminator::CommitStateFromBuffer),
+            0xe => Ok(DlpDiscriminator::CloseValidatorFeesVault),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
