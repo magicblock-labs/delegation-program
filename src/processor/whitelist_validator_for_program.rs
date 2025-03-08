@@ -7,6 +7,7 @@ use crate::program_config_seeds_from_program_id;
 use crate::state::ProgramConfig;
 use borsh::BorshDeserialize;
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::{
     account_info::AccountInfo, bpf_loader_upgradeable, entrypoint::ProgramResult, pubkey::Pubkey,
@@ -15,6 +16,26 @@ use solana_program::{
 
 /// Whitelist a validator for a program
 ///
+/// Accounts:
+///
+/// 0: `[signer]`   authority that has rights to whitelist validators
+/// 1: `[]`         validator identity to whitelist
+/// 2: `[]`         program to whitelist the validator for
+/// 3: `[]`         program data account
+/// 4: `[writable]` program config PDA
+/// 5: `[]`         system program
+///
+/// Requirements:
+///
+/// - authority is either the ADMIN_PUBKEY or the program upgrade authority
+/// - program config is initialized or owned by the system program in
+///   which case it is created
+///
+/// Steps:
+///
+/// 1. Load the authority and validate it
+/// 2. Load the program config or create it and insert the validator to the `approved_validators`
+///    set, resizing the account if necessary
 pub fn process_whitelist_validator_for_program(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -29,15 +50,16 @@ pub fn process_whitelist_validator_for_program(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(authority)?;
+    load_signer(authority, "authority")?;
     validate_authority(authority, program, program_data)?;
-    load_program(system_program, system_program::id())?;
+    load_program(system_program, system_program::id(), "system program")?;
 
     let program_config_bump = load_pda(
         program_config_account,
         program_config_seeds_from_program_id!(program.key),
         &crate::id(),
         true,
+        "program config",
     )?;
 
     // Get the program config. If the account doesn't exist, create it
@@ -90,6 +112,11 @@ fn validate_authority(
     {
         Ok(())
     } else {
+        msg!(
+            "Expected authority to be {} or program upgrade authority, but got {}",
+            ADMIN_PUBKEY,
+            authority.key
+        );
         Err(Unauthorized.into())
     }
 }
@@ -103,6 +130,11 @@ fn get_program_upgrade_authority(
         Pubkey::find_program_address(&[program.key.as_ref()], &bpf_loader_upgradeable::id()).0;
 
     if !program_data_address.eq(program_data.key) {
+        msg!(
+            "Expected program data address to be {}, but got {}",
+            program_data_address,
+            program_data.key
+        );
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -115,6 +147,10 @@ fn get_program_upgrade_authority(
     {
         Ok(upgrade_authority_address)
     } else {
+        msg!(
+            "Expected program account {} to hold ProgramData",
+            program.key
+        );
         Err(ProgramError::InvalidAccountData)
     }
 }

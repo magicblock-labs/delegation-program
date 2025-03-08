@@ -6,6 +6,7 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pda::validator_fees_vault_pda_from_validator;
 
 /// Initialize a validator fees vault PDA.
+/// See [crate::processor::process_init_validator_fees_vault] for docs.
 pub fn init_validator_fees_vault(
     payer: Pubkey,
     admin: Pubkey,

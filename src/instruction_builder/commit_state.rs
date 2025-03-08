@@ -12,6 +12,7 @@ use crate::pda::{
 };
 
 /// Builds a commit state instruction.
+/// See [crate::processor::process_commit_state] for docs.
 pub fn commit_state(
     validator: Pubkey,
     delegated_account: Pubkey,

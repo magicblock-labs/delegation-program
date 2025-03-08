@@ -9,6 +9,17 @@ use crate::processor::utils::pda::create_pda;
 
 /// Initialize the global fees vault
 ///
+/// Accounts:
+/// 0: `[signer]`   the account paying for the transaction
+/// 1: `[writable]` the fees vault PDA we are initializing
+/// 2: `[]`         the system program
+///
+/// Requirements:
+///
+/// - fees vault is uninitialized
+///
+/// Steps:
+///
 /// 1. Create the protocol fees vault PDA
 pub fn process_init_protocol_fees_vault(
     _program_id: &Pubkey,
@@ -20,11 +31,16 @@ pub fn process_init_protocol_fees_vault(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(payer)?;
-    load_program(system_program, system_program::id())?;
+    load_signer(payer, "payer")?;
+    load_program(system_program, system_program::id(), "system program")?;
 
-    let bump_fees_vault =
-        load_uninitialized_pda(protocol_fees_vault, fees_vault_seeds!(), &crate::id(), true)?;
+    let bump_fees_vault = load_uninitialized_pda(
+        protocol_fees_vault,
+        fees_vault_seeds!(),
+        &crate::id(),
+        true,
+        "fees vault",
+    )?;
 
     // Create the fees vault account
     create_pda(

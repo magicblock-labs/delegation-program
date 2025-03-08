@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::sysvar::Sysvar;
 use solana_program::{
@@ -17,14 +18,35 @@ use crate::{
     delegation_record_seeds_from_delegated_account,
 };
 
-/// Delegate an account
+/// Delegates an account
 ///
+/// Accounts:
+/// 0: `[signer]`   the account paying for the transaction
+/// 1: `[signer]`   the account to delegate
+/// 2: `[]`         the owner of the account to delegate
+/// 3: `[writable]` the buffer account we use to temporarily store the account data
+///                 during owner change
+/// 4: `[writable]` the delegation record account
+/// 5: `[writable]` the delegation metadata account
+/// 6: `[]`         the system program
+///
+/// Requirements:
+///
+/// - delegation buffer is initialized
+/// - delegation record is uninitialized
+/// - delegation metadata is uninitialized
+///
+/// Steps:
 /// 1. Checks that the account is owned by the delegation program, that the buffer is initialized and derived correctly from the PDA
 ///  - Also checks that the delegated_account is a signer (enforcing that the instruction is being called from CPI) & other constraints
-/// 2. Copy the data from the buffer into the original account
-/// 3. Create a Delegation Record to store useful information about the delegation event
-/// 4. Create a Delegated Account Seeds to store the seeds used to derive the delegate account. Needed for undelegation.
+/// 2. Copies the data from the buffer into the original account
+/// 3. Creates a Delegation Record to store useful information about the delegation event
+/// 4. Creates a Delegated Account Seeds to store the seeds used to derive the delegate account. Needed for undelegation.
 ///
+/// Usage:
+///
+/// This instruction is meant to be called via CPI with the owning program signing for the
+/// delegated account.
 pub fn process_delegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -38,8 +60,8 @@ pub fn process_delegate(
 
     let args = DelegateArgs::try_from_slice(data)?;
 
-    load_owned_pda(delegated_account, &crate::id())?;
-    load_program(system_program, system_program::id())?;
+    load_owned_pda(delegated_account, &crate::id(), "delegated account")?;
+    load_program(system_program, system_program::id(), "system program")?;
 
     // Validate seeds if the delegate account is not on curve, i.e. is a PDA
     if !is_on_curve(delegated_account.key) {
@@ -47,6 +69,11 @@ pub fn process_delegate(
         let (derived_pda, _) =
             Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);
         if derived_pda.ne(delegated_account.key) {
+            msg!(
+                "Expected delegated PDA to be {}, but got {}",
+                derived_pda,
+                delegated_account.key
+            );
             return Err(ProgramError::InvalidSeeds);
         }
     }
@@ -57,6 +84,7 @@ pub fn process_delegate(
         delegate_buffer_seeds_from_delegated_account!(delegated_account.key),
         owner_program.key,
         true,
+        "delegate buffer",
     )?;
 
     // Check that the delegation record PDA is uninitialized
@@ -65,6 +93,7 @@ pub fn process_delegate(
         delegation_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         true,
+        "delegation record",
     )?;
 
     // Check that the delegation metadata PDA is uninitialized
@@ -73,11 +102,12 @@ pub fn process_delegate(
         delegation_metadata_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         true,
+        "delegation metadata",
     )?;
 
     // Check that payer and delegated_account are signers, this ensures the instruction is being called from CPI
-    load_signer(payer)?;
-    load_signer(delegated_account)?;
+    load_signer(payer, "payer")?;
+    load_signer(delegated_account, "delegated account")?;
 
     // Initialize the delegation record PDA
     create_pda(

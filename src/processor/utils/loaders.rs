@@ -13,9 +13,9 @@ use solana_program::{
 
 /// Errors if:
 /// - Account is not owned by expected program.
-pub fn load_owned_pda(info: &AccountInfo, owner: &Pubkey) -> Result<(), ProgramError> {
+pub fn load_owned_pda(info: &AccountInfo, owner: &Pubkey, label: &str) -> Result<(), ProgramError> {
     if !info.owner.eq(owner) {
-        msg!("Invalid account owner for {:?}", info.key);
+        msg!("Invalid account owner for {} ({})", label, info.key);
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -24,8 +24,9 @@ pub fn load_owned_pda(info: &AccountInfo, owner: &Pubkey) -> Result<(), ProgramE
 
 /// Errors if:
 /// - Account is not a signer.
-pub fn load_signer(info: &AccountInfo) -> Result<(), ProgramError> {
+pub fn load_signer(info: &AccountInfo, label: &str) -> Result<(), ProgramError> {
     if !info.is_signer {
+        msg!("Account needs to be signer {} ({})", label, info.key);
         return Err(ProgramError::MissingRequiredSignature);
     }
 
@@ -39,14 +40,17 @@ pub fn load_pda(
     seeds: &[&[u8]],
     program_id: &Pubkey,
     is_writable: bool,
+    label: &str,
 ) -> Result<u8, ProgramError> {
     let pda = Pubkey::find_program_address(seeds, program_id);
 
     if info.key.ne(&pda.0) {
+        msg!("Invalid seeds for {} ({})", label, info.key);
         return Err(ProgramError::InvalidSeeds);
     }
 
     if !info.is_writable.eq(&is_writable) {
+        msg!("Account {} ({}) needs to be writable", label, info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -61,15 +65,16 @@ pub fn load_uninitialized_pda(
     seeds: &[&[u8]],
     program_id: &Pubkey,
     is_writable: bool,
+    label: &str,
 ) -> Result<u8, ProgramError> {
     let pda = Pubkey::find_program_address(seeds, program_id);
 
     if info.key.ne(&pda.0) {
-        msg!("Invalid seeds for account: {:?}", info.key);
+        msg!("Invalid seeds for account: {} ({})", label, info.key);
         return Err(ProgramError::InvalidSeeds);
     }
 
-    load_uninitialized_account(info, is_writable)?;
+    load_uninitialized_account(info, is_writable, label)?;
     Ok(pda.1)
 }
 
@@ -82,18 +87,19 @@ pub fn load_initialized_pda(
     seeds: &[&[u8]],
     program_id: &Pubkey,
     is_writable: bool,
+    label: &str,
 ) -> Result<u8, ProgramError> {
     let pda = Pubkey::find_program_address(seeds, program_id);
 
     if info.key.ne(&pda.0) {
-        msg!("Invalid seeds for account: {:?}", info.key);
+        msg!("Invalid seeds for account: {}", info.key);
         return Err(ProgramError::InvalidSeeds);
     }
 
-    load_owned_pda(info, program_id)?;
+    load_owned_pda(info, program_id, label)?;
 
     if is_writable && !info.is_writable {
-        msg!("Account {:?} is not writable", info.key);
+        msg!("Account {} is not writable", info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -115,19 +121,20 @@ pub fn is_uninitialized_account(info: &AccountInfo) -> bool {
 pub fn load_uninitialized_account(
     info: &AccountInfo,
     is_writable: bool,
+    label: &str,
 ) -> Result<(), ProgramError> {
     if info.owner.ne(&system_program::id()) {
-        msg!("Invalid owner for account: {:?}", info.key);
+        msg!("Invalid owner for account: {} ({})", label, info.key);
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     if !info.data_is_empty() {
-        msg!("Account {:?} is not empty", info.key);
+        msg!("Account {} ({}) needs to be uninitialized", label, info.key);
         return Err(ProgramError::AccountAlreadyInitialized);
     }
 
     if is_writable && !info.is_writable {
-        msg!("Account {:?} is not writable", info.key);
+        msg!("Account {} ({}) needs to be writable", label, info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -140,11 +147,11 @@ pub fn load_uninitialized_account(
 #[allow(dead_code)]
 pub fn load_sysvar(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError> {
     if info.owner.ne(&sysvar::id()) {
-        msg!("Invalid owner for sysvar: {:?}", info.key);
+        msg!("Invalid owner for sysvar: {}", info.key);
         return Err(ProgramError::InvalidAccountOwner);
     }
 
-    load_account(info, key, false)
+    load_account(info, key, false, "sysvar")
 }
 
 /// Errors if:
@@ -154,14 +161,15 @@ pub fn load_account(
     info: &AccountInfo,
     key: Pubkey,
     is_writable: bool,
+    label: &str,
 ) -> Result<(), ProgramError> {
     if info.key.ne(&key) {
-        msg!("Invalid account: {:?}", info.key);
+        msg!("Expected key {} for {}, but got {}", key, label, info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
     if is_writable && !info.is_writable {
-        msg!("Account {:?} is not writable", info.key);
+        msg!("Account {} ({}) needs to be writable", label, info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -171,14 +179,14 @@ pub fn load_account(
 /// Errors if:
 /// - Address does not match the expected value.
 /// - Account is not executable.
-pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError> {
+pub fn load_program(info: &AccountInfo, key: Pubkey, label: &str) -> Result<(), ProgramError> {
     if info.key.ne(&key) {
-        msg!("Invalid program account: {:?}", info.key);
+        msg!("Invalid program account: {} ({})", label, info.key);
         return Err(ProgramError::IncorrectProgramId);
     }
 
     if !info.executable {
-        msg!("Program is not executable: {:?}", info.key);
+        msg!("{} program is not executable: {}", label, info.key);
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -187,11 +195,17 @@ pub fn load_program(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError>
 
 /// Load fee vault PDA
 /// - Protocol fees vault PDA
-pub fn load_initialized_fees_vault(
+pub fn load_initialized_protocol_fees_vault(
     fees_vault: &AccountInfo,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
-    load_initialized_pda(fees_vault, fees_vault_seeds!(), &crate::id(), is_writable)?;
+    load_initialized_pda(
+        fees_vault,
+        fees_vault_seeds!(),
+        &crate::id(),
+        is_writable,
+        "protocol fees vault",
+    )?;
     Ok(())
 }
 
@@ -203,7 +217,13 @@ pub fn load_initialized_validator_fees_vault(
     validator_fees_vault: &AccountInfo,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
-    if !validator_fees_vault_pda_from_validator(validator.key).eq(validator_fees_vault.key) {
+    let pda = validator_fees_vault_pda_from_validator(validator.key);
+    if !pda.eq(validator_fees_vault.key) {
+        msg!(
+            "Invalid validator fees vault PDA, expected {} but got {}",
+            pda,
+            validator_fees_vault.key
+        );
         return Err(InvalidAuthority.into());
     }
     load_initialized_pda(
@@ -211,6 +231,7 @@ pub fn load_initialized_validator_fees_vault(
         validator_fees_vault_seeds_from_validator!(validator.key),
         &crate::id(),
         is_writable,
+        "validator fees vault",
     )?;
     Ok(())
 }
@@ -222,7 +243,13 @@ pub fn load_program_config(
     program: Pubkey,
     is_writable: bool,
 ) -> Result<bool, ProgramError> {
-    if !program_config_from_program_id(&program).eq(program_config.key) {
+    let pda = program_config_from_program_id(&program);
+    if !pda.eq(program_config.key) {
+        msg!(
+            "Invalid program config PDA, expected {} but got {}",
+            pda,
+            program_config.key
+        );
         return Err(InvalidAuthority.into());
     }
     load_pda(
@@ -230,6 +257,7 @@ pub fn load_program_config(
         program_config_seeds_from_program_id!(program),
         &crate::id(),
         is_writable,
+        "program config",
     )?;
     Ok(!program_config.owner.eq(&system_program::ID))
 }
@@ -246,6 +274,7 @@ pub fn load_initialized_delegation_record(
         delegation_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         is_writable,
+        "delegation record",
     )?;
     Ok(())
 }
@@ -262,6 +291,7 @@ pub fn load_initialized_delegation_metadata(
         delegation_metadata_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         is_writable,
+        "delegation metadata",
     )?;
     Ok(())
 }
@@ -278,6 +308,7 @@ pub fn load_initialized_commit_state(
         commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         is_writable,
+        "commit state",
     )?;
     Ok(())
 }
@@ -294,6 +325,7 @@ pub fn load_initialized_commit_record(
         commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         is_writable,
+        "commit record",
     )?;
     Ok(())
 }
@@ -324,7 +356,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_signer(&info).is_err());
+        assert!(load_signer(&info, "not signer").is_err());
     }
 
     #[test]
@@ -343,7 +375,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info, true).is_err());
+        assert!(load_uninitialized_account(&info, true, "bad owner").is_err());
     }
 
     #[test]
@@ -362,7 +394,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info, true).is_err());
+        assert!(load_uninitialized_account(&info, true, "data not empty").is_err());
     }
 
     #[test]
@@ -381,7 +413,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info, true).is_err());
+        assert!(load_uninitialized_account(&info, true, "not writeable").is_err());
     }
 
     #[test]
@@ -400,7 +432,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info, false).is_ok());
+        assert!(load_uninitialized_account(&info, false, "not writable").is_ok());
     }
 
     #[test]
@@ -438,7 +470,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_account(&info, Pubkey::new_unique(), false).is_err());
+        assert!(load_account(&info, Pubkey::new_unique(), false, "bad key").is_err());
     }
 
     #[test]
@@ -457,7 +489,7 @@ mod tests {
             false,
             0,
         );
-        assert!(load_account(&info, key, true).is_err());
+        assert!(load_account(&info, key, true, "not writeable").is_err());
     }
 
     #[test]
@@ -476,7 +508,7 @@ mod tests {
             true,
             0,
         );
-        assert!(load_program(&info, Pubkey::new_unique()).is_err());
+        assert!(load_program(&info, Pubkey::new_unique(), "bad key").is_err());
     }
 
     #[test]
@@ -495,6 +527,6 @@ mod tests {
             false,
             0,
         );
-        assert!(load_program(&info, key).is_err());
+        assert!(load_program(&info, key, "not executable").is_err());
     }
 }

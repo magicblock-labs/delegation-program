@@ -5,6 +5,7 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pda::fees_vault_pda;
 
 /// Claim the accrued fees from the protocol fees vault.
+/// See [crate::processor::process_protocol_claim_fees] for docs.
 pub fn protocol_claim_fees(admin: Pubkey) -> Instruction {
     let fees_vault_pda = fees_vault_pda();
     Instruction {

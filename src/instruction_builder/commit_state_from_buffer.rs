@@ -12,6 +12,7 @@ use crate::pda::{
 };
 
 /// Builds a commit state from buffer instruction.
+/// See [crate::processor::process_commit_state_from_buffer] for docs.
 pub fn commit_state_from_buffer(
     validator: Pubkey,
     delegated_account: Pubkey,

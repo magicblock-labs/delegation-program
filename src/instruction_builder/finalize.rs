@@ -10,6 +10,7 @@ use crate::pda::{
 };
 
 /// Builds a finalize state instruction.
+/// See [crate::processor::process_finalize] for docs.
 pub fn finalize(validator: Pubkey, delegated_account: Pubkey) -> Instruction {
     let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
     let commit_record_pda = commit_record_pda_from_delegated_account(&delegated_account);

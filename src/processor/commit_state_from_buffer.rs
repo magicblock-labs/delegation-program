@@ -6,11 +6,38 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 
 /// Commit a new state of a delegated Pda
 ///
+/// It is identical to [crate::processor::process_commit_state] but it takes the new state
+/// from a buffer account
+///
+/// Accounts:
+///
+/// 0: `[signer]`   the validator requesting the commit
+/// 1: `[]`         the delegated account
+/// 2: `[writable]` the PDA storing the new state temporarily
+/// 3: `[writable]` the PDA storing the commit record
+/// 4: `[]`         the delegation record
+/// 5: `[writable]` the delegation metadata
+/// 6: `[]`         the buffer account storing the data to be committed
+/// 7: `[]`         the validator fees vault
+/// 8: `[]`         the program config account
+/// 9: `[]`         the system program
+///
+/// Requirements:
+///
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - validator fees vault is initialized
+/// - program config is initialized
+/// - commit state is uninitialized
+/// - commit record is uninitialized
+/// - delegated account holds at least the lamports indicated in the delegation record
+/// - account was not committed at a later slot
+///
+/// Steps:
 /// 1. Check that the pda is delegated
 /// 2. Init a new PDA to store the new state
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
-///
 pub fn process_commit_state_from_buffer(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],

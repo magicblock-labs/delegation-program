@@ -1,11 +1,24 @@
 use crate::consts::ADMIN_PUBKEY;
 use crate::error::DlpError::Unauthorized;
-use crate::processor::utils::loaders::{load_initialized_fees_vault, load_signer};
+use crate::processor::utils::loaders::{load_initialized_protocol_fees_vault, load_signer};
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 /// Process request to claim fees from the protocol fees vault
+///
+/// Accounts:
+///
+/// 1. `[signer]`   admin account that can claim the fees
+/// 2. `[writable]` protocol fees vault PDA
+///
+/// Requirements:
+///
+/// - protocol fees vault is initialized
+/// - protocol fees vault has enough lamports to claim fees and still be
+///   rent exempt
+/// - admin is the protocol fees vault admin
 ///
 /// 1. Transfer lamports from protocol fees_vault PDA to the admin authority
 pub fn process_protocol_claim_fees(
@@ -19,11 +32,16 @@ pub fn process_protocol_claim_fees(
     };
 
     // Check if the admin is signer
-    load_signer(admin)?;
-    load_initialized_fees_vault(fees_vault, true)?;
+    load_signer(admin, "admin")?;
+    load_initialized_protocol_fees_vault(fees_vault, true)?;
 
     // Check if the admin is the correct one
     if !admin.key.eq(&ADMIN_PUBKEY) {
+        msg!(
+            "Expected admin pubkey: {} but got {}",
+            ADMIN_PUBKEY,
+            admin.key
+        );
         return Err(Unauthorized.into());
     }
 

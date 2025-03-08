@@ -8,6 +8,7 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pda::ephemeral_balance_pda_from_payer;
 
 /// Builds a top-up ephemeral balance instruction.
+/// See [crate::processor::process_top_up_ephemeral_balance] for docs.
 pub fn top_up_ephemeral_balance(
     payer: Pubkey,
     pubkey: Pubkey,

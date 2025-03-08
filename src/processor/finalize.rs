@@ -14,12 +14,38 @@ use solana_program::{
 
 /// Finalize a committed state, after validation, to a delegated account
 ///
+/// Accounts:
+///
+/// 0: `[signer]`   the validator account
+/// 1: `[writable]` the delegated account
+/// 2: `[writable]` the commit state account
+/// 3: `[writable]` the commit record account
+/// 4: `[writable]` the delegation record account
+/// 5: `[writable]` the delegation metadata account
+/// 6: `[writable]` the validator fees vault account
+/// 7: `[]`         the system program
+///
+/// Requirements:
+///
+/// - delegated account is owned by delegation program
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - validator fees vault is initialized
+/// - commit state is initialized and derived from the delegated account key
+/// - commit record is initialized and derived from the delegated account key
+/// - account mentioned in commit record is the same as the delegated account
+/// - identity mentioned in commit record is the same as the validator
+///
+/// NOTE: that if neither commit state nor commit record are as required then
+///       we skip the finalize without an error in order to not affect other finalize
+///       instructions that may be bundled in the same transaction.
+///
+/// Steps:
+///
 /// 1. Validate the new state
 /// 2. If the state is valid, copy the committed state to the delegated account
 /// 3. Close the state diff account
 /// 4. Close the commit state record
-///
-/// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
 pub fn process_finalize(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -31,12 +57,12 @@ pub fn process_finalize(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(validator)?;
-    load_owned_pda(delegated_account, &crate::id())?;
+    load_signer(validator, "validator")?;
+    load_owned_pda(delegated_account, &crate::id(), "delegated account")?;
     load_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
-    load_program(system_program, system_program::id())?;
+    load_program(system_program, system_program::id(), "system program")?;
     let load_cs = load_initialized_commit_state(delegated_account, commit_state_account, true);
     let load_cr = load_initialized_commit_record(delegated_account, commit_record_account, true);
 
@@ -60,7 +86,6 @@ pub fn process_finalize(
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
-    // Load delegation record
     let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator_mut(&mut delegation_record_data)?;

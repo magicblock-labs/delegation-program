@@ -17,13 +17,36 @@ use solana_program::system_instruction::transfer;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 use solana_program::{msg, system_program};
 
-/// Commit a new state of a delegated Pda
+/// Commit a new state of a delegated PDA
 ///
+/// Accounts:
+///
+/// 0: `[signer]`   the validator requesting the commit
+/// 1: `[]`         the delegated account
+/// 2: `[writable]` the PDA storing the new state
+/// 3: `[writable]` the PDA storing the commit record
+/// 4: `[]`         the delegation record
+/// 5: `[writable]` the delegation metadata
+/// 6: `[]`         the validator fees vault
+/// 7: `[]`         the program config account
+/// 8: `[]`         the system program
+///
+/// Requirements:
+///
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - validator fees vault is initialized
+/// - program config is initialized
+/// - commit state is uninitialized
+/// - commit record is uninitialized
+/// - delegated account holds at least the lamports indicated in the delegation record
+/// - account was not committed at a later slot
+///
+/// Steps:
 /// 1. Check that the pda is delegated
 /// 2. Init a new PDA to store the new state
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
-///
 pub fn process_commit_state(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -83,8 +106,8 @@ pub(crate) fn process_commit_state_internal(
     args: CommitStateInternalArgs,
 ) -> Result<(), ProgramError> {
     // Check that the origin account is delegated
-    load_owned_pda(args.delegated_account, &crate::id())?;
-    load_signer(args.validator)?;
+    load_owned_pda(args.delegated_account, &crate::id(), "delegated account")?;
+    load_signer(args.validator, "validator account")?;
     load_initialized_delegation_record(
         args.delegated_account,
         args.delegation_record_account,
@@ -96,7 +119,7 @@ pub(crate) fn process_commit_state_internal(
         true,
     )?;
     load_initialized_validator_fees_vault(args.validator, args.validator_fees_vault, false)?;
-    load_program(args.system_program, system_program::id())?;
+    load_program(args.system_program, system_program::id(), "system program")?;
 
     // Read delegation metadata
     let mut delegation_metadata_data = args.delegation_metadata_account.try_borrow_mut_data()?;
@@ -118,6 +141,10 @@ pub(crate) fn process_commit_state_internal(
 
     // Once the account is marked as undelegatable, any subsequent commit should fail
     if delegation_metadata.is_undelegatable {
+        msg!(
+            "delegation metadata ({}) is already undelegated",
+            args.delegation_metadata_account.key
+        );
         return Err(DlpError::AlreadyUndelegated.into());
     }
 
@@ -132,6 +159,10 @@ pub(crate) fn process_commit_state_internal(
 
     // If there was an issue with the lamport accounting in the past, abort (this should never happen)
     if args.delegated_account.lamports() < delegation_record.lamports {
+        msg!(
+            "delegated account ({}) has less lamports than the delegation record indicates",
+            args.delegated_account.key
+        );
         return Err(DlpError::InvalidDelegatedState.into());
     }
 
@@ -169,6 +200,10 @@ pub(crate) fn process_commit_state_internal(
             .approved_validators
             .contains(args.validator.key)
         {
+            msg!(
+                "validator ({}) is not whitelisted in the program config",
+                args.validator.key
+            );
             return Err(DlpError::InvalidWhitelistProgramConfig.into());
         }
     }
@@ -179,12 +214,14 @@ pub(crate) fn process_commit_state_internal(
         commit_state_seeds_from_delegated_account!(args.delegated_account.key),
         &crate::id(),
         true,
+        "commit state account",
     )?;
     let commit_record_bump = load_uninitialized_pda(
         args.commit_record_account,
         commit_record_seeds_from_delegated_account!(args.delegated_account.key),
         &crate::id(),
         true,
+        "commit record",
     )?;
 
     // Initialize the PDA containing the new committed state

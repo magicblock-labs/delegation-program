@@ -2,14 +2,27 @@ use crate::args::ValidatorClaimFeesArgs;
 use crate::consts::PROTOCOL_FEES_PERCENTAGE;
 use crate::error::DlpError;
 use crate::processor::utils::loaders::{
-    load_initialized_fees_vault, load_initialized_validator_fees_vault, load_signer,
+    load_initialized_protocol_fees_vault, load_initialized_validator_fees_vault, load_signer,
 };
 use borsh::BorshDeserialize;
+use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 /// Process validator request to claim fees from the fees vault
+///
+/// Accounts:
+///
+/// 0: `[signer]`   the validator account.
+/// 1: `[writable]` the fees vault PDA.
+/// 2: `[writable]` the validator fees vault PDA.
+///
+/// Requirements:
+///
+/// - protocol fees vault is initialized
+/// - validator fees vault is initialized
+/// - validators fees vault needs to hold enough lamports to claim
 ///
 /// 1. Transfer lamports from validator fees_vault PDA to the validator authority
 pub fn process_validator_claim_fees(
@@ -24,8 +37,8 @@ pub fn process_validator_claim_fees(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(validator)?;
-    load_initialized_fees_vault(fees_vault, true)?;
+    load_signer(validator, "validator")?;
+    load_initialized_protocol_fees_vault(fees_vault, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
 
     // Calculate the amount to transfer
@@ -36,6 +49,12 @@ pub fn process_validator_claim_fees(
 
     // Ensure vault has enough lamports
     if validator_fees_vault.lamports() - min_rent < amount {
+        msg!(
+            "Vault ({}) has insufficient funds: {} < {}",
+            validator_fees_vault.key,
+            validator_fees_vault.lamports() - min_rent,
+            amount
+        );
         return Err(ProgramError::InsufficientFunds);
     }
 

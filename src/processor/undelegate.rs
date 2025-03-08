@@ -2,7 +2,7 @@ use crate::consts::{EXTERNAL_UNDELEGATE_DISCRIMINATOR, RENT_FEES_PERCENTAGE};
 use crate::error::DlpError;
 use crate::processor::utils::loaders::{
     load_initialized_delegation_metadata, load_initialized_delegation_record,
-    load_initialized_fees_vault, load_initialized_validator_fees_vault, load_owned_pda,
+    load_initialized_protocol_fees_vault, load_initialized_validator_fees_vault, load_owned_pda,
     load_program, load_signer, load_uninitialized_pda,
 };
 use crate::processor::utils::pda::{close_pda, close_pda_with_fees, create_pda};
@@ -13,6 +13,7 @@ use crate::{
 };
 use borsh::to_vec;
 use solana_program::instruction::{AccountMeta, Instruction};
+use solana_program::msg;
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -22,6 +23,36 @@ use solana_program::{
 };
 
 /// Undelegate a delegated account
+///
+/// Accounts:
+///
+///  0: `[signer]`   the validator account
+///  1: `[writable]` the delegated account
+///  2: `[]`         the owner program of the delegated account
+///  3: `[writable]` the undelegate buffer PDA we use to store the data temporarily
+///  4: `[]`         the commit state PDA
+///  5: `[]`         the commit record PDA
+///  6: `[writable]` the delegation record PDA
+///  7: `[writable]` the delegation metadata PDA
+///  8: `[]`         the rent reimbursement account
+///  9: `[writable]` the protocol fees vault account
+/// 10: `[writable]` the validator fees vault account
+/// 11: `[]`         the system program
+///
+/// Requirements:
+///
+/// - delegated account is owned by delegation program
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - protocol fees vault is initialized
+/// - validator fees vault is initialized
+/// - commit state is uninitialized
+/// - commit record is uninitialized
+/// - delegated account is NOT undelegatable
+/// - owner program account matches the owner in the delegation record
+/// - rent reimbursement account matches the rent payer in the delegation metadata
+///
+/// Steps:
 ///
 /// - Close the delegation metadata
 /// - Close the delegation record
@@ -33,9 +64,6 @@ use solana_program::{
 ///   using the discriminator EXTERNAL_UNDELEGATE_DISCRIMINATOR
 /// - Verify that the new state is the same as the committed state
 /// - Close the undelegation buffer PDA
-///
-///
-/// Accounts expected: Authority Record, Buffer PDA, Delegated PDA
 pub fn process_undelegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -48,13 +76,13 @@ pub fn process_undelegate(
     };
 
     // Check accounts
-    load_signer(validator)?;
-    load_owned_pda(delegated_account, &crate::id())?;
+    load_signer(validator, "validator")?;
+    load_owned_pda(delegated_account, &crate::id(), "delegated account")?;
     load_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
     load_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
-    load_initialized_fees_vault(fees_vault, true)?;
+    load_initialized_protocol_fees_vault(fees_vault, true)?;
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
-    load_program(system_program, system_program::id())?;
+    load_program(system_program, system_program::id(), "system program")?;
 
     // Make sure there is no pending commits to be finalized before this call
     load_uninitialized_pda(
@@ -62,12 +90,14 @@ pub fn process_undelegate(
         commit_state_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         false,
+        "commit state",
     )?;
     load_uninitialized_pda(
         commit_record_account,
         commit_record_seeds_from_delegated_account!(delegated_account.key),
         &crate::id(),
         false,
+        "commit record",
     )?;
 
     // Load delegation record
@@ -77,6 +107,11 @@ pub fn process_undelegate(
 
     // Check passed owner and owner stored in the delegation record match
     if !delegation_record.owner.eq(owner_program.key) {
+        msg!(
+            "Expected delegation record owner to be {}, but got {}",
+            delegation_record.owner,
+            owner_program.key
+        );
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -87,11 +122,20 @@ pub fn process_undelegate(
 
     // Check if the delegated account is undelegatable
     if !delegation_metadata.is_undelegatable {
-        return Err(DlpError::Undelegatable.into());
+        msg!(
+            "delegation metadata ({}) indicates the account is not undelegatable",
+            delegation_metadata_account.key
+        );
+        return Err(DlpError::NotUndelegatable.into());
     }
 
     // Check if the rent payer is correct
     if !delegation_metadata.rent_payer.eq(rent_reimbursement.key) {
+        msg!(
+            "Expected rent payer to be {}, but got {}",
+            delegation_metadata.rent_payer,
+            rent_reimbursement.key
+        );
         return Err(DlpError::InvalidReimbursementAddressForDelegationRent.into());
     }
 
@@ -121,6 +165,7 @@ pub fn process_undelegate(
         undelegate_buffer_seeds,
         &crate::id(),
         true,
+        "undelegate buffer",
     )?;
     create_pda(
         undelegate_buffer_account,

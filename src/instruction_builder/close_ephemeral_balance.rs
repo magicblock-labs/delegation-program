@@ -4,6 +4,8 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 use crate::discriminator::DlpDiscriminator;
 use crate::pda::ephemeral_balance_pda_from_payer;
 
+/// Creates instruction to close an ephemeral balance account
+/// See [crate::processor::process_close_ephemeral_balance] for docs.
 pub fn close_ephemeral_balance(payer: Pubkey, index: u8) -> Instruction {
     let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer, index);
     Instruction {

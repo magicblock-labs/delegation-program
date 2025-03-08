@@ -11,6 +11,7 @@ use crate::pda::{
 };
 
 /// Builds an undelegate instruction.
+/// See [crate::processor::process_undelegate] for docs.
 #[allow(clippy::too_many_arguments)]
 pub fn undelegate(
     validator: Pubkey,

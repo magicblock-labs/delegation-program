@@ -6,7 +6,8 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pda::fees_vault_pda;
 
 /// Initialize the fees vault PDA.
-pub fn init_fees_vault(payer: Pubkey) -> Instruction {
+/// See [crate::processor::process_init_protocol_fees_vault] for docs.
+pub fn init_protocol_fees_vault(payer: Pubkey) -> Instruction {
     let fees_vault_pda = fees_vault_pda();
     Instruction {
         program_id: crate::id(),
@@ -15,6 +16,6 @@ pub fn init_fees_vault(payer: Pubkey) -> Instruction {
             AccountMeta::new(fees_vault_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminator::InitFeesVault.to_vec(),
+        data: DlpDiscriminator::InitProtocolFeesVault.to_vec(),
     }
 }

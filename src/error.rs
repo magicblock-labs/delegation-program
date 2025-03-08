@@ -7,8 +7,8 @@ use thiserror::Error;
 pub enum DlpError {
     #[error("Invalid Authority")]
     InvalidAuthority = 0,
-    #[error("Account cannot be undelegated, is_delegatable is false")]
-    Undelegatable = 1,
+    #[error("Account cannot be undelegated, is_undelegatable is false")]
+    NotUndelegatable = 1,
     #[error("Unauthorized Operation")]
     Unauthorized = 2,
     #[error("Invalid Authority for the current target program")]
