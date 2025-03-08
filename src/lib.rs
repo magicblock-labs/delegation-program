@@ -90,6 +90,9 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::ProtocolClaimFees => {
             processor::process_protocol_claim_fees(program_id, accounts, data)?
         }
+        discriminator::DlpDiscriminator::CloseValidatorFeesVault => {
+            processor::process_close_validator_fees_vault(program_id, accounts, data)?
+        }
     }
     Ok(())
 }
