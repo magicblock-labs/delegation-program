@@ -25,7 +25,7 @@ pub fn whitelist_validator_for_program(
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(authority, true),
-            AccountMeta::new(validator_identity, false),
+            AccountMeta::new_readonly(validator_identity, false),
             AccountMeta::new_readonly(program, false),
             AccountMeta::new_readonly(program_data, false),
             AccountMeta::new(program_config_pda, false),
