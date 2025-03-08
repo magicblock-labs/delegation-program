@@ -48,7 +48,7 @@ describe("TestDelegation", () => {
     console.log("Claim validator fee vault tx:", txId);
   });
 
-  it.only("Claim protocol fees", async () => {
+  it("Claim protocol fees", async () => {
     const ix = createClaimProtocolFeesVaultInstruction(admin);
     const txId = await processInstruction(ix);
     console.log("Claim protocol fee vault tx:", txId);
