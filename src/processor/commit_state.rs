@@ -130,14 +130,14 @@ pub(crate) fn process_commit_state_internal(
     // If the slot is less, we simply do not commit.
     // Since commit instructions are typically bundled, we return without error
     // so that correct commits are executed.
-    // if args.commit_record_slot < delegation_metadata.last_update_external_slot {
-    //     msg!(
-    //         "Slot {} is outdated, previous slot is {}. Skipping commit",
-    //         args.commit_record_slot,
-    //         delegation_metadata.last_update_external_slot
-    //     );
-    //     return Ok(());
-    // }
+    if args.commit_record_slot < delegation_metadata.last_update_external_slot {
+        msg!(
+            "Slot {} is outdated, previous slot is {}. Skipping commit",
+            args.commit_record_slot,
+            delegation_metadata.last_update_external_slot
+        );
+        return Ok(());
+    }
 
     // Once the account is marked as undelegatable, any subsequent commit should fail
     if delegation_metadata.is_undelegatable {
