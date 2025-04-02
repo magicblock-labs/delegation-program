@@ -202,7 +202,7 @@ pub fn load_program_upgrade_authority(
     let program_data_address =
         Pubkey::find_program_address(&[program.as_ref()], &bpf_loader_upgradeable::id()).0;
 
-    /// During tests, the upgrade authority is a test pubkey
+    // During tests, the upgrade authority is a test pubkey
     #[cfg(feature = "unit_test_config")]
     if program.eq(&crate::ID) {
         return Ok(Some(solana_program::pubkey!(

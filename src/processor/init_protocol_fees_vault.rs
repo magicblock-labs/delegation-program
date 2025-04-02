@@ -18,6 +18,8 @@ use crate::processor::utils::pda::create_pda;
 ///
 /// - fees vault is uninitialized
 ///
+/// NOTE: this operation is permisionless and can be done by anyone
+///
 /// Steps:
 ///
 /// 1. Create the protocol fees vault PDA
