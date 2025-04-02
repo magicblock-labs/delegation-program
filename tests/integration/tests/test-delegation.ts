@@ -11,6 +11,7 @@ import {
 import { ON_CURVE_ACCOUNT } from "./fixtures/consts";
 
 const SEED_TEST_PDA = "test-pda";
+const BPF_LOADER = new web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
 
 describe("TestDelegation", () => {
   // Configure the client to use the local cluster.
@@ -408,9 +409,14 @@ describe("TestDelegation", () => {
     validator: web3.PublicKey
   ) {
     const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
+    const delegationProgramData = web3.PublicKey.findProgramAddressSync(
+        [DELEGATION_PROGRAM_ID.toBuffer()],
+        BPF_LOADER
+    )[0];
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
       { pubkey: admin, isSigner: true, isWritable: false },
+      { pubkey: delegationProgramData, isSigner: false, isWritable: false },
       { pubkey: validator, isSigner: false, isWritable: false },
       { pubkey: validatorFeesVault, isSigner: false, isWritable: true },
       {
@@ -453,9 +459,14 @@ describe("TestDelegation", () => {
       admin: web3.PublicKey
   ) {
     const feesVault = feesVaultPda();
+    const delegationProgramData = web3.PublicKey.findProgramAddressSync(
+        [DELEGATION_PROGRAM_ID.toBuffer()],
+        BPF_LOADER
+    )[0];
     const keys = [
       { pubkey: admin, isSigner: true, isWritable: true },
       { pubkey: feesVault, isSigner: false, isWritable: true },
+      { pubkey: delegationProgramData, isSigner: false, isWritable: true },
     ];
     const data = Buffer.from([12, 0, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({
@@ -474,7 +485,10 @@ describe("TestDelegation", () => {
   ) {
     const programData = web3.PublicKey.findProgramAddressSync(
       [program.toBuffer()],
-      new web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+      BPF_LOADER)[0];
+    const delegationProgramData = web3.PublicKey.findProgramAddressSync(
+        [DELEGATION_PROGRAM_ID.toBuffer()],
+        BPF_LOADER
     )[0];
     const programConfig = programConfigPdaFromProgramId(program);
     const keys = [
@@ -482,6 +496,7 @@ describe("TestDelegation", () => {
       { pubkey: validator, isSigner: false, isWritable: false },
       { pubkey: program, isSigner: false, isWritable: false },
       { pubkey: programData, isSigner: false, isWritable: false },
+      { pubkey: delegationProgramData, isSigner: false, isWritable: false },
       { pubkey: programConfig, isSigner: false, isWritable: true },
       {
         pubkey: web3.SystemProgram.programId,
