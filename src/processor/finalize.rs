@@ -5,7 +5,6 @@ use crate::processor::utils::loaders::{
     load_initialized_validator_fees_vault, load_owned_pda, load_program, load_signer,
 };
 use crate::processor::utils::pda::close_pda;
-use crate::processor::utils::verify::verify_state;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use solana_program::program_error::ProgramError;
 use solana_program::{
@@ -42,7 +41,7 @@ use solana_program::{
 ///
 /// Steps:
 ///
-/// 1. Validate the new state
+/// 1. Validate the new state (currently state is valid if committed from a whitelisted validator)
 /// 2. If the state is valid, copy the committed state to the delegated account
 /// 3. Close the state diff account
 /// 4. Close the commit state record
@@ -93,13 +92,6 @@ pub fn process_finalize(
     // Load commit record
     let commit_record_data = commit_record_account.try_borrow_data()?;
     let commit_record = CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)?;
-
-    verify_state(
-        validator,
-        delegation_record,
-        commit_record,
-        commit_state_account,
-    )?;
 
     // Check that the commit record is the right one
     if !commit_record.account.eq(delegated_account.key) {

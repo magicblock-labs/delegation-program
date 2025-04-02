@@ -20,6 +20,8 @@ pub fn whitelist_validator_for_program(
     let args = WhitelistValidatorForProgramArgs { insert };
     let program_data =
         Pubkey::find_program_address(&[program.as_ref()], &bpf_loader_upgradeable::id()).0;
+    let delegation_program_data =
+        Pubkey::find_program_address(&[crate::ID.as_ref()], &bpf_loader_upgradeable::id()).0;
     let program_config_pda = program_config_from_program_id(&program);
     Instruction {
         program_id: crate::id(),
@@ -28,6 +30,7 @@ pub fn whitelist_validator_for_program(
             AccountMeta::new_readonly(validator_identity, false),
             AccountMeta::new_readonly(program, false),
             AccountMeta::new_readonly(program_data, false),
+            AccountMeta::new_readonly(delegation_program_data, false),
             AccountMeta::new(program_config_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],

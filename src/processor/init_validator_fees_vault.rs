@@ -4,9 +4,10 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
 };
 
-use crate::consts::ADMIN_PUBKEY;
 use crate::error::DlpError::Unauthorized;
-use crate::processor::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
+use crate::processor::utils::loaders::{
+    load_program, load_program_upgrade_authority, load_signer, load_uninitialized_pda,
+};
 use crate::processor::utils::pda::create_pda;
 use crate::validator_fees_vault_seeds_from_validator;
 
@@ -35,7 +36,9 @@ pub fn process_init_validator_fees_vault(
     _data: &[u8],
 ) -> ProgramResult {
     // Load Accounts
-    let [payer, admin, validator_identity, validator_fees_vault, system_program] = accounts else {
+    let [payer, admin, delegation_program_data, validator_identity, validator_fees_vault, system_program] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -45,10 +48,12 @@ pub fn process_init_validator_fees_vault(
     load_program(system_program, system_program::id(), "system program")?;
 
     // Check if the admin is the correct one
-    if !admin.key.eq(&ADMIN_PUBKEY) {
+    let admin_pubkey =
+        load_program_upgrade_authority(&crate::ID, delegation_program_data)?.ok_or(Unauthorized)?;
+    if !admin.key.eq(&admin_pubkey) {
         msg!(
             "Expected admin pubkey: {} but got {}",
-            ADMIN_PUBKEY,
+            admin_pubkey,
             admin.key
         );
         return Err(Unauthorized.into());

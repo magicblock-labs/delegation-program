@@ -1,6 +1,7 @@
-use crate::consts::ADMIN_PUBKEY;
 use crate::error::DlpError::Unauthorized;
-use crate::processor::utils::loaders::{load_initialized_protocol_fees_vault, load_signer};
+use crate::processor::utils::loaders::{
+    load_initialized_protocol_fees_vault, load_program_upgrade_authority, load_signer,
+};
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -27,7 +28,7 @@ pub fn process_protocol_claim_fees(
     _data: &[u8],
 ) -> ProgramResult {
     // Load Accounts
-    let [admin, fees_vault] = accounts else {
+    let [admin, fees_vault, delegation_program_data] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -36,10 +37,12 @@ pub fn process_protocol_claim_fees(
     load_initialized_protocol_fees_vault(fees_vault, true)?;
 
     // Check if the admin is the correct one
-    if !admin.key.eq(&ADMIN_PUBKEY) {
+    let admin_pubkey =
+        load_program_upgrade_authority(&crate::ID, delegation_program_data)?.ok_or(Unauthorized)?;
+    if !admin.key.eq(&admin_pubkey) {
         msg!(
             "Expected admin pubkey: {} but got {}",
-            ADMIN_PUBKEY,
+            admin_pubkey,
             admin.key
         );
         return Err(Unauthorized.into());
