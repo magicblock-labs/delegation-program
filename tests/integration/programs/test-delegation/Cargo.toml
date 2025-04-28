@@ -18,4 +18,5 @@ idl-build = ["anchor-lang/idl-build"]
 
 [dependencies]
 anchor-lang = "0.31.1"
+# magicblock-delegation-program = { path = "../../../..", features = ["no-entrypoint"] }
 ephemeral-rollups-sdk = { version = "0.2.5", features = ["anchor"] }

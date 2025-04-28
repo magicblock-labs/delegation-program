@@ -93,6 +93,9 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CloseValidatorFeesVault => {
             processor::process_close_validator_fees_vault(program_id, accounts, data)?
         }
+        discriminator::DlpDiscriminator::FinalizeWithData => {
+            processor::process_finalize_with_data(program_id, accounts, data)?
+        }
     }
     Ok(())
 }

@@ -10,6 +10,7 @@ pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 #[ephemeral]
 #[program]
 pub mod test_delegation {
+    use ephemeral_rollups_sdk_v2::pda::ephemeral_balance_pda_from_payer;
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -52,6 +53,26 @@ pub mod test_delegation {
             &[TEST_PDA_SEED_OTHER],
             DelegateConfig::default(),
         )?;
+        Ok(())
+    }
+
+    /// Handler for post commit action
+    pub fn finalize_with_data_handler(ctx: Context<FinalizeWithDataHandler>, data: Vec<u8>) -> Result<()> {
+        // TODO: fix hardcoded index
+        msg!("yay");
+        let expected = ephemeral_balance_pda_from_payer(ctx.accounts.delegated_account.key, 0);
+        if &expected != ctx.accounts.escrow_account.key {
+            Err(ProgramError::InvalidAccountData)
+        } else {
+            Ok(())
+        }?;
+
+        if !ctx.accounts.escrow_account.is_signer {
+            Err(ProgramError::MissingRequiredSignature)
+        } else {
+            Ok(())
+        }?;
+
         Ok(())
     }
 }
@@ -99,6 +120,20 @@ pub struct InitializeOther<'info> {
 pub struct Increment<'info> {
     #[account(mut, seeds = [TEST_PDA_SEED], bump)]
     pub counter: Account<'info, Counter>,
+}
+
+#[derive(Accounts)]
+pub struct FinalizeWithDataHandler<'info> {
+    pub delegated_account: UncheckedAccount<'info>,
+    #[account(
+        mut,
+        seeds = [b"balance", &delegated_account.key().as_ref(), &[0]],
+        seeds::program = delegated_account.key(),
+        bump
+    )]
+    pub escrow_account: Signer<'info>,
+    // #[account(mut)]
+    // pub destination_account: AccountInfo<'info>,
 }
 
 #[account]
