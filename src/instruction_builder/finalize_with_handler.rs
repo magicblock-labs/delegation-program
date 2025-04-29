@@ -1,4 +1,4 @@
-use crate::args::FinalizeWithDataArgs;
+use crate::args::FinalizeWithHookArgs;
 use crate::discriminator::DlpDiscriminator;
 use crate::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
@@ -17,7 +17,7 @@ pub fn finalize_with_handler(
     delegated_account: Pubkey,
     other_accounts: Vec<AccountMeta>,
     handler_program: Pubkey,
-    args: FinalizeWithDataArgs,
+    args: FinalizeWithHookArgs,
 ) -> Instruction {
     // finalize accounts
     let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
@@ -50,7 +50,7 @@ pub fn finalize_with_handler(
         program_id: crate::id(),
         accounts,
         data: [
-            DlpDiscriminator::FinalizeWithData.to_vec(),
+            DlpDiscriminator::FinalizeWithHook.to_vec(),
             to_vec(&args).unwrap(),
         ]
         .concat(),
