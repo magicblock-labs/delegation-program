@@ -3,7 +3,7 @@ use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, COMMIT_NEW_STATE_ACCOUNT_DATA,
     DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
-use dlp::args::{FinalizeWithHookArgs};
+use dlp::args::FinalizeWithHookArgs;
 use dlp::ephemeral_balance_seeds_from_payer;
 use dlp::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,

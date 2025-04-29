@@ -4,7 +4,7 @@ use crate::discriminator::DlpDiscriminator;
 use crate::ephemeral_balance_seeds_from_payer;
 use crate::processor::utils::loaders::load_pda;
 
-use borsh::{to_vec, BorshDeserialize};
+use borsh::BorshDeserialize;
 use solana_program::account_info::next_account_info;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
@@ -28,12 +28,11 @@ pub fn process_finalize_with_hook(
     } else {
         return Err(ProgramError::NotEnoughAccountKeys.into());
     };
-    let (handler_accounts, remaining_accounts) =
-        if remaining_accounts.len() >= HOOK_ACCOUNTS_SIZE {
-            remaining_accounts.split_at(HOOK_ACCOUNTS_SIZE)
-        } else {
-            return Err(ProgramError::NotEnoughAccountKeys.into());
-        };
+    let (handler_accounts, remaining_accounts) = if remaining_accounts.len() >= HOOK_ACCOUNTS_SIZE {
+        remaining_accounts.split_at(HOOK_ACCOUNTS_SIZE)
+    } else {
+        return Err(ProgramError::NotEnoughAccountKeys.into());
+    };
 
     let accounts_iter = &mut handler_accounts.iter();
     let destination_program = next_account_info(accounts_iter)?;
