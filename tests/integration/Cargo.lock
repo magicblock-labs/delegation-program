@@ -1651,7 +1651,6 @@ version = "0.1.4"
 dependencies = [
  "anchor-lang",
  "ephemeral-rollups-sdk-v2",
- "solana-program",
 ]
 
 [[package]]
