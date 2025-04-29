@@ -58,8 +58,6 @@ pub mod test_delegation {
 
     /// Handler for post commit action
     pub fn delegation_program_finalize_hook(ctx: Context<DelegationProgramFinalizeHook>, hook_args: delegation_program_utils::FinalizeWithHookArgs) -> Result<()> {
-        // TODO: fix hardcoded index
-        msg!("yay");
         let expected = ephemeral_balance_pda_from_payer(ctx.accounts.delegated_account.key, hook_args.escrow_index);
         if &expected != ctx.accounts.escrow_account.key {
             Err(ProgramError::InvalidAccountData)
@@ -72,6 +70,9 @@ pub mod test_delegation {
         } else {
             Ok(())
         }?;
+
+        // some action here
+        // ...
 
         Ok(())
     }
