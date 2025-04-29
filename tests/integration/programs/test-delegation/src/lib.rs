@@ -57,7 +57,7 @@ pub mod test_delegation {
     }
 
     /// Handler for post commit action
-    pub fn finalize_with_data_handler(ctx: Context<FinalizeWithDataHandler>, data: Vec<u8>) -> Result<()> {
+    pub fn delegation_program_finalize_hook(ctx: Context<DelegationProgramFinalizeHook>, _data: Vec<u8>) -> Result<()> {
         // TODO: fix hardcoded index
         msg!("yay");
         let expected = ephemeral_balance_pda_from_payer(ctx.accounts.delegated_account.key, 0);
@@ -121,20 +121,13 @@ pub struct Increment<'info> {
     #[account(mut, seeds = [TEST_PDA_SEED], bump)]
     pub counter: Account<'info, Counter>,
 }
-
-mod asd {
-    use solana_program::declare_id;
-
-    declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
-}
-
 #[derive(Accounts)]
-pub struct FinalizeWithDataHandler<'info> {
+pub struct DelegationProgramFinalizeHook<'info> {
     pub delegated_account: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [b"balance", &delegated_account.key().as_ref(), &[0]],
-        seeds::program = asd::ID,
+        seeds::program = delegation_program_utils::ID,
         bump
     )]
     pub escrow_account: Signer<'info>,
@@ -145,4 +138,9 @@ pub struct FinalizeWithDataHandler<'info> {
 #[account]
 pub struct Counter {
     pub count: u64,
+}
+
+mod delegation_program_utils {
+    use solana_program::declare_id;
+    declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 }

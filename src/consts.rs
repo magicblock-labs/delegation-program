@@ -10,7 +10,8 @@ pub const PROTOCOL_FEES_PERCENTAGE: u8 = 10;
 pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37, 51, 167];
 
 /// The discriminator for the external undelegate instruction.
-pub const FINALIZE_HANDLER_DISCRIMINATOR: [u8; 8] = [106, 37, 160, 123, 145, 144, 210, 51];
+pub const EXTERNAL_FINALIZE_WITH_HOOK_DISCRIMINATOR: [u8; 8] =
+    [74, 203, 100, 144, 173, 103, 210, 31];
 
 /// The program ID of the delegation program.
 pub const DELEGATION_PROGRAM_ID: Pubkey = crate::id();

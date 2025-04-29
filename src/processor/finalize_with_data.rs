@@ -1,10 +1,10 @@
-use crate::args::FinalizeWithDataArgs;
-use crate::consts::FINALIZE_HANDLER_DISCRIMINATOR;
+use crate::args::FinalizeWithHookArgs;
+use crate::consts::EXTERNAL_FINALIZE_WITH_HOOK_DISCRIMINATOR;
 use crate::discriminator::DlpDiscriminator;
 use crate::ephemeral_balance_seeds_from_payer;
 use crate::processor::utils::loaders::load_pda;
 
-use borsh::{to_vec, BorshDeserialize, BorshSerialize};
+use borsh::{to_vec, BorshDeserialize};
 use solana_program::account_info::next_account_info;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
@@ -14,23 +14,23 @@ use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
-pub fn process_finalize_with_data(
+pub fn process_finalize_with_hook(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
     const FINALIZE_ACCOUNTS_SIZE: usize = 8;
-    const HANDLER_ACCOUNTS_SIZE: usize = 2;
+    const HOOK_ACCOUNTS_SIZE: usize = 2;
 
-    let args = FinalizeWithDataArgs::try_from_slice(data)?;
+    let args = FinalizeWithHookArgs::try_from_slice(data)?;
     let (finalize_accounts, remaining_accounts) = if accounts.len() >= FINALIZE_ACCOUNTS_SIZE {
         accounts.split_at(FINALIZE_ACCOUNTS_SIZE)
     } else {
         return Err(ProgramError::NotEnoughAccountKeys.into());
     };
     let (handler_accounts, remaining_accounts) =
-        if remaining_accounts.len() >= HANDLER_ACCOUNTS_SIZE {
-            remaining_accounts.split_at(HANDLER_ACCOUNTS_SIZE)
+        if remaining_accounts.len() >= HOOK_ACCOUNTS_SIZE {
+            remaining_accounts.split_at(HOOK_ACCOUNTS_SIZE)
         } else {
             return Err(ProgramError::NotEnoughAccountKeys.into());
         };
@@ -61,7 +61,9 @@ pub fn process_finalize_with_data(
     )?;
 
     // Finalize first
+    // TODO: make work & uncomment
     // process_finalize(program_id, finalize_accounts, data)?;
+
     let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, system_program] =
         finalize_accounts
     else {
@@ -82,8 +84,8 @@ pub fn process_finalize_with_data(
         ],
         data: DlpDiscriminator::Finalize.to_vec(),
     };
+    // TODO: remove
     invoke(&finalize_ix, finalize_accounts)?;
-    msg!("trtr");
 
     // deduce necessary accounts for CPI
     let validator_account = finalize_accounts[0].clone();
@@ -109,7 +111,11 @@ pub fn process_finalize_with_data(
         handler_accounts.len()
     );
 
-    let data = [FINALIZE_HANDLER_DISCRIMINATOR.to_vec(), to_vec(&args.data)?].concat();
+    let data = [
+        EXTERNAL_FINALIZE_WITH_HOOK_DISCRIMINATOR.to_vec(),
+        to_vec(&args.data)?,
+    ]
+    .concat();
     let handler_instruction = Instruction {
         program_id: *destination_program.key,
         data,
@@ -117,11 +123,10 @@ pub fn process_finalize_with_data(
     };
     let bump_slice = &[escrow_bump];
     let escrow_signer_seeds = [escrow_seeds, &[bump_slice]].concat();
+
     invoke_signed(
         &handler_instruction,
         &handler_accounts,
         &[&escrow_signer_seeds],
-    )?;
-
-    Ok(())
+    )
 }
