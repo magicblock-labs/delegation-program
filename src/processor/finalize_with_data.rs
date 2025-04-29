@@ -113,7 +113,7 @@ pub fn process_finalize_with_hook(
 
     let data = [
         EXTERNAL_FINALIZE_WITH_HOOK_DISCRIMINATOR.to_vec(),
-        to_vec(&args.data)?,
+        data.to_vec(),
     ]
     .concat();
     let handler_instruction = Instruction {

@@ -57,10 +57,10 @@ pub mod test_delegation {
     }
 
     /// Handler for post commit action
-    pub fn delegation_program_finalize_hook(ctx: Context<DelegationProgramFinalizeHook>, _data: Vec<u8>) -> Result<()> {
+    pub fn delegation_program_finalize_hook(ctx: Context<DelegationProgramFinalizeHook>, hook_args: delegation_program_utils::FinalizeWithHookArgs) -> Result<()> {
         // TODO: fix hardcoded index
         msg!("yay");
-        let expected = ephemeral_balance_pda_from_payer(ctx.accounts.delegated_account.key, 0);
+        let expected = ephemeral_balance_pda_from_payer(ctx.accounts.delegated_account.key, hook_args.escrow_index);
         if &expected != ctx.accounts.escrow_account.key {
             Err(ProgramError::InvalidAccountData)
         } else {
@@ -122,11 +122,12 @@ pub struct Increment<'info> {
     pub counter: Account<'info, Counter>,
 }
 #[derive(Accounts)]
+#[instruction(hook_args: delegation_program_utils::FinalizeWithHookArgs)]
 pub struct DelegationProgramFinalizeHook<'info> {
     pub delegated_account: UncheckedAccount<'info>,
     #[account(
         mut,
-        seeds = [b"balance", &delegated_account.key().as_ref(), &[0]],
+        seeds = [b"balance", &delegated_account.key().as_ref(), &[hook_args.escrow_index]],
         seeds::program = delegation_program_utils::ID,
         bump
     )]
@@ -141,6 +142,13 @@ pub struct Counter {
 }
 
 mod delegation_program_utils {
-    use solana_program::declare_id;
+    use anchor_lang::prelude::*;
+
     declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
+
+    #[derive(AnchorSerialize, AnchorDeserialize)]
+    pub struct FinalizeWithHookArgs {
+        pub escrow_index: u8,
+        pub data: Vec<u8>,
+    }
 }
