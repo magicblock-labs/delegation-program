@@ -122,18 +122,24 @@ pub struct Increment<'info> {
     pub counter: Account<'info, Counter>,
 }
 
+mod asd {
+    use solana_program::declare_id;
+
+    declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
+}
+
 #[derive(Accounts)]
 pub struct FinalizeWithDataHandler<'info> {
     pub delegated_account: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [b"balance", &delegated_account.key().as_ref(), &[0]],
-        seeds::program = delegated_account.key(),
+        seeds::program = asd::ID,
         bump
     )]
     pub escrow_account: Signer<'info>,
-    // #[account(mut)]
-    // pub destination_account: AccountInfo<'info>,
+    #[account(mut)]
+    pub destination_account: AccountInfo<'info>,
 }
 
 #[account]

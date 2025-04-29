@@ -1,29 +1,21 @@
 use crate::args::FinalizeWithDataArgs;
+use crate::consts::FINALIZE_HANDLER_DISCRIMINATOR;
+use crate::discriminator::DlpDiscriminator;
 use crate::ephemeral_balance_seeds_from_payer;
-use crate::instruction_builder::delegate;
-use crate::processor::process_finalize;
 use crate::processor::utils::loaders::load_pda;
-use borsh::{BorshDeserialize, BorshSerialize};
+
+use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use solana_program::account_info::next_account_info;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::msg;
-use solana_program::program::invoke_signed;
+use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 
-// TODO: this actually could be encoded as Instruction
-// Client creates Instruction where specifies destination_program
-// encodes how to call it and adds necessary data
-#[derive(BorshSerialize, BorshDeserialize)]
-pub enum HandleIx {
-    FinalizeWithDataHandler(Vec<u8>),
-    UndelegateWithDataHandler(Vec<u8>),
-}
-
 pub fn process_finalize_with_data(
-    program_id: &Pubkey,
+    _program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
@@ -69,12 +61,34 @@ pub fn process_finalize_with_data(
     )?;
 
     // Finalize first
-    process_finalize(program_id, finalize_accounts, data)?;
+    // process_finalize(program_id, finalize_accounts, data)?;
+    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, system_program] =
+        finalize_accounts
+    else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
+    let finalize_ix = Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(*validator.key, true),
+            AccountMeta::new(*delegated_account.key, false),
+            AccountMeta::new(*commit_state_account.key, false),
+            AccountMeta::new(*commit_record_account.key, false),
+            AccountMeta::new(*delegation_record_account.key, false),
+            AccountMeta::new(*delegation_metadata_account.key, false),
+            AccountMeta::new(*validator_fees_vault.key, false),
+            AccountMeta::new_readonly(*system_program.key, false),
+        ],
+        data: DlpDiscriminator::Finalize.to_vec(),
+    };
+    invoke(&finalize_ix, finalize_accounts)?;
+    msg!("trtr");
 
     // deduce necessary accounts for CPI
     let validator_account = finalize_accounts[0].clone();
     let (accounts_meta, handler_accounts): (Vec<AccountMeta>, Vec<AccountInfo>) =
-        [delegated_account, escrow_account.clone()]
+        [delegated_account.clone(), escrow_account.clone()]
             .iter()
             .chain(remaining_accounts)
             .filter(|account| account.key != validator_account.key)
@@ -89,13 +103,18 @@ pub fn process_finalize_with_data(
                 )
             })
             .collect();
-    msg!("Calling, accounts_meta.len: {}, handler_account.len: {}", accounts_meta.len(), handler_accounts.len());
-
-    let handler_instruction = Instruction::new_with_borsh(
-        *destination_program.key,
-        &HandleIx::FinalizeWithDataHandler(args.data),
-        accounts_meta,
+    msg!(
+        "Calling, accounts_meta.len: {}, handler_account.len: {}",
+        accounts_meta.len(),
+        handler_accounts.len()
     );
+
+    let data = [FINALIZE_HANDLER_DISCRIMINATOR.to_vec(), to_vec(&args.data)?].concat();
+    let handler_instruction = Instruction {
+        program_id: *destination_program.key,
+        data,
+        accounts: accounts_meta,
+    };
     let bump_slice = &[escrow_bump];
     let escrow_signer_seeds = [escrow_seeds, &[bump_slice]].concat();
     invoke_signed(
