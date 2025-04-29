@@ -1,7 +1,3 @@
-use borsh::to_vec;
-use solana_program::instruction::Instruction;
-use solana_program::system_program;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 use crate::args::FinalizeWithDataArgs;
 use crate::discriminator::DlpDiscriminator;
 use crate::pda::{
@@ -9,6 +5,10 @@ use crate::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     ephemeral_balance_pda_from_payer, validator_fees_vault_pda_from_validator,
 };
+use borsh::to_vec;
+use solana_program::instruction::Instruction;
+use solana_program::system_program;
+use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 /// Builds a finalize state instruction.
 /// See [crate::processor::finalize_with_handler] for docs.
@@ -31,7 +31,7 @@ pub fn finalize_with_handler(
     let escrow_account = ephemeral_balance_pda_from_payer(&delegated_account, args.escrow_index);
     let mut accounts = vec![
         // finalize accounts
-        AccountMeta::new_readonly(validator, true),
+        AccountMeta::new(validator, true),
         AccountMeta::new(delegated_account, false),
         AccountMeta::new(commit_state_pda, false),
         AccountMeta::new(commit_record_pda, false),

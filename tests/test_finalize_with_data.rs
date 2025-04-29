@@ -1,23 +1,27 @@
-use crate::fixtures::{create_delegation_metadata_data, create_delegation_record_data, get_commit_record_account_data, get_delegation_metadata_data, get_delegation_record_data, COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID, TEST_AUTHORITY};
+use crate::fixtures::{
+    create_delegation_metadata_data, create_delegation_record_data, get_commit_record_account_data,
+    get_delegation_metadata_data, get_delegation_record_data, COMMIT_NEW_STATE_ACCOUNT_DATA,
+    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
+};
 use dlp::args::{DelegateEphemeralBalanceArgs, FinalizeWithDataArgs};
+use dlp::ephemeral_balance_seeds_from_payer;
 use dlp::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     ephemeral_balance_pda_from_payer, validator_fees_vault_pda_from_validator,
 };
 use dlp::state::{CommitRecord, DelegationMetadata};
+use solana_program::instruction::AccountMeta;
 use solana_program::rent::Rent;
 use solana_program::system_instruction::{transfer, SystemInstruction};
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program::instruction::AccountMeta;
-use solana_program_test::{processor, BanksClient, ProgramTest};
+use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use dlp::ephemeral_balance_seeds_from_payer;
 
 mod fixtures;
 
@@ -171,6 +175,19 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
+    // Setup program to test delegation
+    let data = read_file("tests/buffers/test_delegation.so");
+    program_test.add_account(
+        DELEGATED_PDA_OWNER_ID,
+        Account {
+            lamports: Rent::default().minimum_balance(data.len()).max(1),
+            data,
+            owner: solana_sdk::bpf_loader::id(),
+            executable: true,
+            rent_epoch: 0,
+        },
+    );
+
     let (banks, payer, blockhash) = program_test.start().await;
     (banks, payer, authority, blockhash)
 }
@@ -276,10 +293,10 @@ async fn test_finalize_with_data() {
         DELEGATED_PDA_ID,
         vec![],
         // vec![AccountMeta::new(destination.pubkey(), false)],
-        dlp::ID,
+        DELEGATED_PDA_OWNER_ID,
         FinalizeWithDataArgs {
             escrow_index: 0,
-            data: vec![]
+            data: vec![],
         },
     );
     let tx = Transaction::new_signed_with_payer(
