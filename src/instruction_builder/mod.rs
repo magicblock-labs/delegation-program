@@ -1,6 +1,6 @@
 mod close_ephemeral_balance;
 mod commit_state;
-
+mod call_handler;
 mod close_validator_fees_vault;
 mod commit_state_from_buffer;
 mod delegate;
@@ -30,3 +30,4 @@ pub use top_up_ephemeral_balance::*;
 pub use undelegate::*;
 pub use validator_claim_fees::*;
 pub use whitelist_validator_for_program::*;
+pub use call_handler::*;
