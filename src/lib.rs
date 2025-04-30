@@ -1,5 +1,6 @@
 #![allow(unexpected_cfgs)] // silence clippy for target_os solana and other solana program custom features
 
+use crate::processor::process_call_handler;
 use solana_program::{
     account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey,
@@ -93,8 +94,12 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CloseValidatorFeesVault => {
             processor::process_close_validator_fees_vault(program_id, accounts, data)?
         }
+        discriminator::DlpDiscriminator::CallHandler => {
+            process_call_handler(program_id, accounts, data)?
+        }
         discriminator::DlpDiscriminator::FinalizeWithHook => {
-            processor::process_finalize_with_hook(program_id, accounts, data)?
+            // processor::process_finalize_with_hook(program_id, accounts, data)?
+            unreachable!()
         }
     }
     Ok(())

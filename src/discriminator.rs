@@ -33,8 +33,10 @@ pub enum DlpDiscriminator {
     CommitStateFromBuffer = 13,
     /// See [crate::processor::process_close_validator_fees_vault] for docs.
     CloseValidatorFeesVault = 14,
+    /// See [crate::processor::process_call_handler] for docs.
+    CallHandler = 15,
     /// See [crate::processor::process_finalize_with_hook] for docs.
-    FinalizeWithHook = 15,
+    FinalizeWithHook = 16,
 }
 
 impl DlpDiscriminator {
@@ -62,7 +64,8 @@ impl TryFrom<[u8; 8]> for DlpDiscriminator {
             0xc => Ok(DlpDiscriminator::ProtocolClaimFees),
             0xd => Ok(DlpDiscriminator::CommitStateFromBuffer),
             0xe => Ok(DlpDiscriminator::CloseValidatorFeesVault),
-            0xf => Ok(DlpDiscriminator::FinalizeWithHook),
+            0xf => Ok(DlpDiscriminator::CallHandler),
+            // 0xf => Ok(DlpDiscriminator::FinalizeWithHook),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }
