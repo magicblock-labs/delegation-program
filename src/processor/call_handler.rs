@@ -1,7 +1,5 @@
-use crate::args::{CallHandlerArgs};
-use crate::consts::{
-    EXTERNAL_CALL_HANDLER_DISCRIMINATOR,
-};
+use crate::args::CallHandlerArgs;
+use crate::consts::EXTERNAL_CALL_HANDLER_DISCRIMINATOR;
 use crate::ephemeral_balance_seeds_from_payer;
 use crate::processor::utils::loaders::{
     load_initialized_validator_fees_vault, load_pda, load_signer,

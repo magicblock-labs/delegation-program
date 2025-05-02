@@ -1,3 +1,4 @@
+use borsh::to_vec;
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data, get_commit_record_account_data,
     get_delegation_metadata_data, get_delegation_record_data, COMMIT_NEW_STATE_ACCOUNT_DATA,
@@ -8,7 +9,7 @@ use dlp::ephemeral_balance_seeds_from_payer;
 use dlp::pda::{
     commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    ephemeral_balance_pda_from_payer, validator_fees_vault_pda_from_validator,
+    ephemeral_balance_pda_from_payer, fees_vault_pda, validator_fees_vault_pda_from_validator,
 };
 use solana_program::instruction::AccountMeta;
 use solana_program::rent::Rent;
@@ -50,7 +51,7 @@ async fn setup_delegated_pda(program_test: &mut ProgramTest, authority_pubkey: &
     );
 
     // Setup the delegated account metadata PDA
-    let delegation_metadata_data = get_delegation_metadata_data(*authority_pubkey, None);
+    let delegation_metadata_data = get_delegation_metadata_data(*authority_pubkey, Some(true));
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
@@ -159,6 +160,17 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     setup_commit_state(&mut program_test, &authority.pubkey()).await;
     setup_escrow_account(&mut program_test, &authority.pubkey()).await;
 
+    // Setup the protocol fees vault
+    program_test.add_account(
+        fees_vault_pda(),
+        Account {
+            lamports: Rent::default().minimum_balance(0),
+            data: vec![],
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
     // Setup the validator fees vault
     program_test.add_account(
         validator_fees_vault_pda_from_validator(&authority.pubkey()),
@@ -196,10 +208,7 @@ async fn test_finalize_call_handler() {
 
     // Submit the finalize with handler tx
     let destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
-        authority.pubkey(),
-        DELEGATED_PDA_ID
-    );
+    let finalize_ix = dlp::instruction_builder::finalize(authority.pubkey(), DELEGATED_PDA_ID);
     let call_handler_ix = dlp::instruction_builder::call_handler(
         authority.pubkey(),
         DELEGATED_PDA_OWNER_ID, // handler program
@@ -209,10 +218,64 @@ async fn test_finalize_call_handler() {
             escrow_index: 0,
             data: vec![],
             context: dlp::args::Context::Commit,
-        }
+        },
     );
     let tx = Transaction::new_signed_with_payer(
         &[finalize_ix, call_handler_ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    println!("{:?}", res);
+    assert!(res.is_ok());
+}
+
+#[tokio::test]
+async fn test_undelegate_call_handler() {
+    const PRIZE: u64 = LAMPORTS_PER_SOL / 1000;
+
+    let (banks, _, authority, blockhash) = setup_program_test_env().await;
+
+    // Submit the finalize with handler tx
+    let destination = Keypair::new();
+    let finalize_ix = dlp::instruction_builder::finalize(authority.pubkey(), DELEGATED_PDA_ID);
+    let finalize_call_handler_ix = dlp::instruction_builder::call_handler(
+        authority.pubkey(),
+        DELEGATED_PDA_OWNER_ID, // handler program
+        DELEGATED_PDA_ID,
+        vec![AccountMeta::new(destination.pubkey(), false)],
+        CallHandlerArgs {
+            escrow_index: 0,
+            data: vec![],
+            context: dlp::args::Context::Commit,
+        },
+    );
+
+    let undelegate_ix = dlp::instruction_builder::undelegate(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
+    );
+    let undelegate_call_handler_ix = dlp::instruction_builder::call_handler(
+        authority.pubkey(),
+        DELEGATED_PDA_OWNER_ID, // handler program
+        DELEGATED_PDA_ID,
+        vec![AccountMeta::new(destination.pubkey(), false)],
+        CallHandlerArgs {
+            escrow_index: 0,
+            data: to_vec(&PRIZE).unwrap(),
+            context: dlp::args::Context::Undelegate,
+        },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[
+            finalize_ix,
+            finalize_call_handler_ix,
+            undelegate_ix,
+            undelegate_call_handler_ix,
+        ],
         Some(&authority.pubkey()),
         &[&authority],
         blockhash,

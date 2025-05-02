@@ -10,8 +10,8 @@ pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 #[ephemeral]
 #[program]
 pub mod test_delegation {
-    use ephemeral_rollups_sdk_v2::pda::ephemeral_balance_pda_from_payer;
     use super::*;
+    use ephemeral_rollups_sdk_v2::pda::ephemeral_balance_pda_from_payer;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let counter = &mut ctx.accounts.counter;
@@ -57,8 +57,14 @@ pub mod test_delegation {
     }
 
     /// Handler for post commit action
-    pub fn delegation_program_finalize_hook(ctx: Context<DelegationProgramFinalizeHook>, hook_args: delegation_program_utils::FinalizeWithHookArgs) -> Result<()> {
-        let expected = ephemeral_balance_pda_from_payer(ctx.accounts.delegated_account.key, hook_args.escrow_index);
+    pub fn delegation_program_finalize_hook(
+        ctx: Context<DelegationProgramFinalizeHook>,
+        hook_args: delegation_program_utils::FinalizeWithHookArgs,
+    ) -> Result<()> {
+        let expected = ephemeral_balance_pda_from_payer(
+            ctx.accounts.delegated_account.key,
+            hook_args.escrow_index,
+        );
         if &expected != ctx.accounts.escrow_account.key {
             Err(ProgramError::InvalidAccountData)
         } else {
@@ -78,8 +84,14 @@ pub mod test_delegation {
     }
 
     /// Delegation program call handler
-    pub fn delegation_program_call_handler(ctx: Context<DelegationProgramCallHandler>, hook_args: delegation_program_utils::CallHandlerArgs) -> Result<()> {
-        let expected = ephemeral_balance_pda_from_payer(ctx.accounts.delegated_account.key, hook_args.escrow_index);
+    pub fn delegation_program_call_handler(
+        ctx: Context<DelegationProgramCallHandler>,
+        hook_args: delegation_program_utils::CallHandlerArgs,
+    ) -> Result<()> {
+        let expected = ephemeral_balance_pda_from_payer(
+            ctx.accounts.delegated_account.key,
+            hook_args.escrow_index,
+        );
         if &expected != ctx.accounts.escrow_account.key {
             Err(ProgramError::InvalidAccountData)
         } else {
@@ -94,12 +106,40 @@ pub mod test_delegation {
 
         match hook_args.context {
             delegation_program_utils::Context::Commit => msg!("commit context"),
-            delegation_program_utils::Context::Undelegate => msg!("undelegate context"),
+            delegation_program_utils::Context::Undelegate => {
+                let amount = u64::try_from_slice(&hook_args.data)?;
+                transfer_from_undelegated(
+                    &ctx.accounts.delegated_account,
+                    &ctx.accounts.destination_account,
+                    amount,
+                )?
+            }
             delegation_program_utils::Context::Standalone => msg!("standalone context"),
         }
 
         Ok(())
     }
+}
+
+pub fn transfer_from_undelegated(
+    undelegated_pda: &UncheckedAccount,
+    destination_pda: &AccountInfo,
+    amount: u64,
+) -> Result<()> {
+    if undelegated_pda.owner != &crate::ID {
+        return Err(ProgramError::IllegalOwner.into());
+    }
+
+    undelegated_pda
+        .try_borrow_mut_lamports()?
+        .checked_sub(amount)
+        .ok_or(ProgramError::InsufficientFunds)?;
+    destination_pda
+        .try_borrow_mut_lamports()?
+        .checked_add(amount)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
+    Ok(())
 }
 
 #[delegate]
@@ -204,6 +244,6 @@ mod delegation_program_utils {
     pub struct CallHandlerArgs {
         pub escrow_index: u8,
         pub data: Vec<u8>,
-        pub context: Context
+        pub context: Context,
     }
 }
