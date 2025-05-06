@@ -1,4 +1,5 @@
 mod close_ephemeral_balance;
+mod close_ephemeral_balance_v1;
 mod close_validator_fees_vault;
 mod commit_state;
 mod commit_state_from_buffer;
@@ -10,11 +11,13 @@ mod init_validator_fees_vault;
 mod protocol_claim_fees;
 mod top_up_ephemeral_balance;
 mod undelegate;
+mod undelegate_ephemeral_balance;
 mod utils;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
 
 pub use close_ephemeral_balance::*;
+pub use close_ephemeral_balance_v1::*;
 pub use close_validator_fees_vault::*;
 pub use commit_state::*;
 pub use commit_state_from_buffer::*;
@@ -26,5 +29,6 @@ pub use init_validator_fees_vault::*;
 pub use protocol_claim_fees::*;
 pub use top_up_ephemeral_balance::*;
 pub use undelegate::*;
+pub use undelegate_ephemeral_balance::*;
 pub use validator_claim_fees::*;
 pub use whitelist_validator_for_program::*;
