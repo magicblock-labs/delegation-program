@@ -157,7 +157,7 @@ async fn test_undelegate() {
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
-    // Assert that the ephemeral balance account is closed
+    // Assert that the ephemeral balance account still exists but is now owned by the system program
     let ephemeral_balance_account = banks.get_account(ephemeral_balance_pda).await.unwrap();
     assert!(ephemeral_balance_account.is_some());
 
