@@ -55,6 +55,10 @@ pub fn process_close_ephemeral_balance_v1(
     }
 
     let amount = ephemeral_balance_account.lamports();
+    if amount == 0 {
+        return Ok(());
+    }
+
     let ephemeral_balance_bump_slice: &[u8] = &[ephemeral_balance_bump];
     let ephemeral_balance_signer_seeds =
         [ephemeral_balance_seeds, &[ephemeral_balance_bump_slice]].concat();
