@@ -8,6 +8,27 @@ use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
 use solana_program::{msg, system_program};
 
+/// External undelegate implementation for accounts owned by dlp
+///
+/// Accounts:
+///
+///  0: `[writable]` the delegated account
+///  1: `[writable]` the undelegated buffer account
+///  2: `[signer]`   the payer account
+///  3: `[]`         the system program
+///
+/// Requirements:
+///
+/// - delegated account is uninitialized
+/// - undelegated buffer account is signer and owned by dlp
+/// - payer account is validator
+/// Steps:
+///
+/// - Check if dlp initiated call
+/// - Check if delegated account is uninitialized
+/// - Extract account discriminator
+/// - Run discriminator specific actions
+/// - For ephemeral balance transfer ownership to system program, zero buffer account.
 pub fn process_external_undelegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],

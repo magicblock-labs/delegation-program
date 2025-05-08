@@ -48,8 +48,8 @@ pub fn process_close_ephemeral_balance(
     )?;
     if ephemeral_balance_account.owner != &system_program::id() {
         msg!(
-            "ephemeral balance expected to be owned by system program: {}",
-            system_program::id()
+            "ephemeral balance expected to be owned by system program. got: {}",
+            ephemeral_balance_account.owner
         );
         return Err(ProgramError::InvalidAccountOwner);
     }
