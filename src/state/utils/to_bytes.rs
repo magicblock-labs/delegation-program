@@ -23,10 +23,10 @@ macro_rules! impl_to_bytes_with_discriminator_borsh {
         impl $struct_name {
             pub fn to_bytes_with_discriminator<W: std::io::Write>(
                 &self,
-                data: &mut W,
+                writer: &mut W,
             ) -> Result<(), ::solana_program::program_error::ProgramError> {
-                data.write_all(&Self::discriminator().to_bytes())?;
-                self.serialize(data)?;
+                writer.write_all(&Self::discriminator().to_bytes())?;
+                self.serialize(writer)?;
                 Ok(())
             }
         }
