@@ -34,12 +34,8 @@ pub enum DlpDiscriminator {
     CommitStateFromBuffer = 13,
     /// See [crate::processor::process_close_validator_fees_vault] for docs.
     CloseValidatorFeesVault = 14,
-    /// See [crate::processor::process_undelegate_ephemeral_balance] for docs.
-    UndelegateEphemeralBalance = 15,
-    /// See [crate::processor::process_close_ephemeral_balance_v1] for docs.
-    CloseEphemeralBalanceV1 = 16,
     /// see [crate::processor::process_external_undelegate] for docs.
-    ExternalUndelegate = 17
+    ExternalUndelegate = 15
 }
 
 impl DlpDiscriminator {
@@ -71,8 +67,6 @@ impl TryFrom<[u8; 8]> for DlpDiscriminator {
             0xc => Ok(DlpDiscriminator::ProtocolClaimFees),
             0xd => Ok(DlpDiscriminator::CommitStateFromBuffer),
             0xe => Ok(DlpDiscriminator::CloseValidatorFeesVault),
-            0xf => Ok(DlpDiscriminator::UndelegateEphemeralBalance),
-            0x10 => Ok(DlpDiscriminator::CloseEphemeralBalanceV1),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

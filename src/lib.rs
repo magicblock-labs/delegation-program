@@ -93,12 +93,6 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CloseValidatorFeesVault => {
             processor::process_close_validator_fees_vault(program_id, accounts, data)?
         }
-        discriminator::DlpDiscriminator::UndelegateEphemeralBalance => {
-            processor::process_undelegate_ephemeral_balance(program_id, accounts, data)?
-        }
-        discriminator::DlpDiscriminator::CloseEphemeralBalanceV1 => {
-            processor::process_close_ephemeral_balance_v1(program_id, accounts, data)?
-        }
         discriminator::DlpDiscriminator::ExternalUndelegate => {
             processor::process_external_undelegate(program_id, accounts, data)?
         }

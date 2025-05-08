@@ -193,9 +193,10 @@ async fn test_undelegate_and_close() {
         .lamports;
 
     // Undelegate ephemeral balance Ix
-    let ix = dlp::instruction_builder::undelegate_ephemeral_balance(
+    let ix = dlp::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance_pda,
+        DELEGATION_PROGRAM_ID,
         validator.pubkey(),
     );
 

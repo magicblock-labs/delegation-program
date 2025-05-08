@@ -5,8 +5,7 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pda::ephemeral_balance_pda_from_payer;
 
 /// Creates instruction to close an ephemeral balance account
-/// See [crate::processor::process_close_ephemeral_balance_v1] for docs.
-/// [crate::processor::process_close_ephemeral_balance] now deprecated
+/// See [crate::processor::process_close_ephemeral_balance_] for docs.
 pub fn close_ephemeral_balance(payer: Pubkey, index: u8) -> Instruction {
     let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer, index);
     Instruction {
@@ -17,7 +16,7 @@ pub fn close_ephemeral_balance(payer: Pubkey, index: u8) -> Instruction {
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
-            DlpDiscriminator::CloseEphemeralBalanceV1.to_vec(),
+            DlpDiscriminator::CloseEphemeralBalance.to_vec(),
             vec![index],
         ]
         .concat(),
