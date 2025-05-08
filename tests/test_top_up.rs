@@ -125,6 +125,17 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
     );
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
+
+    // Check the accounts exists and it's owned by the delegation program
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&pubkey, 0);
+    let balance_account = banks
+        .get_account(ephemeral_balance_pda)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(balance_account.owner, dlp::id());
+    assert!(balance_account.lamports > 0);
 }
 
 #[tokio::test]
@@ -165,8 +176,7 @@ async fn test_undelegate() {
     assert!(ephemeral_balance_account.is_some());
 
     let actual_owner = *ephemeral_balance_account.unwrap().owner();
-    let expected_owner = system_program::id();
-    assert_eq!(actual_owner, expected_owner);
+    assert_eq!(actual_owner,  system_program::id());
 }
 
 #[tokio::test]
