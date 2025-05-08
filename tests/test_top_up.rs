@@ -2,11 +2,13 @@ use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data, TEST_AUTHORITY,
 };
 use dlp::args::DelegateEphemeralBalanceArgs;
+use dlp::consts::DELEGATION_PROGRAM_ID;
 use dlp::ephemeral_balance_seeds_from_payer;
 use dlp::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     ephemeral_balance_pda_from_payer, fees_vault_pda, validator_fees_vault_pda_from_validator,
 };
+use dlp::state::discriminator::AccountDiscriminator;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -142,9 +144,10 @@ async fn test_undelegate() {
     assert_eq!(ephemeral_balance_owner, dlp::id());
 
     // Undelegate ephemeral balance Ix
-    let ix = dlp::instruction_builder::undelegate_ephemeral_balance(
+    let ix = dlp::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance_pda,
+        DELEGATION_PROGRAM_ID,
         validator.pubkey(),
     );
 
@@ -295,7 +298,7 @@ async fn setup_ephemeral_balance(
         ephemeral_balance_pda,
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![],
+            data: AccountDiscriminator::EphemeralBalance.to_bytes().to_vec(),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

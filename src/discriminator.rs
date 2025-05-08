@@ -1,3 +1,4 @@
+use crate::consts::EXTERNAL_UNDELEGATE_DISCRIMINATOR;
 use num_enum::TryFromPrimitive;
 use solana_program::program_error::ProgramError;
 
@@ -36,7 +37,9 @@ pub enum DlpDiscriminator {
     /// See [crate::processor::process_undelegate_ephemeral_balance] for docs.
     UndelegateEphemeralBalance = 15,
     /// See [crate::processor::process_close_ephemeral_balance_v1] for docs.
-    CloseEphemeralBalanceV1 = 16
+    CloseEphemeralBalanceV1 = 16,
+    /// see [crate::processor::process_external_undelegate] for docs.
+    ExternalUndelegate = 17
 }
 
 impl DlpDiscriminator {
@@ -49,8 +52,11 @@ impl DlpDiscriminator {
 impl TryFrom<[u8; 8]> for DlpDiscriminator {
     type Error = ProgramError;
     fn try_from(bytes: [u8; 8]) -> Result<Self, Self::Error> {
-        let discriminator = u64::from_le_bytes(bytes);
-        match discriminator {
+        if bytes == EXTERNAL_UNDELEGATE_DISCRIMINATOR {
+            return Ok(DlpDiscriminator::ExternalUndelegate);
+        }
+
+        match bytes[0] {
             0x0 => Ok(DlpDiscriminator::Delegate),
             0x1 => Ok(DlpDiscriminator::CommitState),
             0x2 => Ok(DlpDiscriminator::Finalize),

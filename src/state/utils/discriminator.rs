@@ -7,10 +7,11 @@ pub enum AccountDiscriminator {
     DelegationMetadata = 102,
     CommitRecord = 101,
     ProgramConfig = 103,
+    EphemeralBalance = 104,
 }
 
 impl AccountDiscriminator {
-    pub fn to_bytes(&self) -> [u8; 8] {
+    pub const fn to_bytes(&self) -> [u8; 8] {
         let num = (*self) as u64;
         num.to_le_bytes()
     }

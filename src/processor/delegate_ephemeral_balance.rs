@@ -1,6 +1,7 @@
 use crate::args::DelegateEphemeralBalanceArgs;
 use crate::ephemeral_balance_seeds_from_payer;
 use crate::processor::utils::loaders::{load_program, load_signer};
+use crate::state::EphemeralBalance;
 use borsh::BorshDeserialize;
 use solana_program::program::invoke_signed;
 use solana_program::program_error::ProgramError;
@@ -71,6 +72,11 @@ pub fn process_delegate_ephemeral_balance(
         &[ephemeral_balance_account.clone(), system_program.clone()],
         &[&ephemeral_balance_signer_seeds],
     )?;
+    // Set discriminator
+    {
+        let mut data = ephemeral_balance_account.try_borrow_mut_data()?;
+        EphemeralBalance.to_bytes_with_discriminator(&mut data.as_mut())?;
+    }
 
     // Create the delegation ix
     let ix = crate::instruction_builder::delegate(

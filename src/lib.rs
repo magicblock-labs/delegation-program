@@ -99,6 +99,9 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CloseEphemeralBalanceV1 => {
             processor::process_close_ephemeral_balance_v1(program_id, accounts, data)?
         }
+        discriminator::DlpDiscriminator::ExternalUndelegate => {
+            processor::process_external_undelegate(program_id, accounts, data)?
+        }
     }
     Ok(())
 }
