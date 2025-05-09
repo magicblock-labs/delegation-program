@@ -21,7 +21,7 @@ pub fn delegate_ephemeral_balance(
     let delegated_account = ephemeral_balance_pda_from_payer(&pubkey, args.index);
     let delegate_buffer_pda = delegate_buffer_pda_from_delegated_account_and_owner_program(
         &delegated_account,
-        &crate::id(),
+        &system_program::id(),
     );
     let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =

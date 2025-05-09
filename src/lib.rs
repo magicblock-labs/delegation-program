@@ -93,9 +93,6 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CloseValidatorFeesVault => {
             processor::process_close_validator_fees_vault(program_id, accounts, data)?
         }
-        discriminator::DlpDiscriminator::ExternalUndelegate => {
-            processor::process_external_undelegate(program_id, accounts, data)?
-        }
     }
     Ok(())
 }

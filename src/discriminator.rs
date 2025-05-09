@@ -1,4 +1,3 @@
-use crate::consts::EXTERNAL_UNDELEGATE_DISCRIMINATOR;
 use num_enum::TryFromPrimitive;
 use solana_program::program_error::ProgramError;
 
@@ -34,8 +33,6 @@ pub enum DlpDiscriminator {
     CommitStateFromBuffer = 13,
     /// See [crate::processor::process_close_validator_fees_vault] for docs.
     CloseValidatorFeesVault = 14,
-    /// see [crate::processor::process_external_undelegate] for docs.
-    ExternalUndelegate = 15
 }
 
 impl DlpDiscriminator {
@@ -48,10 +45,6 @@ impl DlpDiscriminator {
 impl TryFrom<[u8; 8]> for DlpDiscriminator {
     type Error = ProgramError;
     fn try_from(bytes: [u8; 8]) -> Result<Self, Self::Error> {
-        if bytes == EXTERNAL_UNDELEGATE_DISCRIMINATOR {
-            return Ok(DlpDiscriminator::ExternalUndelegate);
-        }
-
         match bytes[0] {
             0x0 => Ok(DlpDiscriminator::Delegate),
             0x1 => Ok(DlpDiscriminator::CommitState),
