@@ -7,6 +7,7 @@ use dlp::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     ephemeral_balance_pda_from_payer, fees_vault_pda, validator_fees_vault_pda_from_validator,
 };
+use dlp::state::DelegationRecord;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
@@ -46,6 +47,30 @@ async fn test_top_up_ephemeral_balance() {
 }
 
 #[tokio::test]
+async fn test_top_up_ephemeral_balance_for_pubkey() {
+    // Setup
+    let (banks, payer, _, blockhash) = setup_program_test_env().await;
+
+    let pubkey = Keypair::new().pubkey();
+
+    let ix = dlp::instruction_builder::top_up_ephemeral_balance(payer.pubkey(), pubkey, None, None);
+    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok());
+
+    // Check account exists and it's owned by the system program
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&pubkey, 0);
+    let balance_account = banks
+        .get_account(ephemeral_balance_pda)
+        .await
+        .unwrap()
+        .unwrap();
+
+    assert_eq!(balance_account.owner, system_program::id());
+    assert!(balance_account.lamports > 0);
+}
+
+#[tokio::test]
 async fn test_top_up_ephemeral_balance_and_delegate() {
     // Setup
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
@@ -72,30 +97,30 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
     );
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
-}
 
-#[tokio::test]
-async fn test_top_up_ephemeral_balance_for_pubkey() {
-    // Setup
-    let (banks, payer, _, blockhash) = setup_program_test_env().await;
-
-    let pubkey = Keypair::new().pubkey();
-
-    let ix = dlp::instruction_builder::top_up_ephemeral_balance(payer.pubkey(), pubkey, None, None);
-    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_ok());
-
-    // Check account exists and it's owned by the system program
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&pubkey, 0);
+    // Check account exists and it's owned by the delegation program (delegated)
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 0);
     let balance_account = banks
         .get_account(ephemeral_balance_pda)
         .await
         .unwrap()
         .unwrap();
 
-    assert_eq!(balance_account.owner, system_program::id());
+    assert_eq!(balance_account.owner, dlp::id());
     assert!(balance_account.lamports > 0);
+
+    // Check the delegation record PDA has system program as owner
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&ephemeral_balance_pda);
+    let delegation_record_account = banks
+        .get_account(delegation_record_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_account.data)
+            .unwrap();
+    assert_eq!(delegation_record.owner, system_program::id());
 }
 
 #[tokio::test]

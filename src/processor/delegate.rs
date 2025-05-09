@@ -63,11 +63,21 @@ pub fn process_delegate(
     load_owned_pda(delegated_account, &crate::id(), "delegated account")?;
     load_program(system_program, system_program::id(), "system program")?;
 
+    msg!("Delegating: {}", delegated_account.key);
+
     // Validate seeds if the delegate account is not on curve, i.e. is a PDA
+    // If the owner is the system program, we check if the account is derived from the delegation program,
+    // allowing delegation of escrow accounts
     if !is_on_curve(delegated_account.key) {
         let seeds_to_validate: Vec<&[u8]> = args.seeds.iter().map(|v| v.as_slice()).collect();
+        let program_id = if owner_program.key.eq(&system_program::id()) {
+            crate::id()
+        } else {
+            *owner_program.key
+        };
         let (derived_pda, _) =
-            Pubkey::find_program_address(seeds_to_validate.as_ref(), owner_program.key);
+            Pubkey::find_program_address(seeds_to_validate.as_ref(), &program_id);
+
         if derived_pda.ne(delegated_account.key) {
             msg!(
                 "Expected delegated PDA to be {}, but got {}",
