@@ -76,7 +76,7 @@ pub fn process_delegate_ephemeral_balance(
     let ix = crate::instruction_builder::delegate(
         *payer.key,
         *ephemeral_balance_account.key,
-        Some(crate::id()),
+        Some(system_program::id()),
         args.delegate_args,
     );
 
