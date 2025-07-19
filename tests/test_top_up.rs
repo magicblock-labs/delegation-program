@@ -9,13 +9,14 @@ use dlp::pda::{
 };
 use dlp::state::DelegationRecord;
 use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL}; use solana_sdk_ids::system_program;
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::{Account, ReadableAccount},
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 mod fixtures;
 
@@ -165,7 +166,7 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
 async fn test_undelegate() {
     // Setup
     let (banks, _, payer_alt, blockhash) = setup_program_test_env().await;
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = Keypair::try_from(&TEST_AUTHORITY[..]).unwrap();
 
     let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer_alt.pubkey(), 0);
     let ephemeral_balance_owner = banks
@@ -207,7 +208,7 @@ async fn test_undelegate_and_close() {
     // Setup
     let (banks, _, payer_alt, blockhash) = setup_program_test_env().await;
 
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = Keypair::try_from(&TEST_AUTHORITY[..]).unwrap();
 
     let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer_alt.pubkey(), 0);
 
@@ -265,7 +266,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.prefer_bpf(true);
 
     let payer_alt = Keypair::new();
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = Keypair::try_from(&TEST_AUTHORITY[..]).unwrap();
 
     program_test.add_account(
         payer_alt.pubkey(),

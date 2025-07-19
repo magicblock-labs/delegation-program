@@ -4,13 +4,14 @@ use dlp::pda::{
     validator_fees_vault_pda_from_validator,
 };
 use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL}; use solana_sdk_ids::system_program;
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
@@ -78,7 +79,7 @@ async fn test_undelegate_without_commit() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = Keypair::try_from(&TEST_AUTHORITY[..]).unwrap();
 
     program_test.add_account(
         validator.pubkey(),

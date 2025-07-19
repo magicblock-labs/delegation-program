@@ -7,9 +7,7 @@ use crate::processor::utils::loaders::{
 use crate::processor::utils::pda::close_pda;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use solana_program::program_error::ProgramError;
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey,
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey};
 use solana_sdk_ids::system_program;
 
 /// Finalize a committed state, after validation, to a delegated account

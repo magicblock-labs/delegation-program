@@ -2,13 +2,14 @@ use crate::fixtures::{DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY};
 use dlp::pda::program_config_from_program_id;
 use dlp::state::ProgramConfig;
 use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL}; use solana_sdk_ids::system_program;
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 mod fixtures;
 
@@ -100,7 +101,7 @@ async fn test_remove_validator_for_program() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = Keypair::try_from(&TEST_AUTHORITY[..]).unwrap();
 
     program_test.add_account(
         validator.pubkey(),

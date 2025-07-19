@@ -9,9 +9,7 @@ use crate::state::ProgramConfig;
 use borsh::BorshDeserialize;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey,
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 use solana_sdk_ids::system_program;
 
 /// Whitelist a validator for a program

@@ -8,8 +8,7 @@ use crate::{
 };
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::{
-    account_info::AccountInfo, msg, program_error::ProgramError,
-    pubkey::Pubkey, sysvar,
+    account_info::AccountInfo, msg, program_error::ProgramError, pubkey::Pubkey, sysvar,
 };
 use solana_sdk_ids::bpf_loader_upgradeable;
 use solana_sdk_ids::system_program;
@@ -375,7 +374,8 @@ pub fn load_initialized_commit_record(
 
 #[cfg(test)]
 mod tests {
-    use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
+    use solana_program::{account_info::AccountInfo, pubkey::Pubkey};
+    use solana_sdk_ids::system_program;
 
     use crate::processor::utils::loaders::{
         load_account, load_signer, load_sysvar, load_uninitialized_account,

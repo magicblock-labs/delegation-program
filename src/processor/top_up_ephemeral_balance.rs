@@ -5,11 +5,9 @@ use crate::processor::utils::pda::create_pda;
 use borsh::BorshDeserialize;
 use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
-use solana_system_interface::instruction::transfer;
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey,
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 use solana_sdk_ids::system_program;
+use solana_system_interface::instruction::transfer;
 
 /// Tops up the ephemeral balance account.
 ///

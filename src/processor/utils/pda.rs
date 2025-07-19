@@ -4,8 +4,8 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, rent::Rent,
     sysvar::Sysvar,
 };
-use solana_system_interface::instruction as system_instruction;
 use solana_sdk_ids::system_program;
+use solana_system_interface::instruction as system_instruction;
 
 /// Creates a new pda
 #[inline(always)]
@@ -48,11 +48,7 @@ pub(crate) fn create_pda<'a, 'info>(
             .saturating_sub(target_account.lamports());
         if rent_exempt_balance.gt(&0) {
             solana_program::program::invoke(
-                &system_instruction::transfer(
-                    payer.key,
-                    target_account.key,
-                    rent_exempt_balance,
-                ),
+                &system_instruction::transfer(payer.key, target_account.key, rent_exempt_balance),
                 &[
                     payer.as_ref().clone(),
                     target_account.as_ref().clone(),

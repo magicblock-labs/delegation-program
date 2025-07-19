@@ -7,13 +7,14 @@ use dlp::pda::{
 use dlp::state::{CommitRecord, DelegationMetadata};
 use fixtures::create_program_config_data;
 use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL}; use solana_sdk_ids::system_program;
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
@@ -102,7 +103,7 @@ async fn setup_program_test_env(valid_config: bool) -> (BanksClient, Keypair, Ke
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
 
-    let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator_keypair = Keypair::try_from(&TEST_AUTHORITY[..]).unwrap();
 
     program_test.add_account(
         validator_keypair.pubkey(),

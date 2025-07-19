@@ -2,8 +2,8 @@ use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConf
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
-use solana_sdk_ids::system_program;
 use solana_sdk::pubkey;
+use solana_sdk_ids::system_program;
 
 // Constants for default values
 const DEFAULT_DELEGATION_SLOT: u64 = 0;

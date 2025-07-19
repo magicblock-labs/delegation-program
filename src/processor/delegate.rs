@@ -2,9 +2,7 @@ use borsh::BorshDeserialize;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::sysvar::Sysvar;
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey,
-};
+use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 use solana_sdk_ids::system_program;
 
 use crate::args::DelegateArgs;

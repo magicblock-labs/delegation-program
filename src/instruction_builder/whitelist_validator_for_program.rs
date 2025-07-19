@@ -1,8 +1,8 @@
 use borsh::to_vec;
-use solana_sdk_ids::bpf_loader_upgradeable;
 use solana_program::instruction::Instruction;
-use solana_sdk_ids::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_sdk_ids::bpf_loader_upgradeable;
+use solana_sdk_ids::system_program;
 
 use crate::args::WhitelistValidatorForProgramArgs;
 use crate::discriminator::DlpDiscriminator;

@@ -1,7 +1,7 @@
 use borsh::to_vec;
 use solana_program::instruction::Instruction;
-use solana_sdk_ids::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_sdk_ids::system_program;
 
 use crate::args::TopUpEphemeralBalanceArgs;
 use crate::discriminator::DlpDiscriminator;

@@ -1,6 +1,6 @@
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL}; use solana_sdk_ids::system_program;
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_sdk::{
@@ -8,6 +8,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use dlp::pda::{
     delegate_buffer_pda_from_delegated_account_and_owner_program,
