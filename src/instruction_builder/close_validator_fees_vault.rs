@@ -1,5 +1,6 @@
 use solana_program::instruction::Instruction;
-use solana_program::{bpf_loader_upgradeable, instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_sdk_ids::bpf_loader_upgradeable;
 
 use crate::discriminator::DlpDiscriminator;
 use crate::pda::validator_fees_vault_pda_from_validator;

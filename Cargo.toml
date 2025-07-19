@@ -25,6 +25,7 @@ borsh = { version = "1.5.3", features = ["derive"] }
 paste = "^1.0"
 solana-program = "2.2"
 solana-sdk-ids = "2.2"
+solana-system-interface = "1.0.0"
 bytemuck = { version = "1.21", features = ["derive"] }
 num_enum = "^0.7.2"
 thiserror = "^1.0.57"

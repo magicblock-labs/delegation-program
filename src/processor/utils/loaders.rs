@@ -8,9 +8,10 @@ use crate::{
 };
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::{
-    account_info::AccountInfo, bpf_loader_upgradeable, msg, program_error::ProgramError,
+    account_info::AccountInfo, msg, program_error::ProgramError,
     pubkey::Pubkey, sysvar,
 };
+use solana_sdk_ids::bpf_loader_upgradeable;
 use solana_sdk_ids::system_program;
 
 /// Errors if:
