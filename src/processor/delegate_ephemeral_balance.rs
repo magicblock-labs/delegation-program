@@ -6,8 +6,9 @@ use solana_program::program::invoke_signed;
 use solana_program::program_error::ProgramError;
 use solana_sdk_ids::system_program;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_instruction,
+    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey,
 };
+use solana_system_interface::instruction as system_instruction;
 
 /// Delegates an account to transfer lamports which are used to fund it inside
 /// the ephemeral.

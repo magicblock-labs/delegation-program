@@ -26,7 +26,7 @@ async fn test_delegate_on_curve() {
 
     // Create transaction to change the owner of alt_payer
     let change_owner_ix =
-        solana_program::system_instruction::assign(&alt_payer.pubkey(), &dlp::id());
+        solana_system_interface::instruction::assign(&alt_payer.pubkey(), &dlp::id());
 
     let change_owner_tx = Transaction::new_signed_with_payer(
         &[change_owner_ix],

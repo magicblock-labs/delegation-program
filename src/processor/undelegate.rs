@@ -17,7 +17,7 @@ use solana_program::msg;
 use solana_program::program::{invoke, invoke_signed};
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
-use solana_program::system_instruction::transfer;
+use solana_system_interface::instruction::transfer;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey,
 };
