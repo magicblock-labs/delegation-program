@@ -2346,6 +2346,7 @@ dependencies = [
  "solana-program",
  "solana-program-test",
  "solana-sdk",
+ "solana-sdk-ids",
  "solana-security-txt",
  "thiserror 1.0.69",
  "tokio",

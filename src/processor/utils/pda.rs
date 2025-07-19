@@ -4,6 +4,7 @@ use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, rent::Rent,
     system_instruction, sysvar::Sysvar,
 };
+use solana_sdk_ids::system_program;
 
 /// Creates a new pda
 #[inline(always)]
@@ -95,7 +96,7 @@ pub(crate) fn resize_pda<'a, 'info>(
         &[payer.clone(), pda.clone(), system_program.clone()],
     )?;
 
-    pda.realloc(new_size, false)?;
+    pda.resize(new_size)?;
     Ok(())
 }
 
@@ -112,8 +113,8 @@ pub(crate) fn close_pda<'a, 'info>(
         .unwrap();
     **target_account.lamports.borrow_mut() = 0;
 
-    target_account.assign(&solana_program::system_program::ID);
-    target_account.realloc(0, false).map_err(Into::into)
+    target_account.assign(&system_program::ID);
+    target_account.resize(0).map_err(Into::into)
 }
 
 /// Close PDA with fees, distributing the fees to the specified addresses in sequence
@@ -164,6 +165,6 @@ pub(crate) fn close_pda_with_fees<'a, 'info>(
         .ok_or(ProgramError::InsufficientFunds)?;
 
     **target_account.lamports.borrow_mut() = 0;
-    target_account.assign(&solana_program::system_program::ID);
-    target_account.realloc(0, false).map_err(Into::into)
+    target_account.assign(&system_program::ID);
+    target_account.resize(0).map_err(Into::into)
 }

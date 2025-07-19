@@ -15,7 +15,8 @@ use solana_program::program::invoke;
 use solana_program::program_error::ProgramError;
 use solana_program::system_instruction::transfer;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
-use solana_program::{msg, system_program};
+use solana_program::msg;
+use solana_sdk_ids::system_program;
 
 /// Commit a new state of a delegated PDA
 ///

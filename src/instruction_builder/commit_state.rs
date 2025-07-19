@@ -1,6 +1,6 @@
 use borsh::to_vec;
 use solana_program::instruction::Instruction;
-use solana_program::system_program;
+use solana_sdk_ids::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::CommitStateArgs;

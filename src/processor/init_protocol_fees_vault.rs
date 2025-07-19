@@ -1,7 +1,8 @@
 use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
+    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fees_vault_seeds;
 use crate::processor::utils::loaders::{load_program, load_signer, load_uninitialized_pda};

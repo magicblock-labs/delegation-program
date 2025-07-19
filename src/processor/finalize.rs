@@ -8,8 +8,9 @@ use crate::processor::utils::pda::close_pda;
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
 use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey, system_program,
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, pubkey::Pubkey,
 };
+use solana_sdk_ids::system_program;
 
 /// Finalize a committed state, after validation, to a delegated account
 ///
@@ -121,7 +122,7 @@ pub fn process_finalize(
     let commit_state_data = commit_state_account.try_borrow_data()?;
 
     // Copying the new commit state to the delegated account
-    delegated_account.realloc(commit_state_data.len(), false)?;
+    delegated_account.resize(commit_state_data.len())?;
     let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
     (*delegated_account_data).copy_from_slice(&commit_state_data);
 

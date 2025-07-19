@@ -1,5 +1,6 @@
 use solana_program::instruction::Instruction;
-use solana_program::{bpf_loader_upgradeable, system_program};
+use solana_program::bpf_loader_upgradeable;
+use solana_sdk_ids::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::discriminator::DlpDiscriminator;

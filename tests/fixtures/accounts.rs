@@ -2,7 +2,7 @@ use dlp::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConf
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
-use solana_program::system_program;
+use solana_sdk_ids::system_program;
 use solana_sdk::pubkey;
 
 // Constants for default values

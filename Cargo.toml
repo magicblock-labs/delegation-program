@@ -21,10 +21,11 @@ default = ["solana-security-txt"]
 unit_test_config = []
 
 [dependencies]
-borsh = { version = "1.5.3", features = [ "derive" ] }
+borsh = { version = "1.5.3", features = ["derive"] }
 paste = "^1.0"
 solana-program = "2.2"
-bytemuck = { version = "1.21", features = [ "derive" ] }
+solana-sdk-ids = "2.2"
+bytemuck = { version = "1.21", features = ["derive"] }
 num_enum = "^0.7.2"
 thiserror = "^1.0.57"
 solana-security-txt = { version = "1.1.1", optional = true }
@@ -38,4 +39,3 @@ solana-program-test = "2.2"
 solana-sdk = "2.2"
 tokio = { version = "1.0", features = ["full"] }
 magicblock-delegation-program = { path = ".", features = ["unit_test_config"] }
-

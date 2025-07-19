@@ -1,5 +1,5 @@
 use dlp::pda::fees_vault_pda;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL}; use solana_sdk_ids::system_program;
 use solana_program_test::{processor, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,

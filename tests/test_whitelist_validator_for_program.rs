@@ -2,7 +2,7 @@ use crate::fixtures::{DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY};
 use dlp::pda::program_config_from_program_id;
 use dlp::state::ProgramConfig;
 use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL}; use solana_sdk_ids::system_program;
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
