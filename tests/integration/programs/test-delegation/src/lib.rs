@@ -1,6 +1,7 @@
 use anchor_lang::prelude::*;
 use ephemeral_rollups_sdk::anchor::{delegate, ephemeral};
 use ephemeral_rollups_sdk::cpi::DelegateConfig;
+use ephemeral_rollups_sdk::pda::ephemeral_balance_pda_from_payer;
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
@@ -11,7 +12,6 @@ pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 #[program]
 pub mod test_delegation {
     use super::*;
-    use ephemeral_rollups_sdk_v2::pda::ephemeral_balance_pda_from_payer;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let counter = &mut ctx.accounts.counter;
