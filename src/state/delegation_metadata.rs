@@ -9,7 +9,8 @@ use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 /// * Everything necessary at cloning time is instead stored in the delegation record.
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
 pub struct DelegationMetadata {
-    /// The last slot at which the delegation was updated
+    /// The last nonce account had during delegation update
+    /// Deprecated: The last slot at which the delegation was updated
     pub last_update_external_slot: u64,
     /// Whether the account can be undelegated or not
     pub is_undelegatable: bool,

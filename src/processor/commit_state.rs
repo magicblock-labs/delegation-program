@@ -126,11 +126,8 @@ pub(crate) fn process_commit_state_internal(
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
-    // If the commit slot is greater or equal than the last update slot, we can proceed.
-    // If the slot is less, we simply do not commit.
-    // Since commit instructions are typically bundled, we return without error
-    // so that correct commits are executed.
-    if args.commit_record_slot < delegation_metadata.last_update_external_slot {
+    // To preserve correct history of account updates we require sequential commits
+    if args.commit_record_slot + 1 == delegation_metadata.last_update_external_slot {
         msg!(
             "Slot {} is outdated, previous slot is {}. Skipping commit",
             args.commit_record_slot,

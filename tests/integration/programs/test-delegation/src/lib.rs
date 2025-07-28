@@ -56,33 +56,6 @@ pub mod test_delegation {
         Ok(())
     }
 
-    /// Handler for post commit action
-    pub fn delegation_program_finalize_hook(
-        ctx: Context<DelegationProgramFinalizeHook>,
-        hook_args: delegation_program_utils::FinalizeWithHookArgs,
-    ) -> Result<()> {
-        let expected = ephemeral_balance_pda_from_payer(
-            ctx.accounts.delegated_account.key,
-            hook_args.escrow_index,
-        );
-        if &expected != ctx.accounts.escrow_account.key {
-            Err(ProgramError::InvalidAccountData)
-        } else {
-            Ok(())
-        }?;
-
-        if !ctx.accounts.escrow_account.is_signer {
-            Err(ProgramError::MissingRequiredSignature)
-        } else {
-            Ok(())
-        }?;
-
-        // some action here
-        // ...
-
-        Ok(())
-    }
-
     /// Delegation program call handler
     pub fn delegation_program_call_handler(
         ctx: Context<DelegationProgramCallHandler>,
@@ -185,21 +158,6 @@ pub struct InitializeOther<'info> {
 pub struct Increment<'info> {
     #[account(mut, seeds = [TEST_PDA_SEED], bump)]
     pub counter: Account<'info, Counter>,
-}
-
-#[derive(Accounts)]
-#[instruction(hook_args: delegation_program_utils::FinalizeWithHookArgs)]
-pub struct DelegationProgramFinalizeHook<'info> {
-    pub delegated_account: UncheckedAccount<'info>,
-    #[account(
-        mut,
-        seeds = [b"balance", &delegated_account.key().as_ref(), &[hook_args.escrow_index]],
-        seeds::program = delegation_program_utils::ID,
-        bump
-    )]
-    pub escrow_account: Signer<'info>,
-    #[account(mut)]
-    pub destination_account: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]

@@ -2,7 +2,8 @@ use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct CommitStateArgs {
-    /// The ephemeral slot at which the account data is committed
+    /// "Nonce" of an account. Updates are submitted historically and nonce incremented by 1
+    /// Deprecated: The ephemeral slot at which the account data is committed
     pub slot: u64,
     /// The lamports that the account holds in the ephemeral validator
     pub lamports: u64,
