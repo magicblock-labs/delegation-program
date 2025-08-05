@@ -29,7 +29,7 @@ async fn test_commit_on_curve() {
     let new_account_balance = 1_000_000;
     let commit_args = CommitStateArgs {
         data: vec![],
-        slot: 100,
+        slot: 1,
         allow_undelegation: true,
         lamports: new_account_balance,
     };
@@ -63,7 +63,7 @@ async fn test_commit_on_curve() {
         CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
     assert_eq!(commit_record.account, payer_delegated.pubkey());
     assert_eq!(commit_record.identity, validator.pubkey());
-    assert_eq!(commit_record.slot, 100);
+    assert_eq!(commit_record.slot, 1);
 
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&payer_delegated.pubkey());

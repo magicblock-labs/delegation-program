@@ -30,7 +30,7 @@ async fn test_commit_new_state() {
     let new_account_balance = 1_000_000;
     let commit_args = CommitStateArgs {
         data: new_state.clone(),
-        slot: 100,
+        slot: 1,
         allow_undelegation: true,
         lamports: new_account_balance,
     };
@@ -68,7 +68,7 @@ async fn test_commit_new_state() {
         CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
     assert_eq!(commit_record.account, DELEGATED_PDA_ID);
     assert_eq!(commit_record.identity, authority.pubkey());
-    assert_eq!(commit_record.slot, 100);
+    assert_eq!(commit_record.slot, 1);
 
     let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let delegation_metadata_account = banks
@@ -80,6 +80,43 @@ async fn test_commit_new_state() {
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
             .unwrap();
     assert!(delegation_metadata.is_undelegatable);
+}
+
+#[tokio::test]
+async fn test_commit_out_of_order() {
+    const OUTDATED_SLOT_ERR_MSG: &str =
+        "transport transaction error: Error processing Instruction 0: custom program error: 0xc";
+
+    // Setup
+    let (banks, _, authority, blockhash) = setup_program_test_env().await;
+    let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
+
+    let new_account_balance = 1_000_000;
+    let commit_args = CommitStateArgs {
+        data: new_state.clone(),
+        slot: 101,
+        allow_undelegation: true,
+        lamports: new_account_balance,
+    };
+
+    // Commit the state for the delegated account
+    let ix = dlp::instruction_builder::commit_state(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        commit_args,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert_eq!(
+        res.unwrap_err().to_string(),
+        OUTDATED_SLOT_ERR_MSG.to_string()
+    );
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

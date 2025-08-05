@@ -97,10 +97,6 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CallHandler => {
             process_call_handler(program_id, accounts, data)?
         }
-        discriminator::DlpDiscriminator::FinalizeWithHook => {
-            // processor::process_finalize_with_hook(program_id, accounts, data)?
-            unreachable!()
-        }
     }
     Ok(())
 }

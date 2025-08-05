@@ -10,11 +10,6 @@ pub const PROTOCOL_FEES_PERCENTAGE: u8 = 10;
 pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37, 51, 167];
 
 /// The discriminator for the external hook after finalization is complete
-/// For anchor: corresponds to function/instruction name delegation_program_finalize_hook
-pub const EXTERNAL_FINALIZE_WITH_HOOK_DISCRIMINATOR: [u8; 8] =
-    [74, 203, 100, 144, 173, 103, 210, 31];
-
-/// The discriminator for the external hook after finalization is complete
 /// For anchor: corresponds to function/instruction name delegation_program_call_handler
 pub const EXTERNAL_CALL_HANDLER_DISCRIMINATOR: [u8; 8] = [157, 197, 228, 30, 0, 80, 121, 135];
 

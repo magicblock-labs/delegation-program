@@ -133,7 +133,7 @@ pub(crate) fn process_commit_state_internal(
             args.commit_record_slot,
             delegation_metadata.last_update_external_slot
         );
-        return Err(DlpError::OutdatedSlot.into())
+        return Err(DlpError::OutdatedSlot.into());
     }
 
     // Once the account is marked as undelegatable, any subsequent commit should fail
