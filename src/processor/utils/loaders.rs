@@ -287,9 +287,10 @@ pub fn load_program_config(
     let pda = program_config_from_program_id(&program);
     if !pda.eq(program_config.key) {
         msg!(
-            "Invalid program config PDA, expected {} but got {}",
+            "Invalid program config PDA, expected {} but got {}. program: {}",
             pda,
-            program_config.key
+            program_config.key,
+            program
         );
         return Err(InvalidAuthority.into());
     }

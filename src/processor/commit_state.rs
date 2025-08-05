@@ -127,13 +127,13 @@ pub(crate) fn process_commit_state_internal(
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
     // To preserve correct history of account updates we require sequential commits
-    if args.commit_record_slot + 1 == delegation_metadata.last_update_external_slot {
+    if args.commit_record_slot != delegation_metadata.last_update_external_slot + 1 {
         msg!(
             "Slot {} is outdated, previous slot is {}. Skipping commit",
             args.commit_record_slot,
             delegation_metadata.last_update_external_slot
         );
-        return Ok(());
+        return Err(DlpError::OutdatedSlot.into())
     }
 
     // Once the account is marked as undelegatable, any subsequent commit should fail
