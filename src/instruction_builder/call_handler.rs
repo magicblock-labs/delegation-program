@@ -9,8 +9,8 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 /// See [crate::processor::call_handler] for docs.
 pub fn call_handler(
     validator: Pubkey,
-    handler_program: Pubkey,
-    escrow_authority: Pubkey, // TODO: rename
+    destination_program: Pubkey,
+    escrow_authority: Pubkey,
     other_accounts: Vec<AccountMeta>,
     args: CallHandlerArgs,
 ) -> Instruction {
@@ -21,7 +21,7 @@ pub fn call_handler(
     let mut accounts = vec![
         AccountMeta::new(validator, true),
         AccountMeta::new(validator_fees_vault_pda, false),
-        AccountMeta::new_readonly(handler_program, false),
+        AccountMeta::new_readonly(destination_program, false),
         AccountMeta::new(escrow_authority, false),
         AccountMeta::new(escrow_account, false),
     ];

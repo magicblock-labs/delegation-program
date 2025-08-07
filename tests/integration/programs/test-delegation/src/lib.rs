@@ -11,6 +11,7 @@ pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 #[ephemeral]
 #[program]
 pub mod test_delegation {
+    use anchor_lang::system_program::{transfer, Transfer};
     use super::*;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
@@ -62,7 +63,7 @@ pub mod test_delegation {
         hook_args: delegation_program_utils::CallHandlerArgs,
     ) -> Result<()> {
         let expected = ephemeral_balance_pda_from_payer(
-            ctx.accounts.delegated_account.key,
+            ctx.accounts.escrow_authority.key,
             hook_args.escrow_index,
         );
         if &expected != ctx.accounts.escrow_account.key {
@@ -78,14 +79,29 @@ pub mod test_delegation {
         }?;
 
         match hook_args.context {
-            delegation_program_utils::Context::Commit => msg!("commit context"),
-            delegation_program_utils::Context::Undelegate => {
+            delegation_program_utils::Context::Commit => {
+                msg!("commit context");
                 let amount = u64::try_from_slice(&hook_args.data)?;
-                transfer_from_undelegated(
-                    &ctx.accounts.delegated_account,
-                    &ctx.accounts.destination_account,
-                    amount,
-                )?
+                let transfer_ctx = CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.escrow_account.to_account_info(),
+                        to: ctx.accounts.destination_account.to_account_info(),
+                    },
+                );
+                transfer(transfer_ctx, amount)?;
+            },
+            delegation_program_utils::Context::Undelegate => {
+                msg!("undelegate context");
+                let amount = u64::try_from_slice(&hook_args.data)?;
+                let transfer_ctx = CpiContext::new(
+                    ctx.accounts.system_program.to_account_info(),
+                    Transfer {
+                        from: ctx.accounts.escrow_account.to_account_info(),
+                        to: ctx.accounts.destination_account.to_account_info(),
+                    },
+                );
+                transfer(transfer_ctx, amount)?;
             }
             delegation_program_utils::Context::Standalone => msg!("standalone context"),
         }
@@ -99,7 +115,7 @@ pub fn transfer_from_undelegated(
     destination_pda: &AccountInfo,
     amount: u64,
 ) -> Result<()> {
-    if undelegated_pda.owner != &crate::ID {
+    if undelegated_pda.owner != &ID {
         return Err(ProgramError::IllegalOwner.into());
     }
 
@@ -163,16 +179,17 @@ pub struct Increment<'info> {
 #[derive(Accounts)]
 #[instruction(hook_args: delegation_program_utils::CallHandlerArgs)]
 pub struct DelegationProgramCallHandler<'info> {
-    pub delegated_account: UncheckedAccount<'info>,
+    pub escrow_authority: UncheckedAccount<'info>,
     #[account(
         mut,
-        seeds = [b"balance", &delegated_account.key().as_ref(), &[hook_args.escrow_index]],
+        seeds = [b"balance", &escrow_authority.key().as_ref(), &[hook_args.escrow_index]],
         seeds::program = delegation_program_utils::ID,
         bump
     )]
     pub escrow_account: Signer<'info>,
     #[account(mut)]
     pub destination_account: AccountInfo<'info>,
+    pub system_program: Program<'info, System>
 }
 
 #[account]

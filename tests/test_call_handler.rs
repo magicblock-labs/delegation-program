@@ -90,7 +90,7 @@ async fn setup_commit_state(program_test: &mut ProgramTest, authority_pubkey: &P
     );
 }
 
-async fn setup_escrow_account(program_test: &mut ProgramTest, authority_pubkey: &Pubkey) {
+async fn setup_invalid_escrow_account(program_test: &mut ProgramTest, authority_pubkey: &Pubkey) {
     let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&DELEGATED_PDA_ID, 0);
 
     // Setup the delegated account PDA
@@ -137,15 +137,86 @@ async fn setup_escrow_account(program_test: &mut ProgramTest, authority_pubkey: 
     );
 }
 
+async fn setup_delegated_ephemeral_balance(
+    program_test: &mut ProgramTest,
+    validator: &Keypair,
+    payer: &Keypair,
+) {
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 0);
+
+    // Setup the delegated account PDA
+    program_test.add_account(
+        ephemeral_balance_pda,
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the delegated record PDA
+    let delegation_record_data = create_delegation_record_data(
+        validator.pubkey(),
+        system_program::id(),
+        Some(LAMPORTS_PER_SOL),
+    );
+    program_test.add_account(
+        delegation_record_pda_from_delegated_account(&ephemeral_balance_pda),
+        Account {
+            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            data: delegation_record_data,
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the delegated account metadata PDA
+    let delegation_metadata_data = create_delegation_metadata_data(
+        validator.pubkey(),
+        ephemeral_balance_seeds_from_payer!(payer.pubkey(), 0),
+        true,
+    );
+    program_test.add_account(
+        delegation_metadata_pda_from_delegated_account(&ephemeral_balance_pda),
+        Account {
+            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            data: delegation_metadata_data,
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+}
+
+async fn setup_ephemeral_balance(program_test: &mut ProgramTest, payer: &Keypair) {
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 1);
+
+    // Setup the delegated account PDA
+    program_test.add_account(
+        ephemeral_balance_pda,
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+}
+
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
     program_test.prefer_bpf(true);
 
-    let authority = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let payer = Keypair::new();
+    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 
     // Setup authority
     program_test.add_account(
-        authority.pubkey(),
+        validator.pubkey(),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
@@ -156,9 +227,11 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup necessary accounts
-    setup_delegated_pda(&mut program_test, &authority.pubkey()).await;
-    setup_commit_state(&mut program_test, &authority.pubkey()).await;
-    setup_escrow_account(&mut program_test, &authority.pubkey()).await;
+    setup_delegated_pda(&mut program_test, &validator.pubkey()).await;
+    setup_commit_state(&mut program_test, &validator.pubkey()).await;
+    setup_invalid_escrow_account(&mut program_test, &validator.pubkey()).await;
+    setup_delegated_ephemeral_balance(&mut program_test, &validator, &payer).await;
+    setup_ephemeral_balance(&mut program_test, &payer).await;
 
     // Setup the protocol fees vault
     program_test.add_account(
@@ -173,7 +246,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
     // Setup the validator fees vault
     program_test.add_account(
-        validator_fees_vault_pda_from_validator(&authority.pubkey()),
+        validator_fees_vault_pda_from_validator(&validator.pubkey()),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
@@ -196,24 +269,66 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, authority, blockhash)
+    let (banks, _, blockhash) = program_test.start().await;
+    (banks, payer, validator, blockhash)
 }
 
-/// Testing call_handler in finalize context
+/// Test call_handler in finalize context
 #[tokio::test]
 async fn test_finalize_call_handler() {
+    const PRIZE: u64 = LAMPORTS_PER_SOL / 1000;
+
+    let (banks, payer, validator, blockhash) = setup_program_test_env().await;
+
+    let transfer_destination = Keypair::new();
+    let finalize_ix = dlp::instruction_builder::finalize(validator.pubkey(), DELEGATED_PDA_ID);
+    let call_handler_ix = dlp::instruction_builder::call_handler(
+        validator.pubkey(),
+        DELEGATED_PDA_OWNER_ID, // destination program
+        payer.pubkey(),         // escrow authority
+        vec![
+            AccountMeta::new(transfer_destination.pubkey(), false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        CallHandlerArgs {
+            escrow_index: 1, // undelegated escrow index,
+            data: to_vec(&PRIZE).unwrap(),
+            context: dlp::args::Context::Commit,
+        },
+    );
+
+    let tx = Transaction::new_signed_with_payer(
+        &[finalize_ix, call_handler_ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok());
+
+    // Prize transferred
+    let transfer_destination = banks
+        .get_account(transfer_destination.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(transfer_destination.lamports, PRIZE);
+}
+
+/// Testing call_handler in finalize context with invalid escrow
+#[tokio::test]
+async fn test_finalize_invalid_escrow_call_handler() {
     // Setup
     let (banks, _, authority, blockhash) = setup_program_test_env().await;
 
     // Submit the finalize with handler tx
-    let destination = Keypair::new();
+    let transfer_destination = Keypair::new();
     let finalize_ix = dlp::instruction_builder::finalize(authority.pubkey(), DELEGATED_PDA_ID);
     let call_handler_ix = dlp::instruction_builder::call_handler(
         authority.pubkey(),
-        DELEGATED_PDA_OWNER_ID, // handler program
+        DELEGATED_PDA_OWNER_ID, // destination program
         DELEGATED_PDA_ID,
-        vec![AccountMeta::new(destination.pubkey(), false)],
+        vec![AccountMeta::new(transfer_destination.pubkey(), false)],
         CallHandlerArgs {
             escrow_index: 0,
             data: vec![],
@@ -227,12 +342,14 @@ async fn test_finalize_call_handler() {
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
-    println!("{:?}", res);
-    assert!(res.is_ok());
+    assert!(res
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid account owner"));
 }
 
 #[tokio::test]
-async fn test_undelegate_call_handler() {
+async fn test_undelegate_invalid_escow_call_handler() {
     const PRIZE: u64 = LAMPORTS_PER_SOL / 1000;
 
     let (banks, _, authority, blockhash) = setup_program_test_env().await;
@@ -281,6 +398,8 @@ async fn test_undelegate_call_handler() {
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
-    println!("{:?}", res);
-    assert!(res.is_ok());
+    assert!(res
+        .unwrap_err()
+        .to_string()
+        .contains("Invalid account owner"));
 }
