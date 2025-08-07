@@ -1,9 +1,9 @@
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data, get_commit_record_account_data,
-    get_delegation_metadata_data, get_delegation_record_data, COMMIT_NEW_STATE_ACCOUNT_DATA,
+    get_delegation_metadata_data, get_delegation_record_data,
     DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
-use borsh::to_vec;
+use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use dlp::args::CallHandlerArgs;
 use dlp::ephemeral_balance_seeds_from_payer;
 use dlp::pda::{
@@ -24,13 +24,20 @@ use solana_sdk::{
 
 mod fixtures;
 
+// Mimic counter from test_delegation program
+#[derive(BorshSerialize, BorshDeserialize)]
+pub struct Counter {
+    pub count: u64,
+}
+
 async fn setup_delegated_pda(program_test: &mut ProgramTest, authority_pubkey: &Pubkey) {
+    let state = to_vec(&Counter { count: 100 }).unwrap();
     // Setup a delegated PDA
     program_test.add_account(
         DELEGATED_PDA_ID,
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![],
+            data: state,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -66,11 +73,12 @@ async fn setup_delegated_pda(program_test: &mut ProgramTest, authority_pubkey: &
 
 async fn setup_commit_state(program_test: &mut ProgramTest, authority_pubkey: &Pubkey) {
     // Setup the commit state PDA
+    let commit_state = to_vec(&Counter { count: 101 }).unwrap();
     program_test.add_account(
         commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
+            data: commit_state,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -142,7 +150,7 @@ async fn setup_delegated_ephemeral_balance(
     validator: &Keypair,
     payer: &Keypair,
 ) {
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 0);
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 1);
 
     // Setup the delegated account PDA
     program_test.add_account(
@@ -192,7 +200,7 @@ async fn setup_delegated_ephemeral_balance(
 }
 
 async fn setup_ephemeral_balance(program_test: &mut ProgramTest, payer: &Keypair) {
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 1);
+    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 2);
 
     // Setup the delegated account PDA
     program_test.add_account(
@@ -288,10 +296,11 @@ async fn test_finalize_call_handler() {
         payer.pubkey(),         // escrow authority
         vec![
             AccountMeta::new(transfer_destination.pubkey(), false),
+            AccountMeta::new(DELEGATED_PDA_ID, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         CallHandlerArgs {
-            escrow_index: 1, // undelegated escrow index,
+            escrow_index: 2, // undelegated escrow index,
             data: to_vec(&PRIZE).unwrap(),
             context: dlp::args::Context::Commit,
         },
@@ -313,6 +322,65 @@ async fn test_finalize_call_handler() {
         .unwrap()
         .unwrap();
     assert_eq!(transfer_destination.lamports, PRIZE);
+}
+
+/// Test call_handler in finalize context
+#[tokio::test]
+async fn test_undelegate_call_handler() {
+    const PRIZE: u64 = LAMPORTS_PER_SOL / 1000;
+
+    let (banks, payer, validator, blockhash) = setup_program_test_env().await;
+
+    let transfer_destination = Keypair::new();
+    let finalize_ix = dlp::instruction_builder::finalize(validator.pubkey(), DELEGATED_PDA_ID);
+    let undelegate_ix = dlp::instruction_builder::undelegate(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        validator.pubkey(),
+    );
+    let call_handler_ix = dlp::instruction_builder::call_handler(
+        validator.pubkey(),
+        DELEGATED_PDA_OWNER_ID, // destination program
+        payer.pubkey(),         // escrow authority
+        vec![
+            AccountMeta::new(transfer_destination.pubkey(), false),
+            AccountMeta::new(DELEGATED_PDA_ID, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        CallHandlerArgs {
+            escrow_index: 2, // undelegated escrow index,
+            data: to_vec(&PRIZE).unwrap(),
+            context: dlp::args::Context::Undelegate,
+        },
+    );
+
+    let tx = Transaction::new_signed_with_payer(
+        &[finalize_ix, undelegate_ix, call_handler_ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+
+    let counter_before = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    println!("counter before: {:?}", counter_before.data);
+    let counter_before = Counter::try_from_slice(&counter_before.data).unwrap();
+    println!("counter before: {}", counter_before.count);
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok());
+
+    // Prize transferred
+    let transfer_destination = banks
+        .get_account(transfer_destination.pubkey())
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(transfer_destination.lamports, PRIZE);
+
+    let counter_after = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    let counter_after = Counter::try_from_slice(&counter_after.data).unwrap();
+    // Committing state from count 100 to 101, and then increasing in handler on 1
+    assert_eq!(counter_before.count + 2, counter_after.count);
 }
 
 /// Testing call_handler in finalize context with invalid escrow

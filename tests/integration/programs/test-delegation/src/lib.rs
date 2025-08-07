@@ -102,6 +102,12 @@ pub mod test_delegation {
                     },
                 );
                 transfer(transfer_ctx, amount)?;
+
+                let counter_data = &mut ctx.accounts.counter.try_borrow_mut_data()?;
+                let mut counter = Counter::try_from_slice(&counter_data)?;
+                counter.count += 1;
+
+                counter_data.copy_from_slice(&counter.try_to_vec()?);
             }
             delegation_program_utils::Context::Standalone => msg!("standalone context"),
         }
@@ -189,7 +195,9 @@ pub struct DelegationProgramCallHandler<'info> {
     pub escrow_account: Signer<'info>,
     #[account(mut)]
     pub destination_account: AccountInfo<'info>,
-    pub system_program: Program<'info, System>
+    // CHECK: fails in finalize stage due to ownership by dlp
+    pub counter: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[account]
@@ -201,12 +209,6 @@ mod delegation_program_utils {
     use anchor_lang::prelude::*;
 
     declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
-
-    #[derive(AnchorSerialize, AnchorDeserialize)]
-    pub struct FinalizeWithHookArgs {
-        pub escrow_index: u8,
-        pub data: Vec<u8>,
-    }
 
     #[derive(AnchorSerialize, AnchorDeserialize)]
     pub enum Context {
