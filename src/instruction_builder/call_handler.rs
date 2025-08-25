@@ -5,7 +5,7 @@ use borsh::to_vec;
 use solana_program::instruction::Instruction;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
-/// Builds a finalize state instruction.
+/// Builds a call handler instruction.
 /// See [crate::processor::call_handler] for docs.
 pub fn call_handler(
     validator: Pubkey,

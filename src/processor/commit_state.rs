@@ -129,7 +129,7 @@ pub(crate) fn process_commit_state_internal(
     // To preserve correct history of account updates we require sequential commits
     if args.commit_record_slot != delegation_metadata.last_update_external_slot + 1 {
         msg!(
-            "Slot {} is outdated, previous slot is {}. Skipping commit",
+            "Slot {} is outdated, previous slot is {}. Rejecting commit",
             args.commit_record_slot,
             delegation_metadata.last_update_external_slot
         );

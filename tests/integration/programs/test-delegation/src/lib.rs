@@ -125,12 +125,15 @@ pub fn transfer_from_undelegated(
         return Err(ProgramError::IllegalOwner.into());
     }
 
-    undelegated_pda
-        .try_borrow_mut_lamports()?
+    **undelegated_pda
+        .try_borrow_mut_lamports()? = undelegated_pda
+        .lamports()?
         .checked_sub(amount)
         .ok_or(ProgramError::InsufficientFunds)?;
-    destination_pda
-        .try_borrow_mut_lamports()?
+
+    **destination_pda
+        .try_borrow_mut_lamports()? = destination_pda
+        .lamports()
         .checked_add(amount)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
