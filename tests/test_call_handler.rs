@@ -1,7 +1,7 @@
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data, get_commit_record_account_data,
-    get_delegation_metadata_data, get_delegation_record_data,
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
+    get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
+    DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use dlp::args::CallHandlerArgs;
