@@ -17,9 +17,8 @@ use solana_program::{msg, system_program};
 
 pub const INVALID_ESCROW_PDA: &str = "invalid escrow pda in CallHandler";
 pub const INVALID_ESCROW_OWNER: &str = "escrow can not be delegated in CallHandler";
-pub const ACTION_FAILED_MSG: &str = "user action failed";
 
-/// Delegates an account
+/// Calls a handler on user specified program
 ///
 /// Accounts:
 /// 0: `[signer]`   validator
@@ -74,7 +73,7 @@ pub fn process_call_handler(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // verify passed escrow_account derived from delegated_account
+    // verify passed escrow_account derived from escrow authority
     let escrow_seeds: &[&[u8]] =
         ephemeral_balance_seeds_from_payer!(escrow_authority_account.key, args.escrow_index);
     let escrow_bump = load_pda(
@@ -104,11 +103,6 @@ pub fn process_call_handler(
                 )
             })
             .collect();
-    msg!(
-        "Calling, accounts_meta.len: {}, handler_account.len: {}",
-        accounts_meta.len(),
-        handler_accounts.len()
-    );
 
     let data = [EXTERNAL_CALL_HANDLER_DISCRIMINATOR.to_vec(), data.to_vec()].concat();
     let handler_instruction = Instruction {
@@ -124,7 +118,4 @@ pub fn process_call_handler(
         &handler_accounts,
         &[&escrow_signer_seeds],
     )
-    .inspect_err(|err| {
-        msg!("{}: {}", ACTION_FAILED_MSG, err);
-    })
 }
