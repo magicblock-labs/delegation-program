@@ -127,11 +127,11 @@ pub(crate) fn process_commit_state_internal(
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
     // To preserve correct history of account updates we require sequential commits
-    if args.commit_record_slot != delegation_metadata.last_update_external_slot + 1 {
+    if args.commit_record_slot != delegation_metadata.last_update_nonce + 1 {
         msg!(
             "Slot {} is outdated, previous slot is {}. Rejecting commit",
             args.commit_record_slot,
-            delegation_metadata.last_update_external_slot
+            delegation_metadata.last_update_nonce
         );
         return Err(DlpError::OutdatedSlot.into());
     }

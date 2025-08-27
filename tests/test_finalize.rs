@@ -79,10 +79,7 @@ async fn test_finalize() {
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
             .unwrap();
-    assert_eq!(
-        commit_record.slot,
-        delegation_metadata.last_update_external_slot
-    );
+    assert_eq!(commit_record.slot, delegation_metadata.last_update_nonce);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

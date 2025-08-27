@@ -11,7 +11,7 @@ use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 pub struct DelegationMetadata {
     /// The last nonce account had during delegation update
     /// Deprecated: The last slot at which the delegation was updated
-    pub last_update_external_slot: u64,
+    pub last_update_nonce: u64,
     /// Whether the account can be undelegated or not
     pub is_undelegatable: bool,
     /// The seeds of the account, used to reopen it on undelegation
@@ -46,7 +46,7 @@ mod tests {
                 ],
             ],
             is_undelegatable: false,
-            last_update_external_slot: 0,
+            last_update_nonce: 0,
             rent_payer: Pubkey::default(),
         };
 

@@ -110,7 +110,7 @@ pub fn create_delegation_metadata_data(
     is_undelegatable: bool,
 ) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
-        last_update_external_slot: DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
+        last_update_nonce: DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
         is_undelegatable,
         seeds: seeds.iter().map(|s| s.to_vec()).collect(),
         rent_payer,

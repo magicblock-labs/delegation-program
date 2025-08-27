@@ -111,7 +111,7 @@ pub fn process_finalize(
     )?;
 
     // Update the delegation metadata
-    delegation_metadata.last_update_external_slot = commit_record.slot;
+    delegation_metadata.last_update_nonce = commit_record.slot;
     delegation_metadata.to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())?;
 
     // Update the delegation record

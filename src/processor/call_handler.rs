@@ -6,7 +6,6 @@ use crate::processor::utils::loaders::{
 };
 
 use borsh::BorshDeserialize;
-use solana_program::account_info::next_account_info;
 use solana_program::account_info::AccountInfo;
 use solana_program::entrypoint::ProgramResult;
 use solana_program::instruction::{AccountMeta, Instruction};
@@ -50,15 +49,21 @@ pub fn process_call_handler(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+    const OTHER_ACCOUNTS_OFFSET: usize = 5;
+
+    if accounts.len() < OTHER_ACCOUNTS_OFFSET {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    }
+
+    let (
+        [validator, validator_fees_vault, destination_program, escrow_authority_account, escrow_account],
+        other_accounts,
+    ) = accounts.split_at(OTHER_ACCOUNTS_OFFSET)
+    else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
     let args = CallHandlerArgs::try_from_slice(data)?;
-
-    let accounts_iter = &mut accounts.iter();
-
-    let validator = next_account_info(accounts_iter)?;
-    let validator_fees_vault = next_account_info(accounts_iter)?;
-    let destination_program = next_account_info(accounts_iter)?;
-    let escrow_authority_account = next_account_info(accounts_iter)?;
-    let escrow_account = next_account_info(accounts_iter)?;
 
     // verify account is a signer
     load_signer(validator, "validator")?;
@@ -89,7 +94,7 @@ pub fn process_call_handler(
     let (accounts_meta, handler_accounts): (Vec<AccountMeta>, Vec<AccountInfo>) =
         [escrow_authority_account, escrow_account]
             .into_iter()
-            .chain(accounts_iter)
+            .chain(other_accounts)
             .filter(|account| account.key != validator.key)
             .map(|account| {
                 (
