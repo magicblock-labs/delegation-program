@@ -127,7 +127,7 @@ pub fn transfer_from_undelegated(
 
     **undelegated_pda
         .try_borrow_mut_lamports()? = undelegated_pda
-        .lamports()?
+        .lamports()
         .checked_sub(amount)
         .ok_or(ProgramError::InsufficientFunds)?;
 
