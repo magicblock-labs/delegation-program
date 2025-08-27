@@ -447,7 +447,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     };
     let commit_args = CommitStateArgs {
         data: data.clone(),
-        slot: 1,
+        nonce: 1,
         allow_undelegation: true,
         lamports: args.new_delegated_account_lamports,
     };
@@ -503,7 +503,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
     assert_eq!(commit_record.account, args.delegated_account);
     assert_eq!(commit_record.identity, args.authority.pubkey());
-    assert_eq!(commit_record.slot, 1);
+    assert_eq!(commit_record.nonce, 1);
 
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&args.delegated_account);

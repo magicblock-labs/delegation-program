@@ -56,7 +56,7 @@ pub fn process_commit_state(
 
     let commit_state_bytes: &[u8] = args.data.as_ref();
     let commit_record_lamports = args.lamports;
-    let commit_record_slot = args.slot;
+    let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
 
     let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, system_program] =
@@ -68,7 +68,7 @@ pub fn process_commit_state(
     let commit_args = CommitStateInternalArgs {
         commit_state_bytes,
         commit_record_lamports,
-        commit_record_slot,
+        commit_record_nonce,
         allow_undelegation,
         validator,
         delegated_account,
@@ -88,7 +88,7 @@ pub fn process_commit_state(
 pub(crate) struct CommitStateInternalArgs<'a, 'info> {
     pub(crate) commit_state_bytes: &'a [u8],
     pub(crate) commit_record_lamports: u64,
-    pub(crate) commit_record_slot: u64,
+    pub(crate) commit_record_nonce: u64,
     pub(crate) allow_undelegation: bool,
     pub(crate) validator: &'a AccountInfo<'info>,
     pub(crate) delegated_account: &'a AccountInfo<'info>,
@@ -127,10 +127,10 @@ pub(crate) fn process_commit_state_internal(
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)?;
 
     // To preserve correct history of account updates we require sequential commits
-    if args.commit_record_slot != delegation_metadata.last_update_nonce + 1 {
+    if args.commit_record_nonce != delegation_metadata.last_update_nonce + 1 {
         msg!(
             "Slot {} is outdated, previous slot is {}. Rejecting commit",
-            args.commit_record_slot,
+            args.commit_record_nonce,
             delegation_metadata.last_update_nonce
         );
         return Err(DlpError::OutdatedSlot.into());
@@ -247,7 +247,7 @@ pub(crate) fn process_commit_state_internal(
     let commit_record = CommitRecord {
         identity: *args.validator.key,
         account: *args.delegated_account.key,
-        slot: args.commit_record_slot,
+        nonce: args.commit_record_nonce,
         lamports: args.commit_record_lamports,
     };
     let mut commit_record_data = args.commit_record_account.try_borrow_mut_data()?;

@@ -46,7 +46,7 @@ pub fn process_commit_state_from_buffer(
     let args = CommitStateFromBufferArgs::try_from_slice(data)?;
 
     let commit_record_lamports = args.lamports;
-    let commit_record_slot = args.slot;
+    let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
 
     let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, state_buffer_account, validator_fees_vault, program_config_account, system_program] =
@@ -60,7 +60,7 @@ pub fn process_commit_state_from_buffer(
     let commit_args = CommitStateInternalArgs {
         commit_state_bytes,
         commit_record_lamports,
-        commit_record_slot,
+        commit_record_nonce,
         allow_undelegation,
         validator,
         delegated_account,

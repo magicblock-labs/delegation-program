@@ -19,8 +19,8 @@ pub struct CommitRecord {
     /// The account for which the state is committed
     pub account: Pubkey,
 
-    /// The external slot of the commit. This is used to enforce sequential commits
-    pub slot: u64,
+    /// The external nonce of the commit. This is used to enforce sequential commits
+    pub nonce: u64,
 
     /// The account committed lamports
     pub lamports: u64,

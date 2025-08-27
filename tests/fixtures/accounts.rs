@@ -125,7 +125,7 @@ pub fn create_delegation_metadata_data(
 #[allow(dead_code)]
 pub fn get_commit_record_account_data(authority: Pubkey) -> Vec<u8> {
     let commit_record = CommitRecord {
-        slot: 100,
+        nonce: 100,
         identity: authority,
         account: DELEGATED_PDA_ID,
         lamports: LAMPORTS_PER_SOL,

@@ -40,7 +40,7 @@ async fn test_commit_new_state(valid_config: bool) {
     let new_account_balance = 1_000_000;
     let commit_args = CommitStateArgs {
         data: new_state.clone(),
-        slot: 1,
+        nonce: 1,
         allow_undelegation: true,
         lamports: new_account_balance,
     };
@@ -81,7 +81,7 @@ async fn test_commit_new_state(valid_config: bool) {
             CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
         assert_eq!(commit_record.account, DELEGATED_PDA_ID);
         assert_eq!(commit_record.identity, authority.pubkey());
-        assert_eq!(commit_record.slot, 1);
+        assert_eq!(commit_record.nonce, 1);
 
         let delegation_metadata_pda =
             delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
