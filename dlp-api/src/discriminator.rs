@@ -13,6 +13,8 @@ pub enum DlpDiscriminator {
     Finalize = 2,
     /// See [crate::processor::process_undelegate] for docs.
     Undelegate = 3,
+    /// See [crate::processor::process_change_delegation_identity] for docs.
+    ChangeDelegationIdentity = 4,
     /// See [crate::processor::process_init_protocol_fees_vault] for docs.
     InitProtocolFeesVault = 5,
     /// See [crate::processor::process_init_validator_fees_vault] for docs.

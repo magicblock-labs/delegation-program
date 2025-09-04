@@ -12,6 +12,7 @@ mod top_up_ephemeral_balance;
 mod utils;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
+mod change_delegation_identity;
 
 pub mod fast;
 
@@ -28,3 +29,4 @@ pub use protocol_claim_fees::*;
 pub use top_up_ephemeral_balance::*;
 pub use validator_claim_fees::*;
 pub use whitelist_validator_for_program::*;
+pub use change_delegation_identity::*;

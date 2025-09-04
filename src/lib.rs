@@ -179,6 +179,11 @@ pub fn slow_process_instruction(
                 program_id, accounts, data,
             )?
         }
+        DlpDiscriminator::ChangeDelegationIdentity => {
+            processor::process_change_delegation_identity(
+                program_id, accounts, data,
+            )?
+        }
         DlpDiscriminator::ValidatorClaimFees => {
             processor::process_validator_claim_fees(program_id, accounts, data)?
         }
