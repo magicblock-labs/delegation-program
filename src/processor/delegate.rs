@@ -17,6 +17,7 @@ use crate::{
     delegate_buffer_seeds_from_delegated_account, delegation_metadata_seeds_from_delegated_account,
     delegation_record_seeds_from_delegated_account,
 };
+use crate::consts::DEFAULT_VALIDATOR_IDENTITY;
 
 /// Delegates an account
 ///
@@ -133,7 +134,7 @@ pub fn process_delegate(
     // Initialize the delegation record
     let delegation_record = DelegationRecord {
         owner: *owner_program.key,
-        authority: args.validator.unwrap_or(Pubkey::default()),
+        authority: args.validator.unwrap_or(DEFAULT_VALIDATOR_IDENTITY),
         commit_frequency_ms: args.commit_frequency_ms as u64,
         delegation_slot: solana_program::clock::Clock::get()?.slot,
         lamports: delegated_account.lamports(),
