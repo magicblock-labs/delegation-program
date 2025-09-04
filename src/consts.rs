@@ -14,4 +14,5 @@ pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37
 pub const DELEGATION_PROGRAM_ID: Pubkey = crate::id();
 
 /// Default validator identity (used when none is provided during delegation).
-pub const DEFAULT_VALIDATOR_IDENTITY: Pubkey = pubkey!("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57");
+pub const DEFAULT_VALIDATOR_IDENTITY: Pubkey =
+    pubkey!("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57");

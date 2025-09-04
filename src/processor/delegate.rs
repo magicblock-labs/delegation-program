@@ -7,6 +7,7 @@ use solana_program::{
 };
 
 use crate::args::DelegateArgs;
+use crate::consts::DEFAULT_VALIDATOR_IDENTITY;
 use crate::processor::utils::curve::is_on_curve;
 use crate::processor::utils::loaders::{
     load_owned_pda, load_pda, load_program, load_signer, load_uninitialized_pda,
@@ -17,7 +18,6 @@ use crate::{
     delegate_buffer_seeds_from_delegated_account, delegation_metadata_seeds_from_delegated_account,
     delegation_record_seeds_from_delegated_account,
 };
-use crate::consts::DEFAULT_VALIDATOR_IDENTITY;
 
 /// Delegates an account
 ///
