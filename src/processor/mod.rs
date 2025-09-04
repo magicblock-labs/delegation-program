@@ -1,5 +1,6 @@
 mod call_handler;
 mod call_handler_v2;
+mod change_delegation_identity;
 mod close_ephemeral_balance;
 mod close_validator_fees_vault;
 mod delegate_ephemeral_balance;
@@ -12,12 +13,12 @@ mod top_up_ephemeral_balance;
 mod utils;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
-mod change_delegation_identity;
 
 pub mod fast;
 
 pub use call_handler::*;
 pub use call_handler_v2::*;
+pub use change_delegation_identity::*;
 pub use close_ephemeral_balance::*;
 pub use close_validator_fees_vault::*;
 pub use delegate_ephemeral_balance::*;
@@ -29,4 +30,3 @@ pub use protocol_claim_fees::*;
 pub use top_up_ephemeral_balance::*;
 pub use validator_claim_fees::*;
 pub use whitelist_validator_for_program::*;
-pub use change_delegation_identity::*;

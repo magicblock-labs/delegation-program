@@ -5,7 +5,9 @@ use solana_program::rent::Rent;
 use solana_program::{hash::Hash, pubkey::Pubkey, system_program};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::instruction::{AccountMeta, Instruction};
-use solana_sdk::{account::Account, signature::Keypair, signature::Signer, transaction::Transaction};
+use solana_sdk::{
+    account::Account, signature::Keypair, signature::Signer, transaction::Transaction,
+};
 
 use crate::fixtures::{get_delegation_record_data, DELEGATED_PDA_ID, TEST_AUTHORITY};
 
@@ -32,7 +34,8 @@ async fn test_change_delegation_identity_success() {
     // 1: []         program data account for the delegation program (BPF Upgradeable Loader ProgramData PDA)
     // 2: [writable] delegation record PDA for the delegated account
     // 3: []         delegated account (used to derive the PDA)
-    let program_data = Pubkey::find_program_address(&[dlp::ID.as_ref()], &bpf_loader_upgradeable::id()).0;
+    let program_data =
+        Pubkey::find_program_address(&[dlp::ID.as_ref()], &bpf_loader_upgradeable::id()).0;
 
     let accounts = vec![
         AccountMeta::new_readonly(admin.pubkey(), true),
@@ -47,9 +50,18 @@ async fn test_change_delegation_identity_success() {
         data,
     };
 
-    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer, &admin], blockhash);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &admin],
+        blockhash,
+    );
     let res = banks.process_transaction(tx).await;
-    assert!(res.is_ok(), "ChangeDelegationIdentity should succeed: {:?}", res);
+    assert!(
+        res.is_ok(),
+        "ChangeDelegationIdentity should succeed: {:?}",
+        res
+    );
 
     // Assert the DelegationRecord authority has changed
     let record_acc = banks
@@ -107,11 +119,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Add the ProgramData account for the delegation program with upgrade authority = admin_keypair
-    let program_data_address = Pubkey::find_program_address(&[dlp::ID.as_ref()], &bpf_loader_upgradeable::id()).0;
-    let program_data_state = solana_program::bpf_loader_upgradeable::UpgradeableLoaderState::ProgramData {
-        slot: 0,
-        upgrade_authority_address: Some(admin_keypair.pubkey()),
-    };
+    let program_data_address =
+        Pubkey::find_program_address(&[dlp::ID.as_ref()], &bpf_loader_upgradeable::id()).0;
+    let program_data_state =
+        solana_program::bpf_loader_upgradeable::UpgradeableLoaderState::ProgramData {
+            slot: 0,
+            upgrade_authority_address: Some(admin_keypair.pubkey()),
+        };
     let program_data_bytes = bincode::serialize(&program_data_state).unwrap();
     program_test.add_account(
         program_data_address,
