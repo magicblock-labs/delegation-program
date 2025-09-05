@@ -21,4 +21,7 @@ pub const DELEGATION_PROGRAM_ID: Pubkey = crate::id();
 pub const DEFAULT_VALIDATOR_IDENTITY: Pubkey =
     pubkey!("MAS1Dt9qreoRMQ14YQuhg8UTZMMzDdKhmkZMECCzk57");
 
+/// The broadcast identity marks an account as undelegatable.
+/// Validators treat it as always delegatable, which is safe since such accounts
+/// cannot be committed or delegated
 pub const BROADCAST_IDENTITY: Pubkey = pubkey!("Broadcast1111111111111111111111111111111111");
