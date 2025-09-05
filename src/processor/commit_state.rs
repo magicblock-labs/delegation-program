@@ -154,6 +154,18 @@ pub(crate) fn process_commit_state_internal(
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)?;
 
+    // Check that the authority is allowed to commit
+    if !delegation_record.authority.eq(args.validator.key)
+        && delegation_record.authority.ne(&Pubkey::default())
+    {
+        msg!(
+            "validator ({}) is not the delegation authority ({})",
+            args.validator.key,
+            delegation_record.authority
+        );
+        return Err(DlpError::InvalidAuthority.into());
+    }
+
     // If there was an issue with the lamport accounting in the past, abort (this should never happen)
     if args.delegated_account.lamports() < delegation_record.lamports {
         msg!(
