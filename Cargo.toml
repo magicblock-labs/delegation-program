@@ -11,8 +11,18 @@ repository = "https://github.com/magicblock-labs/delegation-program"
 readme = "./README.md"
 keywords = ["solana", "crypto", "delegation", "ephemeral-rollups", "magicblock"]
 
+[profile.release]
+opt-level  = "z"
+lto = "fat"
+codegen-units = 1
+panic = "abort"
+strip = "symbols"
+debug = 0
+incremental = false
+overflow-checks = false
+
 [lib]
-crate-type = ["cdylib", "lib"]
+crate-type = ["cdylib"]
 name = "dlp"
 
 [features]
