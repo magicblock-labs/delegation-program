@@ -23,7 +23,7 @@ test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/test-delegation.ts
 [test]
 startup_wait = 5000
 shutdown_wait = 2000
-upgradeable = false
+upgradeable = true
 
 [[test.genesis]]
 address = "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"

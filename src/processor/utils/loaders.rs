@@ -205,9 +205,7 @@ pub fn load_program_upgrade_authority(
     // During tests, the upgrade authority is a test pubkey
     #[cfg(feature = "unit_test_config")]
     if program.eq(&crate::ID) {
-        return Ok(Some(solana_program::pubkey!(
-            "tEsT3eV6RFCWs1BZ7AXTzasHqTtMnMLCB2tjQ42TDXD"
-        )));
+        return Ok(Some(crate::consts::DEFAULT_VALIDATOR_IDENTITY));
     }
 
     if !program_data_address.eq(program_data.key) {

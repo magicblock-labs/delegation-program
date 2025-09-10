@@ -30,7 +30,7 @@ pub enum DlpError {
     #[error("Account already undelegated")]
     AlreadyUndelegated = 11,
     #[error("Commit is out of order")]
-    OutdatedSlot = 12,
+    NonceOutOfOrder = 12,
     #[error("Computation overflow detected")]
     Overflow = 13,
 }

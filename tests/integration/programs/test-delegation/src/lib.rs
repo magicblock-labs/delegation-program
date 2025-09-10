@@ -11,8 +11,8 @@ pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 #[ephemeral]
 #[program]
 pub mod test_delegation {
-    use anchor_lang::system_program::{transfer, Transfer};
     use super::*;
+    use anchor_lang::system_program::{transfer, Transfer};
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let counter = &mut ctx.accounts.counter;
@@ -54,6 +54,16 @@ pub mod test_delegation {
             &[TEST_PDA_SEED_OTHER],
             DelegateConfig::default(),
         )?;
+        msg!(
+            "Delegated {:?}, owner {:?}",
+            ctx.accounts.pda.key(),
+            ctx.accounts.pda.owner
+        );
+        msg!(
+            "Delegated {:?}, owner {:?}",
+            ctx.accounts.pda_other.key(),
+            ctx.accounts.pda_other.owner
+        );
         Ok(())
     }
 
@@ -90,7 +100,7 @@ pub mod test_delegation {
                     },
                 );
                 transfer(transfer_ctx, amount)?;
-            },
+            }
             delegation_program_utils::Context::Undelegate => {
                 msg!("undelegate context");
                 let amount = u64::try_from_slice(&hook_args.data)?;
@@ -125,14 +135,12 @@ pub fn transfer_from_undelegated(
         return Err(ProgramError::IllegalOwner.into());
     }
 
-    **undelegated_pda
-        .try_borrow_mut_lamports()? = undelegated_pda
+    **undelegated_pda.try_borrow_mut_lamports()? = undelegated_pda
         .lamports()
         .checked_sub(amount)
         .ok_or(ProgramError::InsufficientFunds)?;
 
-    **destination_pda
-        .try_borrow_mut_lamports()? = destination_pda
+    **destination_pda.try_borrow_mut_lamports()? = destination_pda
         .lamports()
         .checked_add(amount)
         .ok_or(ProgramError::ArithmeticOverflow)?;
