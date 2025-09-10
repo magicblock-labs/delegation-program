@@ -7,6 +7,7 @@ on:
 
 env:
   solana_version: v2.1.21
+  anchor_version: v0.31.1
 
 jobs:
   install:
@@ -100,5 +101,7 @@ jobs:
           npm install -g @magicblock-labs/bolt-cli
           cd sdk/ts && npm install --legacy-peer-deps && npm run build && npm run lint:fix && cd ../..
           cd tests/integration 
+          set -x
+          cargo install --locked --version ${{ env.solana_version }} anchor-cli
           npm install
-          bolt test
+          anchor test

@@ -2,301 +2,403 @@
   "address": "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh",
   "metadata": {
     "name": "delegation-program",
-    "version": "0.1.4",
+    "version": "1.1.0",
     "spec": "0.1.0",
     "description": "MagicBlock delegation program"
   },
   "instructions": [
     {
       "name": "delegate",
-      "discriminator": [
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
+      "discriminator": [0,0,0,0,0,0,0,0],
       "accounts": [
+        { "name": "payer", "signer": true, "writable": true },
+        { "name": "delegated_account", "signer": true, "writable": true },
+        { "name": "owner_program" },
         {
-          "name": "payer",
-          "signer": true,
-          "writable": true
-        },
-        {
-          "name": "delegate_account",
-          "signer": true,
-          "writable": true
-        },
-        {
-          "name": "owner_program"
-        },
-        {
-          "name": "buffer",
+          "name": "delegate_buffer",
           "writable": true,
           "pda": {
             "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  98,
-                  117,
-                  102,
-                  102,
-                  101,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "pda"
-              }
+              { "kind": "const", "value": [98,117,102,102,101,114] },
+              { "kind": "account", "path": "delegated_account" }
             ]
           }
         },
         {
           "name": "delegation_record",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [100,101,108,101,103,97,116,105,111,110] },
+              { "kind": "account", "path": "delegated_account" }
+            ]
+          }
         },
         {
           "name": "delegation_metadata",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [100,101,108,101,103,97,116,105,111,110,45,109,101,116,97,100,97,116,97] },
+              { "kind": "account", "path": "delegated_account" }
+            ]
+          }
         },
-        {
-          "name": "system_program"
-        }
+        { "name": "system_program" }
       ],
       "args": [
-        {
-          "name": "valid_until",
-          "type": "i64"
-        },
-        {
-          "name": "commit_frequency_ms",
-          "type": "u32"
-        },
-        {
-          "name": "seeds",
-          "type": {
-            "vec": {
-              "vec": "u8"
-            }
-          }
-        }
+        { "name": "commit_frequency_ms", "type": "u32" },
+        { "name": "seeds", "type": { "vec": { "vec": "u8" } } },
+        { "name": "validator", "type": { "option": "pubkey" } }
       ]
     },
     {
       "name": "commit_state",
-      "discriminator": [
-        1,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
+      "discriminator": [1,0,0,0,0,0,0,0],
       "accounts": [
-        {
-          "name": "authority",
-          "signer": true,
-          "writable": true
-        },
-        {
-          "name": "delegated_account"
-        },
+        { "name": "validator", "signer": true },
+        { "name": "delegated_account" },
         {
           "name": "commit_state_account",
-          "writable": true
-        },
-        {
-          "name": "commit_state_record",
-          "writable": true
-        },
-        {
-          "name": "delegation_record",
-          "writable": true
-        },
-        {
-          "name": "system_program"
-        }
-      ],
-      "args": [
-        {
-          "name": "args",
-          "type": {
-            "vec": "u8"
-          }
-        }
-      ]
-    },
-    {
-      "name": "finalize",
-      "discriminator": [
-        2,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
-      "accounts": [
-        {
-          "name": "payer",
-          "signer": true,
-          "writable": true
-        },
-        {
-          "name": "delegated_account",
-          "writable": true
-        },
-        {
-          "name": "committed_state_account",
-          "writable": true
-        },
-        {
-          "name": "committed_state_record",
-          "writable": true
-        },
-        {
-          "name": "delegation_record",
           "writable": true,
           "pda": {
             "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  100,
-                  101,
-                  108,
-                  101,
-                  103,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "pda"
-              }
+              { "kind": "const", "value": [115,116,97,116,101,45,100,105,102,102] },
+              { "kind": "account", "path": "delegated_account" }
             ]
           }
         },
         {
-          "name": "reimbursement"
+          "name": "commit_record_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [99,111,109,109,105,116,45,115,116,97,116,101,45,114,101,99,111,114,100] },
+              { "kind": "account", "path": "delegated_account" }
+            ]
+          }
         },
-        {
-          "name": "system_program"
-        }
+        { "name": "delegation_record" },
+        { "name": "delegation_metadata", "writable": true },
+        { "name": "validator_fees_vault" },
+        { "name": "program_config" },
+        { "name": "system_program" }
+      ],
+      "args": [
+        { "name": "nonce", "type": "u64" },
+        { "name": "lamports", "type": "u64" },
+        { "name": "allow_undelegation", "type": "bool" },
+        { "name": "data", "type": { "vec": "u8" } }
+      ]
+    },
+    {
+      "name": "finalize",
+      "discriminator": [2,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "validator", "signer": true },
+        { "name": "delegated_account", "writable": true },
+        { "name": "commit_state_account", "writable": true },
+        { "name": "commit_record_account", "writable": true },
+        { "name": "delegation_record", "writable": true },
+        { "name": "delegation_metadata", "writable": true },
+        { "name": "validator_fees_vault", "writable": true },
+        { "name": "system_program" }
       ],
       "args": []
     },
     {
       "name": "undelegate",
-      "discriminator": [
-        3,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0,
-        0
-      ],
+      "discriminator": [3,0,0,0,0,0,0,0],
       "accounts": [
+        { "name": "validator", "signer": true },
+        { "name": "delegated_account", "writable": true },
+        { "name": "owner_program" },
         {
-          "name": "payer",
-          "signer": true,
-          "writable": true
-        },
-        {
-          "name": "delegated_account",
-          "writable": true
-        },
-        {
-          "name": "owner_program"
-        },
-        {
-          "name": "buffer",
+          "name": "undelegate_buffer",
           "writable": true,
           "pda": {
             "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  98,
-                  117,
-                  102,
-                  102,
-                  101,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "pda"
-              }
+              { "kind": "const", "value": [117,110,100,101,108,101,103,97,116,101,45,98,117,102,102,101,114] },
+              { "kind": "account", "path": "delegated_account" }
+            ]
+          }
+        },
+        { "name": "commit_state_account" },
+        { "name": "commit_record_account" },
+        {
+          "name": "delegation_record",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [100,101,108,101,103,97,116,105,111,110] },
+              { "kind": "account", "path": "delegated_account" }
             ]
           }
         },
         {
-          "name": "committed_state_account",
-          "writable": true
+          "name": "delegation_metadata",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [100,101,108,101,103,97,116,105,111,110,45,109,101,116,97,100,97,116,97] },
+              { "kind": "account", "path": "delegated_account" }
+            ]
+          }
         },
+        { "name": "rent_reimbursement" },
+        { "name": "fees_vault", "writable": true },
+        { "name": "validator_fees_vault", "writable": true },
+        { "name": "system_program" }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_protocol_fees_vault",
+      "discriminator": [5,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "payer", "signer": true, "writable": true },
         {
-          "name": "committed_state_record",
-          "writable": true
+          "name": "fees_vault",
+          "writable": true,
+          "pda": { "seeds": [ { "kind": "const", "value": [102,101,101,115,45,118,97,117,108,116] } ] }
+        },
+        { "name": "system_program" }
+      ],
+      "args": []
+    },
+    {
+      "name": "init_validator_fees_vault",
+      "discriminator": [6,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "payer", "signer": true },
+        { "name": "admin", "signer": true },
+        { "name": "delegation_program_data" },
+        { "name": "validator_identity" },
+        {
+          "name": "validator_fees_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [118,45,102,101,101,115,45,118,97,117,108,116] },
+              { "kind": "account", "path": "validator_identity" }
+            ]
+          }
+        },
+        { "name": "system_program" }
+      ],
+      "args": []
+    },
+    {
+      "name": "validator_claim_fees",
+      "discriminator": [7,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "validator", "signer": true },
+        { "name": "fees_vault", "writable": true },
+        { "name": "validator_fees_vault", "writable": true }
+      ],
+      "args": [
+        { "name": "amount", "type": { "option": "u64" } }
+      ]
+    },
+    {
+      "name": "whitelist_validator_for_program",
+      "discriminator": [8,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "authority", "signer": true },
+        { "name": "validator_identity" },
+        { "name": "program" },
+        { "name": "program_data" },
+        { "name": "delegation_program_data" },
+        {
+          "name": "program_config",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [112,45,99,111,110,102] },
+              { "kind": "account", "path": "program" }
+            ]
+          }
+        },
+        { "name": "system_program" }
+      ],
+      "args": [ { "name": "insert", "type": "bool" } ]
+    },
+    {
+      "name": "top_up_ephemeral_balance",
+      "discriminator": [9,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "payer", "writable": true, "signer": true },
+        { "name": "pubkey" },
+        { "name": "ephemeral_balance_account", "writable": true },
+        { "name": "system_program" }
+      ],
+      "args": [
+        { "name": "amount", "type": "u64" },
+        { "name": "index", "type": "u8" }
+      ]
+    },
+    {
+      "name": "delegate_ephemeral_balance",
+      "discriminator": [10,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "payer", "writable": true },
+        { "name": "delegatee", "signer": true },
+        { "name": "ephemeral_balance_account", "writable": true },
+        {
+          "name": "delegate_buffer",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [98,117,102,102,101,114] },
+              { "kind": "account", "path": "ephemeral_balance_account" }
+            ]
+          }
         },
         {
           "name": "delegation_record",
           "writable": true,
           "pda": {
             "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  100,
-                  101,
-                  108,
-                  101,
-                  103,
-                  103,
-                  97,
-                  116,
-                  105,
-                  111,
-                  110
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "pda"
-              }
+              { "kind": "const", "value": [100,101,108,101,103,97,116,105,111,110] },
+              { "kind": "account", "path": "ephemeral_balance_account" }
             ]
           }
         },
         {
           "name": "delegation_metadata",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [100,101,108,101,103,97,116,105,111,110,45,109,101,116,97,100,97,116,97] },
+              { "kind": "account", "path": "ephemeral_balance_account" }
+            ]
+          }
         },
+        { "name": "system_program" },
+        { "name": "delegation_program" }
+      ],
+      "args": [
+        { "name": "commit_frequency_ms", "type": "u32" },
+        { "name": "seeds", "type": { "vec": { "vec": "u8" } } },
+        { "name": "validator", "type": { "option": "pubkey" } },
+        { "name": "index", "type": "u8" }
+      ]
+    },
+    {
+      "name": "close_ephemeral_balance",
+      "discriminator": [11,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "payer", "signer": true },
+        { "name": "ephemeral_balance_account", "writable": true },
+        { "name": "system_program" }
+      ],
+      "args": [ { "name": "index", "type": "u8" } ]
+    },
+    {
+      "name": "protocol_claim_fees",
+      "discriminator": [12,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "admin", "signer": true },
+        { "name": "fees_vault", "writable": true },
+        { "name": "delegation_program_data" }
+      ],
+      "args": []
+    },
+    {
+      "name": "commit_state_from_buffer",
+      "discriminator": [13,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "validator", "signer": true },
+        { "name": "delegated_account" },
+        { "name": "commit_state_account", "writable": true },
+        { "name": "commit_record_account", "writable": true },
+        { "name": "delegation_record" },
+        { "name": "delegation_metadata", "writable": true },
+        { "name": "state_buffer_account" },
+        { "name": "validator_fees_vault" },
+        { "name": "program_config" },
+        { "name": "system_program" }
+      ],
+      "args": [
+        { "name": "nonce", "type": "u64" },
+        { "name": "lamports", "type": "u64" },
+        { "name": "allow_undelegation", "type": "bool" }
+      ]
+    },
+    {
+      "name": "close_validator_fees_vault",
+      "discriminator": [14,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "payer", "signer": true },
+        { "name": "admin", "signer": true },
+        { "name": "delegation_program_data" },
+        { "name": "validator_identity" },
         {
-          "name": "reimbursement"
-        },
-        {
-          "name": "system_program"
+          "name": "validator_fees_vault",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              { "kind": "const", "value": [118,45,102,101,101,115,45,118,97,117,108,116] },
+              { "kind": "account", "path": "validator_identity" }
+            ]
+          }
         }
       ],
       "args": []
+    },
+    {
+      "name": "call_handler",
+      "discriminator": [15,0,0,0,0,0,0,0],
+      "accounts": [
+        { "name": "validator", "signer": true },
+        { "name": "validator_fees_vault" },
+        { "name": "destination_program" },
+        { "name": "escrow_authority_account" },
+        { "name": "escrow_account", "writable": true }
+      ],
+      "args": [
+        { "name": "escrow_index", "type": "u8" },
+        { "name": "data", "type": { "vec": "u8" } }
+      ]
     }
   ],
-  "accounts": [],
-  "types": []
+  "accounts": [
+    {
+      "name": "DelegationRecord",
+      "discriminator": [100,0,0,0,0,0,0,0]
+    },
+    {
+      "name": "DelegationMetadata",
+      "discriminator": [102,0,0,0,0,0,0,0]
+    }
+  ],
+  "types": [
+    {
+      "name": "DelegationRecord",
+      "serialization": "bytemuck",
+      "repr": { "kind": "c" },
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "authority", "type": "pubkey" },
+          { "name": "owner", "type": "pubkey" },
+          { "name": "delegation_slot", "type": "u64" },
+          { "name": "lamports", "type": "u64" },
+          { "name": "commit_frequency_ms", "type": "u64" }
+        ]
+      }
+    },
+    {
+      "name": "DelegationMetadata",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "last_update_nonce", "type": "u64" },
+          { "name": "is_undelegatable", "type": "bool" },
+          { "name": "seeds", "type": { "vec": { "vec": "u8" } } },
+          { "name": "rent_payer", "type": "pubkey" }
+        ]
+      }
+    }
+  ]
 }

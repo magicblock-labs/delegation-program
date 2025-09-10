@@ -188,6 +188,7 @@ pub struct Increment<'info> {
 #[derive(Accounts)]
 #[instruction(hook_args: delegation_program_utils::CallHandlerArgs)]
 pub struct DelegationProgramCallHandler<'info> {
+    /// CHECK: The authority that owns the escrow account
     pub escrow_authority: UncheckedAccount<'info>,
     #[account(
         mut,
@@ -196,9 +197,10 @@ pub struct DelegationProgramCallHandler<'info> {
         bump
     )]
     pub escrow_account: Signer<'info>,
+    /// CHECK: The destination account to transfer lamports to
     #[account(mut)]
     pub destination_account: AccountInfo<'info>,
-    // CHECK: fails in finalize stage due to ownership by dlp
+    /// CHECK: fails in finalize stage due to ownership by dlp
     pub counter: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
