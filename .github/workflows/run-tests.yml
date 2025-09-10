@@ -102,6 +102,6 @@ jobs:
           cd sdk/ts && npm install --legacy-peer-deps && npm run build && npm run lint:fix && cd ../..
           cd tests/integration 
           set -x
-          cargo install --locked --version ${{ env.solana_version }} anchor-cli
+          cargo install --locked --version ${{ env.anchor_version }} anchor-cli
           npm install
           anchor test
