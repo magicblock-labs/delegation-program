@@ -100,7 +100,7 @@ describe("TestDelegation", () => {
   });
 
   it("Delegate two PDAs", async () => {
-    // Delegate, Close PDA, and Lock PDA in a single instruction
+    // Delegate 2 PDAs in a single instruction
     const tx = await testDelegation.methods
       .delegateTwo()
       .accounts({
