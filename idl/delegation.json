@@ -16,13 +16,7 @@
         { "name": "owner_program" },
         {
           "name": "delegate_buffer",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              { "kind": "const", "value": [98,117,102,102,101,114] },
-              { "kind": "account", "path": "delegated_account" }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "delegation_record",
@@ -60,23 +54,11 @@
         { "name": "delegated_account" },
         {
           "name": "commit_state_account",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              { "kind": "const", "value": [115,116,97,116,101,45,100,105,102,102] },
-              { "kind": "account", "path": "delegated_account" }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "commit_record_account",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              { "kind": "const", "value": [99,111,109,109,105,116,45,115,116,97,116,101,45,114,101,99,111,114,100] },
-              { "kind": "account", "path": "delegated_account" }
-            ]
-          }
+          "writable": true
         },
         { "name": "delegation_record" },
         { "name": "delegation_metadata", "writable": true },
@@ -115,13 +97,7 @@
         { "name": "owner_program" },
         {
           "name": "undelegate_buffer",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              { "kind": "const", "value": [117,110,100,101,108,101,103,97,116,101,45,98,117,102,102,101,114] },
-              { "kind": "account", "path": "delegated_account" }
-            ]
-          }
+          "writable": true
         },
         { "name": "commit_state_account" },
         { "name": "commit_record_account" },
@@ -246,13 +222,7 @@
         { "name": "ephemeral_balance_account", "writable": true },
         {
           "name": "delegate_buffer",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              { "kind": "const", "value": [98,117,102,102,101,114] },
-              { "kind": "account", "path": "ephemeral_balance_account" }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "delegation_record",
