@@ -129,7 +129,7 @@ pub(crate) fn process_commit_state_internal(
     // To preserve correct history of account updates we require sequential commits
     if args.commit_record_nonce != delegation_metadata.last_update_nonce + 1 {
         msg!(
-            "Nonce {} is incorrect, previous slot is {}. Rejecting commit",
+            "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
             args.commit_record_nonce,
             delegation_metadata.last_update_nonce
         );
