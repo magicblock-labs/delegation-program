@@ -7,7 +7,7 @@ import {
   delegationRecordPdaFromDelegatedAccount,
   delegationMetadataPdaFromDelegatedAccount,
   DELEGATION_PROGRAM_ID,
-} from "@magicblock-labs/ephemeral-rollups-sdk-v2";
+} from "@magicblock-labs/ephemeral-rollups-sdk";
 import { ON_CURVE_ACCOUNT } from "./fixtures/consts";
 
 const SEED_TEST_PDA = "test-pda";
