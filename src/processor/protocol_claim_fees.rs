@@ -10,18 +10,17 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 ///
 /// Accounts:
 ///
-/// 1. `[signer]`   admin account that can claim the fees
-/// 2. `[writable]` protocol fees vault PDA
-/// 3. `[]` program config PDA
-/// 4. `[writable]` fees receiver PDA
-/// 5. `[]`         delegation program
+/// 1. `[writable]` protocol fees vault PDA
+/// 2. `[]` program config PDA
+/// 3. `[writable]` fees receiver PDA
+/// 4. `[]`         delegation program
 ///
 /// Requirements:
 ///
 /// - protocol fees vault is initialized
 /// - protocol fees vault has enough lamports to claim fees and still be
 ///   rent exempt
-/// - admin is the protocol fees vault admin
+/// - fees receiver is the correct one
 ///
 /// 1. Transfer lamports from protocol fees_vault PDA to the admin authority
 pub fn process_protocol_claim_fees(

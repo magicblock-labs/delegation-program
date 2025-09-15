@@ -10,7 +10,7 @@ use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
-/// Process request to claim fees from the protocol fees vault
+/// Process request to set the fees receiver
 ///
 /// Accounts:
 ///
