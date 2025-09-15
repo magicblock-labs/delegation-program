@@ -97,6 +97,9 @@ pub fn process_instruction(
         discriminator::DlpDiscriminator::CallHandler => {
             process_call_handler(program_id, accounts, data)?
         }
+        discriminator::DlpDiscriminator::SetFeesReceiver => {
+            processor::process_set_fees_receiver(program_id, accounts, data)?
+        }
     }
     Ok(())
 }

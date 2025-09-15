@@ -9,6 +9,7 @@ use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
 pub struct ProgramConfig {
     pub approved_validators: BTreeSet<Pubkey>,
+    pub fees_receiver: Pubkey,
 }
 
 impl AccountWithDiscriminator for ProgramConfig {
@@ -19,7 +20,7 @@ impl AccountWithDiscriminator for ProgramConfig {
 
 impl ProgramConfig {
     pub fn size_with_discriminator(&self) -> usize {
-        8 + 4 + 32 * self.approved_validators.len()
+        8 + 4 + 32 * self.approved_validators.len() + 32
     }
 }
 

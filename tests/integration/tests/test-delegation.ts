@@ -9,9 +9,12 @@ import {
   DELEGATION_PROGRAM_ID,
 } from "@magicblock-labs/ephemeral-rollups-sdk";
 import { ON_CURVE_ACCOUNT } from "./fixtures/consts";
+import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
 
 const SEED_TEST_PDA = "test-pda";
-const BPF_LOADER = new web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+const BPF_LOADER = new web3.PublicKey(
+  "BPFLoaderUpgradeab1e11111111111111111111111"
+);
 
 describe("TestDelegation", () => {
   // Configure the client to use the local cluster.
@@ -47,12 +50,6 @@ describe("TestDelegation", () => {
     const ix = createClaimValidatorFeesVaultInstruction(validator);
     const txId = await processInstruction(ix);
     console.log("Claim validator fee vault tx:", txId);
-  });
-
-  it("Claim protocol fees", async () => {
-    const ix = createClaimProtocolFeesVaultInstruction(admin);
-    const txId = await processInstruction(ix);
-    console.log("Claim protocol fee vault tx:", txId);
   });
 
   it("Initializes the counter", async () => {
@@ -105,6 +102,7 @@ describe("TestDelegation", () => {
       .delegateTwo()
       .accounts({
         payer: provider.wallet.publicKey,
+        validator,
       })
       .rpc({ skipPreflight: true });
     console.log("Your transaction signature", tx);
@@ -156,7 +154,7 @@ describe("TestDelegation", () => {
       slot: new anchor.BN(1),
       lamports: new anchor.BN(1000000000),
       allow_undelegation: false,
-      data: new_data,
+      data: Uint8Array.from(new_data),
     };
     const ix = createCommitAccountInstruction(
       validator,
@@ -183,7 +181,7 @@ describe("TestDelegation", () => {
       slot: new anchor.BN(2),
       lamports: new anchor.BN(1000000000),
       allow_undelegation: true,
-      data: new_data,
+      data: Uint8Array.from(new_data),
     };
     const ix = createCommitAccountInstruction(
       validator,
@@ -221,6 +219,26 @@ describe("TestDelegation", () => {
     );
     const txId = await processInstruction(ix);
     console.log("Whitelist a validator for a program:", txId);
+  });
+
+  it("Set fees receiver", async () => {
+    const ix = createSetFeesReceiverInstruction(
+      admin,
+      admin,
+      testDelegation.programId
+    );
+    const txId = await processInstruction(ix);
+    console.log("Set fees receiver tx:", txId);
+  });
+
+  it("Claim protocol fees", async () => {
+    const ix = createClaimProtocolFeesVaultInstruction(
+      admin,
+      admin,
+      testDelegation.programId
+    );
+    const txId = await processInstruction(ix);
+    console.log("Claim protocol fees tx:", txId);
   });
 
   async function processInstruction(ix: web3.TransactionInstruction) {
@@ -410,8 +428,8 @@ describe("TestDelegation", () => {
   ) {
     const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
     const delegationProgramData = web3.PublicKey.findProgramAddressSync(
-        [DELEGATION_PROGRAM_ID.toBuffer()],
-        BPF_LOADER
+      [DELEGATION_PROGRAM_ID.toBuffer()],
+      BPF_LOADER
     )[0];
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
@@ -435,9 +453,7 @@ describe("TestDelegation", () => {
   }
 
   /// Instruction to claim fees from the validator vault
-  function createClaimValidatorFeesVaultInstruction(
-      validator: web3.PublicKey
-  ) {
+  function createClaimValidatorFeesVaultInstruction(validator: web3.PublicKey) {
     const feesVault = feesVaultPda();
     const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
     const keys = [
@@ -454,19 +470,54 @@ describe("TestDelegation", () => {
     return ix;
   }
 
+  /// Instruction to set fees receiver
+  function createSetFeesReceiverInstruction(
+    admin: web3.PublicKey,
+    feesReceiver: web3.PublicKey,
+    program: web3.PublicKey
+  ) {
+    const programConfig = programConfigPdaFromProgramId(program);
+    const delegationProgramData = web3.PublicKey.findProgramAddressSync(
+      [DELEGATION_PROGRAM_ID.toBuffer()],
+      BPF_LOADER
+    )[0];
+    const keys = [
+      { pubkey: admin, isSigner: true, isWritable: true },
+      { pubkey: programConfig, isSigner: false, isWritable: true },
+      { pubkey: program, isSigner: false, isWritable: false },
+      { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: delegationProgramData, isSigner: false, isWritable: false },
+    ];
+    const data = Buffer.from(
+      [16, 0, 0, 0, 0, 0, 0, 0].concat([...feesReceiver.toBytes()])
+    );
+    const ix = new web3.TransactionInstruction({
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
+      keys,
+      data,
+    });
+    return ix;
+  }
+
   /// Instruction to claim fees from the protocol vault
   function createClaimProtocolFeesVaultInstruction(
-      admin: web3.PublicKey
+    admin: web3.PublicKey,
+    feesReceiver: web3.PublicKey,
+    program: web3.PublicKey
   ) {
     const feesVault = feesVaultPda();
+    const programConfig = programConfigPdaFromProgramId(program);
     const delegationProgramData = web3.PublicKey.findProgramAddressSync(
-        [DELEGATION_PROGRAM_ID.toBuffer()],
-        BPF_LOADER
+      [DELEGATION_PROGRAM_ID.toBuffer()],
+      BPF_LOADER
     )[0];
     const keys = [
       { pubkey: admin, isSigner: true, isWritable: true },
       { pubkey: feesVault, isSigner: false, isWritable: true },
-      { pubkey: delegationProgramData, isSigner: false, isWritable: true },
+      { pubkey: programConfig, isSigner: false, isWritable: true },
+      { pubkey: feesReceiver, isSigner: false, isWritable: true },
+      { pubkey: program, isSigner: false, isWritable: false },
+      { pubkey: delegationProgramData, isSigner: false, isWritable: false },
     ];
     const data = Buffer.from([12, 0, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({
@@ -485,10 +536,11 @@ describe("TestDelegation", () => {
   ) {
     const programData = web3.PublicKey.findProgramAddressSync(
       [program.toBuffer()],
-      BPF_LOADER)[0];
+      BPF_LOADER
+    )[0];
     const delegationProgramData = web3.PublicKey.findProgramAddressSync(
-        [DELEGATION_PROGRAM_ID.toBuffer()],
-        BPF_LOADER
+      [DELEGATION_PROGRAM_ID.toBuffer()],
+      BPF_LOADER
     )[0];
     const programConfig = programConfigPdaFromProgramId(program);
     const keys = [

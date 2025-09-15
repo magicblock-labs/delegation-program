@@ -1,8 +1,9 @@
-use crate::fixtures::TEST_AUTHORITY;
-use dlp::pda::fees_vault_pda;
+use crate::fixtures::{create_program_config_data, TEST_AUTHORITY};
+use dlp::pda::{fees_vault_pda, program_config_from_program_id};
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{processor, BanksClient, ProgramTest};
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -19,7 +20,7 @@ async fn test_protocol_claim_fees() {
     let fees_vault_pda = fees_vault_pda();
 
     // Submit the claim fees tx
-    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey());
+    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey(), admin.pubkey(), dlp::ID);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -68,6 +69,18 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the fees program config account
+    program_test.add_account(
+        program_config_from_program_id(&dlp::ID),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: create_program_config_data(Pubkey::new_unique(), admin_keypair.pubkey()),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

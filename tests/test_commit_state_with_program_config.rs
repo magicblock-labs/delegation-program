@@ -166,11 +166,14 @@ async fn setup_program_test_env(valid_config: bool) -> (BanksClient, Keypair, Ke
     );
 
     // Setup the program config
-    let program_config_data = create_program_config_data(if valid_config {
-        validator_keypair.pubkey()
-    } else {
-        Keypair::new().pubkey()
-    });
+    let program_config_data = create_program_config_data(
+        if valid_config {
+            validator_keypair.pubkey()
+        } else {
+            Keypair::new().pubkey()
+        },
+        validator_keypair.pubkey(),
+    );
     program_test.add_account(
         program_config_from_program_id(&DELEGATED_PDA_OWNER_ID),
         Account {

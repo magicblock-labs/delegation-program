@@ -35,6 +35,8 @@ pub enum DlpDiscriminator {
     CloseValidatorFeesVault = 14,
     /// See [crate::processor::process_call_handler] for docs.
     CallHandler = 15,
+    /// See [crate::processor::process_set_fees_receiver] for docs.
+    SetFeesReceiver = 16,
 }
 
 impl DlpDiscriminator {
@@ -63,6 +65,7 @@ impl TryFrom<[u8; 8]> for DlpDiscriminator {
             0xd => Ok(DlpDiscriminator::CommitStateFromBuffer),
             0xe => Ok(DlpDiscriminator::CloseValidatorFeesVault),
             0xf => Ok(DlpDiscriminator::CallHandler),
+            0x10 => Ok(DlpDiscriminator::SetFeesReceiver),
             _ => Err(ProgramError::InvalidInstructionData),
         }
     }

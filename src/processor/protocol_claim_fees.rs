@@ -1,7 +1,9 @@
 use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{
-    load_initialized_protocol_fees_vault, load_program_upgrade_authority, load_signer,
+    load_account, load_initialized_protocol_fees_vault, load_program_config,
+    load_program_upgrade_authority, load_signer,
 };
+use crate::state::ProgramConfig;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
@@ -13,6 +15,9 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 ///
 /// 1. `[signer]`   admin account that can claim the fees
 /// 2. `[writable]` protocol fees vault PDA
+/// 3. `[]` program config PDA
+/// 4. `[writable]` fees receiver PDA
+/// 5. `[]`         delegation program
 ///
 /// Requirements:
 ///
@@ -28,13 +33,16 @@ pub fn process_protocol_claim_fees(
     _data: &[u8],
 ) -> ProgramResult {
     // Load Accounts
-    let [admin, fees_vault, delegation_program_data] = accounts else {
+    let [admin, fees_vault, program_config_account, fees_receiver, program, delegation_program_data] =
+        accounts
+    else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     // Check if the admin is signer
     load_signer(admin, "admin")?;
     load_initialized_protocol_fees_vault(fees_vault, true)?;
+    load_program_config(program_config_account, *program.key, true)?;
 
     // Check if the admin is the correct one
     let admin_pubkey =
@@ -47,6 +55,16 @@ pub fn process_protocol_claim_fees(
         );
         return Err(Unauthorized.into());
     }
+
+    let program_config_data = program_config_account.try_borrow_data()?;
+    let program_config = ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?;
+
+    load_account(
+        fees_receiver,
+        program_config.fees_receiver,
+        true,
+        "fees receiver",
+    )?;
 
     // Calculate the amount to transfer
     let min_rent = Rent::default().minimum_balance(8);
@@ -61,7 +79,7 @@ pub fn process_protocol_claim_fees(
         .checked_sub(amount)
         .ok_or(ProgramError::InsufficientFunds)?;
 
-    **admin.try_borrow_mut_lamports()? = admin
+    **fees_receiver.try_borrow_mut_lamports()? = fees_receiver
         .lamports()
         .checked_add(amount)
         .ok_or(ProgramError::ArithmeticOverflow)?;

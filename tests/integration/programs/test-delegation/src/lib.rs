@@ -37,7 +37,10 @@ pub mod test_delegation {
         ctx.accounts.delegate_pda(
             &ctx.accounts.payer,
             &[TEST_PDA_SEED],
-            DelegateConfig::default(),
+            DelegateConfig {
+                commit_frequency_ms: u32::MAX,
+                validator: Some(ctx.accounts.validator.key()),
+            },
         )?;
         Ok(())
     }
@@ -47,12 +50,18 @@ pub mod test_delegation {
         ctx.accounts.delegate_pda(
             &ctx.accounts.payer,
             &[TEST_PDA_SEED],
-            DelegateConfig::default(),
+            DelegateConfig {
+                commit_frequency_ms: u32::MAX,
+                validator: Some(ctx.accounts.validator.key()),
+            },
         )?;
         ctx.accounts.delegate_pda_other(
             &ctx.accounts.payer,
             &[TEST_PDA_SEED_OTHER],
-            DelegateConfig::default(),
+            DelegateConfig {
+                commit_frequency_ms: u32::MAX,
+                validator: Some(ctx.accounts.validator.key()),
+            },
         )?;
         msg!(
             "Delegated {:?}, owner {:?}",
@@ -152,6 +161,8 @@ pub fn transfer_from_undelegated(
 #[derive(Accounts)]
 pub struct DelegateInput<'info> {
     pub payer: Signer<'info>,
+    /// CHECK: The validator account
+    pub validator: AccountInfo<'info>,
     /// CHECK: The pda to delegate
     #[account(mut, del, seeds = [TEST_PDA_SEED], bump)]
     pub pda: AccountInfo<'info>,
@@ -161,6 +172,8 @@ pub struct DelegateInput<'info> {
 #[derive(Accounts)]
 pub struct DelegateInputTwo<'info> {
     pub payer: Signer<'info>,
+    /// CHECK: The validator account
+    pub validator: AccountInfo<'info>,
     /// CHECK: The pda to delegate
     #[account(mut, del, seeds = [TEST_PDA_SEED], bump)]
     pub pda: AccountInfo<'info>,

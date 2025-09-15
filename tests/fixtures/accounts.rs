@@ -138,9 +138,10 @@ pub fn get_commit_record_account_data(authority: Pubkey) -> Vec<u8> {
 }
 
 #[allow(dead_code)]
-pub fn create_program_config_data(approved_validator: Pubkey) -> Vec<u8> {
+pub fn create_program_config_data(approved_validator: Pubkey, fees_receiver: Pubkey) -> Vec<u8> {
     let mut program_config = ProgramConfig {
         approved_validators: Default::default(),
+        fees_receiver,
     };
     program_config
         .approved_validators
