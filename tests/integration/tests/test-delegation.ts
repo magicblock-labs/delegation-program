@@ -234,7 +234,6 @@ describe("TestDelegation", () => {
   it("Claim protocol fees", async () => {
     const ix = createClaimProtocolFeesVaultInstruction(
       admin,
-      admin,
       testDelegation.programId
     );
     const txId = await processInstruction(ix);
@@ -501,23 +500,16 @@ describe("TestDelegation", () => {
 
   /// Instruction to claim fees from the protocol vault
   function createClaimProtocolFeesVaultInstruction(
-    admin: web3.PublicKey,
     feesReceiver: web3.PublicKey,
     program: web3.PublicKey
   ) {
     const feesVault = feesVaultPda();
     const programConfig = programConfigPdaFromProgramId(program);
-    const delegationProgramData = web3.PublicKey.findProgramAddressSync(
-      [DELEGATION_PROGRAM_ID.toBuffer()],
-      BPF_LOADER
-    )[0];
     const keys = [
-      { pubkey: admin, isSigner: true, isWritable: true },
       { pubkey: feesVault, isSigner: false, isWritable: true },
       { pubkey: programConfig, isSigner: false, isWritable: true },
       { pubkey: feesReceiver, isSigner: false, isWritable: true },
       { pubkey: program, isSigner: false, isWritable: false },
-      { pubkey: delegationProgramData, isSigner: false, isWritable: false },
     ];
     const data = Buffer.from([12, 0, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({

@@ -52,24 +52,14 @@ async fn test_set_fees_receiver() {
     assert!(res.is_ok());
 
     // Try claiming to the wrong fees receiver
-    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey(), admin.pubkey(), dlp::ID);
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &admin],
-        blockhash,
-    );
+    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey(), dlp::ID);
+    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_err());
 
     // Claim to the correct fees receiver
-    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey(), fees_receiver, dlp::ID);
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &admin],
-        blockhash,
-    );
+    let ix = dlp::instruction_builder::protocol_claim_fees(fees_receiver, dlp::ID);
+    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
@@ -110,24 +100,14 @@ async fn test_set_fees_receiver_migration() {
     assert!(res.is_ok());
 
     // Try claiming to the wrong fees receiver
-    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey(), admin.pubkey(), dlp::ID);
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &admin],
-        blockhash,
-    );
+    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey(), dlp::ID);
+    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_err());
 
     // Claim to the correct fees receiver
-    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey(), fees_receiver, dlp::ID);
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &admin],
-        blockhash,
-    );
+    let ix = dlp::instruction_builder::protocol_claim_fees(fees_receiver, dlp::ID);
+    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
