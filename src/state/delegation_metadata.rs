@@ -26,6 +26,16 @@ impl AccountWithDiscriminator for DelegationMetadata {
     }
 }
 
+impl DelegationMetadata {
+    pub fn serialized_size(&self) -> usize {
+        AccountDiscriminator::SPACE
+        + 8 // last_update_nonce (u64) 
+        + 1 // is_undelegatable (bool)
+        + 32 // rent_payer (Pubkey)
+        + (4 + self.seeds.iter().map(|s| 4 + s.len()).sum::<usize>()) // seeds (Vec<Vec<u8>>)
+    }
+}
+
 impl_to_bytes_with_discriminator_borsh!(DelegationMetadata);
 impl_try_from_bytes_with_discriminator_borsh!(DelegationMetadata);
 

@@ -33,10 +33,18 @@ pub enum DlpError {
     NonceOutOfOrder = 12,
     #[error("Computation overflow detected")]
     Overflow = 13,
+    #[error("Too many seeds")]
+    TooManySeeds = 14,
 }
 
 impl From<DlpError> for ProgramError {
     fn from(e: DlpError) -> Self {
         ProgramError::Custom(e as u32)
+    }
+}
+
+impl From<DlpError> for pinocchio::program_error::ProgramError {
+    fn from(e: DlpError) -> Self {
+        pinocchio::program_error::ProgramError::Custom(e as u32)
     }
 }
