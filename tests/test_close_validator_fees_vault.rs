@@ -25,7 +25,7 @@ async fn test_close_validator_fees_vault() {
     );
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&admin.pubkey()), &[&admin], blockhash);
     let res = banks.process_transaction(tx).await;
-    assert!(res.is_ok());
+    assert!(res.is_ok(), "error: {:?}", res);
 
     // Assert the validator fees vault now has been closed
     let validator_fees_vault_account = banks.get_account(validator_fees_vault_pda).await.unwrap();
@@ -33,7 +33,8 @@ async fn test_close_validator_fees_vault() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
+    let mut program_test =
+        ProgramTest::new("dlp", dlp::ID, processor!(fixtures::process_instruction));
     program_test.prefer_bpf(true);
 
     let admin_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();

@@ -64,7 +64,8 @@ async fn test_undelegate_on_curve() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
+    let mut program_test =
+        ProgramTest::new("dlp", dlp::ID, processor!(fixtures::process_instruction));
     program_test.prefer_bpf(true);
     let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
     let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();

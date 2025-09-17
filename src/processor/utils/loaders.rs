@@ -51,6 +51,8 @@ pub fn load_pda(
     }
 
     if !info.is_writable.eq(&is_writable) {
+        // TODO (snawaz): misleading msg
+        // also better use more granular error here ProgramError::InvalidPermission
         msg!("Account {} ({}) needs to be writable", label, info.key);
         return Err(ProgramError::InvalidAccountData);
     }
@@ -125,7 +127,12 @@ pub fn load_uninitialized_account(
     label: &str,
 ) -> Result<(), ProgramError> {
     if info.owner.ne(&system_program::id()) {
-        msg!("Invalid owner for account: {} ({})", label, info.key);
+        msg!(
+            "Invalid owner for account: {}, account: {}, owner: {}",
+            label,
+            info.key,
+            info.owner
+        );
         return Err(ProgramError::InvalidAccountOwner);
     }
 

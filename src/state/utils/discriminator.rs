@@ -10,7 +10,9 @@ pub enum AccountDiscriminator {
 }
 
 impl AccountDiscriminator {
-    pub const fn to_bytes(&self) -> [u8; 8] {
+    pub const SPACE: usize = 8;
+
+    pub const fn to_bytes(&self) -> [u8; Self::SPACE] {
         let num = (*self) as u64;
         num.to_le_bytes()
     }

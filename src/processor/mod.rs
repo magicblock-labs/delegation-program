@@ -15,6 +15,8 @@ mod utils;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
 
+pub mod fast;
+
 pub use call_handler::*;
 pub use close_ephemeral_balance::*;
 pub use close_validator_fees_vault::*;

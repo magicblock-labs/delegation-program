@@ -120,7 +120,8 @@ async fn test_commit_out_of_order() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
+    let mut program_test =
+        ProgramTest::new("dlp", dlp::ID, processor!(fixtures::process_instruction));
     program_test.prefer_bpf(true);
 
     let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();

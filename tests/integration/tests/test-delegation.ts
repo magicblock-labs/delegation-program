@@ -9,9 +9,12 @@ import {
   DELEGATION_PROGRAM_ID,
 } from "@magicblock-labs/ephemeral-rollups-sdk";
 import { ON_CURVE_ACCOUNT } from "./fixtures/consts";
+import { assert } from "chai";
 
 const SEED_TEST_PDA = "test-pda";
-const BPF_LOADER = new web3.PublicKey("BPFLoaderUpgradeab1e11111111111111111111111")
+const BPF_LOADER = new web3.PublicKey(
+  "BPFLoaderUpgradeab1e11111111111111111111111"
+);
 
 describe("TestDelegation", () => {
   // Configure the client to use the local cluster.
@@ -30,6 +33,18 @@ describe("TestDelegation", () => {
   const validator = provider.wallet.publicKey;
   const ownerProgram = testDelegation.programId;
   const reimbursement = provider.wallet.publicKey;
+
+  async function fetchTransaction(txhash: string) {
+    for (let i = 0; i < 10; i++) {
+      const tx = await provider.connection.getTransaction(txhash, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+      if (tx) return tx;
+      await new Promise((r) => setTimeout(r, 500)); // wait 0.5s
+    }
+    throw new Error("Transaction not found after waiting");
+  }
 
   it("Initialize protocol fees vault", async () => {
     const ix = createInitFeesVaultInstruction(payer);
@@ -97,6 +112,50 @@ describe("TestDelegation", () => {
     console.log("Increment Tx: ", tx);
     const counterAccount = await testDelegation.account.counter.fetch(pda);
     console.log("Counter: ", counterAccount.count.toString());
+  });
+
+  it.only("Delegate one PDA", async () => {
+    const counterAccountInfo = await provider.connection.getAccountInfo(pda);
+    if (counterAccountInfo === null) {
+      const tx = await testDelegation.methods
+        .initialize()
+        .accounts({
+          user: provider.wallet.publicKey,
+        })
+        .rpc({ skipPreflight: true });
+      console.log("Init Pda Tx: ", tx);
+    }
+
+    const ca = await provider.connection.getAccountInfo(pda);
+    console.log(`owner: ${ca?.owner?.toBase58()}`);
+
+    // Delegate 1 PDA in a single instruction
+    const txhash = await testDelegation.methods
+      .delegate()
+      .accounts({
+        payer: provider.wallet.publicKey,
+      })
+      .rpc({ skipPreflight: true });
+    console.log("Your transaction signature", txhash);
+
+    const tx = await fetchTransaction(txhash);
+    console.log(tx.meta.logMessages);
+
+    const consumedLog = tx.meta.logMessages.find((m) =>
+      m.includes("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh consumed")
+    );
+
+    assert.isAtMost(
+      parseInt(consumedLog.split(" ").at(3)),
+      18500,
+      "delegate instruction must consume less than 18500"
+    );
+
+    const counterAccount = await provider.connection.getAccountInfo(pda);
+    assert.strictEqual(
+      counterAccount.owner.toBase58(),
+      "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+    );
   });
 
   it("Delegate two PDAs", async () => {
@@ -410,8 +469,8 @@ describe("TestDelegation", () => {
   ) {
     const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
     const delegationProgramData = web3.PublicKey.findProgramAddressSync(
-        [DELEGATION_PROGRAM_ID.toBuffer()],
-        BPF_LOADER
+      [DELEGATION_PROGRAM_ID.toBuffer()],
+      BPF_LOADER
     )[0];
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
@@ -435,9 +494,7 @@ describe("TestDelegation", () => {
   }
 
   /// Instruction to claim fees from the validator vault
-  function createClaimValidatorFeesVaultInstruction(
-      validator: web3.PublicKey
-  ) {
+  function createClaimValidatorFeesVaultInstruction(validator: web3.PublicKey) {
     const feesVault = feesVaultPda();
     const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
     const keys = [
@@ -455,13 +512,11 @@ describe("TestDelegation", () => {
   }
 
   /// Instruction to claim fees from the protocol vault
-  function createClaimProtocolFeesVaultInstruction(
-      admin: web3.PublicKey
-  ) {
+  function createClaimProtocolFeesVaultInstruction(admin: web3.PublicKey) {
     const feesVault = feesVaultPda();
     const delegationProgramData = web3.PublicKey.findProgramAddressSync(
-        [DELEGATION_PROGRAM_ID.toBuffer()],
-        BPF_LOADER
+      [DELEGATION_PROGRAM_ID.toBuffer()],
+      BPF_LOADER
     )[0];
     const keys = [
       { pubkey: admin, isSigner: true, isWritable: true },
@@ -485,10 +540,11 @@ describe("TestDelegation", () => {
   ) {
     const programData = web3.PublicKey.findProgramAddressSync(
       [program.toBuffer()],
-      BPF_LOADER)[0];
+      BPF_LOADER
+    )[0];
     const delegationProgramData = web3.PublicKey.findProgramAddressSync(
-        [DELEGATION_PROGRAM_ID.toBuffer()],
-        BPF_LOADER
+      [DELEGATION_PROGRAM_ID.toBuffer()],
+      BPF_LOADER
     )[0];
     const programConfig = programConfigPdaFromProgramId(program);
     const keys = [
