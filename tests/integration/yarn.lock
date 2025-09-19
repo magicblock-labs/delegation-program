@@ -39,25 +39,17 @@
     bn.js "^5.1.2"
     buffer-layout "^1.2.0"
 
-"@magicblock-labs/ephemeral-rollups-sdk@^0.2.10":
-  version "0.2.10"
-  resolved "https://registry.yarnpkg.com/@magicblock-labs/ephemeral-rollups-sdk/-/ephemeral-rollups-sdk-0.2.10.tgz#b4552764c7a8caddbe47e892c2de79c1fad29c87"
-  integrity sha512-JjXBG8tnQrt53HE+MMkNIMr+wCeseVFUUtuXPRspu8pmAAlnDpCmLd76mTV4Jd46emRj0Tt4DKJUjQgXBrtxEQ==
+"@magicblock-labs/ephemeral-rollups-sdk@^0.2.11":
+  version "0.2.11"
+  resolved "https://registry.yarnpkg.com/@magicblock-labs/ephemeral-rollups-sdk/-/ephemeral-rollups-sdk-0.2.11.tgz#6347a8e37440e438c4d8717f454f5e922cf94e13"
+  integrity sha512-I9pqYBsWhkUpndt9b4P6jqpVhAKaMdyyiBuxEX+Y2VdWeXuRpF0qXngyn26i1oKCVvbPNQYLu033LpNeSB4BKg==
   dependencies:
     "@metaplex-foundation/beet" "^0.7.2"
     "@phala/dcap-qvl-web" "^0.2.7"
     "@solana/web3.js" "^1.98.0"
     bs58 "^6.0.0"
     rpc-websockets "^9.0.4"
-
-"@magicblock-labs/ephemeral-rollups-sdk@file:../../../ts":
-  version "0.2.10"
-  dependencies:
-    "@metaplex-foundation/beet" "^0.7.2"
-    "@phala/dcap-qvl-web" "^0.2.7"
-    "@solana/web3.js" "^1.98.0"
-    bs58 "^6.0.0"
-    rpc-websockets "^9.0.4"
+    typescript "^5.3.0"
 
 "@metaplex-foundation/beet-solana@^0.4.0":
   version "0.4.1"
@@ -1331,6 +1323,11 @@ typescript@^4.3.5:
   version "4.9.5"
   resolved "https://registry.npmjs.org/typescript/-/typescript-4.9.5.tgz"
   integrity sha512-1FXk9E2Hm+QzZQ7z+McJiHL4NW1F2EzMu9Nq9i3zAaGqibafqYwCVU6WyWAuyQRRzOlxou8xZSyXLEN8oKj24g==
+
+typescript@^5.3.0:
+  version "5.9.2"
+  resolved "https://registry.yarnpkg.com/typescript/-/typescript-5.9.2.tgz#d93450cddec5154a2d5cabe3b8102b83316fb2a6"
+  integrity sha512-CWBzXQrc/qOkhidw1OzBTQuYRbfyxDXJMVJ1XNwUHGROVmuaeiEm3OslpZ1RV96d7SKKjZKrSJu3+t/xlw3R9A==
 
 undici-types@~5.26.4:
   version "5.26.5"
