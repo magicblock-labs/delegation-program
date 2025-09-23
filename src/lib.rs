@@ -42,6 +42,7 @@ pub fn process_instruction(
     if program_id.ne(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
+    msg!("Processing instruction: {:?}", program_id);
 
     if data.len() < 8 {
         return Err(ProgramError::InvalidInstructionData);

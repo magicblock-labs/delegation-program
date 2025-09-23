@@ -2,7 +2,7 @@
 
 use anchor_lang::prelude::*;
 use ephemeral_rollups_sdk::{
-    anchor::{delegate, ephemeral},
+    anchor::{delegate, ephemeral, DelegationProgram},
     cpi::{cpi_delegate_compressed, DelegateConfig},
     pda::ephemeral_balance_pda_from_payer,
     types::DelegateCompressedArgs,
@@ -12,7 +12,10 @@ use crate::program::TestDelegation;
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
+#[constant]
 pub const TEST_PDA_SEED: &[u8] = b"test-pda";
+
+#[constant]
 pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 
 #[ephemeral]
@@ -83,12 +86,22 @@ pub mod test_delegation {
             ctx.accounts.program.key == &ID && ctx.program_id == &ID,
             ErrorCode::InvalidProgramId
         );
-        Ok(cpi_delegate_compressed(
+
+        let (pda, bump) = Pubkey::find_program_address(&[TEST_PDA_SEED], &ID);
+        if &pda != ctx.accounts.pda.key {
+            return Err(ProgramError::InvalidSeeds.into());
+        }
+
+        let signer_seeds = &[TEST_PDA_SEED, &[bump]];
+        cpi_delegate_compressed(
             &ctx.accounts.payer.to_account_info(),
             &ctx.accounts.pda.to_account_info(),
             &ctx.accounts.program.to_account_info(),
+            ctx.remaining_accounts,
+            signer_seeds,
             args,
-        )?)
+        )?;
+        Ok(())
     }
 
     /// Delegation program call handler
@@ -188,6 +201,7 @@ pub struct DelegateCompressedInput<'info> {
     #[account(seeds = [TEST_PDA_SEED], bump)]
     pub pda: AccountInfo<'info>,
     pub program: Program<'info, TestDelegation>,
+    pub dlp: Program<'info, DelegationProgram>,
 }
 
 #[delegate]

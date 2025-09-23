@@ -25,10 +25,17 @@ pub const DELEGATED_PDA_ID: Pubkey = pubkey!("8k2V7EzQtNg38Gi9HK5ZtQYp1YpGKNGrMc
 pub const DELEGATED_PDA: [u8; 19] = [15, 0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5, 5];
 
 #[allow(dead_code)]
+pub const DELEGATED_PDA_SEED: &[&[u8]] = &[b"test-pda"];
+
+#[allow(dead_code)]
 pub const DELEGATED_PDA_OWNER_ID: Pubkey = pubkey!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
 #[allow(dead_code)]
 pub const EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR: [u8; 8] = [90, 147, 75, 178, 85, 88, 4, 137];
+
+#[allow(dead_code)]
+pub const EXTERNAL_DELEGATE_COMPRESSED_INSTRUCTION_DISCRIMINATOR: [u8; 8] =
+    [128, 155, 87, 140, 8, 236, 86, 120];
 
 #[allow(dead_code)]
 pub const EXTERNAL_ALLOW_UNDELEGATION_INSTRUCTION_DISCRIMINATOR: [u8; 8] =
