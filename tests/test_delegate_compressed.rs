@@ -10,7 +10,7 @@ use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_sdk::signature::{Keypair, Signer};
 
 use crate::fixtures::{
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, DELEGATED_PDA_SEED,
+    DELEGATED_PDA_OWNER_ID, DELEGATED_PDA_SEED,
     EXTERNAL_DELEGATE_COMPRESSED_INSTRUCTION_DISCRIMINATOR, TEST_AUTHORITY,
 };
 

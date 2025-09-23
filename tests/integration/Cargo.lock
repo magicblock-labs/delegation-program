@@ -702,6 +702,7 @@ dependencies = [
 [[package]]
 name = "ephemeral-rollups-sdk"
 version = "0.2.9"
+source = "git+https://github.com/magicblock-labs/ephemeral-rollups-sdk?rev=f8b363e#f8b363e1060ce78e2997fc7375778e24de0b31c8"
 dependencies = [
  "anchor-lang",
  "borsh 0.10.4",
@@ -716,6 +717,7 @@ dependencies = [
 [[package]]
 name = "ephemeral-rollups-sdk-attribute-commit"
 version = "0.2.9"
+source = "git+https://github.com/magicblock-labs/ephemeral-rollups-sdk?rev=f8b363e#f8b363e1060ce78e2997fc7375778e24de0b31c8"
 dependencies = [
  "quote",
  "syn 1.0.109",
@@ -724,6 +726,7 @@ dependencies = [
 [[package]]
 name = "ephemeral-rollups-sdk-attribute-delegate"
 version = "0.2.9"
+source = "git+https://github.com/magicblock-labs/ephemeral-rollups-sdk?rev=f8b363e#f8b363e1060ce78e2997fc7375778e24de0b31c8"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -733,6 +736,7 @@ dependencies = [
 [[package]]
 name = "ephemeral-rollups-sdk-attribute-ephemeral"
 version = "0.2.9"
+source = "git+https://github.com/magicblock-labs/ephemeral-rollups-sdk?rev=f8b363e#f8b363e1060ce78e2997fc7375778e24de0b31c8"
 dependencies = [
  "proc-macro2",
  "quote",
