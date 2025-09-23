@@ -22,7 +22,7 @@ anchor-debug = []
 
 [dependencies]
 anchor-lang = "0.31.1"
-ephemeral-rollups-sdk = { path = "../../../../../ephemeral-rollups-sdk/rust/sdk", features = [
+ephemeral-rollups-sdk = { git = "https://github.com/magicblock-labs/ephemeral-rollups-sdk", branch = "feat/compression", features = [
     "anchor",
     "light",
 ] }
