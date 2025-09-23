@@ -78,8 +78,8 @@ pub mod test_delegation {
     }
 
     /// Delegate the account to the delegation program
-    pub fn delegate_compressed(
-        ctx: Context<DelegateCompressedInput>,
+    pub fn delegate_compressed<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, DelegateCompressedInput<'info>>,
         args: DelegateCompressedArgs,
     ) -> Result<()> {
         require!(
