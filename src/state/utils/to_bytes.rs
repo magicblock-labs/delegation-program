@@ -32,3 +32,19 @@ macro_rules! impl_to_bytes_with_discriminator_borsh {
         }
     };
 }
+
+#[macro_export]
+macro_rules! impl_to_bytes_with_discriminator_light {
+    ($struct_name:ident) => {
+        impl $struct_name {
+            pub fn to_bytes_with_discriminator<W: std::io::Write>(
+                &self,
+                writer: &mut W,
+            ) -> Result<(), ::solana_program::program_error::ProgramError> {
+                writer.write_all(&Self::discriminator())?;
+                self.serialize(writer)?;
+                Ok(())
+            }
+        }
+    };
+}

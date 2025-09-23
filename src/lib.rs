@@ -1,6 +1,8 @@
 #![allow(unexpected_cfgs)] // silence clippy for target_os solana and other solana program custom features
 
 use crate::processor::process_call_handler;
+use light_sdk::derive_light_cpi_signer;
+use light_sdk_types::CpiSigner;
 use solana_program::{
     account_info::AccountInfo, declare_id, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey,
@@ -16,6 +18,8 @@ mod processor;
 pub mod state;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
+pub const LIGHT_CPI_SIGNER: CpiSigner =
+    derive_light_cpi_signer!("GRLu2hKaAiMbxpkAM1HeXzks9YeGuz18SEgXEizVvPqX");
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_program::entrypoint!(process_instruction);
@@ -96,6 +100,9 @@ pub fn process_instruction(
         }
         discriminator::DlpDiscriminator::CallHandler => {
             process_call_handler(program_id, accounts, data)?
+        }
+        discriminator::DlpDiscriminator::DelegateCompressed => {
+            processor::process_delegate_compressed(program_id, accounts, data)?
         }
     }
     Ok(())

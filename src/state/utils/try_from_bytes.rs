@@ -52,3 +52,24 @@ macro_rules! impl_try_from_bytes_with_discriminator_borsh {
         }
     };
 }
+
+#[macro_export]
+macro_rules! impl_try_from_bytes_with_discriminator_light {
+    ($struct_name:ident) => {
+        impl $struct_name {
+            pub fn try_from_bytes_with_discriminator(
+                data: &[u8],
+            ) -> Result<Self, ::solana_program::program_error::ProgramError> {
+                if data.len() < 8 {
+                    return Err(::solana_program::program_error::ProgramError::InvalidAccountData);
+                }
+                if Self::discriminator().ne(&data[..8]) {
+                    return Err(::solana_program::program_error::ProgramError::InvalidAccountData);
+                }
+                Self::try_from_slice(&data[8..]).or(Err(
+                    ::solana_program::program_error::ProgramError::InvalidAccountData,
+                ))
+            }
+        }
+    };
+}

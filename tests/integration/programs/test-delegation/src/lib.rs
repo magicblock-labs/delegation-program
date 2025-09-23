@@ -1,7 +1,14 @@
+#![allow(unexpected_cfgs)]
+
 use anchor_lang::prelude::*;
-use ephemeral_rollups_sdk::anchor::{delegate, ephemeral};
-use ephemeral_rollups_sdk::cpi::DelegateConfig;
-use ephemeral_rollups_sdk::pda::ephemeral_balance_pda_from_payer;
+use ephemeral_rollups_sdk::{
+    anchor::{delegate, ephemeral},
+    cpi::{cpi_delegate_compressed, DelegateConfig},
+    pda::ephemeral_balance_pda_from_payer,
+    types::DelegateCompressedArgs,
+};
+
+use crate::program::TestDelegation;
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
@@ -65,6 +72,23 @@ pub mod test_delegation {
             ctx.accounts.pda_other.owner
         );
         Ok(())
+    }
+
+    /// Delegate the account to the delegation program
+    pub fn delegate_compressed(
+        ctx: Context<DelegateCompressedInput>,
+        args: DelegateCompressedArgs,
+    ) -> Result<()> {
+        require!(
+            ctx.accounts.program.key == &ID && ctx.program_id == &ID,
+            ErrorCode::InvalidProgramId
+        );
+        Ok(cpi_delegate_compressed(
+            &ctx.accounts.payer.to_account_info(),
+            &ctx.accounts.pda.to_account_info(),
+            &ctx.accounts.program.to_account_info(),
+            args,
+        )?)
     }
 
     /// Delegation program call handler
@@ -155,6 +179,15 @@ pub struct DelegateInput<'info> {
     /// CHECK: The pda to delegate
     #[account(mut, del, seeds = [TEST_PDA_SEED], bump)]
     pub pda: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct DelegateCompressedInput<'info> {
+    pub payer: Signer<'info>,
+    /// CHECK: The pda to delegate
+    #[account(seeds = [TEST_PDA_SEED], bump)]
+    pub pda: AccountInfo<'info>,
+    pub program: Program<'info, TestDelegation>,
 }
 
 #[delegate]
