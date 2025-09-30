@@ -90,7 +90,6 @@ pub fn fast_process_instruction(
     // TODO (snawaz): why the size of discriminator is 8, when 1 is enough, and in the rest 7 bytes
     // we can store 7 bumps that could give us huge performance boost as it'd simplify validations!
     let (discriminator, data) = data.split_at(8);
-
     let discriminator = match discriminator
         .try_into()
         .ok()
@@ -130,6 +129,7 @@ pub fn slow_process_instruction(
     }
 
     let (tag, data) = data.split_at(8);
+    msg!("slow_process_instruction: discriminator = {:?}", tag);
     let tag_array: [u8; 8] = tag
         .try_into()
         .map_err(|_| ProgramError::InvalidInstructionData)?;
