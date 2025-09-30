@@ -1,7 +1,31 @@
 use pinocchio::account_info::AccountInfo;
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{self, pubkey_eq, Pubkey};
+use pinocchio::pubkey::{pubkey_eq, Pubkey};
 use pinocchio_log::log;
+
+#[cfg(not(feature = "log-cost"))]
+use pinocchio::pubkey;
+
+#[cfg(feature = "log-cost")]
+mod pubkey {
+    pub use pinocchio::pubkey::log;
+
+    use pinocchio::pubkey::{self, Pubkey};
+    use pinocchio::syscalls::sol_remaining_compute_units;
+    use pinocchio_log::log;
+
+    #[inline(always)]
+    pub fn find_program_address(seeds: &[&[u8]], program_id: &Pubkey) -> (Pubkey, u8) {
+        let prev = unsafe { sol_remaining_compute_units() };
+        let rv = pubkey::find_program_address(seeds, program_id);
+        let curr = unsafe { sol_remaining_compute_units() };
+        log!(">> find_program_address => {} CU", prev - curr);
+        rv
+    }
+}
+
+use crate::error::DlpError;
+use crate::pda::{self, validator_fees_vault_pda_from_validator};
 
 /// Errors if:
 /// - Account is not owned by expected program.
@@ -123,6 +147,35 @@ pub fn require_uninitialized_pda(
 }
 
 /// Errors if:
+/// - Address does not match PDA derived from provided seeds.
+/// - Owner is not the expected program.
+/// - Account is not writable if set to writable.
+pub fn require_initialized_pda(
+    info: &AccountInfo,
+    seeds: &[&[u8]],
+    program_id: &Pubkey,
+    is_writable: bool,
+    label: &str,
+) -> Result<u8, ProgramError> {
+    let pda = pubkey::find_program_address(seeds, program_id);
+    if !pubkey_eq(info.key(), &pda.0) {
+        log!("Invalid seeds for account: ");
+        pubkey::log(info.key());
+        return Err(ProgramError::InvalidSeeds);
+    }
+
+    require_owned_pda(info, program_id, label)?;
+
+    if is_writable && !info.is_writable() {
+        log!("Account is not writable: ");
+        pubkey::log(info.key());
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    Ok(pda.1)
+}
+
+/// Errors if:
 /// - Address does not match the expected value.
 /// - Account is not executable.
 #[inline(always)]
@@ -140,5 +193,81 @@ pub fn require_program(info: &AccountInfo, key: &Pubkey, label: &str) -> Result<
         return Err(ProgramError::InvalidAccountData);
     }
 
+    Ok(())
+}
+
+/// Load fee vault PDA
+/// - Protocol fees vault PDA
+pub fn require_initialized_protocol_fees_vault(
+    fees_vault: &AccountInfo,
+    is_writable: bool,
+) -> Result<(), ProgramError> {
+    require_initialized_pda(
+        fees_vault,
+        &[b"fees-vault"],
+        &crate::fast::ID,
+        is_writable,
+        "protocol fees vault",
+    )?;
+    Ok(())
+}
+
+/// Load validator fee vault PDA
+/// - Validator fees vault PDA must be derived from the validator pubkey
+/// - Validator fees vault PDA must be initialized with the expected seeds and owner
+pub fn require_initialized_validator_fees_vault(
+    validator: &AccountInfo,
+    validator_fees_vault: &AccountInfo,
+    is_writable: bool,
+) -> Result<(), ProgramError> {
+    let pda = validator_fees_vault_pda_from_validator(&(*validator.key()).into());
+    if !pubkey_eq(validator_fees_vault.key(), pda.as_array()) {
+        log!("Invalid validator fees vault PDA, expected: ");
+        pubkey::log(pda.as_array());
+        log!("but got: ");
+        pubkey::log(validator_fees_vault.key());
+        return Err(DlpError::InvalidAuthority.into());
+    }
+    require_initialized_pda(
+        validator_fees_vault,
+        &[pda::VALIDATOR_FEES_VAULT_TAG, validator.key()],
+        &crate::fast::ID,
+        is_writable,
+        "validator fees vault",
+    )?;
+    Ok(())
+}
+
+/// Load initialized delegation record
+/// - Delegation record must be derived from the delegated account
+pub fn require_initialized_delegation_record(
+    delegated_account: &AccountInfo,
+    delegation_record: &AccountInfo,
+    is_writable: bool,
+) -> Result<(), ProgramError> {
+    require_initialized_pda(
+        delegation_record,
+        &[pda::DELEGATION_RECORD_TAG, delegated_account.key()],
+        &crate::fast::ID,
+        is_writable,
+        "delegation record",
+    )?;
+    Ok(())
+}
+
+/// Load initialized delegation metadata
+/// - Delegation metadata must be derived from the delegated account
+pub fn require_initialized_delegation_metadata(
+    delegated_account: &AccountInfo,
+    delegation_metadata: &AccountInfo,
+    is_writable: bool,
+) -> Result<(), ProgramError> {
+    require_initialized_pda(
+        delegation_metadata,
+        &[pda::DELEGATION_METADATA_TAG, delegated_account.key()],
+        &crate::fast::ID,
+        is_writable,
+        "delegation metadata",
+    )?;
     Ok(())
 }
