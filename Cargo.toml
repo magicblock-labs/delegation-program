@@ -29,6 +29,7 @@ name = "dlp"
 no-entrypoint = []
 default = ["solana-security-txt"]
 unit_test_config = []
+log-cost = []
 
 [dependencies]
 borsh = { version = "1.5.3", features = [ "derive" ] }

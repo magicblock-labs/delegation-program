@@ -65,10 +65,9 @@ pub(crate) fn create_pda(
 #[inline(always)]
 pub(crate) fn close_pda(target_account: &AccountInfo, destination: &AccountInfo) -> ProgramResult {
     // Transfer tokens from the account to the destination.
-    let dest_starting_lamports = destination.lamports();
-
     unsafe {
-        *destination.borrow_mut_lamports_unchecked() = dest_starting_lamports
+        *destination.borrow_mut_lamports_unchecked() = destination
+            .lamports()
             .checked_add(target_account.lamports())
             .unwrap();
 
@@ -77,7 +76,7 @@ pub(crate) fn close_pda(target_account: &AccountInfo, destination: &AccountInfo)
         target_account.assign(&pinocchio_system::ID);
     }
 
-    target_account.realloc(0, false).map_err(Into::into)
+    target_account.resize(0).map_err(Into::into)
 }
 
 /// Close PDA with fees, distributing the fees to the specified addresses in sequence
@@ -134,5 +133,5 @@ pub(crate) fn close_pda_with_fees(
 
         target_account.assign(&pinocchio_system::ID);
     }
-    target_account.realloc(0, false).map_err(Into::into)
+    target_account.resize(0).map_err(Into::into)
 }

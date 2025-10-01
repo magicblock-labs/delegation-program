@@ -22,6 +22,8 @@ pub mod pda;
 mod processor;
 pub mod state;
 
+#[cfg(feature = "log-cost")]
+mod cu;
 #[cfg(feature = "unit_test_config")]
 pub mod testlib;
 

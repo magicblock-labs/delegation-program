@@ -1,15 +1,14 @@
 use borsh::to_vec;
-use borsh::BorshDeserialize;
-use pinocchio::seeds;
 use pinocchio::{
     account_info::AccountInfo,
     cpi::invoke_signed,
-    instruction::{AccountMeta, Instruction, Seed, Signer},
+    instruction::{AccountMeta, Instruction, Signer},
     program_error::ProgramError,
     pubkey::{pubkey_eq, Pubkey},
     sysvars::{rent::Rent, Sysvar},
     ProgramResult,
 };
+use pinocchio::{pubkey, seeds};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
@@ -22,11 +21,14 @@ use crate::processor::fast::utils::{
 };
 use crate::state::{DelegationMetadata, DelegationRecord};
 
-use super::utils::requires::require_initialized_delegation_metadata;
-use super::utils::requires::require_initialized_delegation_record;
-use super::utils::requires::require_initialized_protocol_fees_vault;
-use super::utils::requires::require_initialized_validator_fees_vault;
-use super::utils::requires::{require_owned_pda, require_pda, require_program, require_signer};
+#[cfg(feature = "log-cost")]
+use crate::compute;
+
+use super::utils::requires::{
+    require_initialized_delegation_metadata, require_initialized_delegation_record,
+    require_initialized_protocol_fees_vault, require_initialized_validator_fees_vault,
+    require_owned_pda, require_program, require_signer,
+};
 
 pub fn process_undelegate(
     _program_id: &Pubkey,
@@ -48,7 +50,7 @@ pub fn process_undelegate(
     require_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
     require_program(system_program, &pinocchio_system::ID, "system program")?;
 
-    // Make sure there is no pending commits to be finalized before this call
+    // // Make sure there is no pending commits to be finalized before this call
     require_uninitialized_pda(
         commit_state_account,
         &[pda::COMMIT_STATE_TAG, delegated_account.key()],
@@ -68,15 +70,14 @@ pub fn process_undelegate(
     let delegation_record_data = delegation_record_account.try_borrow_data()?;
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)
-            .expect("FIXME");
+            .map_err(|e| ProgramError::from(u64::from(e)))?;
 
     // Check passed owner and owner stored in the delegation record match
     if !pubkey_eq(delegation_record.owner.as_array(), owner_program.key()) {
-        // msg!(
-        //     "Expected delegation record owner to be {}, but got {}",
-        //     delegation_record.owner,
-        //     owner_program.key
-        // );
+        log!("Expected delegation record owner to be : ");
+        pubkey::log(delegation_record.owner.as_array());
+        log!("but got : ");
+        pubkey::log(owner_program.key());
         return Err(ProgramError::InvalidAccountOwner);
     }
 
@@ -84,14 +85,12 @@ pub fn process_undelegate(
     let delegation_metadata_data = delegation_metadata_account.try_borrow_data()?;
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
-            .expect("FIXME");
+            .map_err(|e| ProgramError::from(u64::from(e)))?;
 
     // Check if the delegated account is undelegatable
     if !delegation_metadata.is_undelegatable {
-        //msg!(
-        //    "delegation metadata ({}) indicates the account is not undelegatable",
-        //    delegation_metadata_account.key
-        //);
+        log!("delegation metadata indicates the account is not undelegatable : ");
+        pubkey::log(delegation_metadata_account.key());
         return Err(DlpError::NotUndelegatable.into());
     }
 
@@ -100,11 +99,10 @@ pub fn process_undelegate(
         delegation_metadata.rent_payer.as_array(),
         rent_reimbursement.key(),
     ) {
-        //msg!(
-        //    "Expected rent payer to be {}, but got {}",
-        //    delegation_metadata.rent_payer,
-        //    rent_reimbursement.key
-        //);
+        log!("Expected rent payer to be : ");
+        pubkey::log(delegation_metadata.rent_payer.as_array());
+        log!("but got : ");
+        pubkey::log(rent_reimbursement.key());
         return Err(DlpError::InvalidReimbursementAddressForDelegationRent.into());
     }
 
@@ -114,6 +112,8 @@ pub fn process_undelegate(
 
     // If there is no program to call CPI to, we can just assign the owner back and we're done
     if delegated_account.data_is_empty() {
+        log!("EARLY RETURN : data_is_empty");
+
         // TODO - we could also do this fast-path if the data was non-empty but zeroed-out
         unsafe {
             delegated_account.assign(owner_program.key());
@@ -138,6 +138,7 @@ pub fn process_undelegate(
         true,
         "undelegate buffer",
     )?;
+
     create_pda(
         undelegate_buffer_account,
         &crate::fast::ID,
@@ -153,11 +154,6 @@ pub fn process_undelegate(
     // Copy data in the undelegation buffer PDA
     (*undelegate_buffer_account.try_borrow_mut_data()?)
         .copy_from_slice(&delegated_account.try_borrow_data()?);
-
-    // Generate the ephemeral balance PDA's signer seeds
-    //let undelegate_buffer_bump_slice = &[undelegate_buffer_bump];
-    //let undelegate_buffer_signer_seeds =
-    //    [undelegate_buffer_seeds, &[undelegate_buffer_bump_slice]].concat();
 
     // Call a CPI to the owner program to give it back the new state
     process_undelegation_with_cpi(
@@ -207,6 +203,7 @@ fn process_undelegation_with_cpi(
 
     // Invoke the owner program's post-undelegation IX, to give the state back to the original program
     let validator_lamports_before_cpi = validator.lamports();
+
     cpi_external_undelegate(
         validator,
         delegated_account,
@@ -216,6 +213,7 @@ fn process_undelegation_with_cpi(
         owner_program.key(),
         delegation_metadata,
     )?;
+
     let validator_lamports_after_cpi = validator.lamports();
 
     // Check that the validator lamports are exactly as expected
@@ -260,7 +258,8 @@ fn cpi_external_undelegate(
     delegation_metadata: DelegationMetadata,
 ) -> ProgramResult {
     let mut data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
-    let serialized_seeds = to_vec(&delegation_metadata.seeds).expect("FIXME");
+    let serialized_seeds =
+        to_vec(&delegation_metadata.seeds).map_err(|_| ProgramError::BorshIoError)?;
     data.extend_from_slice(&serialized_seeds);
     let external_undelegate_instruction = Instruction {
         program_id: owner_program_id,

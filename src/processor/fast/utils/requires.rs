@@ -1,7 +1,28 @@
 use pinocchio::account_info::AccountInfo;
 use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{self, pubkey_eq, Pubkey};
+use pinocchio::pubkey::{pubkey_eq, Pubkey};
 use pinocchio_log::log;
+
+#[cfg(not(feature = "log-cost"))]
+use pinocchio::pubkey;
+
+#[cfg(feature = "log-cost")]
+mod pubkey {
+    pub use pinocchio::pubkey::log;
+
+    use pinocchio::pubkey::{self, Pubkey};
+    use pinocchio::syscalls::sol_remaining_compute_units;
+    use pinocchio_log::log;
+
+    #[inline(always)]
+    pub fn find_program_address(seeds: &[&[u8]], program_id: &Pubkey) -> (Pubkey, u8) {
+        let prev = unsafe { sol_remaining_compute_units() };
+        let rv = pubkey::find_program_address(seeds, program_id);
+        let curr = unsafe { sol_remaining_compute_units() };
+        log!(">> find_program_address => {} CU", prev - curr);
+        rv
+    }
+}
 
 use crate::error::DlpError;
 use crate::pda::{self, validator_fees_vault_pda_from_validator};
@@ -137,16 +158,17 @@ pub fn require_initialized_pda(
     label: &str,
 ) -> Result<u8, ProgramError> {
     let pda = pubkey::find_program_address(seeds, program_id);
-
     if !pubkey_eq(info.key(), &pda.0) {
-        // msg!("Invalid seeds for account: {}", info.key);
+        log!("Invalid seeds for account: ");
+        pubkey::log(info.key());
         return Err(ProgramError::InvalidSeeds);
     }
 
     require_owned_pda(info, program_id, label)?;
 
     if is_writable && !info.is_writable() {
-        // msg!("Account {} is not writable", info.key);
+        log!("Account is not writable: ");
+        pubkey::log(info.key());
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -199,11 +221,10 @@ pub fn require_initialized_validator_fees_vault(
 ) -> Result<(), ProgramError> {
     let pda = validator_fees_vault_pda_from_validator(&validator.key().clone().into());
     if !pubkey_eq(validator_fees_vault.key(), pda.as_array()) {
-        //msg!(
-        //    "Invalid validator fees vault PDA, expected {} but got {}",
-        //    pda,
-        //    validator_fees_vault.key
-        //);
+        log!("Invalid validator fees vault PDA, expected: ");
+        pubkey::log(pda.as_array());
+        log!("but got: ");
+        pubkey::log(validator_fees_vault.key());
         return Err(DlpError::InvalidAuthority.into());
     }
     require_initialized_pda(
