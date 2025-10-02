@@ -3,6 +3,9 @@ use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::{pubkey_eq, Pubkey};
 use pinocchio_log::log;
 
+use crate::error::DlpError;
+use crate::pda::{self, program_config_from_program_id, validator_fees_vault_pda_from_validator};
+
 #[cfg(not(feature = "log-cost"))]
 use pinocchio::pubkey;
 
@@ -23,9 +26,6 @@ mod pubkey {
         rv
     }
 }
-
-use crate::error::DlpError;
-use crate::pda::{self, validator_fees_vault_pda_from_validator};
 
 /// Errors if:
 /// - Account is not owned by expected program.
@@ -159,7 +159,7 @@ pub fn require_initialized_pda(
 ) -> Result<u8, ProgramError> {
     let pda = pubkey::find_program_address(seeds, program_id);
     if !pubkey_eq(info.key(), &pda.0) {
-        log!("Invalid seeds for account: ");
+        log!("Invalid seeds (label: {}) for account ", label);
         pubkey::log(info.key());
         return Err(ProgramError::InvalidSeeds);
     }
@@ -167,7 +167,7 @@ pub fn require_initialized_pda(
     require_owned_pda(info, program_id, label)?;
 
     if is_writable && !info.is_writable() {
-        log!("Account is not writable: ");
+        log!("Account needs to be writable. label: {}, account: ", label);
         pubkey::log(info.key());
         return Err(ProgramError::InvalidAccountData);
     }
@@ -236,6 +236,31 @@ pub fn require_initialized_validator_fees_vault(
         "validator fees vault",
     )?;
     Ok(())
+}
+
+/// Load program config PDA
+/// - Program config PDA must be initialized with the expected seeds and owner, or not exists
+pub fn require_program_config(
+    program_config: &AccountInfo,
+    program: &Pubkey,
+    is_writable: bool,
+) -> Result<bool, ProgramError> {
+    let pda = program_config_from_program_id(&(*program).into());
+    if !pubkey_eq(pda.as_array(), program_config.key()) {
+        log!("Invalid validator fees vault PDA, expected: ");
+        pubkey::log(pda.as_array());
+        log!("but got: ");
+        pubkey::log(program_config.key());
+        return Err(DlpError::InvalidAuthority.into());
+    }
+    require_pda(
+        program_config,
+        &[pda::PROGRAM_CONFIG_TAG, program],
+        &crate::fast::id(),
+        is_writable,
+        "program config",
+    )?;
+    Ok(!pubkey_eq(program_config.owner(), &pinocchio_system::ID))
 }
 
 /// Load initialized delegation record
