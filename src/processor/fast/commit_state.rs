@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use pinocchio::instruction::{Seed, Signer};
+use pinocchio::instruction::Signer;
 use pinocchio::pubkey::{self, pubkey_eq};
 use pinocchio::seeds;
 use pinocchio::{
@@ -28,7 +28,7 @@ pub fn process_commit_state(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let args = CommitStateArgs::try_from_slice(data).expect("FIXME");
+    let args = CommitStateArgs::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
 
     let commit_state_bytes: &[u8] = args.data.as_ref();
     let commit_record_lamports = args.lamports;
@@ -109,20 +109,18 @@ pub(crate) fn process_commit_state_internal(
 
     // To preserve correct history of account updates we require sequential commits
     if args.commit_record_nonce != delegation_metadata.last_update_nonce + 1 {
-        //msg!(
-        //    "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
-        //    args.commit_record_nonce,
-        //    delegation_metadata.last_update_nonce
-        //);
+        log!(
+            "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
+            args.commit_record_nonce,
+            delegation_metadata.last_update_nonce
+        );
         return Err(DlpError::NonceOutOfOrder.into());
     }
 
     // Once the account is marked as undelegatable, any subsequent commit should fail
     if delegation_metadata.is_undelegatable {
-        //msg!(
-        //    "delegation metadata ({}) is already undelegated",
-        //    args.delegation_metadata_account.key
-        //);
+        log!("delegation metadata is already undelegated: ");
+        pubkey::log(args.delegation_metadata_account.key());
         return Err(DlpError::AlreadyUndelegated.into());
     }
 
@@ -139,25 +137,21 @@ pub(crate) fn process_commit_state_internal(
             .map_err(to_pinocchio_program_error)?;
 
     // Check that the authority is allowed to commit
-    if !pubkey_eq(
-        &delegation_record.authority.as_array(),
-        args.validator.key(),
-    ) && !pubkey_eq(delegation_record.authority.as_array(), &Pubkey::default())
+    if !pubkey_eq(delegation_record.authority.as_array(), args.validator.key())
+        && !pubkey_eq(delegation_record.authority.as_array(), &Pubkey::default())
     {
-        //msg!(
-        //    "validator ({}) is not the delegation authority ({})",
-        //    args.validator.key,
-        //    delegation_record.authority
-        //);
+        log!("validator is not the delegation authority. validator: ");
+        pubkey::log(args.validator.key());
+        log!("delegation authority: ");
+        pubkey::log(delegation_record.authority.as_array());
         return Err(DlpError::InvalidAuthority.into());
     }
 
     // If there was an issue with the lamport accounting in the past, abort (this should never happen)
     if args.delegated_account.lamports() < delegation_record.lamports {
-        //msg!(
-        //    "delegated account ({}) has less lamports than the delegation record indicates",
-        //    args.delegated_account.key
-        //);
+        log!(
+            "delegated account has less lamports than the delegation record indicates. delegation account: ");
+        pubkey::log(args.delegated_account.key());
         return Err(DlpError::InvalidDelegatedState.into());
     }
 
@@ -192,12 +186,10 @@ pub(crate) fn process_commit_state_internal(
             .map_err(to_pinocchio_program_error)?;
         if !program_config
             .approved_validators
-            .contains(&args.validator.key().clone().into())
+            .contains(&(*args.validator.key()).into())
         {
-            //msg!(
-            //    "validator ({}) is not whitelisted in the program config",
-            //    args.validator.key
-            //);
+            log!("validator is not whitelisted in the program config: ");
+            pubkey::log(args.validator.key());
             return Err(DlpError::InvalidWhitelistProgramConfig.into());
         }
     }
@@ -223,8 +215,6 @@ pub(crate) fn process_commit_state_internal(
         args.commit_state_account,
         &crate::fast::ID,
         args.commit_state_bytes.len(),
-        //commit_state_seeds_from_delegated_account!(args.delegated_account.key),
-        //commit_state_bump,
         &[Signer::from(&seeds!(
             pda::COMMIT_STATE_TAG,
             args.delegated_account.key(),
@@ -248,8 +238,8 @@ pub(crate) fn process_commit_state_internal(
 
     // Initialize the commit record
     let commit_record = CommitRecord {
-        identity: args.validator.key().clone().into(),
-        account: args.delegated_account.key().clone().into(),
+        identity: (*args.validator.key()).into(),
+        account: (*args.delegated_account.key()).into(),
         nonce: args.commit_record_nonce,
         lamports: args.commit_record_lamports,
     };

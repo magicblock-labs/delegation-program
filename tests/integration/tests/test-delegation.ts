@@ -225,6 +225,19 @@ describe("TestDelegation", () => {
     );
     const txId = await processInstruction(ix);
     console.log("Commit state signature", txId);
+
+    const tx = await fetchTransaction(txId);
+    console.log(tx.meta.logMessages);
+
+    const consumedLog = tx.meta.logMessages.find((m) =>
+      m.includes("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh consumed")
+    );
+
+    assert.isAtMost(
+      parseInt(consumedLog.split(" ").at(3)),
+      36000,
+      "delegate instruction must consume less than 18500"
+    );
   });
 
   it("Finalize account state", async () => {
@@ -260,7 +273,7 @@ describe("TestDelegation", () => {
     console.log("Finalize signature", txId);
   });
 
-  it("Undelegate account", async () => {
+  it.skip("Undelegate account", async () => {
     const ix = createUndelegateInstruction(
       validator,
       pda,

@@ -159,7 +159,7 @@ pub fn require_initialized_pda(
 ) -> Result<u8, ProgramError> {
     let pda = pubkey::find_program_address(seeds, program_id);
     if !pubkey_eq(info.key(), &pda.0) {
-        log!("Invalid seeds for account: ");
+        log!("Invalid seeds (label: {}) for account ", label);
         pubkey::log(info.key());
         return Err(ProgramError::InvalidSeeds);
     }
@@ -167,7 +167,7 @@ pub fn require_initialized_pda(
     require_owned_pda(info, program_id, label)?;
 
     if is_writable && !info.is_writable() {
-        log!("Account is not writable: ");
+        log!("Account needs to be writable. label: {}, account: ", label);
         pubkey::log(info.key());
         return Err(ProgramError::InvalidAccountData);
     }
@@ -244,14 +244,12 @@ pub fn require_program_config(
     program: &Pubkey,
     is_writable: bool,
 ) -> Result<bool, ProgramError> {
-    let pda = program_config_from_program_id(&program.clone().into());
+    let pda = program_config_from_program_id(&(*program).into());
     if !pubkey_eq(pda.as_array(), program_config.key()) {
-        //msg!(
-        //    "Invalid program config PDA, expected {} but got {}. program: {}",
-        //    pda,
-        //    program_config.key,
-        //    program
-        //);
+        log!("Invalid validator fees vault PDA, expected: ");
+        pubkey::log(pda.as_array());
+        log!("but got: ");
+        pubkey::log(program_config.key());
         return Err(DlpError::InvalidAuthority.into());
     }
     require_pda(
