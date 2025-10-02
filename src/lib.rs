@@ -115,6 +115,9 @@ pub fn fast_process_instruction(
         discriminator::DlpDiscriminator::CommitStateFromBuffer => Some(
             processor::fast::process_commit_state_from_buffer(program_id, accounts, data),
         ),
+        discriminator::DlpDiscriminator::Finalize => Some(processor::fast::process_finalize(
+            program_id, accounts, data,
+        )),
         discriminator::DlpDiscriminator::Undelegate => Some(processor::fast::process_undelegate(
             program_id, accounts, data,
         )),

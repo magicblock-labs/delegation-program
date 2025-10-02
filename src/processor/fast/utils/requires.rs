@@ -85,6 +85,13 @@ pub fn require_pda(
     Ok(pda.1)
 }
 
+/// Returns true if the account is uninitialized based on the following conditions:
+/// - Owner is the system program.
+/// - Data is empty.
+pub fn is_uninitialized_account(info: &AccountInfo) -> bool {
+    pubkey_eq(info.owner(), &pinocchio_system::ID) && info.data_is_empty()
+}
+
 /// Errors if:
 /// - Owner is not the system program.
 /// - Data is not empty.
@@ -293,6 +300,40 @@ pub fn require_initialized_delegation_metadata(
         &crate::fast::ID,
         is_writable,
         "delegation metadata",
+    )?;
+    Ok(())
+}
+
+/// Load initialized commit state account
+/// - Commit state account must be derived from the delegated account pubkey
+pub fn require_initialized_commit_state(
+    delegated_account: &AccountInfo,
+    commit_state: &AccountInfo,
+    is_writable: bool,
+) -> Result<(), ProgramError> {
+    require_initialized_pda(
+        commit_state,
+        &[pda::COMMIT_STATE_TAG, delegated_account.key()],
+        &crate::fast::ID,
+        is_writable,
+        "commit state",
+    )?;
+    Ok(())
+}
+
+/// Load initialized commit state record
+/// - Commit record account must be derived from the delegated account pubkey
+pub fn require_initialized_commit_record(
+    delegated_account: &AccountInfo,
+    commit_record: &AccountInfo,
+    is_writable: bool,
+) -> Result<(), ProgramError> {
+    require_initialized_pda(
+        commit_record,
+        &[pda::COMMIT_RECORD_TAG, delegated_account.key()],
+        &crate::fast::ID,
+        is_writable,
+        "commit record",
     )?;
     Ok(())
 }
