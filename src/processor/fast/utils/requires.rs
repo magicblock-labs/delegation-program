@@ -219,7 +219,7 @@ pub fn require_initialized_validator_fees_vault(
     validator_fees_vault: &AccountInfo,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
-    let pda = validator_fees_vault_pda_from_validator(&validator.key().clone().into());
+    let pda = validator_fees_vault_pda_from_validator(&(*validator.key()).into());
     if !pubkey_eq(validator_fees_vault.key(), pda.as_array()) {
         log!("Invalid validator fees vault PDA, expected: ");
         pubkey::log(pda.as_array());

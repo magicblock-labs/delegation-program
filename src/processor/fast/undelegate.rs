@@ -1,4 +1,3 @@
-use borsh::to_vec;
 use pinocchio::{
     account_info::AccountInfo,
     cpi::invoke_signed,
@@ -112,8 +111,6 @@ pub fn process_undelegate(
 
     // If there is no program to call CPI to, we can just assign the owner back and we're done
     if delegated_account.data_is_empty() {
-        log!("EARLY RETURN : data_is_empty");
-
         // TODO - we could also do this fast-path if the data was non-empty but zeroed-out
         unsafe {
             delegated_account.assign(owner_program.key());
@@ -129,11 +126,10 @@ pub fn process_undelegate(
     }
 
     // Initialize the undelegation buffer PDA
-    let undelegate_buffer_seeds: &[&[u8]] = &[pda::UNDELEGATE_BUFFER_TAG, delegated_account.key()];
 
     let undelegate_buffer_bump: u8 = require_uninitialized_pda(
         undelegate_buffer_account,
-        undelegate_buffer_seeds,
+        &[pda::UNDELEGATE_BUFFER_TAG, delegated_account.key()],
         &crate::fast::ID,
         true,
         "undelegate buffer",
@@ -257,10 +253,15 @@ fn cpi_external_undelegate(
     owner_program_id: &Pubkey,
     delegation_metadata: DelegationMetadata,
 ) -> ProgramResult {
-    let mut data = EXTERNAL_UNDELEGATE_DISCRIMINATOR.to_vec();
-    let serialized_seeds =
-        to_vec(&delegation_metadata.seeds).map_err(|_| ProgramError::BorshIoError)?;
-    data.extend_from_slice(&serialized_seeds);
+    let data = {
+        // GAIN: 299  (42075 => 41776)
+        let mut data = Vec::with_capacity(32);
+        data.extend_from_slice(&EXTERNAL_UNDELEGATE_DISCRIMINATOR);
+        borsh::to_writer(&mut data, &delegation_metadata.seeds)
+            .map_err(|_| ProgramError::BorshIoError)?;
+        data
+    };
+
     let external_undelegate_instruction = Instruction {
         program_id: owner_program_id,
         data: &data,
