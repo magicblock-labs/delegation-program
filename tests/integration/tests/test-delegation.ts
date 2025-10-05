@@ -244,6 +244,18 @@ describe("TestDelegation", () => {
     const ix = createFinalizeInstruction(validator, pda);
     const txId = await processInstruction(ix);
     console.log("Finalize signature", txId);
+    const tx = await fetchTransaction(txId);
+    console.log(tx.meta.logMessages);
+
+    const consumedLog = tx.meta.logMessages.find((m) =>
+      m.includes("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh consumed")
+    );
+
+    assert.isAtMost(
+      parseInt(consumedLog.split(" ").at(3)),
+      36000,
+      "delegate instruction must consume less than 18500"
+    );
   });
 
   it("Commit a new state to the PDA", async () => {
