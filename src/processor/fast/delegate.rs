@@ -111,7 +111,7 @@ pub fn process_delegate(
 
     // Initialize the delegation record
     let delegation_record = DelegationRecord {
-        owner: owner_program.key().clone().into(),
+        owner: (*owner_program.key()).into(),
         authority: args.validator.unwrap_or(DEFAULT_VALIDATOR_IDENTITY),
         commit_frequency_ms: args.commit_frequency_ms as u64,
         delegation_slot: solana_program::clock::Clock::get().unwrap().slot,
@@ -127,7 +127,7 @@ pub fn process_delegate(
         seeds: args.seeds,
         last_update_nonce: 0,
         is_undelegatable: false,
-        rent_payer: payer.key().clone().into(),
+        rent_payer: (*payer.key()).into(),
     };
 
     // Initialize the delegation metadata PDA
