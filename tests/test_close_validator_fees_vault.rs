@@ -33,7 +33,8 @@ async fn test_close_validator_fees_vault() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
+    let mut program_test =
+        ProgramTest::new("dlp", dlp::ID, processor!(fixtures::process_instruction));
     program_test.prefer_bpf(true);
 
     let admin_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
