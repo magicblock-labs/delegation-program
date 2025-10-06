@@ -1,14 +1,9 @@
-pub mod accounts;
-
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
-#[allow(unused_imports)]
-pub(crate) use accounts::*;
-
 use pinocchio::msg;
+use solana_program::entrypoint::{deserialize, NON_DUP_MARKER};
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
-use solana_sdk::entrypoint::{deserialize, NON_DUP_MARKER};
 
 pub fn process_instruction(
     program_id: &Pubkey,
@@ -18,7 +13,7 @@ pub fn process_instruction(
     msg!("LETS PANIC");
     assert!(false, "process_instruction is false");
 
-    Err(solana_sdk::program_error::ProgramError::InvalidAccountData)
+    Err(solana_program::program_error::ProgramError::InvalidAccountData)
 
     //Ok(())
 

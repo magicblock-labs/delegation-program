@@ -22,6 +22,9 @@ pub mod pda;
 mod processor;
 pub mod state;
 
+#[cfg(feature = "unit_test_config")]
+pub mod testlib;
+
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
 pub mod fast {
@@ -50,9 +53,10 @@ pub unsafe extern "C" fn entrypoint(input: *mut u8) -> u64 {
     const UNINIT: core::mem::MaybeUninit<pinocchio::account_info::AccountInfo> =
         core::mem::MaybeUninit::<pinocchio::account_info::AccountInfo>::uninit();
     let mut accounts = [UNINIT; { pinocchio::MAX_TX_ACCOUNTS }];
+
     let (program_id, count, data) =
         pinocchio::entrypoint::deserialize::<{ pinocchio::MAX_TX_ACCOUNTS }>(input, &mut accounts);
-    match process_instruction(
+    match fast_process_instruction(
         program_id,
         core::slice::from_raw_parts(accounts.as_ptr() as _, count),
         data,
@@ -78,7 +82,7 @@ pub unsafe fn slow_entrypoint(input: *mut u8) -> u64 {
     }
 }
 
-pub fn process_instruction(
+pub fn fast_process_instruction(
     program_id: &pinocchio::pubkey::Pubkey,
     accounts: &[pinocchio::account_info::AccountInfo],
     data: &[u8],
