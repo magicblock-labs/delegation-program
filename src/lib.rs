@@ -106,24 +106,26 @@ pub fn fast_process_instruction(
         }
     };
 
-    match discriminator {
-        discriminator::DlpDiscriminator::Delegate => Some(processor::fast::process_delegate(
-            program_id, accounts, data,
-        )),
-        discriminator::DlpDiscriminator::CommitState => Some(
-            processor::fast::process_commit_state(program_id, accounts, data),
-        ),
-        discriminator::DlpDiscriminator::CommitStateFromBuffer => Some(
-            processor::fast::process_commit_state_from_buffer(program_id, accounts, data),
-        ),
-        discriminator::DlpDiscriminator::Finalize => Some(processor::fast::process_finalize(
-            program_id, accounts, data,
-        )),
-        discriminator::DlpDiscriminator::Undelegate => Some(processor::fast::process_undelegate(
-            program_id, accounts, data,
-        )),
-        _ => None,
-    }
+    Some(match discriminator {
+        discriminator::DlpDiscriminator::Delegate => {
+            processor::fast::process_delegate(program_id, accounts, data)
+        }
+        discriminator::DlpDiscriminator::CommitState => {
+            processor::fast::process_commit_state(program_id, accounts, data)
+        }
+
+        discriminator::DlpDiscriminator::CommitStateFromBuffer => {
+            processor::fast::process_commit_state_from_buffer(program_id, accounts, data)
+        }
+
+        discriminator::DlpDiscriminator::Finalize => {
+            processor::fast::process_finalize(program_id, accounts, data)
+        }
+        discriminator::DlpDiscriminator::Undelegate => {
+            processor::fast::process_undelegate(program_id, accounts, data)
+        }
+        _ => return None,
+    })
 }
 
 pub fn slow_process_instruction(
