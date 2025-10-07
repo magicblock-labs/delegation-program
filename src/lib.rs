@@ -22,9 +22,6 @@ pub mod pda;
 mod processor;
 pub mod state;
 
-#[cfg(feature = "unit_test_config")]
-pub mod testlib;
-
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
 pub mod fast {

@@ -30,8 +30,6 @@ pub fn process_delegate(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    log!("PROCESS DELEGATE");
-
     require_owned_pda(delegated_account, &crate::fast::ID, "delegated account")?;
     require_program(system_program, &pinocchio_system::ID, "system program")?;
 

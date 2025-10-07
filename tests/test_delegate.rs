@@ -1,7 +1,7 @@
 use solana_program::pubkey::Pubkey;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_sdk::{
     account::Account,
@@ -34,9 +34,7 @@ async fn test_delegate() {
     let ix = delegate_from_wrapper_program(payer.pubkey(), DELEGATED_PDA_ID);
 
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
-    eprintln!(">>>>>>>>>>>>>>>> invoke ix <<<<<<<<<<<<<<<<<<<<<<<<<<");
     let res = banks.process_transaction(tx).await;
-    eprintln!(">>>>>>>>>>>>>>>> invoke ix DONE <<<<<<<<<<<<<<<<<<<<<<<<<<");
 
     println!("{:?}", res);
     assert!(res.is_ok());
@@ -79,13 +77,7 @@ async fn test_delegate() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "dlp",
-        dlp::ID,
-        None, //processor!(dlp::testlib::process_instruction),
-    );
-
-    println!(">>>>>>>>>>>>>>>> setup_program_test_env <<<<<<<<<<<<<<<<<<<<<<<<<<");
+    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
 
     program_test.prefer_bpf(true);
     let payer_alt = Keypair::new();
