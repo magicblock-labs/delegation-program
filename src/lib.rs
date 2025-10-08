@@ -84,8 +84,6 @@ pub fn fast_process_instruction(
     accounts: &[pinocchio::account_info::AccountInfo],
     data: &[u8],
 ) -> Option<pinocchio::ProgramResult> {
-    // TODO (snawaz): why the size of discriminator is 8, when 1 is enough, and in the rest 7 bytes
-    // we can store 7 bumps that could give us huge performance boost as it'd simplify validations!
     let (discriminator, data) = data.split_at(8);
 
     let discriminator = match discriminator
