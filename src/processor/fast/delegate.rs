@@ -17,21 +17,23 @@ use crate::processor::fast::utils::{pda::create_pda, requires::require_uninitial
 use crate::processor::utils::curve::is_on_curve_fast;
 use crate::state::{DelegationMetadata, DelegationRecord};
 
-use super::utils::requires::{require_owned_pda, require_pda, require_program, require_signer};
+use super::utils::requires::{require_owned_pda, require_pda, require_signer};
 
 pub fn process_delegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, delegate_buffer_account, delegation_record_account, delegation_metadata_account, system_program] =
+    let [payer, delegated_account, owner_program, delegate_buffer_account, delegation_record_account, delegation_metadata_account, _system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     require_owned_pda(delegated_account, &crate::fast::ID, "delegated account")?;
-    require_program(system_program, &pinocchio_system::ID, "system program")?;
+
+    // we do not need system_program anywhere
+    // require_program(system_program, &pinocchio_system::ID, "system program")?;
 
     // Check that payer and delegated_account are signers, this ensures the instruction is being called from CPI
     require_signer(payer, "payer")?;
@@ -47,6 +49,8 @@ pub fn process_delegate(
     )?;
 
     // Check that the delegation record PDA is uninitialized
+    // TODO (snawaz): This check could be safely avoided, as create_pda would anyway fail.
+    // Could save considerable CU, especially in the v2 version where we will pass the bumps
     let delegation_record_bump = require_uninitialized_pda(
         delegation_record_account,
         &[pda::DELEGATION_RECORD_TAG, delegated_account.key()],
@@ -56,6 +60,8 @@ pub fn process_delegate(
     )?;
 
     // Check that the delegation metadata PDA is uninitialized
+    // TODO (snawaz): This check could be safely avoided, as create_pda would anyway fail.
+    // Could save considerable CU, especially in the v2 version where we will pass the bumps
     let delegation_metadata_bump = require_uninitialized_pda(
         delegation_metadata_account,
         &[pda::DELEGATION_METADATA_TAG, delegated_account.key()],
@@ -151,7 +157,6 @@ pub fn process_delegate(
         .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
         .map_err(to_pinocchio_program_error)?;
 
-    // TODO (snawaz): why do we conditionally copy?
     // Copy the data from the buffer into the original account
     if !delegate_buffer_account.data_is_empty() {
         let mut delegated_data = delegated_account.try_borrow_mut_data()?;

@@ -6,14 +6,14 @@ pub fn is_on_curve(key: &Pubkey) -> bool {
 }
 
 pub fn is_on_curve_fast(key: &pinocchio::pubkey::Pubkey) -> bool {
-    #[cfg(feature = "unit_test_config")]
+    #[cfg(not(target_os = "solana"))]
     {
         // SAFETY: the layout of pinocchio::pubkey::Pubkey and PodEdwardsPoint is identical
         // so one can be casted to the other without any issue.
         validate_edwards(unsafe { &*(key as *const u8 as *const PodEdwardsPoint) })
     }
 
-    #[cfg(not(feature = "unit_test_config"))]
+    #[cfg(target_os = "solana")]
     {
         // The above unit_test_config-version works great but the following one saves 7 CUs.
         // ref: https://github.com/anza-xyz/agave/blob/aa5cb43d1e/curves/curve25519/src/edwards.rs#L148-L158

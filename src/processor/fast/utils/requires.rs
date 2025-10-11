@@ -126,6 +126,7 @@ pub fn require_uninitialized_pda(
 /// - Address does not match the expected value.
 /// - Account is not executable.
 #[inline(always)]
+#[allow(dead_code)]
 pub fn require_program(info: &AccountInfo, key: &Pubkey, label: &str) -> Result<(), ProgramError> {
     if !pubkey_eq(info.key(), key) {
         log!("Invalid program account {}: ", label);

@@ -114,7 +114,7 @@ describe("TestDelegation", () => {
     console.log("Counter: ", counterAccount.count.toString());
   });
 
-  // TODO (snawaz): currently, we cannot run two similar tests twice or more.
+  // .skip() because currently tests are not independent and we cannot run two similar tests twice or more.
   it.skip("Delegate one PDA", async () => {
     const counterAccountInfo = await provider.connection.getAccountInfo(pda);
     if (counterAccountInfo === null) {

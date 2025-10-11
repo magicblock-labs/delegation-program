@@ -84,15 +84,17 @@ pub fn fast_process_instruction(
     accounts: &[pinocchio::account_info::AccountInfo],
     data: &[u8],
 ) -> Option<pinocchio::ProgramResult> {
-    let (discriminator, data) = data.split_at(8);
+    if data.len() < 8 {
+        return Some(Err(
+            pinocchio::program_error::ProgramError::InvalidInstructionData,
+        ));
+    }
 
-    let discriminator = match discriminator
-        .try_into()
-        .ok()
-        .and_then(|bytes: [u8; 8]| DlpDiscriminator::try_from(bytes).ok())
-    {
-        Some(discriminator) => discriminator,
-        None => {
+    let (discriminator_bytes, data) = data.split_at(8);
+
+    let discriminator = match DlpDiscriminator::try_from(discriminator_bytes[0]) {
+        Ok(discriminator) => discriminator,
+        Err(_) => {
             log!("Failed to read and parse discriminator");
             return Some(Err(
                 pinocchio::program_error::ProgramError::InvalidInstructionData,
