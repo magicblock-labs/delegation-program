@@ -52,7 +52,7 @@ pub fn process_undelegate(
     require_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
     require_program(system_program, &pinocchio_system::ID, "system program")?;
 
-    // // Make sure there is no pending commits to be finalized before this call
+    // Make sure there is no pending commits to be finalized before this call
     require_uninitialized_pda(
         commit_state_account,
         &[pda::COMMIT_STATE_TAG, delegated_account.key()],

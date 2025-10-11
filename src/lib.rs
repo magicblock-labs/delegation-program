@@ -130,7 +130,6 @@ pub fn slow_process_instruction(
     }
 
     let (tag, data) = data.split_at(8);
-    msg!("slow_process_instruction: discriminator = {:?}", tag);
     let tag_array: [u8; 8] = tag
         .try_into()
         .map_err(|_| ProgramError::InvalidInstructionData)?;
