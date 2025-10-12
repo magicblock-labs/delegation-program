@@ -236,8 +236,8 @@ describe("TestDelegation", () => {
 
     assert.isAtMost(
       parseInt(consumedLog.split(" ").at(3)),
-      36000,
-      "delegate instruction must consume less than 18500"
+      32000,
+      "commit instruction must consume less than 32000"
     );
   });
 

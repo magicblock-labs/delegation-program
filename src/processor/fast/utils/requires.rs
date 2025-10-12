@@ -247,7 +247,7 @@ pub fn require_program_config(
 ) -> Result<bool, ProgramError> {
     let pda = program_config_from_program_id(&(*program).into());
     if !pubkey_eq(pda.as_array(), program_config.key()) {
-        log!("Invalid validator fees vault PDA, expected: ");
+        log!("Invalid program config PDA, expected: ");
         pubkey::log(pda.as_array());
         log!("but got: ");
         pubkey::log(program_config.key());
@@ -256,7 +256,7 @@ pub fn require_program_config(
     require_pda(
         program_config,
         &[pda::PROGRAM_CONFIG_TAG, program],
-        &crate::fast::id(),
+        &crate::fast::ID,
         is_writable,
         "program config",
     )?;
