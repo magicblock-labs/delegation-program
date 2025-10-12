@@ -15,14 +15,43 @@ use crate::processor::fast::utils::{
     pda::create_pda,
     requires::{
         require_initialized_delegation_metadata, require_initialized_delegation_record,
-        require_initialized_validator_fees_vault, require_owned_pda, require_program,
-        require_program_config, require_signer, require_uninitialized_pda,
+        require_initialized_validator_fees_vault, require_owned_pda, require_program_config,
+        require_signer, require_uninitialized_pda,
     },
 };
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
 
 use super::to_pinocchio_program_error;
 
+/// Commit a new state of a delegated PDA
+///
+/// Accounts:
+///
+/// 0: `[signer]`   the validator requesting the commit
+/// 1: `[]`         the delegated account
+/// 2: `[writable]` the PDA storing the new state
+/// 3: `[writable]` the PDA storing the commit record
+/// 4: `[]`         the delegation record
+/// 5: `[writable]` the delegation metadata
+/// 6: `[]`         the validator fees vault
+/// 7: `[]`         the program config account
+///
+/// Requirements:
+///
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - validator fees vault is initialized
+/// - program config is initialized
+/// - commit state is uninitialized
+/// - commit record is uninitialized
+/// - delegated account holds at least the lamports indicated in the delegation record
+/// - account was not committed at a later slot
+///
+/// Steps:
+/// 1. Check that the pda is delegated
+/// 2. Init a new PDA to store the new state
+/// 3. Copy the new state to the new PDA
+/// 4. Init a new PDA to store the record of the new state commitment
 pub fn process_commit_state(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -35,7 +64,7 @@ pub fn process_commit_state(
     let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
 
-    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, system_program] =
+    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, _stop_passing_system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -54,7 +83,6 @@ pub fn process_commit_state(
         delegation_metadata_account,
         validator_fees_vault,
         program_config_account,
-        system_program,
     };
 
     process_commit_state_internal(commit_args)
@@ -74,7 +102,6 @@ pub(crate) struct CommitStateInternalArgs<'a> {
     pub(crate) delegation_metadata_account: &'a AccountInfo,
     pub(crate) validator_fees_vault: &'a AccountInfo,
     pub(crate) program_config_account: &'a AccountInfo,
-    pub(crate) system_program: &'a AccountInfo,
 }
 
 /// Commit a new state of a delegated Pda
@@ -99,7 +126,6 @@ pub(crate) fn process_commit_state_internal(
         true,
     )?;
     require_initialized_validator_fees_vault(args.validator, args.validator_fees_vault, false)?;
-    require_program(args.system_program, &pinocchio_system::ID, "system program")?;
 
     // Read delegation metadata
     let mut delegation_metadata_data = args.delegation_metadata_account.try_borrow_mut_data()?;

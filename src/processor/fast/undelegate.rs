@@ -28,10 +28,52 @@ use super::{
     utils::requires::{
         require_initialized_delegation_metadata, require_initialized_delegation_record,
         require_initialized_protocol_fees_vault, require_initialized_validator_fees_vault,
-        require_owned_pda, require_program, require_signer,
+        require_owned_pda, require_signer,
     },
 };
 
+/// Undelegate a delegated account
+///
+/// Accounts:
+///
+///  0: `[signer]`   the validator account
+///  1: `[writable]` the delegated account
+///  2: `[]`         the owner program of the delegated account
+///  3: `[writable]` the undelegate buffer PDA we use to store the data temporarily
+///  4: `[]`         the commit state PDA
+///  5: `[]`         the commit record PDA
+///  6: `[writable]` the delegation record PDA
+///  7: `[writable]` the delegation metadata PDA
+///  8: `[]`         the rent reimbursement account
+///  9: `[writable]` the protocol fees vault account
+/// 10: `[writable]` the validator fees vault account
+/// 11: `[]`         the system program (TODO (snawaz): soon to be removed from the requirement)
+///
+/// Requirements:
+///
+/// - delegated account is owned by delegation program
+/// - delegation record is initialized
+/// - delegation metadata is initialized
+/// - protocol fees vault is initialized
+/// - validator fees vault is initialized
+/// - commit state is uninitialized
+/// - commit record is uninitialized
+/// - delegated account is NOT undelegatable
+/// - owner program account matches the owner in the delegation record
+/// - rent reimbursement account matches the rent payer in the delegation metadata
+///
+/// Steps:
+///
+/// - Close the delegation metadata
+/// - Close the delegation record
+/// - If delegated account has no data, assign to prev owner (and stop here)
+/// - If there's data, create an "undelegate_buffer" and store the data in it
+/// - Close the original delegated account
+/// - CPI to the original owner to re-open the PDA with the original owner and the new state
+/// - CPI will be signed by the undelegation buffer PDA and will call the external program
+///   using the discriminator EXTERNAL_UNDELEGATE_DISCRIMINATOR
+/// - Verify that the new state is the same as the committed state
+/// - Close the undelegation buffer PDA
 pub fn process_undelegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -50,7 +92,6 @@ pub fn process_undelegate(
     require_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
     require_initialized_protocol_fees_vault(fees_vault, true)?;
     require_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
-    require_program(system_program, &pinocchio_system::ID, "system program")?;
 
     // Make sure there is no pending commits to be finalized before this call
     require_uninitialized_pda(

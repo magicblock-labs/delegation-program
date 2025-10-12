@@ -130,6 +130,9 @@ pub fn slow_process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+    // This check is completely redundant because program_id == crate::ID is gauranteed by the
+    // solana runtime. In fact, the runtime calls our entrypoint ONLY BECAUSE that program_id matches with crate::ID.
+    // The only time they might differ is when deploy-id uses something other than crate::ID which itself is a crazy idea.
     if program_id.ne(&id()) {
         return Err(ProgramError::IncorrectProgramId);
     }
@@ -139,12 +142,9 @@ pub fn slow_process_instruction(
     }
 
     let (tag, data) = data.split_at(8);
-    let tag_array: [u8; 8] = tag
-        .try_into()
-        .map_err(|_| ProgramError::InvalidInstructionData)?;
-
-    let ix = discriminator::DlpDiscriminator::try_from(tag_array)
+    let ix = discriminator::DlpDiscriminator::try_from(tag[0])
         .or(Err(ProgramError::InvalidInstructionData))?;
+
     msg!("Processing instruction: {:?}", ix);
     match ix {
         discriminator::DlpDiscriminator::InitValidatorFeesVault => {

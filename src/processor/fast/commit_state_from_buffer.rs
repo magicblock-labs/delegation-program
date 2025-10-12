@@ -12,6 +12,12 @@ pub fn process_commit_state_from_buffer(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, state_buffer_account, validator_fees_vault, program_config_account, _stop_passing_system_program] =
+        accounts
+    else {
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
+
     let args =
         CommitStateFromBufferArgs::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
 
@@ -19,11 +25,6 @@ pub fn process_commit_state_from_buffer(
     let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
 
-    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, state_buffer_account, validator_fees_vault, program_config_account, system_program] =
-        accounts
-    else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
     let state = state_buffer_account.try_borrow_data()?;
     let commit_state_bytes: &[u8] = &state;
 
@@ -40,7 +41,6 @@ pub fn process_commit_state_from_buffer(
         delegation_metadata_account,
         validator_fees_vault,
         program_config_account,
-        system_program,
     };
     process_commit_state_internal(commit_args)
 }

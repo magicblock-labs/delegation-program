@@ -19,21 +19,46 @@ use crate::state::{DelegationMetadata, DelegationRecord};
 
 use super::utils::requires::{require_owned_pda, require_pda, require_signer};
 
+/// Delegates an account
+///
+/// Accounts:
+/// 0: `[signer]`   the account paying for the transaction
+/// 1: `[signer]`   the account to delegate
+/// 2: `[]`         the owner of the account to delegate
+/// 3: `[writable]` the buffer account we use to temporarily store the account data
+///                 during owner change
+/// 4: `[writable]` the delegation record account
+/// 5: `[writable]` the delegation metadata account
+///
+/// Requirements:
+///
+/// - delegation buffer is initialized
+/// - delegation record is uninitialized
+/// - delegation metadata is uninitialized
+///
+/// Steps:
+/// 1. Checks that the account is owned by the delegation program, that the buffer is initialized and derived correctly from the PDA
+///  - Also checks that the delegated_account is a signer (enforcing that the instruction is being called from CPI) & other constraints
+/// 2. Copies the data from the buffer into the original account
+/// 3. Creates a Delegation Record to store useful information about the delegation event
+/// 4. Creates a Delegated Account Seeds to store the seeds used to derive the delegate account. Needed for undelegation.
+///
+/// Usage:
+///
+/// This instruction is meant to be called via CPI with the owning program signing for the
+/// delegated account.
 pub fn process_delegate(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, delegate_buffer_account, delegation_record_account, delegation_metadata_account, _system_program] =
+    let [payer, delegated_account, owner_program, delegate_buffer_account, delegation_record_account, delegation_metadata_account, _stop_passing_system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     require_owned_pda(delegated_account, &crate::fast::ID, "delegated account")?;
-
-    // we do not need system_program anywhere
-    // require_program(system_program, &pinocchio_system::ID, "system program")?;
 
     // Check that payer and delegated_account are signers, this ensures the instruction is being called from CPI
     require_signer(payer, "payer")?;
