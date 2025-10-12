@@ -74,12 +74,10 @@ pub fn require_pda(
         return Err(ProgramError::InvalidSeeds);
     }
 
-    if !info.is_writable().eq(&is_writable) {
-        // TODO (snawaz): misleading msg
-        // also better use more granular error here ProgramError::InvalidPermission
+    if is_writable && !info.is_writable() {
         log!("Account needs to be writable. Label: {}", label);
         pubkey::log(info.key());
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramError::Immutable);
     }
 
     Ok(pda.1)
@@ -124,7 +122,7 @@ pub fn require_uninitialized_account(
     if is_writable && !info.is_writable() {
         log!("Account needs to be writable. label: {}, account: ", label);
         pubkey::log(info.key());
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramError::Immutable);
     }
 
     Ok(())
@@ -176,7 +174,7 @@ pub fn require_initialized_pda(
     if is_writable && !info.is_writable() {
         log!("Account needs to be writable. label: {}, account: ", label);
         pubkey::log(info.key());
-        return Err(ProgramError::InvalidAccountData);
+        return Err(ProgramError::Immutable);
     }
 
     Ok(pda.1)
