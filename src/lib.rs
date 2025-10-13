@@ -147,21 +147,6 @@ pub fn slow_process_instruction(
         .or(Err(ProgramError::InvalidInstructionData))?;
     msg!("Processing instruction: {:?}", ix);
     match ix {
-        discriminator::DlpDiscriminator::Delegate => {
-            processor::process_delegate(program_id, accounts, data)?
-        }
-        discriminator::DlpDiscriminator::CommitState => {
-            processor::process_commit_state(program_id, accounts, data)?
-        }
-        discriminator::DlpDiscriminator::CommitStateFromBuffer => {
-            processor::process_commit_state_from_buffer(program_id, accounts, data)?
-        }
-        discriminator::DlpDiscriminator::Finalize => {
-            processor::process_finalize(program_id, accounts, data)?
-        }
-        discriminator::DlpDiscriminator::Undelegate => {
-            processor::process_undelegate(program_id, accounts, data)?
-        }
         discriminator::DlpDiscriminator::InitValidatorFeesVault => {
             processor::process_init_validator_fees_vault(program_id, accounts, data)?
         }
@@ -191,6 +176,10 @@ pub fn slow_process_instruction(
         }
         discriminator::DlpDiscriminator::CallHandler => {
             process_call_handler(program_id, accounts, data)?
+        }
+        _ => {
+            log!("PANIC: Instruction must be processed by fast_process_instruction");
+            return Err(ProgramError::InvalidInstructionData);
         }
     }
     Ok(())

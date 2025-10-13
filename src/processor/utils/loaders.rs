@@ -1,11 +1,6 @@
 use crate::error::DlpError::InvalidAuthority;
-use crate::pda::{program_config_from_program_id, validator_fees_vault_pda_from_validator};
-use crate::{
-    commit_record_seeds_from_delegated_account, commit_state_seeds_from_delegated_account,
-    delegation_metadata_seeds_from_delegated_account,
-    delegation_record_seeds_from_delegated_account, fees_vault_seeds,
-    program_config_seeds_from_program_id, validator_fees_vault_seeds_from_validator,
-};
+use crate::pda::validator_fees_vault_pda_from_validator;
+use crate::{fees_vault_seeds, validator_fees_vault_seeds_from_validator};
 use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::{
     account_info::AccountInfo, bpf_loader_upgradeable, msg, program_error::ProgramError,
@@ -105,13 +100,6 @@ pub fn load_initialized_pda(
     }
 
     Ok(pda.1)
-}
-
-/// Returns true if the account is uninitialized based on the following conditions:
-/// - Owner is the system program.
-/// - Data is empty.
-pub fn is_uninitialized_account(info: &AccountInfo) -> bool {
-    info.owner.eq(&system_program::id()) && info.data_is_empty()
 }
 
 /// Errors if:
@@ -276,101 +264,6 @@ pub fn load_initialized_validator_fees_vault(
         &crate::id(),
         is_writable,
         "validator fees vault",
-    )?;
-    Ok(())
-}
-
-/// Load program config PDA
-/// - Program config PDA must be initialized with the expected seeds and owner, or not exists
-pub fn load_program_config(
-    program_config: &AccountInfo,
-    program: Pubkey,
-    is_writable: bool,
-) -> Result<bool, ProgramError> {
-    let pda = program_config_from_program_id(&program);
-    if !pda.eq(program_config.key) {
-        msg!(
-            "Invalid program config PDA, expected {} but got {}. program: {}",
-            pda,
-            program_config.key,
-            program
-        );
-        return Err(InvalidAuthority.into());
-    }
-    load_pda(
-        program_config,
-        program_config_seeds_from_program_id!(program),
-        &crate::id(),
-        is_writable,
-        "program config",
-    )?;
-    Ok(!program_config.owner.eq(&system_program::ID))
-}
-
-/// Load initialized delegation record
-/// - Delegation record must be derived from the delegated account
-pub fn load_initialized_delegation_record(
-    delegated_account: &AccountInfo,
-    delegation_record: &AccountInfo,
-    is_writable: bool,
-) -> Result<(), ProgramError> {
-    load_initialized_pda(
-        delegation_record,
-        delegation_record_seeds_from_delegated_account!(delegated_account.key),
-        &crate::id(),
-        is_writable,
-        "delegation record",
-    )?;
-    Ok(())
-}
-
-/// Load initialized delegation metadata
-/// - Delegation metadata must be derived from the delegated account
-pub fn load_initialized_delegation_metadata(
-    delegated_account: &AccountInfo,
-    delegation_metadata: &AccountInfo,
-    is_writable: bool,
-) -> Result<(), ProgramError> {
-    load_initialized_pda(
-        delegation_metadata,
-        delegation_metadata_seeds_from_delegated_account!(delegated_account.key),
-        &crate::id(),
-        is_writable,
-        "delegation metadata",
-    )?;
-    Ok(())
-}
-
-/// Load initialized commit state account
-/// - Commit state account must be derived from the delegated account pubkey
-pub fn load_initialized_commit_state(
-    delegated_account: &AccountInfo,
-    commit_state: &AccountInfo,
-    is_writable: bool,
-) -> Result<(), ProgramError> {
-    load_initialized_pda(
-        commit_state,
-        commit_state_seeds_from_delegated_account!(delegated_account.key),
-        &crate::id(),
-        is_writable,
-        "commit state",
-    )?;
-    Ok(())
-}
-
-/// Load initialized commit state record
-/// - Commit record account must be derived from the delegated account pubkey
-pub fn load_initialized_commit_record(
-    delegated_account: &AccountInfo,
-    commit_record: &AccountInfo,
-    is_writable: bool,
-) -> Result<(), ProgramError> {
-    load_initialized_pda(
-        commit_record,
-        commit_record_seeds_from_delegated_account!(delegated_account.key),
-        &crate::id(),
-        is_writable,
-        "commit record",
     )?;
     Ok(())
 }

@@ -1,13 +1,7 @@
-use solana_curve25519::edwards::{validate_edwards, PodEdwardsPoint};
-use solana_program::pubkey::Pubkey;
-
-pub fn is_on_curve(key: &Pubkey) -> bool {
-    validate_edwards(&PodEdwardsPoint(key.to_bytes()))
-}
-
 pub fn is_on_curve_fast(key: &pinocchio::pubkey::Pubkey) -> bool {
     #[cfg(not(target_os = "solana"))]
     {
+        use solana_curve25519::edwards::{validate_edwards, PodEdwardsPoint};
         // SAFETY: the layout of pinocchio::pubkey::Pubkey and PodEdwardsPoint is identical
         // so one can be casted to the other without any issue.
         validate_edwards(unsafe { &*(key as *const u8 as *const PodEdwardsPoint) })
