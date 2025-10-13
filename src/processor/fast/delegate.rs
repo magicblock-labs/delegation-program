@@ -52,7 +52,7 @@ pub fn process_delegate(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let [payer, delegated_account, owner_program, delegate_buffer_account, delegation_record_account, delegation_metadata_account, _stop_passing_system_program] =
+    let [payer, delegated_account, owner_program, delegate_buffer_account, delegation_record_account, delegation_metadata_account, _system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);

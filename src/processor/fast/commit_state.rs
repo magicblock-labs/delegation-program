@@ -64,7 +64,7 @@ pub fn process_commit_state(
     let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
 
-    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, _stop_passing_system_program] =
+    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, _system_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);

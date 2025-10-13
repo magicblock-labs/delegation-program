@@ -130,13 +130,6 @@ pub fn slow_process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    // This check is completely redundant because program_id == crate::ID is gauranteed by the
-    // solana runtime. In fact, the runtime calls our entrypoint ONLY BECAUSE that program_id matches with crate::ID.
-    // The only time they might differ is when deploy-id uses something other than crate::ID which itself is a crazy idea.
-    if program_id.ne(&id()) {
-        return Err(ProgramError::IncorrectProgramId);
-    }
-
     if data.len() < 8 {
         return Err(ProgramError::InvalidInstructionData);
     }
