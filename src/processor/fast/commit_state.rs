@@ -157,14 +157,14 @@ pub(crate) fn process_commit_state_internal(
         .map_err(to_pinocchio_program_error)?;
 
     // To preserve correct history of account updates we require sequential commits
-    if args.commit_record_nonce != delegation_metadata.last_update_nonce + 1 {
-        log!(
-            "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
-            args.commit_record_nonce,
-            delegation_metadata.last_update_nonce
-        );
-        return Err(DlpError::NonceOutOfOrder.into());
-    }
+    // if args.commit_record_nonce != delegation_metadata.last_update_nonce + 1 {
+    //     log!(
+    //         "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
+    //         args.commit_record_nonce,
+    //         delegation_metadata.last_update_nonce
+    //     );
+    //     return Err(DlpError::NonceOutOfOrder.into());
+    // }
 
     // Once the account is marked as undelegatable, any subsequent commit should fail
     if delegation_metadata.is_undelegatable {
