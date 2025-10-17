@@ -61,6 +61,18 @@ pub fn fast_process_instruction(
         }
     };
 
+    #[cfg(feature = "no-entrypoint")]
+    if matches!(
+        discriminator,
+        DlpDiscriminator::Delegate
+            | DlpDiscriminator::CommitState
+            | DlpDiscriminator::CommitStateFromBuffer
+            | DlpDiscriminator::Finalize
+            | DlpDiscriminator::Undelegate
+    ) {
+        msg!("Processing instruction: {:?}", discriminator);
+    }
+
     match discriminator {
         DlpDiscriminator::Delegate => Some(processor::fast::process_delegate(
             program_id, accounts, data,
