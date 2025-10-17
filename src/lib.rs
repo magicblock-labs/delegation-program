@@ -61,7 +61,7 @@ pub fn fast_process_instruction(
         }
     };
 
-    #[cfg(feature = "no-entrypoint")]
+    #[cfg(feature = "unit_test_config")]
     if matches!(
         discriminator,
         DlpDiscriminator::Delegate
