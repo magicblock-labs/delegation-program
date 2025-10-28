@@ -1,44 +1,62 @@
 use solana_program::pubkey::Pubkey;
 
+pub const DELEGATION_RECORD_TAG: &[u8] = b"delegation";
 #[macro_export]
 macro_rules! delegation_record_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[b"delegation", &$delegated_account.as_ref()]
+        &[
+            $crate::pda::DELEGATION_RECORD_TAG,
+            &$delegated_account.as_ref(),
+        ]
     };
 }
 
+pub const DELEGATION_METADATA_TAG: &[u8] = b"delegation-metadata";
 #[macro_export]
 macro_rules! delegation_metadata_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[b"delegation-metadata", &$delegated_account.as_ref()]
+        &[
+            $crate::pda::DELEGATION_METADATA_TAG,
+            &$delegated_account.as_ref(),
+        ]
     };
 }
 
+pub const COMMIT_STATE_TAG: &[u8] = b"state-diff";
 #[macro_export]
 macro_rules! commit_state_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[b"state-diff", &$delegated_account.as_ref()]
+        &[$crate::pda::COMMIT_STATE_TAG, &$delegated_account.as_ref()]
     };
 }
 
+pub const COMMIT_RECORD_TAG: &[u8] = b"commit-state-record";
 #[macro_export]
 macro_rules! commit_record_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[b"commit-state-record", &$delegated_account.as_ref()]
+        &[$crate::pda::COMMIT_RECORD_TAG, &$delegated_account.as_ref()]
     };
 }
 
+pub const DELEGATE_BUFFER_TAG: &[u8] = b"buffer";
 #[macro_export]
 macro_rules! delegate_buffer_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[b"buffer", &$delegated_account.as_ref()]
+        &[
+            $crate::pda::DELEGATE_BUFFER_TAG,
+            &$delegated_account.as_ref(),
+        ]
     };
 }
 
+pub const UNDELEGATE_BUFFER_TAG: &[u8] = b"undelegate-buffer";
 #[macro_export]
 macro_rules! undelegate_buffer_seeds_from_delegated_account {
     ($delegated_account: expr) => {
-        &[b"undelegate-buffer", &$delegated_account.as_ref()]
+        &[
+            $crate::pda::UNDELEGATE_BUFFER_TAG,
+            &$delegated_account.as_ref(),
+        ]
     };
 }
 
@@ -49,24 +67,31 @@ macro_rules! fees_vault_seeds {
     };
 }
 
+pub const VALIDATOR_FEES_VAULT_TAG: &[u8] = b"v-fees-vault";
 #[macro_export]
 macro_rules! validator_fees_vault_seeds_from_validator {
     ($validator: expr) => {
-        &[b"v-fees-vault", &$validator.as_ref()]
+        &[$crate::pda::VALIDATOR_FEES_VAULT_TAG, &$validator.as_ref()]
     };
 }
 
+pub const PROGRAM_CONFIG_TAG: &[u8] = b"p-conf";
 #[macro_export]
 macro_rules! program_config_seeds_from_program_id {
     ($program_id: expr) => {
-        &[b"p-conf", &$program_id.as_ref()]
+        &[$crate::pda::PROGRAM_CONFIG_TAG, &$program_id.as_ref()]
     };
 }
 
+pub const EPHEMERAL_BALANCE_TAG: &[u8] = b"balance";
 #[macro_export]
 macro_rules! ephemeral_balance_seeds_from_payer {
     ($payer: expr, $index: expr) => {
-        &[b"balance", &$payer.as_ref(), &[$index]]
+        &[
+            $crate::pda::EPHEMERAL_BALANCE_TAG,
+            &$payer.as_ref(),
+            &[$index],
+        ]
     };
 }
 

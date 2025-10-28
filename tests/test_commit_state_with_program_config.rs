@@ -8,7 +8,7 @@ use dlp::state::{CommitRecord, DelegationMetadata};
 use fixtures::create_program_config_data;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, BanksClient, ProgramTest};
+use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -99,7 +99,7 @@ async fn test_commit_new_state(valid_config: bool) {
 }
 
 async fn setup_program_test_env(valid_config: bool) -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
+    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);
 
     let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();

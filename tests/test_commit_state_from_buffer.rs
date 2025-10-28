@@ -11,7 +11,7 @@ use dlp::pda::{
 use dlp::state::{CommitRecord, DelegationMetadata};
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, BanksClient, ProgramTest};
+use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::Account,
@@ -85,7 +85,7 @@ async fn test_commit_new_state_from_buffer() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
+    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);
 
     let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();

@@ -10,6 +10,7 @@ import {
 } from "@magicblock-labs/ephemeral-rollups-sdk";
 import { ON_CURVE_ACCOUNT } from "./fixtures/consts";
 import { SYSTEM_PROGRAM_ID } from "@coral-xyz/anchor/dist/cjs/native/system";
+import { assert } from "chai";
 
 const SEED_TEST_PDA = "test-pda";
 const BPF_LOADER = new web3.PublicKey(
@@ -33,6 +34,18 @@ describe("TestDelegation", () => {
   const validator = provider.wallet.publicKey;
   const ownerProgram = testDelegation.programId;
   const reimbursement = provider.wallet.publicKey;
+
+  async function fetchTransaction(txhash: string) {
+    for (let i = 0; i < 10; i++) {
+      const tx = await provider.connection.getTransaction(txhash, {
+        commitment: "confirmed",
+        maxSupportedTransactionVersion: 0,
+      });
+      if (tx) return tx;
+      await new Promise((r) => setTimeout(r, 500)); // wait 0.5s
+    }
+    throw new Error("Transaction not found after waiting");
+  }
 
   it("Initialize protocol fees vault", async () => {
     const ix = createInitFeesVaultInstruction(payer);
@@ -96,13 +109,57 @@ describe("TestDelegation", () => {
     console.log("Counter: ", counterAccount.count.toString());
   });
 
+  // .skip() because currently tests are not independent and we cannot run two similar tests twice or more.
+  it.skip("Delegate one PDA", async () => {
+    const counterAccountInfo = await provider.connection.getAccountInfo(pda);
+    if (counterAccountInfo === null) {
+      const tx = await testDelegation.methods
+        .initialize()
+        .accounts({
+          user: provider.wallet.publicKey,
+        })
+        .rpc({ skipPreflight: true });
+      console.log("Init Pda Tx: ", tx);
+    }
+
+    const ca = await provider.connection.getAccountInfo(pda);
+    console.log(`owner: ${ca?.owner?.toBase58()}`);
+
+    // Delegate 1 PDA in a single instruction
+    const txhash = await testDelegation.methods
+      .delegate()
+      .accounts({
+        payer: provider.wallet.publicKey,
+      })
+      .rpc({ skipPreflight: true });
+    console.log("Your transaction signature", txhash);
+
+    const tx = await fetchTransaction(txhash);
+    console.log(tx.meta.logMessages);
+
+    const consumedLog = tx.meta.logMessages.find((m) =>
+      m.includes("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh consumed")
+    );
+
+    assert.isAtMost(
+      parseInt(consumedLog.split(" ").at(3)),
+      18500,
+      "delegate instruction must consume less than 18500"
+    );
+
+    const counterAccount = await provider.connection.getAccountInfo(pda);
+    assert.strictEqual(
+      counterAccount.owner.toBase58(),
+      "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
+    );
+  });
+
   it("Delegate two PDAs", async () => {
     // Delegate 2 PDAs in a single instruction
     const tx = await testDelegation.methods
       .delegateTwo()
       .accounts({
         payer: provider.wallet.publicKey,
-        validator,
       })
       .rpc({ skipPreflight: true });
     console.log("Your transaction signature", tx);
@@ -164,12 +221,37 @@ describe("TestDelegation", () => {
     );
     const txId = await processInstruction(ix);
     console.log("Commit state signature", txId);
+
+    const tx = await fetchTransaction(txId);
+    console.log(tx.meta.logMessages);
+
+    const consumedLog = tx.meta.logMessages.find((m) =>
+      m.includes("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh consumed")
+    );
+
+    assert.isAtMost(
+      parseInt(consumedLog.split(" ").at(3)),
+      32000,
+      "commit instruction must consume less than 32000"
+    );
   });
 
   it("Finalize account state", async () => {
     const ix = createFinalizeInstruction(validator, pda);
     const txId = await processInstruction(ix);
     console.log("Finalize signature", txId);
+    const tx = await fetchTransaction(txId);
+    console.log(tx.meta.logMessages);
+
+    const consumedLog = tx.meta.logMessages.find((m) =>
+      m.includes("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh consumed")
+    );
+
+    assert.isAtMost(
+      parseInt(consumedLog.split(" ").at(3)),
+      17500,
+      "finalize instruction must consume less than 17500"
+    );
   });
 
   it("Commit a new state to the PDA", async () => {
@@ -208,6 +290,19 @@ describe("TestDelegation", () => {
     );
     const txId = await processInstruction(ix);
     console.log("Undelegate signature", txId);
+
+    const tx = await fetchTransaction(txId);
+    console.log(tx.meta.logMessages);
+
+    const consumedLog = tx.meta.logMessages.find((m) =>
+      m.includes("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh consumed")
+    );
+
+    assert.isAtMost(
+      parseInt(consumedLog.split(" ").at(3)),
+      45000,
+      "undelegate instruction must consume less than 18500"
+    );
   });
 
   it("Whitelist a validator for a program", async () => {

@@ -14,7 +14,7 @@ use dlp::pda::{
 use solana_program::instruction::AccountMeta;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::Account,
@@ -23,6 +23,9 @@ use solana_sdk::{
 };
 
 mod fixtures;
+
+const COMMIT_HANDLER_DISCRIMINATOR: [u8; 4] = [1, 0, 1, 0];
+const UNDELEGATE_HANDLER_DISCRIMINATOR: [u8; 4] = [1, 0, 2, 0];
 
 // Mimic counter from test_delegation program
 #[derive(BorshSerialize, BorshDeserialize)]
@@ -216,7 +219,7 @@ async fn setup_ephemeral_balance(program_test: &mut ProgramTest, payer: &Keypair
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
+    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);
 
     let payer = Keypair::new();
@@ -296,13 +299,15 @@ async fn test_finalize_call_handler() {
         payer.pubkey(),         // escrow authority
         vec![
             AccountMeta::new(transfer_destination.pubkey(), false),
-            AccountMeta::new(DELEGATED_PDA_ID, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         CallHandlerArgs {
             escrow_index: 2, // undelegated escrow index,
-            data: to_vec(&PRIZE).unwrap(),
-            context: dlp::args::Context::Commit,
+            data: [
+                COMMIT_HANDLER_DISCRIMINATOR.to_vec(),
+                to_vec(&PRIZE).unwrap(),
+            ]
+            .concat(),
         },
     );
 
@@ -350,8 +355,11 @@ async fn test_undelegate_call_handler() {
         ],
         CallHandlerArgs {
             escrow_index: 2, // undelegated escrow index,
-            data: to_vec(&PRIZE).unwrap(),
-            context: dlp::args::Context::Undelegate,
+            data: [
+                UNDELEGATE_HANDLER_DISCRIMINATOR.to_vec(),
+                to_vec(&PRIZE).unwrap(),
+            ]
+            .concat(),
         },
     );
 
@@ -399,8 +407,7 @@ async fn test_finalize_invalid_escrow_call_handler() {
         vec![AccountMeta::new(transfer_destination.pubkey(), false)],
         CallHandlerArgs {
             escrow_index: 0,
-            data: vec![],
-            context: dlp::args::Context::Commit,
+            data: COMMIT_HANDLER_DISCRIMINATOR.to_vec(),
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -432,8 +439,7 @@ async fn test_undelegate_invalid_escow_call_handler() {
         vec![AccountMeta::new(destination.pubkey(), false)],
         CallHandlerArgs {
             escrow_index: 0,
-            data: vec![],
-            context: dlp::args::Context::Commit,
+            data: UNDELEGATE_HANDLER_DISCRIMINATOR.to_vec(),
         },
     );
 
@@ -450,8 +456,11 @@ async fn test_undelegate_invalid_escow_call_handler() {
         vec![AccountMeta::new(destination.pubkey(), false)],
         CallHandlerArgs {
             escrow_index: 0,
-            data: to_vec(&PRIZE).unwrap(),
-            context: dlp::args::Context::Undelegate,
+            data: [
+                UNDELEGATE_HANDLER_DISCRIMINATOR.to_vec(),
+                to_vec(&PRIZE).unwrap(),
+            ]
+            .concat(),
         },
     );
     let tx = Transaction::new_signed_with_payer(

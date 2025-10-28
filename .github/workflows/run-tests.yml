@@ -87,7 +87,6 @@ jobs:
 
       - name: clean up before integration tests
         run: |
-          rm -rf sdk/ts/node_modules
           cp target/deploy/dlp.so /tmp/dlp.so
           rm -rf target
           mkdir -p target/deploy && cp /tmp/dlp.so target/deploy/dlp.so
@@ -98,10 +97,7 @@ jobs:
       - name: run integration tests
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          npm install -g @magicblock-labs/bolt-cli
-          cd sdk/ts && npm install --legacy-peer-deps && npm run build && npm run lint:fix && cd ../..
           cd tests/integration 
-          set -x
           cargo install --locked --version ${{ env.anchor_version }} anchor-cli
           npm install
           anchor test
