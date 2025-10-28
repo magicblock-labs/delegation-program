@@ -1,5 +1,6 @@
 use crate::fixtures::{create_program_config_data, TEST_AUTHORITY};
 use dlp::pda::{fees_vault_pda, program_config_from_program_id};
+use dlp::state::FeesVault;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{BanksClient, ProgramTest};
@@ -26,18 +27,16 @@ async fn test_protocol_claim_fees() {
     assert!(res.is_ok());
 
     // Assert that fees vault now only have the rent exemption amount
+    let min_rent = Rent::default().minimum_balance(FeesVault::default().size_with_discriminator());
     let fees_vault_account = banks.get_account(fees_vault_pda).await.unwrap();
     assert!(fees_vault_account.is_some());
-    assert_eq!(
-        fees_vault_account.unwrap().lamports,
-        Rent::default().minimum_balance(8)
-    );
+    assert_eq!(fees_vault_account.unwrap().lamports, min_rent);
 
     // Assert that the admin account now has the fees
     let admin_account = banks.get_account(admin.pubkey()).await.unwrap();
     assert_eq!(
         admin_account.unwrap().lamports,
-        LAMPORTS_PER_SOL * 2 - Rent::default().minimum_balance(8)
+        LAMPORTS_PER_SOL * 2 - min_rent
     );
 }
 
@@ -59,11 +58,17 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the fees vault account
+    let mut buffer = vec![];
+    FeesVault {
+        fees_receiver: admin_keypair.pubkey(),
+    }
+    .to_bytes_with_discriminator(&mut buffer)
+    .unwrap();
     program_test.add_account(
         fees_vault_pda(),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![],
+            data: buffer,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

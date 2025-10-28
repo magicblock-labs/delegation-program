@@ -6,22 +6,21 @@ use solana_program::{
 
 use crate::args::SetFeesReceiverArgs;
 use crate::discriminator::DlpDiscriminator;
-use crate::pda::program_config_from_program_id;
+use crate::pda::fees_vault_pda;
 
 /// Set the fees receiver.
 /// See [crate::processor::process_set_fees_receiver] for docs.
-pub fn set_fees_receiver(admin: Pubkey, fees_receiver: Pubkey, program: Pubkey) -> Instruction {
-    let program_config_pda = program_config_from_program_id(&program);
+pub fn set_fees_receiver(admin: Pubkey, fees_receiver: Pubkey) -> Instruction {
+    let fees_vault_pda = fees_vault_pda();
     let delegation_program_data =
         Pubkey::find_program_address(&[crate::ID.as_ref()], &bpf_loader_upgradeable::id()).0;
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(admin, true),
-            AccountMeta::new(program_config_pda, false),
-            AccountMeta::new_readonly(program, false),
-            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new(fees_vault_pda, false),
             AccountMeta::new_readonly(delegation_program_data, false),
+            AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
             DlpDiscriminator::SetFeesReceiver.to_vec(),

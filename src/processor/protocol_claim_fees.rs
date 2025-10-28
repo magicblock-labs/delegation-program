@@ -1,7 +1,5 @@
-use crate::processor::utils::loaders::{
-    load_account, load_initialized_protocol_fees_vault, load_program_config,
-};
-use crate::state::ProgramConfig;
+use crate::processor::utils::loaders::{load_account, load_initialized_protocol_fees_vault};
+use crate::state::FeesVault;
 use solana_program::program_error::ProgramError;
 use solana_program::rent::Rent;
 use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
@@ -11,9 +9,8 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 /// Accounts:
 ///
 /// 1. `[writable]` protocol fees vault PDA
-/// 2. `[]` program config PDA
-/// 3. `[writable]` fees receiver PDA
-/// 4. `[]`         delegation program
+/// 2. `[writable]` fees receiver PDA
+/// 3. `[]`         delegation program
 ///
 /// Requirements:
 ///
@@ -29,33 +26,32 @@ pub fn process_protocol_claim_fees(
     _data: &[u8],
 ) -> ProgramResult {
     // Load Accounts
-    let [fees_vault, program_config_account, fees_receiver, program] = accounts else {
+    let [fees_vault_account, fees_receiver, _program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
     // Check if the admin is signer
-    load_initialized_protocol_fees_vault(fees_vault, true)?;
-    load_program_config(program_config_account, *program.key, true)?;
+    load_initialized_protocol_fees_vault(fees_vault_account, true)?;
 
-    let program_config_data = program_config_account.try_borrow_data()?;
-    let program_config = ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?;
+    let fees_vault_data = fees_vault_account.try_borrow_data()?;
+    let fees_vault = FeesVault::try_from_bytes_with_discriminator(&fees_vault_data)?;
 
     load_account(
         fees_receiver,
-        program_config.fees_receiver,
+        fees_vault.fees_receiver,
         true,
         "fees receiver",
     )?;
 
     // Calculate the amount to transfer
-    let min_rent = Rent::default().minimum_balance(8);
-    if fees_vault.lamports() < min_rent {
+    let min_rent = Rent::default().minimum_balance(fees_vault.size_with_discriminator());
+    if fees_vault_account.lamports() < min_rent {
         return Err(ProgramError::InsufficientFunds);
     }
-    let amount = fees_vault.lamports() - min_rent;
+    let amount = fees_vault_account.lamports() - min_rent;
 
     // Transfer fees to the admin pubkey
-    **fees_vault.try_borrow_mut_lamports()? = fees_vault
+    **fees_vault_account.try_borrow_mut_lamports()? = fees_vault_account
         .lamports()
         .checked_sub(amount)
         .ok_or(ProgramError::InsufficientFunds)?;

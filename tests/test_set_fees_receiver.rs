@@ -1,13 +1,15 @@
 use std::collections::BTreeSet;
+use std::vec;
 
 use crate::fixtures::{create_program_config_data, TEST_AUTHORITY};
 use borsh::{BorshDeserialize, BorshSerialize};
 use dlp::pda::{fees_vault_pda, program_config_from_program_id};
 use dlp::state::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
+use dlp::state::FeesVault;
 use dlp::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh};
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{processor, BanksClient, ProgramTest};
+use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::Account,
@@ -41,7 +43,7 @@ async fn test_set_fees_receiver() {
     let fees_receiver = Pubkey::new_unique();
 
     // Set the fees receiver to a new account
-    let ix = dlp::instruction_builder::set_fees_receiver(admin.pubkey(), fees_receiver, dlp::ID);
+    let ix = dlp::instruction_builder::set_fees_receiver(admin.pubkey(), fees_receiver);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -64,32 +66,30 @@ async fn test_set_fees_receiver() {
     assert!(res.is_ok());
 
     // Assert that fees vault now only have the rent exemption amount
+    let min_rent = Rent::default().minimum_balance(FeesVault::default().size_with_discriminator());
     let fees_vault_account = banks.get_account(fees_vault_pda).await.unwrap();
     assert!(fees_vault_account.is_some());
-    assert_eq!(
-        fees_vault_account.unwrap().lamports,
-        Rent::default().minimum_balance(8)
-    );
+    assert_eq!(fees_vault_account.unwrap().lamports, min_rent);
 
     // Assert that the fees receiver account now has the fees
     let fees_receiver_account = banks.get_account(fees_receiver).await.unwrap();
     assert_eq!(
         fees_receiver_account.unwrap().lamports,
-        LAMPORTS_PER_SOL - Rent::default().minimum_balance(8)
+        LAMPORTS_PER_SOL - min_rent
     );
 }
 
 #[tokio::test]
 async fn test_set_fees_receiver_migration() {
     // Setup
-    let (banks, payer, admin, blockhash) = setup_program_test_env(true).await;
+    let (banks, payer, admin, blockhash) = setup_program_test_env_old_fees_vault(true).await;
 
     let fees_vault_pda = fees_vault_pda();
 
     let fees_receiver = Pubkey::new_unique();
 
     // Set the fees receiver to a new account
-    let ix = dlp::instruction_builder::set_fees_receiver(admin.pubkey(), fees_receiver, dlp::ID);
+    let ix = dlp::instruction_builder::set_fees_receiver(admin.pubkey(), fees_receiver);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -112,23 +112,41 @@ async fn test_set_fees_receiver_migration() {
     assert!(res.is_ok());
 
     // Assert that fees vault now only have the rent exemption amount
+    let min_rent = Rent::default().minimum_balance(FeesVault::default().size_with_discriminator());
     let fees_vault_account = banks.get_account(fees_vault_pda).await.unwrap();
     assert!(fees_vault_account.is_some());
-    assert_eq!(
-        fees_vault_account.unwrap().lamports,
-        Rent::default().minimum_balance(8)
-    );
+    assert_eq!(fees_vault_account.unwrap().lamports, min_rent);
 
     // Assert that the fees receiver account now has the fees
     let fees_receiver_account = banks.get_account(fees_receiver).await.unwrap();
     assert_eq!(
         fees_receiver_account.unwrap().lamports,
-        LAMPORTS_PER_SOL - Rent::default().minimum_balance(8)
+        LAMPORTS_PER_SOL - min_rent
     );
 }
 
 async fn setup_program_test_env(migrate: bool) -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, processor!(dlp::process_instruction));
+    // Setup the fees vault account
+    let mut buffer = vec![];
+    FeesVault {
+        fees_receiver: Pubkey::new_unique(),
+    }
+    .to_bytes_with_discriminator(&mut buffer)
+    .unwrap();
+    base_setup_program_test_env(migrate, buffer).await
+}
+
+async fn setup_program_test_env_old_fees_vault(
+    migrate: bool,
+) -> (BanksClient, Keypair, Keypair, Hash) {
+    base_setup_program_test_env(migrate, vec![]).await
+}
+
+async fn base_setup_program_test_env(
+    migrate: bool,
+    fees_vault_data: Vec<u8>,
+) -> (BanksClient, Keypair, Keypair, Hash) {
+    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);
 
     let admin_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
@@ -149,7 +167,7 @@ async fn setup_program_test_env(migrate: bool) -> (BanksClient, Keypair, Keypair
         fees_vault_pda(),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![],
+            data: fees_vault_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

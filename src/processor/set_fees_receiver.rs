@@ -1,10 +1,11 @@
 use crate::args::SetFeesReceiverArgs;
 use crate::error::DlpError::Unauthorized;
 use crate::processor::utils::loaders::{
-    load_program_config, load_program_upgrade_authority, load_signer,
+    load_initialized_protocol_fees_vault, load_program_upgrade_authority, load_signer,
 };
 use crate::processor::utils::pda::resize_pda;
-use crate::state::ProgramConfig;
+use crate::state::discriminator::AccountDiscriminator;
+use crate::state::FeesVault;
 use borsh::BorshDeserialize;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
@@ -15,13 +16,12 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 /// Accounts:
 ///
 /// 1. `[signer, writable]`   admin account that can set the fees receiver
-/// 2. `[writable]` program config PDA
-/// 3. `[]` program
+/// 2. `[writable]` fees vault PDA
+/// 3. `[]` delegation program data
 /// 4. `[]` system program
 ///
 /// Requirements:
 ///
-/// - program config is initialized
 /// - admin is the protocol config admin
 ///
 /// 1. Set the fees receiver in the protocol config
@@ -31,9 +31,7 @@ pub fn process_set_fees_receiver(
     data: &[u8],
 ) -> ProgramResult {
     // Load Accounts
-    let [admin, program_config_account, program, system_program, delegation_program_data] =
-        accounts
-    else {
+    let [admin, fees_vault_account, delegation_program_data, system_program] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
@@ -52,23 +50,21 @@ pub fn process_set_fees_receiver(
         return Err(Unauthorized.into());
     }
 
-    // Check if the program config is initialized
-    if !load_program_config(program_config_account, *program.key, true)? {
-        return Err(ProgramError::UninitializedAccount);
-    }
+    // Check if the fees vault is initialized
+    load_initialized_protocol_fees_vault(fees_vault_account, true)?;
 
-    // Migrate to the new account structure
-    let (mut program_config, migrated) = {
-        let program_config_data = program_config_account.try_borrow_data()?;
-        match ProgramConfig::try_from_bytes_with_discriminator(&program_config_data) {
-            Ok(program_config) => (program_config, false),
+    // Migrate to the new fees vault structure
+    let (mut fees_vault, migrated) = {
+        let fees_vault_data = fees_vault_account.try_borrow_data()?;
+        match FeesVault::try_from_bytes_with_discriminator(&fees_vault_data) {
+            Ok(fees_vault) => (fees_vault, false),
             Err(_) => {
                 // Migrating the account
-                let mut data = program_config_data.to_vec();
-                data.extend(Pubkey::default().to_bytes());
-                let program_config = ProgramConfig::try_from_bytes_with_discriminator(&data)?;
+                let mut data = vec![0; FeesVault::default().size_with_discriminator()];
+                data[0..8].copy_from_slice(&AccountDiscriminator::FeesVault.to_bytes());
+                let fees_vault = FeesVault::try_from_bytes_with_discriminator(&data)?;
 
-                (program_config, true)
+                (fees_vault, true)
             }
         }
     };
@@ -76,17 +72,17 @@ pub fn process_set_fees_receiver(
     if migrated {
         resize_pda(
             admin,
-            program_config_account,
+            fees_vault_account,
             system_program,
-            program_config.size_with_discriminator(),
+            fees_vault.size_with_discriminator(),
         )?;
     }
 
     let args = SetFeesReceiverArgs::try_from_slice(data)?;
-    program_config.fees_receiver = args.fees_receiver;
+    fees_vault.fees_receiver = args.fees_receiver;
 
-    let mut program_config_data = program_config_account.try_borrow_mut_data()?;
-    program_config.to_bytes_with_discriminator(&mut program_config_data.as_mut())?;
+    let mut fees_vault_data = fees_vault_account.try_borrow_mut_data()?;
+    fees_vault.to_bytes_with_discriminator(&mut fees_vault_data.as_mut())?;
 
     Ok(())
 }

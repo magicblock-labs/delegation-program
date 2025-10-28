@@ -160,6 +160,7 @@ describe("TestDelegation", () => {
       .delegateTwo()
       .accounts({
         payer: provider.wallet.publicKey,
+        validator,
       })
       .rpc({ skipPreflight: true });
     console.log("Your transaction signature", tx);
@@ -496,9 +497,14 @@ describe("TestDelegation", () => {
   /// Instruction to initialize protocol fees vault
   function createInitFeesVaultInstruction(payer: web3.PublicKey) {
     const feesVault = feesVaultPda();
+    const delegationProgramData = web3.PublicKey.findProgramAddressSync(
+      [DELEGATION_PROGRAM_ID.toBuffer()],
+      BPF_LOADER
+    )[0];
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
       { pubkey: feesVault, isSigner: false, isWritable: true },
+      { pubkey: delegationProgramData, isSigner: false, isWritable: false },
       {
         pubkey: web3.SystemProgram.programId,
         isSigner: false,
@@ -570,17 +576,16 @@ describe("TestDelegation", () => {
     feesReceiver: web3.PublicKey,
     program: web3.PublicKey
   ) {
-    const programConfig = programConfigPdaFromProgramId(program);
+    const feesVault = feesVaultPda();
     const delegationProgramData = web3.PublicKey.findProgramAddressSync(
       [DELEGATION_PROGRAM_ID.toBuffer()],
       BPF_LOADER
     )[0];
     const keys = [
       { pubkey: admin, isSigner: true, isWritable: true },
-      { pubkey: programConfig, isSigner: false, isWritable: true },
-      { pubkey: program, isSigner: false, isWritable: false },
-      { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
+      { pubkey: feesVault, isSigner: false, isWritable: true },
       { pubkey: delegationProgramData, isSigner: false, isWritable: false },
+      { pubkey: SYSTEM_PROGRAM_ID, isSigner: false, isWritable: false },
     ];
     const data = Buffer.from(
       [16, 0, 0, 0, 0, 0, 0, 0].concat([...feesReceiver.toBytes()])
@@ -599,10 +604,8 @@ describe("TestDelegation", () => {
     program: web3.PublicKey
   ) {
     const feesVault = feesVaultPda();
-    const programConfig = programConfigPdaFromProgramId(program);
     const keys = [
       { pubkey: feesVault, isSigner: false, isWritable: true },
-      { pubkey: programConfig, isSigner: false, isWritable: true },
       { pubkey: feesReceiver, isSigner: false, isWritable: true },
       { pubkey: program, isSigner: false, isWritable: false },
     ];

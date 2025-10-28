@@ -125,12 +125,12 @@ pub fn slow_process_instruction(
         DlpDiscriminator::CallHandler => {
             processor::process_call_handler(program_id, accounts, data)?
         }
+        DlpDiscriminator::SetFeesReceiver => {
+            processor::process_set_fees_receiver(program_id, accounts, data)?
+        }
         _ => {
             log!("PANIC: Instruction must be processed by fast_process_instruction");
             return Err(ProgramError::InvalidInstructionData);
-        }
-        discriminator::DlpDiscriminator::SetFeesReceiver => {
-            processor::process_set_fees_receiver(program_id, accounts, data)?
         }
     }
     Ok(())

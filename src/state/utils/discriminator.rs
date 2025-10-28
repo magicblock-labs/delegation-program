@@ -7,6 +7,7 @@ pub enum AccountDiscriminator {
     DelegationMetadata = 102,
     CommitRecord = 101,
     ProgramConfig = 103,
+    FeesVault = 104,
 }
 
 impl AccountDiscriminator {
