@@ -1,7 +1,8 @@
 use num_enum::TryFromPrimitive;
+use strum::IntoStaticStr;
 
 #[repr(u8)]
-#[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive, IntoStaticStr)]
 #[rustfmt::skip]
 pub enum DlpDiscriminator {
     /// See [crate::processor::process_delegate] for docs.
@@ -34,11 +35,17 @@ pub enum DlpDiscriminator {
     CloseValidatorFeesVault = 14,
     /// See [crate::processor::process_call_handler] for docs.
     CallHandler = 15,
+    /// See [crate::processor::process_commit_diff] for docs.
+    CommitDiff = 16,
 }
 
 impl DlpDiscriminator {
     pub fn to_vec(self) -> Vec<u8> {
         let num = self as u64;
         num.to_le_bytes().to_vec()
+    }
+
+    pub fn name(&self) -> &'static str {
+        self.into()
     }
 }

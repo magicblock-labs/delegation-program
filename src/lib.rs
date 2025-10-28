@@ -82,6 +82,9 @@ pub fn fast_process_instruction(
         DlpDiscriminator::CommitStateFromBuffer => Some(
             processor::fast::process_commit_state_from_buffer(program_id, accounts, data),
         ),
+        DlpDiscriminator::CommitDiff => Some(processor::fast::process_commit_diff(
+            program_id, accounts, data,
+        )),
         DlpDiscriminator::Finalize => Some(processor::fast::process_finalize(
             program_id, accounts, data,
         )),

@@ -1,6 +1,7 @@
 mod call_handler;
 mod close_ephemeral_balance;
 mod close_validator_fees_vault;
+mod commit_diff;
 mod commit_state;
 mod commit_state_from_buffer;
 mod delegate;
@@ -17,6 +18,7 @@ mod whitelist_validator_for_program;
 pub use call_handler::*;
 pub use close_ephemeral_balance::*;
 pub use close_validator_fees_vault::*;
+pub use commit_diff::*;
 pub use commit_state::*;
 pub use commit_state_from_buffer::*;
 pub use delegate::*;

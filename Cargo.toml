@@ -48,6 +48,7 @@ pinocchio-pubkey = "0.3.0"
 pinocchio-system = "0.3.0"
 rkyv = "0.7.45"
 static_assertions = "1.1.0"
+strum = { version = "0.27.2", features = ["derive"] }
 
 [dev-dependencies]
 base64 = "0.22.1"

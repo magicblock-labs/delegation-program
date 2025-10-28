@@ -103,6 +103,13 @@ impl<'a> DiffSet<'a> {
         Ok(this)
     }
 
+    pub fn try_new_from_borsh_vec(vec_buffer: &'a [u8]) -> Result<Self, ProgramError> {
+        if vec_buffer.len() < 4 {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        Self::try_new(&vec_buffer[4..])
+    }
+
     pub fn raw_diff(&self) -> &'a [u8] {
         // SAFETY: it does not do any "computation" as such. It merely reverses try_new
         // and get the immutable slice back.
