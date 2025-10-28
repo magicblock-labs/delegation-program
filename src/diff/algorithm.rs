@@ -1,40 +1,59 @@
 use std::cmp::{min, Ordering};
 
-use super::{DiffSet, OffsetInData, SizeChanged};
+use rkyv::util::AlignedVec;
+
+use super::{
+    DiffSet, OffsetInData, SizeChanged, SIZE_OF_CHANGED_LEN, SIZE_OF_NUM_OFFSET_PAIRS,
+    SIZE_OF_SINGLE_OFFSET_PAIR,
+};
 
 ///
-/// Compute diff for the given original data and the changed data.
+/// Compute diff between original and changed.
+///
+/// Returns:
+///
+/// - AlignedVec (a vector of u8) which is aligned to 16-byte boundary that can be used
+///   to construct DiffSet.
+///
+/// Note that DiffSet::try_new() requires the argument &[u8] to be aligned to 4-byte
+/// boundary, but compute_diff provides much stricter alignment guarantee.
+///
+/// ref: https://docs.rs/rkyv/0.7.45/rkyv/util/struct.AlignedVec.html
+///
+/// ---
 ///
 /// Scenarios:
 /// - original.len() == changed.len()
 ///     - diff is computed by comparing corresponding indices.
-///     - bytes comparision
+///     - bytes comparison
 ///         original: o1 o2 o3 o4 ... oN  
 ///          changed: c1 c2 c3 c4 ... cN
+///     - diff consists of the bytes from the "changed" slice.
 /// - original.len() < changed.len()
 ///     - that implies the account has been reallocated and expanded
-///     - bytes comparision
+///     - bytes comparison
 ///         original: o1 o2 o3 o4 ... oN  
 ///          changed: c1 c2 c3 c4 ... cN cN+1 cN+2 ... cN+M
 /// - original.len() > changed.len()
 ///     - that implies the account has been reallocated and shrunk
-///     - bytes comparision
+///     - bytes comparison
 ///         original: o1 o2 o3 o4 ... oN oN+1 oN+2 ... oN+M
 ///          changed: c1 c2 c3 c4 ... cN
-///     
+///    
+/// ---
+///
 /// Diff Format:
 ///
 /// Since an account could have modifications at multiple places (i.e imagine modifying
-/// multiple fields in a struct), the diff could consist of multiple slices of [u8], one
-/// slice for each contiguous change. So we compute these slices of change, and concatenate them
-/// to form one big slice. However, in doing so, we lose the lengths of each slice and the
-/// position of change in the original data. So the headers in the following format captures all
-/// these necessary information:
+/// multiple fields in a struct), the diff could consist of multiple segments of [u8], one
+/// segment for each contiguous change. So we compute these segments of change, and concatenate them
+/// to form one big segment/slice. However, in doing so, we lose the lengths of each segment and the
+/// position of change in the original data. So the headers below captures all these necessary information:
 ///
 ///  - Length of the given changed data (the second argument to compute_diff).
 ///  - Number of slices: first 4 bytes.  
-///  - Then follows offset-pairs that captures offset in concatenated diff as well as in the
-///    original account.
+///  - Then follows offset-pairs, for each slice/segment, that captures offset in concatenated diff
+///    as well as in the original account.
 ///  - Then follows the concatenated diff bytes.
 ///
 /// |  Length   | # Offset Pairs  | Offset Pair 0 | Offset Pair 1 | ... | Offset Pair N-1 | Concatenated Diff |
@@ -56,6 +75,8 @@ use super::{DiffSet, OffsetInData, SizeChanged};
 /// - M is a variable and is the sum of the length of the diff-slices.
 ///  - M = diff_slices.map(|s| s.len()).sum()
 /// - The length of ith slice = OffsetInDiffBytes@(i+1) - OffsetInDiffBytes@i, as noted earlier.
+///
+/// ---
 ///
 /// Example,
 ///
@@ -95,12 +116,11 @@ use super::{DiffSet, OffsetInData, SizeChanged};
 ///  - 0 11      : u32, u32 : first offset pair (offset in diff, offset in account)
 ///  - 4 71      : u32, u32 : second offset pair (offset in diff, offset in account)
 ///  - 11 ... 78 : each u8  : concatenated diff bytes
-///
-pub fn compute_diff(original: &[u8], changed: &[u8]) -> Vec<u8> {
+pub fn compute_diff(original: &[u8], changed: &[u8]) -> AlignedVec {
     // 1. identify contiguous diff slices
     let mut diffs: Vec<(usize, &[u8])> = Vec::new();
     let min_len = min(original.len(), changed.len());
-
+    let mut diff_size = 0;
     let mut i = 0;
     while i < min_len {
         if original[i] != changed[i] {
@@ -110,6 +130,7 @@ pub fn compute_diff(original: &[u8], changed: &[u8]) -> Vec<u8> {
                 i += 1;
             }
             diffs.push((start, &changed[start..i]));
+            diff_size += i - start;
         } else {
             i += 1;
         }
@@ -120,6 +141,7 @@ pub fn compute_diff(original: &[u8], changed: &[u8]) -> Vec<u8> {
         Ordering::Greater => {
             // extra bytes at the end
             diffs.push((original.len(), &changed[original.len()..]));
+            diff_size += changed.len() - original.len();
         }
         Ordering::Less => {
             // account shrunk: data truncated
@@ -131,16 +153,20 @@ pub fn compute_diff(original: &[u8], changed: &[u8]) -> Vec<u8> {
     };
 
     // 3. serialize according to the spec
-    let mut output = Vec::new();
+    let mut output = AlignedVec::with_capacity(
+        SIZE_OF_CHANGED_LEN
+            + SIZE_OF_NUM_OFFSET_PAIRS
+            + SIZE_OF_SINGLE_OFFSET_PAIR * diffs.len()
+            + diff_size,
+    );
 
     // size of changed data (4 bytes)
     output.extend_from_slice(&(changed.len() as u32).to_le_bytes());
 
-    // number of slices (4 bytes)
-    let num_slices = diffs.len() as u32; // first 4 bytes => number of offset-pairs/slices
-    output.extend_from_slice(&num_slices.to_le_bytes());
+    // number of slices / offset-pairs (4 bytes)
+    output.extend_from_slice(&(diffs.len() as u32).to_le_bytes());
 
-    // compute header pairs (offset_in_diff: 4 bytes, offset_in_account: 4 bytes)
+    // compute offset pairs (offset_in_diff: 4 bytes, offset_in_account: 4 bytes)
     let mut offset_in_diff = 0u32;
     for (offset_in_account, slice) in &diffs {
         output.extend_from_slice(&offset_in_diff.to_le_bytes());
@@ -148,7 +174,7 @@ pub fn compute_diff(original: &[u8], changed: &[u8]) -> Vec<u8> {
         offset_in_diff += slice.len() as u32;
     }
 
-    // append concatenated diff bytes
+    // append concatenated diff bytes: concatenated len = sum of len of the diff-segments
     for (_, slice) in diffs {
         output.extend_from_slice(slice);
     }
@@ -160,8 +186,7 @@ pub fn compute_diff(original: &[u8], changed: &[u8]) -> Vec<u8> {
 ///  - None               means NO change
 ///  - Some(size_changed) means the data size has changed and size_changed indicates
 ///                       whether it has expanded or shrunk.
-pub fn detect_size_change(original: &[u8], diff: &[u8]) -> Option<SizeChanged> {
-    let diffset = DiffSet::new(diff);
+pub fn detect_size_change(original: &[u8], diffset: &DiffSet<'_>) -> Option<SizeChanged> {
     match diffset.changed_len().cmp(&original.len()) {
         Ordering::Less => Some(SizeChanged::Shrunk(diffset.changed_len())),
         Ordering::Greater => Some(SizeChanged::Expanded(diffset.changed_len())),
@@ -169,39 +194,44 @@ pub fn detect_size_change(original: &[u8], diff: &[u8]) -> Option<SizeChanged> {
     }
 }
 
-/// Apply diff to the original (unchanged) data to update it.
-pub fn apply_diff_in_place(original: &mut [u8], diff: &[u8]) -> Result<(), SizeChanged> {
-    if let Some(layout) = detect_size_change(original, diff) {
+/// This function applies the diff to the first argument (i.e original) to update it.
+///
+/// Precondition:
+///   - original.len() must be equal to the length encoded in the diff.
+pub fn apply_diff_in_place(original: &mut [u8], diffset: &DiffSet<'_>) -> Result<(), SizeChanged> {
+    if let Some(layout) = detect_size_change(original, diffset) {
         return Err(layout);
     }
-    apply_diff_impl(original, diff);
+    apply_diff_impl(original, diffset);
     Ok(())
 }
 
-pub fn apply_diff_copy(original: &[u8], diff: &[u8]) -> Vec<u8> {
-    match detect_size_change(original, diff) {
+/// This function creates a copy of original, possibly extending or shrinking it,
+/// and then applies the diff to it, before returning it.
+pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Vec<u8> {
+    match detect_size_change(original, diffset) {
         Some(SizeChanged::Expanded(new_size)) => {
             let mut applied = Vec::with_capacity(new_size);
             applied.extend_from_slice(original);
             applied.resize(new_size, 0);
-            apply_diff_impl(applied.as_mut(), diff);
+            apply_diff_impl(applied.as_mut(), diffset);
             applied
         }
         Some(SizeChanged::Shrunk(new_size)) => {
             let mut applied = Vec::from(&original[0..new_size]);
-            apply_diff_impl(applied.as_mut(), diff);
+            apply_diff_impl(applied.as_mut(), diffset);
             applied
         }
         None => {
             let mut applied = Vec::from(original);
-            apply_diff_impl(applied.as_mut(), diff);
+            apply_diff_impl(applied.as_mut(), diffset);
             applied
         }
     }
 }
 
-fn apply_diff_impl(original: &mut [u8], diff: &[u8]) {
-    let diffset = DiffSet::new(diff);
+// private function that does the actual work.
+fn apply_diff_impl(original: &mut [u8], diffset: &DiffSet<'_>) {
     let mut index = 0;
     while let Some((diff_slice, OffsetInData(offset))) = diffset.diff_slice_at(index) {
         index += 1;
@@ -218,10 +248,7 @@ mod tests {
         Rng, RngCore, SeedableRng,
     };
 
-    use crate::apply_diff_copy;
-    use crate::diff::apply_diff_in_place;
-
-    use super::compute_diff;
+    use crate::{apply_diff_copy, apply_diff_in_place, compute_diff, DiffSet};
 
     #[test]
     fn test_no_change() {
@@ -229,7 +256,14 @@ mod tests {
         let diff = compute_diff(&original, &original);
 
         assert_eq!(diff.len(), 8);
-        assert_eq!(diff, vec![100, 0, 0, 0, 0, 0, 0, 0]);
+        assert_eq!(
+            diff.as_slice(),
+            [
+                100u32.to_le_bytes().as_slice(),
+                0u32.to_le_bytes().as_slice()
+            ]
+            .concat::<u8>()
+        );
     }
 
     #[test]
@@ -245,6 +279,7 @@ mod tests {
         };
 
         let actual_diff = compute_diff(&original, &changed);
+        let actual_diffset = DiffSet::try_new(&actual_diff).unwrap();
         let expected_diff = {
             // expected: | 100 | 2 | 0 11 | 4 71 | 11 12 13 14 71 72 ... 78 |
 
@@ -272,9 +307,9 @@ mod tests {
         };
 
         assert_eq!(actual_diff.len(), 4 + 4 + 8 + 8 + (4 + 8));
-        assert_eq!(actual_diff, expected_diff);
+        assert_eq!(actual_diff.as_slice(), expected_diff.as_slice());
 
-        let expected_changed = apply_diff_copy(&original, &actual_diff);
+        let expected_changed = apply_diff_copy(&original, &actual_diffset);
 
         assert_eq!(changed.as_slice(), expected_changed.as_slice());
     }
@@ -330,6 +365,7 @@ mod tests {
         };
 
         let actual_diff = compute_diff(&original, &changed);
+        let actual_diffset = DiffSet::try_new(&actual_diff).unwrap();
         let expected_diff = {
             let mut diff = vec![];
 
@@ -360,7 +396,7 @@ mod tests {
         // apply diff back to verify correctness
         let expected_changed = {
             let mut copy = original;
-            apply_diff_in_place(&mut copy, &actual_diff).unwrap();
+            apply_diff_in_place(&mut copy, &actual_diffset).unwrap();
             copy
         };
 
