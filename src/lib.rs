@@ -17,11 +17,16 @@ mod discriminator;
 pub mod error;
 pub mod instruction_builder;
 pub mod pda;
-mod processor;
 pub mod state;
+
+mod diff;
+mod processor;
+
+pub use diff::*;
 
 #[cfg(feature = "log-cost")]
 mod cu;
+
 #[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
