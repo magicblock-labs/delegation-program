@@ -77,6 +77,16 @@ async fn test_set_fees_receiver() {
         fees_receiver_account.unwrap().lamports,
         LAMPORTS_PER_SOL - min_rent
     );
+
+    // Assert that FeesVault deserializes correctly and stores the right fees_receiver
+    let data = banks
+        .get_account(fees_vault_pda)
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    let vault = FeesVault::try_from_bytes_with_discriminator(&data).unwrap();
+    assert_eq!(Pubkey::from(vault.fees_receiver), fees_receiver);
 }
 
 #[tokio::test]
@@ -123,6 +133,16 @@ async fn test_set_fees_receiver_migration() {
         fees_receiver_account.unwrap().lamports,
         LAMPORTS_PER_SOL - min_rent
     );
+
+    // Assert that FeesVault deserializes correctly and stores the right fees_receiver
+    let data = banks
+        .get_account(fees_vault_pda)
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    let vault = FeesVault::try_from_bytes_with_discriminator(&data).unwrap();
+    assert_eq!(Pubkey::from(vault.fees_receiver), fees_receiver);
 }
 
 async fn setup_program_test_env(migrate: bool) -> (BanksClient, Keypair, Keypair, Hash) {
