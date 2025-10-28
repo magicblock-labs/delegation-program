@@ -95,7 +95,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         program_config_from_program_id(&dlp::ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: create_program_config_data(Pubkey::new_unique(), admin_keypair.pubkey()),
+            data: create_program_config_data(Pubkey::new_unique()),
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

@@ -15,7 +15,7 @@ use crate::validator_fees_vault_seeds_from_validator;
 ///
 /// 0; `[signer]` payer
 /// 1; `[signer]` admin that controls the vault
-/// 2; `[]`       delegation program
+/// 2; `[]`       delegation program data
 /// 3; `[]`       validator_identity
 /// 4; `[]`       validator_fees_vault_pda
 ///

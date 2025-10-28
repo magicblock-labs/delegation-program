@@ -208,7 +208,7 @@ async fn base_setup_program_test_env(
             .unwrap();
         bytes
     } else {
-        create_program_config_data(Pubkey::new_unique(), admin_keypair.pubkey())
+        create_program_config_data(Pubkey::new_unique())
     };
     program_test.add_account(
         program_config_from_program_id(&dlp::ID),

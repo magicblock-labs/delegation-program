@@ -72,10 +72,7 @@ pub fn process_whitelist_validator_for_program(
             system_program,
             authority,
         )?;
-        ProgramConfig {
-            approved_validators: Default::default(),
-            fees_receiver: *authority.key,
-        }
+        ProgramConfig::default()
     } else {
         let program_config_data = program_config_account.try_borrow_data()?;
         ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)?
