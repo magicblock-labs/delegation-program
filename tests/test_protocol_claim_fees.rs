@@ -40,6 +40,21 @@ async fn test_protocol_claim_fees() {
     );
 }
 
+#[tokio::test]
+async fn test_protocol_claim_fees_wrong_receiver() {
+    // Setup
+    let (banks, payer, _admin, blockhash) = setup_program_test_env().await;
+
+    // Submit the claim fees tx with wrong receiver
+    let wrong_receiver = Pubkey::new_unique();
+    let ix = dlp::instruction_builder::protocol_claim_fees(wrong_receiver, dlp::ID);
+    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let res = banks.process_transaction(tx).await;
+
+    // Assert that the transaction fails because fees_receiver doesn't match stored value
+    assert!(res.is_err());
+}
+
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);
