@@ -3,6 +3,7 @@ use std::vec;
 
 use crate::fixtures::{create_program_config_data, TEST_AUTHORITY};
 use borsh::{BorshDeserialize, BorshSerialize};
+use dlp::error::DlpError;
 use dlp::pda::{fees_vault_pda, program_config_from_program_id};
 use dlp::state::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use dlp::state::FeesVault;
@@ -41,6 +42,39 @@ async fn test_set_fees_receiver() {
     let (banks, payer, admin, blockhash) = setup_program_test_env(false).await;
 
     helper_test_set_fees_receiver(&banks, &payer, &admin, blockhash).await;
+}
+
+#[tokio::test]
+async fn test_set_fees_receiver_unauthorized() {
+    // Setup
+    let (banks, payer, _admin, blockhash) = setup_program_test_env(false).await;
+
+    let fees_receiver: Pubkey = Pubkey::new_unique();
+    let unauthorized_admin = Keypair::new();
+
+    // Set the fees receiver to a new account
+    let ix =
+        dlp::instruction_builder::set_fees_receiver(unauthorized_admin.pubkey(), fees_receiver);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &unauthorized_admin],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    let expected_code = DlpError::Unauthorized as u32;
+    assert!(
+        matches!(
+            res,
+            Err(BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::Custom(code),
+                )
+            )) if code == expected_code,
+        ),
+        "Expected Unauthorized error, got {res:?}",
+    );
 }
 
 #[tokio::test]
