@@ -324,10 +324,7 @@ describe("TestDelegation", () => {
   });
 
   it("Claim protocol fees", async () => {
-    const ix = createClaimProtocolFeesVaultInstruction(
-      admin,
-      testDelegation.programId
-    );
+    const ix = createClaimProtocolFeesVaultInstruction(admin);
     const txId = await processInstruction(ix);
     console.log("Claim protocol fees tx:", txId);
   });
@@ -595,14 +592,12 @@ describe("TestDelegation", () => {
 
   /// Instruction to claim fees from the protocol vault
   function createClaimProtocolFeesVaultInstruction(
-    feesReceiver: web3.PublicKey,
-    program: web3.PublicKey
+    feesReceiver: web3.PublicKey
   ) {
     const feesVault = feesVaultPda();
     const keys = [
       { pubkey: feesVault, isSigner: false, isWritable: true },
       { pubkey: feesReceiver, isSigner: false, isWritable: true },
-      { pubkey: program, isSigner: false, isWritable: false },
     ];
     const data = Buffer.from([12, 0, 0, 0, 0, 0, 0, 0, 0]);
     const ix = new web3.TransactionInstruction({

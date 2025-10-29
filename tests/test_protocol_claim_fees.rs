@@ -21,7 +21,7 @@ async fn test_protocol_claim_fees() {
     let fees_vault_pda = fees_vault_pda();
 
     // Submit the claim fees tx
-    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey(), dlp::ID);
+    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey());
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
@@ -57,7 +57,7 @@ async fn test_protocol_claim_fees_wrong_receiver() {
 
     // Submit the claim fees tx with wrong receiver
     let wrong_receiver = Pubkey::new_unique();
-    let ix = dlp::instruction_builder::protocol_claim_fees(wrong_receiver, dlp::ID);
+    let ix = dlp::instruction_builder::protocol_claim_fees(wrong_receiver);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
 
@@ -82,7 +82,7 @@ async fn test_protocol_claim_fees_self() {
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
-    let ix = dlp::instruction_builder::protocol_claim_fees(fees_receiver, dlp::ID);
+    let ix = dlp::instruction_builder::protocol_claim_fees(fees_receiver);
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
 

@@ -12,7 +12,6 @@ use crate::state::FeesVault;
 ///
 /// 1. `[writable]` protocol fees vault PDA
 /// 2. `[writable]` fees receiver PDA
-/// 3. `[]`         delegation program
 ///
 /// Requirements:
 ///
@@ -28,7 +27,7 @@ pub fn process_protocol_claim_fees(
     _data: &[u8],
 ) -> ProgramResult {
     // Load Accounts
-    let [fees_vault_account, fees_receiver, _program] = accounts else {
+    let [fees_vault_account, fees_receiver] = accounts else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 

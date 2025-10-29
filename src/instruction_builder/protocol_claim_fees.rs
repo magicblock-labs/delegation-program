@@ -6,14 +6,13 @@ use crate::pda::fees_vault_pda;
 
 /// Claim the accrued fees from the protocol fees vault.
 /// See [crate::processor::process_protocol_claim_fees] for docs.
-pub fn protocol_claim_fees(fees_receiver: Pubkey, program: Pubkey) -> Instruction {
+pub fn protocol_claim_fees(fees_receiver: Pubkey) -> Instruction {
     let fees_vault_pda = fees_vault_pda();
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new(fees_vault_pda, false),
             AccountMeta::new(fees_receiver, false),
-            AccountMeta::new_readonly(program, false),
         ],
         data: DlpDiscriminator::ProtocolClaimFees.to_vec(),
     }
