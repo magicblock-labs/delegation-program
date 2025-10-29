@@ -186,6 +186,19 @@ async fn helper_test_set_fees_receiver(
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
+    let vault_before = banks
+        .get_account(fees_vault_pda)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    let admin_before = banks
+        .get_account(admin.pubkey())
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
     // Try claiming to the wrong fees receiver
     let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey());
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
@@ -198,6 +211,28 @@ async fn helper_test_set_fees_receiver(
             ))
         ),
         "Expected InvalidAccountData error, got {res:?}",
+    );
+
+    // State unchanged
+    let vault_after = banks
+        .get_account(fees_vault_pda)
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    let admin_after = banks
+        .get_account(admin.pubkey())
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+    assert_eq!(
+        vault_after, vault_before,
+        "vault lamports changed on failure"
+    );
+    assert_eq!(
+        admin_after, admin_before,
+        "admin lamports changed on failure"
     );
 
     // Claim to the correct fees receiver
