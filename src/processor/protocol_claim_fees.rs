@@ -60,13 +60,13 @@ pub fn process_protocol_claim_fees(
     }
 
     // Transfer fees to the configured fees receiver
-    **fees_vault_account.try_borrow_mut_lamports()? = fees_vault_account
-        .lamports()
+    let vault_lamports = fees_vault_account.lamports();
+    **fees_vault_account.try_borrow_mut_lamports()? = vault_lamports
         .checked_sub(amount)
         .ok_or(ProgramError::InsufficientFunds)?;
 
-    **fees_receiver.try_borrow_mut_lamports()? = fees_receiver
-        .lamports()
+    let receiver_lamports = fees_receiver.lamports();
+    **fees_receiver.try_borrow_mut_lamports()? = receiver_lamports
         .checked_add(amount)
         .ok_or(ProgramError::ArithmeticOverflow)?;
 
