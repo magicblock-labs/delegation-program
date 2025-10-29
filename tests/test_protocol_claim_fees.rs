@@ -3,7 +3,9 @@ use dlp::pda::{fees_vault_pda, program_config_from_program_id};
 use dlp::state::FeesVault;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{BanksClient, ProgramTest};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
+use solana_sdk::instruction::InstructionError;
+use solana_sdk::transaction::TransactionError;
 use solana_sdk::{
     account::Account,
     pubkey::Pubkey,
@@ -62,7 +64,15 @@ async fn test_protocol_claim_fees_wrong_receiver() {
     let res = banks.process_transaction(tx).await;
 
     // Assert that the transaction fails because fees_receiver doesn't match stored value
-    assert!(res.is_err());
+    assert!(
+        matches!(
+            res,
+            Err(BanksClientError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::InvalidAccountData)
+            ))
+        ),
+        "Expected InvalidAccountData error, got {res:?}",
+    );
 }
 
 #[tokio::test]
@@ -87,7 +97,15 @@ async fn test_protocol_claim_fees_self() {
     let res = banks.process_transaction(tx).await;
 
     // Assert that the transaction fails because fees_receiver is the same as the fees vault
-    assert!(res.is_err());
+    assert!(
+        matches!(
+            res,
+            Err(BanksClientError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::InvalidArgument)
+            ))
+        ),
+        "Expected InvalidArgument error, got {res:?}",
+    );
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

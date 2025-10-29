@@ -9,8 +9,10 @@ use dlp::state::FeesVault;
 use dlp::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh};
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{BanksClient, ProgramTest};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
+use solana_sdk::instruction::InstructionError;
 use solana_sdk::pubkey::Pubkey;
+use solana_sdk::transaction::TransactionError;
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -154,7 +156,15 @@ async fn helper_test_set_fees_receiver(
     let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey());
     let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
     let res = banks.process_transaction(tx).await;
-    assert!(res.is_err());
+    assert!(
+        matches!(
+            res,
+            Err(BanksClientError::TransactionError(
+                TransactionError::InstructionError(0, InstructionError::InvalidAccountData)
+            ))
+        ),
+        "Expected InvalidAccountData error, got {res:?}",
+    );
 
     // Claim to the correct fees receiver
     let ix = dlp::instruction_builder::protocol_claim_fees(fees_receiver);
