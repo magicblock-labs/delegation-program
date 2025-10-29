@@ -50,7 +50,7 @@ pub fn process_protocol_claim_fees(
     }
 
     // Calculate the amount to transfer
-    let min_rent = Rent::get()?.minimum_balance(fees_vault.size_with_discriminator());
+    let min_rent = Rent::get()?.minimum_balance(fees_vault_account.data_len());
     if fees_vault_account.lamports() < min_rent {
         return Err(ProgramError::InsufficientFunds);
     }
