@@ -1,8 +1,10 @@
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
+    pubkey::Pubkey, rent::Rent, sysvar::Sysvar,
+};
+
 use crate::processor::utils::loaders::{load_account, load_initialized_protocol_fees_vault};
 use crate::state::FeesVault;
-use solana_program::program_error::ProgramError;
-use solana_program::rent::Rent;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
 
 /// Process request to claim fees from the protocol fees vault
 ///
@@ -49,7 +51,7 @@ pub fn process_protocol_claim_fees(
     }
 
     // Calculate the amount to transfer
-    let min_rent = Rent::default().minimum_balance(fees_vault.size_with_discriminator());
+    let min_rent = Rent::get()?.minimum_balance(fees_vault.size_with_discriminator());
     if fees_vault_account.lamports() < min_rent {
         return Err(ProgramError::InsufficientFunds);
     }
