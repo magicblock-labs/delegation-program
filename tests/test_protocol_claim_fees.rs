@@ -55,7 +55,7 @@ async fn test_protocol_claim_fees() {
 #[tokio::test]
 async fn test_protocol_claim_fees_wrong_receiver() {
     // Setup
-    let (banks, payer, _admin, blockhash) = setup_program_test_env().await;
+    let (banks, payer, admin, blockhash) = setup_program_test_env().await;
 
     // Submit the claim fees tx with wrong receiver
     let wrong_receiver = Pubkey::new_unique();
@@ -74,10 +74,18 @@ async fn test_protocol_claim_fees_wrong_receiver() {
         "Expected InvalidAccountData error, got {res:?}",
     );
 
-    // State should be unchanged after failure
+    // Assert that the fees vault still has the initial lamports
     let fees_vault_pda = fees_vault_pda();
     let vault_after = banks.get_account(fees_vault_pda).await.unwrap().unwrap();
     assert_eq!(vault_after.lamports, LAMPORTS_PER_SOL);
+
+    // Assert that the admin account still has the initial lamports
+    let admin_account = banks.get_account(admin.pubkey()).await.unwrap().unwrap();
+    assert_eq!(admin_account.lamports, LAMPORTS_PER_SOL);
+
+    // Assert that the fees receiver account still has the initial lamports
+    let fees_receiver_account = banks.get_account(wrong_receiver).await.unwrap();
+    assert_eq!(fees_receiver_account, None);
 }
 
 #[tokio::test]
@@ -111,6 +119,15 @@ async fn test_protocol_claim_fees_self() {
         ),
         "Expected InvalidArgument error, got {res:?}",
     );
+
+    // Assert that the admin account still has the initial lamports
+    let admin_account = banks.get_account(admin.pubkey()).await.unwrap().unwrap();
+    assert_eq!(admin_account.lamports, LAMPORTS_PER_SOL);
+
+    // Assert that the fees vault still has the initial lamports
+    let fees_vault_pda = fees_vault_pda();
+    let fees_vault_account = banks.get_account(fees_vault_pda).await.unwrap().unwrap();
+    assert_eq!(fees_vault_account.lamports, LAMPORTS_PER_SOL);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
