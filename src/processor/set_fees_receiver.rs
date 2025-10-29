@@ -1,15 +1,20 @@
-use crate::args::SetFeesReceiverArgs;
-use crate::error::DlpError::Unauthorized;
-use crate::processor::utils::loaders::{
-    load_initialized_protocol_fees_vault, load_program_upgrade_authority, load_signer,
-};
-use crate::processor::utils::pda::resize_pda;
-use crate::state::discriminator::AccountDiscriminator;
-use crate::state::FeesVault;
 use borsh::BorshDeserialize;
-use solana_program::msg;
-use solana_program::program_error::ProgramError;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg, program_error::ProgramError,
+    pubkey::Pubkey,
+};
+
+use crate::{
+    args::SetFeesReceiverArgs,
+    error::DlpError::Unauthorized,
+    processor::utils::{
+        loaders::{
+            load_initialized_protocol_fees_vault, load_program_upgrade_authority, load_signer,
+        },
+        pda::resize_pda,
+    },
+    state::FeesVault,
+};
 
 /// Process request to set the fees receiver
 ///
@@ -56,17 +61,10 @@ pub fn process_set_fees_receiver(
 
     // Migrate to the new fees vault structure
     let (mut fees_vault, migrated) = {
-        let fees_vault_data = fees_vault_account.try_borrow_data()?;
-        match FeesVault::try_from_bytes_with_discriminator(&fees_vault_data) {
-            Ok(fees_vault) => (fees_vault, false),
-            Err(_) => {
-                // Migrating the account
-                let mut data = vec![0; FeesVault::default().size_with_discriminator()];
-                data[0..8].copy_from_slice(&AccountDiscriminator::FeesVault.to_bytes());
-                let fees_vault = FeesVault::try_from_bytes_with_discriminator(&data)?;
-
-                (fees_vault, true)
-            }
+        let data = fees_vault_account.try_borrow_data()?;
+        match FeesVault::try_from_bytes_with_discriminator(&data) {
+            Ok(fv) => (fv, false),
+            Err(_) => (FeesVault::default(), true),
         }
     };
 
