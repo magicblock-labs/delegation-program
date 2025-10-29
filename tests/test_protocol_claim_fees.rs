@@ -55,6 +55,31 @@ async fn test_protocol_claim_fees_wrong_receiver() {
     assert!(res.is_err());
 }
 
+#[tokio::test]
+async fn test_protocol_claim_fees_self() {
+    // Setup
+    let (banks, payer, admin, blockhash) = setup_program_test_env().await;
+
+    // Set fees receiver to fees vault
+    let fees_receiver = fees_vault_pda();
+    let ix = dlp::instruction_builder::set_fees_receiver(admin.pubkey(), fees_receiver);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &admin],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok());
+
+    let ix = dlp::instruction_builder::protocol_claim_fees(fees_receiver, dlp::ID);
+    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let res = banks.process_transaction(tx).await;
+
+    // Assert that the transaction fails because fees_receiver is the same as the fees vault
+    assert!(res.is_err());
+}
+
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);

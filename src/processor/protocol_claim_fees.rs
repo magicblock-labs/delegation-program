@@ -43,6 +43,11 @@ pub fn process_protocol_claim_fees(
         "fees receiver",
     )?;
 
+    if fees_receiver.key == fees_vault_account.key {
+        // Nothing to transfer, or ambiguous aliasing – reject explicitly
+        return Err(ProgramError::InvalidArgument);
+    }
+
     // Calculate the amount to transfer
     let min_rent = Rent::default().minimum_balance(fees_vault.size_with_discriminator());
     if fees_vault_account.lamports() < min_rent {
