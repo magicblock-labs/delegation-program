@@ -318,11 +318,7 @@ describe("TestDelegation", () => {
   });
 
   it("Set fees receiver", async () => {
-    const ix = createSetFeesReceiverInstruction(
-      admin,
-      admin,
-      testDelegation.programId
-    );
+    const ix = createSetFeesReceiverInstruction(admin, admin);
     const txId = await processInstruction(ix);
     console.log("Set fees receiver tx:", txId);
   });
@@ -573,8 +569,7 @@ describe("TestDelegation", () => {
   /// Instruction to set fees receiver
   function createSetFeesReceiverInstruction(
     admin: web3.PublicKey,
-    feesReceiver: web3.PublicKey,
-    program: web3.PublicKey
+    feesReceiver: web3.PublicKey
   ) {
     const feesVault = feesVaultPda();
     const delegationProgramData = web3.PublicKey.findProgramAddressSync(
