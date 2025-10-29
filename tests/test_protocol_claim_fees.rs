@@ -73,6 +73,11 @@ async fn test_protocol_claim_fees_wrong_receiver() {
         ),
         "Expected InvalidAccountData error, got {res:?}",
     );
+
+    // State should be unchanged after failure
+    let fees_vault_pda = fees_vault_pda();
+    let vault_after = banks.get_account(fees_vault_pda).await.unwrap().unwrap();
+    assert_eq!(vault_after.lamports, LAMPORTS_PER_SOL);
 }
 
 #[tokio::test]
