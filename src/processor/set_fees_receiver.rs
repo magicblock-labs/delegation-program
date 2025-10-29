@@ -22,9 +22,10 @@ use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubke
 ///
 /// Requirements:
 ///
-/// - admin is the protocol config admin
+/// - admin is the program upgrade authority
+/// - fees vault is initialized
 ///
-/// 1. Set the fees receiver in the protocol config
+/// 1. Set the fees receiver in the [FeesVault] account
 pub fn process_set_fees_receiver(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
