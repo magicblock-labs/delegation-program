@@ -9,7 +9,8 @@ use crate::{
     error::DlpError::Unauthorized,
     processor::utils::{
         loaders::{
-            load_initialized_protocol_fees_vault, load_program_upgrade_authority, load_signer,
+            load_initialized_protocol_fees_vault, load_program, load_program_upgrade_authority,
+            load_signer,
         },
         pda::resize_pda,
     },
@@ -69,6 +70,11 @@ pub fn process_set_fees_receiver(
     };
 
     if migrated {
+        load_program(
+            system_program,
+            solana_program::system_program::ID,
+            "system program",
+        )?;
         resize_pda(
             admin,
             fees_vault_account,

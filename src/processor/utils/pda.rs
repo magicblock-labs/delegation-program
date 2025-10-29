@@ -88,7 +88,7 @@ pub(crate) fn resize_pda<'a, 'info>(
     system_program: &'a AccountInfo<'info>,
     new_size: usize,
 ) -> Result<(), ProgramError> {
-    let new_minimum_balance = Rent::default().minimum_balance(new_size);
+    let new_minimum_balance = Rent::get()?.minimum_balance(new_size);
     let lamports_diff = new_minimum_balance.saturating_sub(pda.lamports());
     invoke(
         &system_instruction::transfer(payer.key, pda.key, lamports_diff),
