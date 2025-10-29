@@ -59,7 +59,7 @@ pub fn process_protocol_claim_fees(
         return Ok(());
     }
 
-    // Transfer fees to the admin pubkey
+    // Transfer fees to the configured fees receiver
     **fees_vault_account.try_borrow_mut_lamports()? = fees_vault_account
         .lamports()
         .checked_sub(amount)
