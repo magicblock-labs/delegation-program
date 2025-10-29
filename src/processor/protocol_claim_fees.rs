@@ -11,7 +11,7 @@ use crate::state::FeesVault;
 /// Accounts:
 ///
 /// 1. `[writable]` protocol fees vault PDA
-/// 2. `[writable]` fees receiver PDA
+/// 2. `[writable]` fees receiver
 ///
 /// Requirements:
 ///
@@ -20,7 +20,7 @@ use crate::state::FeesVault;
 ///   rent exempt
 /// - fees receiver is the correct one
 ///
-/// 1. Transfer lamports from protocol fees_vault PDA to the admin authority
+/// 1. Transfer lamports from the protocol fees vault PDA to the configured fees receiver
 pub fn process_protocol_claim_fees(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -31,7 +31,7 @@ pub fn process_protocol_claim_fees(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    // Check if the admin is signer
+    // Validate vault PDA and configured receiver
     load_initialized_protocol_fees_vault(fees_vault_account, true)?;
 
     let fees_vault_data = fees_vault_account.try_borrow_data()?;
