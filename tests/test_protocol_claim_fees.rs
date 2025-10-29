@@ -38,6 +38,16 @@ async fn test_protocol_claim_fees() {
         admin_account.unwrap().lamports,
         LAMPORTS_PER_SOL * 2 - min_rent
     );
+
+    // Verify FeesVault still stores the admin as receiver
+    let data = banks
+        .get_account(fees_vault_pda)
+        .await
+        .unwrap()
+        .unwrap()
+        .data;
+    let vault = FeesVault::try_from_bytes_with_discriminator(&data).unwrap();
+    assert_eq!(vault.fees_receiver, admin.pubkey());
 }
 
 #[tokio::test]
