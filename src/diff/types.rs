@@ -2,7 +2,7 @@ use core::{
     mem::{align_of, size_of},
     slice,
 };
-use std::marker::PhantomData;
+use std::{cmp::Ordering, ops::Range};
 
 use pinocchio::program_error::ProgramError;
 use static_assertions::const_assert;
@@ -25,7 +25,8 @@ pub struct OffsetPair {
 const_assert!(align_of::<OffsetPair>() == align_of::<u32>());
 const_assert!(size_of::<OffsetPair>() == 8);
 
-pub struct OffsetInData(pub usize);
+// half-open semantic: [begin, end)
+pub struct OffsetInData(pub Range<usize>);
 
 pub const SIZE_OF_CHANGED_LEN: usize = size_of::<u32>();
 pub const SIZE_OF_NUM_OFFSET_PAIRS: usize = size_of::<u32>();
@@ -33,29 +34,70 @@ pub const SIZE_OF_SINGLE_OFFSET_PAIR: usize = size_of::<OffsetPair>();
 
 pub struct DiffSet<'a> {
     buf: *const u8,
-    len: usize,
-    _marker: PhantomData<&'a [u8]>,
+    buflen: usize,
+    changed_len: usize,
+    segments_count: usize,
+    offset_pairs: &'a [OffsetPair],
+    concat_diff: &'a [u8],
 }
 
 impl<'a> DiffSet<'a> {
     pub fn try_new(diff: &'a [u8]) -> Result<Self, ProgramError> {
+        // Format:
+        // | ChangeLen | # Offset Pairs  | Offset Pair 0 | Offset Pair 1 | ... | Concat Diff |
+        // |= 4 bytes =|==== 4 bytes ====|=== 8 bytes ===|=== 8 bytes ===| ... |== M bytes ==|
+
         if diff.len() < (SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS) {
             return Err(DlpError::InvalidDiff.into());
         } else if diff.as_ptr().align_offset(align_of::<u32>()) != 0 {
             return Err(DlpError::InvalidDiffAlignment.into());
         }
 
-        let this = Self {
-            buf: diff.as_ptr(),
-            len: diff.len(),
-            _marker: PhantomData,
+        // SAFETY: if we are here, that means, diff is good and headers exist:
+        //  - buf aligned to 4-byte
+        //  - buf is big enough to hold both changed_len and segments_count
+        let buf = diff.as_ptr();
+        let buflen = diff.len();
+        let changed_len = unsafe { *(buf as *const u32) as usize };
+        let segments_count = unsafe { *(buf.add(4) as *const u32) as usize };
+
+        let mut this = Self {
+            buf,
+            buflen,
+            changed_len,
+            segments_count,
+            offset_pairs: &[],
+            concat_diff: b"",
         };
 
-        let header_size = SIZE_OF_CHANGED_LEN
+        let header_len = SIZE_OF_CHANGED_LEN
             + SIZE_OF_NUM_OFFSET_PAIRS
-            + this.num_offset_pairs() * SIZE_OF_SINGLE_OFFSET_PAIR;
-        if header_size > diff.len() {
-            return Err(DlpError::InvalidDiff.into());
+            + segments_count * SIZE_OF_SINGLE_OFFSET_PAIR;
+
+        match diff.len().cmp(&header_len) {
+            Ordering::Equal => {
+                // it means diff contains the header only. and concat_diff is actually empty.
+                // nothing to do in this case, except the following validation check.
+                if this.segments_count() != 0 {
+                    return Err(DlpError::InvalidDiff.into());
+                }
+            }
+            Ordering::Less => {
+                // diff cannot be smaller than the header size.
+                return Err(DlpError::InvalidDiff.into());
+            }
+            Ordering::Greater => {
+                // SAFETY: agaim, if we are here, that means, all invariants are good and now
+                // we can read the offset pairs.
+                //  - raw_pairs aligned to 4-byte
+                //  - raw_pairs is big enough to hold both changed_len and segments_count
+                this.offset_pairs = unsafe {
+                    let raw_pairs = buf.add(SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS)
+                        as *const OffsetPair;
+                    slice::from_raw_parts(raw_pairs, segments_count)
+                };
+                this.concat_diff = &diff[header_len..];
+            }
         }
 
         Ok(this)
@@ -64,82 +106,56 @@ impl<'a> DiffSet<'a> {
     pub fn raw_diff(&self) -> &'a [u8] {
         // SAFETY: it does not do any "computation" as such. It merely reverses try_new
         // and get the immutable slice back.
-        unsafe { slice::from_raw_parts(self.buf, self.len) }
+        unsafe { slice::from_raw_parts(self.buf, self.buflen) }
     }
 
     /// Returns the length of the changed data (not diff) that is passed
     /// as the second argument to compute_diff()
     pub fn changed_len(&self) -> usize {
-        // SAFETY: try_new enforces the length and alignment requirement:
-        // - SIZE_OF_CHANGED_LEN
-        // - align_of(u32)
-        unsafe { *(self.buf as *const u32) as usize }
+        self.changed_len
     }
 
-    /// Returns the number of offset pairs
-    pub fn num_offset_pairs(&self) -> usize {
-        // SAFETY: try_new enforces the length and alignment requirement:
-        // - SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS
-        // - align_of(u32)
-        unsafe { *(self.buf.add(SIZE_OF_CHANGED_LEN) as *const u32) as usize }
+    /// Returns the number of segments which is same as number of offset pairs.
+    pub fn segments_count(&self) -> usize {
+        self.segments_count
     }
 
     /// Returns the offset pairs
     pub fn offset_pairs(&self) -> &'a [OffsetPair] {
-        // SAFETY: try_new enforces length and alignment:
-        // - buf is aligned to 4-byte, so is buf.add(4 + 4).
-        //   - both SIZE_OF_CHANGED_LEN and SIZE_OF_NUM_OFFSET_PAIRS are 4.
-        // - header_size validation ensures buffer length to &[OffsetPair].
-        unsafe {
-            let pairs_ptr = self.buf.add(SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS);
-            slice::from_raw_parts(pairs_ptr as *const OffsetPair, self.num_offset_pairs())
-        }
+        self.offset_pairs
     }
 
     ///
-    /// Returns a diff-slice at the given index and also returns the offset-in-account-data
+    /// Returns a diff-segment at the given index and also returns the offset-in-account-data
     /// where the returned diff-slice is to be applied.
     ///
-    pub fn diff_slice_at(&self, index: usize) -> Option<(&'a [u8], OffsetInData)> {
-        let num_slices = self.num_offset_pairs();
-        if index >= num_slices {
+    pub fn diff_segment_at(&self, index: usize) -> Option<(&'a [u8], OffsetInData)> {
+        let offsets = self.offset_pairs();
+        if index >= offsets.len() {
             return None;
         }
-        let offsets = self.offset_pairs();
-        let current_offset = offsets[index];
-        let slice_len = {
-            if index + 1 < num_slices {
-                offsets[index + 1].offset_in_diff - current_offset.offset_in_diff
-            } else {
-                self.concatenated_diff_slice_len() as u32 - current_offset.offset_in_diff
-            }
+
+        let OffsetPair {
+            offset_in_diff: segment_begin,
+            offset_in_data,
+        } = offsets[index];
+
+        let segment_end = if index + 1 < offsets.len() {
+            offsets[index + 1].offset_in_diff
+        } else {
+            self.concat_diff.len() as u32
         };
-        Some((
-            unsafe {
-                slice::from_raw_parts(
-                    self.concatenated_diff_slice_begin()
-                        .add(current_offset.offset_in_diff as usize),
-                    slice_len as usize,
-                )
-            },
-            OffsetInData(current_offset.offset_in_data as usize),
-        ))
-    }
 
-    /// Returns the address of the beginning of the concatenated-diff.  
-    fn concatenated_diff_slice_begin(&self) -> *const u8 {
-        unsafe {
-            self.buf
-                .add(SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS)
-                .add(self.num_offset_pairs() * SIZE_OF_SINGLE_OFFSET_PAIR)
+        // Note: segment is the half-open interval [segment_begin, segment_end)
+        if segment_end > self.concat_diff.len() as u32 {
+            return None;
         }
-    }
 
-    /// Returns the length of the concatenated-diff.  
-    fn concatenated_diff_slice_len(&self) -> usize {
-        self.len
-            - (SIZE_OF_CHANGED_LEN
-                + SIZE_OF_NUM_OFFSET_PAIRS
-                + self.num_offset_pairs() * SIZE_OF_SINGLE_OFFSET_PAIR)
+        Some((
+            &self.concat_diff[segment_begin as usize..segment_end as usize],
+            OffsetInData(
+                offset_in_data as usize..(offset_in_data + segment_end - segment_begin) as usize,
+            ),
+        ))
     }
 }

@@ -73,7 +73,7 @@ use super::{
 ///     relative to the beginning of the whole serialized data, that implies the OffsetInDiffBytes
 ///     in the first pair is always 0.
 /// - M is a variable and is the sum of the length of the diff-slices.
-///  - M = diff_slices.map(|s| s.len()).sum()
+///  - M = diff_segments.map(|s| s.len()).sum()
 /// - The length of ith slice = OffsetInDiffBytes@(i+1) - OffsetInDiffBytes@i, as noted earlier.
 ///
 /// ---
@@ -233,9 +233,9 @@ pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Vec<u8> {
 // private function that does the actual work.
 fn apply_diff_impl(original: &mut [u8], diffset: &DiffSet<'_>) {
     let mut index = 0;
-    while let Some((diff_slice, OffsetInData(offset))) = diffset.diff_slice_at(index) {
+    while let Some((diff_segment, OffsetInData(range))) = diffset.diff_segment_at(index) {
         index += 1;
-        original[offset..offset + diff_slice.len()].copy_from_slice(diff_slice);
+        original[range].copy_from_slice(diff_segment);
     }
 }
 
