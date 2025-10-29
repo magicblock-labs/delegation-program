@@ -55,6 +55,9 @@ pub fn process_protocol_claim_fees(
         return Err(ProgramError::InsufficientFunds);
     }
     let amount = fees_vault_account.lamports() - min_rent;
+    if amount == 0 {
+        return Ok(());
+    }
 
     // Transfer fees to the admin pubkey
     **fees_vault_account.try_borrow_mut_lamports()? = fees_vault_account
