@@ -25,8 +25,8 @@ pub struct OffsetPair {
 const_assert!(align_of::<OffsetPair>() == align_of::<u32>());
 const_assert!(size_of::<OffsetPair>() == 8);
 
-// half-open semantic: [begin, end)
-pub struct OffsetInData(pub Range<usize>);
+// half-open semantic: [start, end)
+pub type OffsetInData = Range<usize>;
 
 pub const SIZE_OF_CHANGED_LEN: usize = size_of::<u32>();
 pub const SIZE_OF_NUM_OFFSET_PAIRS: usize = size_of::<u32>();
@@ -126,8 +126,8 @@ impl<'a> DiffSet<'a> {
     }
 
     ///
-    /// Returns a diff-segment at the given index and also returns the offset-in-account-data
-    /// where the returned diff-slice is to be applied.
+    /// Given an index, returns a diff-segment and offset-range [start,end)
+    /// where the returned diff-segment is to be applied in the original data.
     ///
     pub fn diff_segment_at(&self, index: usize) -> Option<(&'a [u8], OffsetInData)> {
         let offsets = self.offset_pairs();
@@ -151,11 +151,15 @@ impl<'a> DiffSet<'a> {
             return None;
         }
 
-        Some((
-            &self.concat_diff[segment_begin as usize..segment_end as usize],
-            OffsetInData(
-                offset_in_data as usize..(offset_in_data + segment_end - segment_begin) as usize,
-            ),
-        ))
+        let segment = &self.concat_diff[segment_begin as usize..segment_end as usize];
+        let range =
+            offset_in_data as usize..(offset_in_data + segment_end - segment_begin) as usize;
+
+        Some((segment, range))
+    }
+
+    /// Iterates diff segments
+    pub fn iter(&self) -> impl Iterator<Item = (&'a [u8], OffsetInData)> + '_ {
+        (0..self.segments_count).map(|index| self.diff_segment_at(index).unwrap())
     }
 }

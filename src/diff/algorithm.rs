@@ -3,8 +3,7 @@ use std::cmp::{min, Ordering};
 use rkyv::util::AlignedVec;
 
 use super::{
-    DiffSet, OffsetInData, SizeChanged, SIZE_OF_CHANGED_LEN, SIZE_OF_NUM_OFFSET_PAIRS,
-    SIZE_OF_SINGLE_OFFSET_PAIR,
+    DiffSet, SizeChanged, SIZE_OF_CHANGED_LEN, SIZE_OF_NUM_OFFSET_PAIRS, SIZE_OF_SINGLE_OFFSET_PAIR,
 };
 
 ///
@@ -232,10 +231,8 @@ pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Vec<u8> {
 
 // private function that does the actual work.
 fn apply_diff_impl(original: &mut [u8], diffset: &DiffSet<'_>) {
-    let mut index = 0;
-    while let Some((diff_segment, OffsetInData(range))) = diffset.diff_segment_at(index) {
-        index += 1;
-        original[range].copy_from_slice(diff_segment);
+    for (diff_segment, offset_range) in diffset.iter() {
+        original[offset_range].copy_from_slice(diff_segment);
     }
 }
 
