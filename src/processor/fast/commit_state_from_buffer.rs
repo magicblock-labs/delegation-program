@@ -7,6 +7,8 @@ use pinocchio::program_error::ProgramError;
 use pinocchio::pubkey::Pubkey;
 use pinocchio::ProgramResult;
 
+use super::NewState;
+
 pub fn process_commit_state_from_buffer(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -26,10 +28,9 @@ pub fn process_commit_state_from_buffer(
     let allow_undelegation = args.allow_undelegation;
 
     let state = state_buffer_account.try_borrow_data()?;
-    let commit_state_bytes: &[u8] = &state;
 
     let commit_args = CommitStateInternalArgs {
-        commit_state_bytes,
+        commit_state_bytes: NewState::FullBytes(&state),
         commit_record_lamports,
         commit_record_nonce,
         allow_undelegation,

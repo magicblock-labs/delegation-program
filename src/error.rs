@@ -35,10 +35,12 @@ pub enum DlpError {
     Overflow = 13,
     #[error("Too many seeds")]
     TooManySeeds = 14,
-    #[error("Invalid diff passed to DiffSet::try_new")]
+    #[error("Invalid length of diff passed to DiffSet::try_new")]
     InvalidDiff = 15,
     #[error("Diff is not properly aligned")]
     InvalidDiffAlignment = 16,
+    #[error("MergeDiff precondition did not meet")]
+    MergeDiffError = 17,
 }
 
 impl From<DlpError> for ProgramError {

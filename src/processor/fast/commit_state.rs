@@ -10,7 +10,6 @@ use pinocchio_system::instructions as system;
 
 use crate::args::CommitStateArgs;
 use crate::error::DlpError;
-use crate::pda;
 use crate::processor::fast::utils::{
     pda::create_pda,
     requires::{
@@ -20,6 +19,7 @@ use crate::processor::fast::utils::{
     },
 };
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
+use crate::{merge_diff_copy, pda, DiffSet};
 
 use super::to_pinocchio_program_error;
 
@@ -59,7 +59,6 @@ pub fn process_commit_state(
 ) -> ProgramResult {
     let args = CommitStateArgs::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
 
-    let commit_state_bytes: &[u8] = args.data.as_ref();
     let commit_record_lamports = args.lamports;
     let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
@@ -71,7 +70,7 @@ pub fn process_commit_state(
     };
 
     let commit_args = CommitStateInternalArgs {
-        commit_state_bytes,
+        commit_state_bytes: NewState::FullBytes(&args.data),
         commit_record_lamports,
         commit_record_nonce,
         allow_undelegation,
@@ -88,9 +87,23 @@ pub fn process_commit_state(
     process_commit_state_internal(commit_args)
 }
 
+pub(crate) enum NewState<'a> {
+    FullBytes(&'a [u8]),
+    Diff(DiffSet<'a>),
+}
+
+impl NewState<'_> {
+    pub fn data_len(&self) -> usize {
+        match self {
+            NewState::FullBytes(bytes) => bytes.len(),
+            NewState::Diff(diff) => diff.changed_len(),
+        }
+    }
+}
+
 /// Arguments for the commit state internal function
 pub(crate) struct CommitStateInternalArgs<'a> {
-    pub(crate) commit_state_bytes: &'a [u8],
+    pub(crate) commit_state_bytes: NewState<'a>,
     pub(crate) commit_record_lamports: u64,
     pub(crate) commit_record_nonce: u64,
     pub(crate) allow_undelegation: bool,
@@ -238,7 +251,7 @@ pub(crate) fn process_commit_state_internal(
     create_pda(
         args.commit_state_account,
         &crate::fast::ID,
-        args.commit_state_bytes.len(),
+        args.commit_state_bytes.data_len(),
         &[Signer::from(&seeds!(
             pda::COMMIT_STATE_TAG,
             args.delegated_account.key(),
@@ -274,7 +287,14 @@ pub(crate) fn process_commit_state_internal(
 
     // Copy the new state to the initialized PDA
     let mut commit_state_data = args.commit_state_account.try_borrow_mut_data()?;
-    (*commit_state_data).copy_from_slice(args.commit_state_bytes);
+
+    match args.commit_state_bytes {
+        NewState::FullBytes(bytes) => (*commit_state_data).copy_from_slice(bytes),
+        NewState::Diff(diff) => {
+            let original_data = args.delegated_account.try_borrow_data()?;
+            merge_diff_copy(&mut commit_state_data, &original_data, &diff)?;
+        }
+    }
 
     // TODO - Add additional validation for the commitment, e.g. sufficient validator stake
 

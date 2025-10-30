@@ -6,7 +6,9 @@ use pinocchio_log::log;
 
 use crate::args::{CommitDiffArgsWithoutDiff, SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF};
 use crate::processor::fast::{process_commit_state_internal, CommitStateInternalArgs};
-use crate::{apply_diff_copy, DiffSet};
+use crate::DiffSet;
+
+use super::NewState;
 
 /// Commit diff to a delegated PDA
 ///
@@ -70,14 +72,8 @@ pub fn process_commit_diff(
     let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
 
-    // TODO (snawaz): the following approach to apply diff works, but it's not efficient.
-    // It is also problematic for larger account as it allocates memory on the heap.
-    // It will be fixed in a separate PR.
-    let original = unsafe { delegated_account.borrow_data_unchecked() };
-    let changed = apply_diff_copy(original, &diffset)?;
-
     let commit_args = CommitStateInternalArgs {
-        commit_state_bytes: &changed,
+        commit_state_bytes: NewState::Diff(diffset),
         commit_record_lamports,
         commit_record_nonce,
         allow_undelegation,

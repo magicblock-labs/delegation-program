@@ -3,8 +3,11 @@ use std::cmp::{min, Ordering};
 use pinocchio::program_error::ProgramError;
 use rkyv::util::AlignedVec;
 
+use crate::error::DlpError;
+
 use super::{
-    DiffSet, SizeChanged, SIZE_OF_CHANGED_LEN, SIZE_OF_NUM_OFFSET_PAIRS, SIZE_OF_SINGLE_OFFSET_PAIR,
+    DiffSet, OffsetInData, SizeChanged, SIZE_OF_CHANGED_LEN, SIZE_OF_NUM_OFFSET_PAIRS,
+    SIZE_OF_SINGLE_OFFSET_PAIR,
 };
 
 ///
@@ -229,6 +232,35 @@ pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Result<Vec<u8>
     })
 }
 
+/// This function constructs destination by merging original with diff such that destination
+/// becomes the changed version of the original.
+///
+/// Precondition:
+///     - destination.len() == original.len()
+pub fn merge_diff_copy(
+    destination: &mut [u8],
+    original: &[u8],
+    diffset: &DiffSet<'_>,
+) -> Result<(), ProgramError> {
+    if destination.len() != original.len() {
+        return Err(DlpError::MergeDiffError.into());
+    }
+    let mut write_index = 0;
+    for item in diffset.iter() {
+        let (diff_segment, OffsetInData { start, end }) = item?;
+        if write_index < start {
+            // copy the unchanged bytes
+            destination[write_index..start].copy_from_slice(&original[write_index..start]);
+        }
+        destination[start..end].copy_from_slice(diff_segment);
+        write_index = end;
+    }
+    if write_index < original.len() {
+        destination[write_index..].copy_from_slice(&original[write_index..]);
+    }
+    Ok(())
+}
+
 // private function that does the actual work.
 fn apply_diff_impl(original: &mut [u8], diffset: &DiffSet<'_>) -> Result<(), ProgramError> {
     for item in diffset.iter() {
@@ -247,7 +279,7 @@ mod tests {
         Rng, RngCore, SeedableRng,
     };
 
-    use crate::{apply_diff_copy, apply_diff_in_place, compute_diff, DiffSet};
+    use crate::{apply_diff_copy, apply_diff_in_place, compute_diff, merge_diff_copy, DiffSet};
 
     #[test]
     fn test_no_change() {
@@ -309,6 +341,14 @@ mod tests {
         assert_eq!(actual_diff.as_slice(), expected_diff.as_slice());
 
         let expected_changed = apply_diff_copy(&original, &actual_diffset).unwrap();
+
+        assert_eq!(changed.as_slice(), expected_changed.as_slice());
+
+        let expected_changed = {
+            let mut destination = vec![255; original.len()];
+            merge_diff_copy(&mut destination, &original, &actual_diffset).unwrap();
+            destination
+        };
 
         assert_eq!(changed.as_slice(), expected_changed.as_slice());
     }
@@ -394,9 +434,17 @@ mod tests {
 
         // apply diff back to verify correctness
         let expected_changed = {
-            let mut copy = original;
+            let mut copy = original.clone();
             apply_diff_in_place(&mut copy, &actual_diffset).unwrap();
             copy
+        };
+
+        assert_eq!(changed, expected_changed);
+
+        let expected_changed = {
+            let mut destination = vec![255; original.len()];
+            merge_diff_copy(&mut destination, &original, &actual_diffset).unwrap();
+            destination
         };
 
         assert_eq!(changed, expected_changed);
