@@ -164,7 +164,6 @@ pub(crate) fn process_commit_state_internal(
 
     // Check that the authority is allowed to commit
     if !pubkey_eq(delegation_record.authority.as_array(), args.validator.key())
-        && !pubkey_eq(delegation_record.authority.as_array(), &Pubkey::default())
     {
         log!("validator is not the delegation authority. validator: ");
         pubkey::log(args.validator.key());
