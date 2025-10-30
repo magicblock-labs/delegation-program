@@ -1,5 +1,6 @@
 use std::cmp::{min, Ordering};
 
+use pinocchio::program_error::ProgramError;
 use rkyv::util::AlignedVec;
 
 use super::{
@@ -197,43 +198,44 @@ pub fn detect_size_change(original: &[u8], diffset: &DiffSet<'_>) -> Option<Size
 ///
 /// Precondition:
 ///   - original.len() must be equal to the length encoded in the diff.
-pub fn apply_diff_in_place(original: &mut [u8], diffset: &DiffSet<'_>) -> Result<(), SizeChanged> {
-    if let Some(layout) = detect_size_change(original, diffset) {
-        return Err(layout);
+pub fn apply_diff_in_place(original: &mut [u8], diffset: &DiffSet<'_>) -> Result<(), ProgramError> {
+    if let Some(_layout) = detect_size_change(original, diffset) {
+        return Err(ProgramError::InvalidInstructionData);
     }
-    apply_diff_impl(original, diffset);
-    Ok(())
+    apply_diff_impl(original, diffset)
 }
 
 /// This function creates a copy of original, possibly extending or shrinking it,
 /// and then applies the diff to it, before returning it.
-pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Vec<u8> {
-    match detect_size_change(original, diffset) {
+pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Result<Vec<u8>, ProgramError> {
+    Ok(match detect_size_change(original, diffset) {
         Some(SizeChanged::Expanded(new_size)) => {
             let mut applied = Vec::with_capacity(new_size);
             applied.extend_from_slice(original);
             applied.resize(new_size, 0);
-            apply_diff_impl(applied.as_mut(), diffset);
+            apply_diff_impl(applied.as_mut(), diffset)?;
             applied
         }
         Some(SizeChanged::Shrunk(new_size)) => {
             let mut applied = Vec::from(&original[0..new_size]);
-            apply_diff_impl(applied.as_mut(), diffset);
+            apply_diff_impl(applied.as_mut(), diffset)?;
             applied
         }
         None => {
             let mut applied = Vec::from(original);
-            apply_diff_impl(applied.as_mut(), diffset);
+            apply_diff_impl(applied.as_mut(), diffset)?;
             applied
         }
-    }
+    })
 }
 
 // private function that does the actual work.
-fn apply_diff_impl(original: &mut [u8], diffset: &DiffSet<'_>) {
-    for (diff_segment, offset_range) in diffset.iter() {
+fn apply_diff_impl(original: &mut [u8], diffset: &DiffSet<'_>) -> Result<(), ProgramError> {
+    for item in diffset.iter() {
+        let (diff_segment, offset_range) = item?;
         original[offset_range].copy_from_slice(diff_segment);
     }
+    Ok(())
 }
 
 #[cfg(test)]
@@ -306,7 +308,7 @@ mod tests {
         assert_eq!(actual_diff.len(), 4 + 4 + 8 + 8 + (4 + 8));
         assert_eq!(actual_diff.as_slice(), expected_diff.as_slice());
 
-        let expected_changed = apply_diff_copy(&original, &actual_diffset);
+        let expected_changed = apply_diff_copy(&original, &actual_diffset).unwrap();
 
         assert_eq!(changed.as_slice(), expected_changed.as_slice());
     }

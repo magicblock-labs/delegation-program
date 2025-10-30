@@ -129,10 +129,13 @@ impl<'a> DiffSet<'a> {
     /// Given an index, returns a diff-segment and offset-range [start,end)
     /// where the returned diff-segment is to be applied in the original data.
     ///
-    pub fn diff_segment_at(&self, index: usize) -> Option<(&'a [u8], OffsetInData)> {
+    pub fn diff_segment_at(
+        &self,
+        index: usize,
+    ) -> Result<Option<(&'a [u8], OffsetInData)>, ProgramError> {
         let offsets = self.offset_pairs();
         if index >= offsets.len() {
-            return None;
+            return Ok(None);
         }
 
         let OffsetPair {
@@ -147,19 +150,31 @@ impl<'a> DiffSet<'a> {
         };
 
         // Note: segment is the half-open interval [segment_begin, segment_end)
-        if segment_end > self.concat_diff.len() as u32 {
-            return None;
+        if segment_end > self.concat_diff.len() as u32
+            || segment_begin >= segment_end
+            || offset_in_data >= self.changed_len() as u32
+        {
+            return Err(DlpError::InvalidDiff.into());
         }
 
         let segment = &self.concat_diff[segment_begin as usize..segment_end as usize];
         let range =
             offset_in_data as usize..(offset_in_data + segment_end - segment_begin) as usize;
 
-        Some((segment, range))
+        if range.end > self.changed_len() {
+            return Err(DlpError::InvalidDiff.into());
+        }
+
+        Ok(Some((segment, range)))
     }
 
     /// Iterates diff segments
-    pub fn iter(&self) -> impl Iterator<Item = (&'a [u8], OffsetInData)> + '_ {
-        (0..self.segments_count).map(|index| self.diff_segment_at(index).unwrap())
+    pub fn iter(
+        &self,
+    ) -> impl Iterator<Item = Result<(&'a [u8], OffsetInData), ProgramError>> + '_ {
+        (0..self.segments_count).map(|index| {
+            self.diff_segment_at(index)
+                .map(|val| val.expect("impossible: index can never be greater than segments_count"))
+        })
     }
 }
