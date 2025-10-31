@@ -12,7 +12,7 @@ use crate::pda::{
 };
 
 /// Builds a commit state instruction.
-/// See [crate::processor::process_commit_diff] for docs.
+/// See [crate::processor::fast::process_commit_diff] for docs.
 pub fn commit_diff(
     validator: Pubkey,
     delegated_account: Pubkey,

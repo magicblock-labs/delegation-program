@@ -20,6 +20,7 @@ use crate::{apply_diff_copy, DiffSet};
 /// 5: `[writable]` the delegation metadata
 /// 6: `[]`         the validator fees vault
 /// 7: `[]`         the program config account
+/// 8: `[]`         the system program
 ///
 /// Requirements:
 ///
@@ -73,7 +74,7 @@ pub fn process_commit_diff(
     // It is also problematic for larger account as it allocates memory on the heap.
     // It will be fixed in a separate PR.
     let original = unsafe { delegated_account.borrow_data_unchecked() };
-    let changed = apply_diff_copy(&original, &diffset)?;
+    let changed = apply_diff_copy(original, &diffset)?;
 
     let commit_args = CommitStateInternalArgs {
         commit_state_bytes: &changed,
