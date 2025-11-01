@@ -243,10 +243,8 @@ pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Result<Vec<u8>
 ///     - destination is assumed to be zero-initialized. That automatically holds true for freshly
 ///       allocated Solana account data. The function does NOT validate this assumption for performance reason.
 /// Returns:
-///     - Ok(n) where n is number of bytes written to destination.
-///         - if n < destination.len(), then the last (destination.len() - n) bytes are not written by this function
-///           and are assumed to be already zero-initialized. Callers may write to those bytes starting at index `n`.
-///         - else n == destination.len().
+///     - Ok(&mut [u8]) where the slice contains the trailing unwritten bytes in destination and are
+///       assumed to be already zero-initialized. Callers may write to those bytes or validate it.
 /// Notes:
 ///     - Merge consists of:
 ///         - bytes covered by diff segments are written from diffset.
@@ -255,11 +253,11 @@ pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Result<Vec<u8>
 ///     - In expansion case, any remaining bytes beyond both the diff coverage
 ///       and original.len() stay unwritten and are assumed to be zero-initialized.
 ///
-pub fn merge_diff_copy(
-    destination: &mut [u8],
+pub fn merge_diff_copy<'a>(
+    destination: &'a mut [u8],
     original: &[u8],
     diffset: &DiffSet<'_>,
-) -> Result<usize, ProgramError> {
+) -> Result<&'a mut [u8], ProgramError> {
     if destination.len() != diffset.changed_len() {
         return Err(DlpError::MergeDiffError.into());
     }
@@ -338,7 +336,9 @@ pub fn merge_diff_copy(
         }
     };
 
-    Ok(num_bytes_written)
+    let (_, unwritten_bytes) = destination.split_at_mut(num_bytes_written);
+
+    Ok(unwritten_bytes)
 }
 
 // private function that does the actual work.
@@ -530,11 +530,11 @@ mod tests {
 
         let expected_changed = {
             let mut destination = vec![255; CHANGED_LEN];
-            let written = merge_diff_copy(&mut destination, &original, &actual_diffset).unwrap();
+            let unwritten = merge_diff_copy(&mut destination, &original, &actual_diffset).unwrap();
 
-            // TODO (snawaz): written == 120, is because currently the expanded bytes are part of the diff.
-            // Once compute_diff is optimized further, written must be 100.
-            assert_eq!(written, 120);
+            // TODO (snawaz): unwritten == &mut [], is because currently the expanded bytes are part of the diff.
+            // Once compute_diff is optimized further, written must be &mut [0; 20].
+            assert_eq!(unwritten, &mut []);
 
             destination
         };
