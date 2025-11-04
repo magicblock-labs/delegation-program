@@ -24,6 +24,9 @@ mod processor;
 
 pub use diff::*;
 
+// re-export
+pub use rkyv;
+
 #[cfg(feature = "log-cost")]
 mod cu;
 
@@ -85,6 +88,9 @@ pub fn fast_process_instruction(
         DlpDiscriminator::CommitDiff => Some(processor::fast::process_commit_diff(
             program_id, accounts, data,
         )),
+        DlpDiscriminator::CommitDiffFromBuffer => Some(
+            processor::fast::process_commit_diff_from_buffer(program_id, accounts, data),
+        ),
         DlpDiscriminator::Finalize => Some(processor::fast::process_finalize(
             program_id, accounts, data,
         )),

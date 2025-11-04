@@ -37,6 +37,8 @@ pub enum DlpDiscriminator {
     CallHandler = 15,
     /// See [crate::processor::process_commit_diff] for docs.
     CommitDiff = 16,
+    /// See [crate::processor::process_commit_diff_from_buffer] for docs.
+    CommitDiffFromBuffer = 17,
 }
 
 impl DlpDiscriminator {
