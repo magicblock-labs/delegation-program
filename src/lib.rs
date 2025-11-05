@@ -1,42 +1,58 @@
-#![allow(unexpected_cfgs)] // silence clippy for target_os solana and other solana program custom features
+#![allow(unexpected_cfgs)]
 
+#[cfg(not(feature = "core"))]
 use crate::discriminator::DlpDiscriminator;
-use pinocchio_log::log;
+#[cfg(not(feature = "core"))]
 use solana_program::account_info::AccountInfo;
-use solana_program::declare_id;
+#[cfg(not(feature = "core"))]
 use solana_program::entrypoint::ProgramResult;
+#[cfg(not(feature = "core"))]
 use solana_program::program_error::ProgramError;
+#[cfg(not(feature = "core"))]
 use solana_program::pubkey::Pubkey;
 
-#[cfg(feature = "logging")]
+use solana_program::declare_id;
+
+#[cfg(all(feature = "logging", not(feature = "core")))]
 use solana_program::msg;
 
 pub mod args;
 pub mod consts;
+#[cfg(not(feature = "core"))]
 mod discriminator;
+#[cfg(not(feature = "core"))]
 pub mod error;
+#[cfg(not(feature = "core"))]
 pub mod instruction_builder;
 pub mod pda;
 pub mod state;
 
+#[cfg(not(feature = "core"))]
 mod diff;
+#[cfg(not(feature = "core"))]
 mod processor;
 
+#[cfg(not(feature = "core"))]
 pub use diff::*;
 
-#[cfg(feature = "log-cost")]
+#[cfg(all(feature = "log-cost", not(feature = "core")))]
 mod cu;
 
-#[cfg(not(feature = "no-entrypoint"))]
+#[cfg(all(not(feature = "no-entrypoint"), not(feature = "core")))]
 mod entrypoint;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
+#[cfg(not(feature = "core"))]
 pub mod fast {
     pinocchio_pubkey::declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 }
 
-#[cfg(all(not(feature = "no-entrypoint"), feature = "solana-security-txt"))]
+#[cfg(all(
+    not(feature = "no-entrypoint"),
+    not(feature = "core"),
+    feature = "solana-security-txt"
+))]
 solana_security_txt::security_txt! {
     name: "MagicBlock Delegation Program",
     project_url: "https://magicblock.gg",
@@ -46,6 +62,7 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/magicblock-labs/delegation-program"
 }
 
+#[cfg(not(feature = "core"))]
 pub fn fast_process_instruction(
     program_id: &pinocchio::pubkey::Pubkey,
     accounts: &[pinocchio::account_info::AccountInfo],
@@ -62,7 +79,7 @@ pub fn fast_process_instruction(
     let discriminator = match DlpDiscriminator::try_from(discriminator_bytes[0]) {
         Ok(discriminator) => discriminator,
         Err(_) => {
-            log!("Failed to read and parse discriminator");
+            pinocchio_log::log!("Failed to read and parse discriminator");
             return Some(Err(
                 pinocchio::program_error::ProgramError::InvalidInstructionData,
             ));
@@ -95,6 +112,7 @@ pub fn fast_process_instruction(
     }
 }
 
+#[cfg(not(feature = "core"))]
 pub fn slow_process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -139,7 +157,7 @@ pub fn slow_process_instruction(
             processor::process_call_handler(program_id, accounts, data)?
         }
         _ => {
-            log!("PANIC: Instruction must be processed by fast_process_instruction");
+            pinocchio_log::log!("PANIC: Instruction must be processed by fast_process_instruction");
             return Err(ProgramError::InvalidInstructionData);
         }
     }
