@@ -1,56 +1,56 @@
 #![allow(unexpected_cfgs)]
 
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 use crate::discriminator::DlpDiscriminator;
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 use solana_program::account_info::AccountInfo;
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 use solana_program::entrypoint::ProgramResult;
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 use solana_program::program_error::ProgramError;
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 use solana_program::pubkey::Pubkey;
 
 use solana_program::declare_id;
 
-#[cfg(all(feature = "logging", not(feature = "core")))]
+#[cfg(feature = "logging")]
 use solana_program::msg;
 
 pub mod args;
 pub mod consts;
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 mod discriminator;
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 pub mod error;
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 pub mod instruction_builder;
 pub mod pda;
 pub mod state;
 
-#[cfg(not(feature = "core"))]
+#[cfg(feature = "pinocchio-support")]
 mod diff;
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 mod processor;
 
-#[cfg(not(feature = "core"))]
+#[cfg(feature = "pinocchio-support")]
 pub use diff::*;
 
-#[cfg(all(feature = "log-cost", not(feature = "core")))]
+#[cfg(all(feature = "log-cost", feature = "pinocchio-support"))]
 mod cu;
 
-#[cfg(all(not(feature = "no-entrypoint"), not(feature = "core")))]
+#[cfg(all(not(feature = "no-entrypoint"), feature = "pinocchio-support"))]
 mod entrypoint;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
-#[cfg(not(feature = "core"))]
+#[cfg(feature = "pinocchio-support")]
 pub mod fast {
     pinocchio_pubkey::declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 }
 
 #[cfg(all(
     not(feature = "no-entrypoint"),
-    not(feature = "core"),
+    not(feature = "sdk"),
     feature = "solana-security-txt"
 ))]
 solana_security_txt::security_txt! {
@@ -62,7 +62,7 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/magicblock-labs/delegation-program"
 }
 
-#[cfg(not(feature = "core"))]
+#[cfg(feature = "pinocchio-support")]
 pub fn fast_process_instruction(
     program_id: &pinocchio::pubkey::Pubkey,
     accounts: &[pinocchio::account_info::AccountInfo],
@@ -112,7 +112,7 @@ pub fn fast_process_instruction(
     }
 }
 
-#[cfg(not(feature = "core"))]
+#[cfg(not(feature = "sdk"))]
 pub fn slow_process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -157,7 +157,8 @@ pub fn slow_process_instruction(
             processor::process_call_handler(program_id, accounts, data)?
         }
         _ => {
-            pinocchio_log::log!("PANIC: Instruction must be processed by fast_process_instruction");
+            #[cfg(feature = "logging")]
+            msg!("PANIC: Instruction must be processed by fast_process_instruction");
             return Err(ProgramError::InvalidInstructionData);
         }
     }

@@ -2,9 +2,7 @@ use crate::{fast_process_instruction, slow_process_instruction};
 
 use solana_program::entrypoint;
 
-#[cfg(all(not(feature = "no-entrypoint"), not(feature = "core")))]
 entrypoint::custom_heap_default!();
-#[cfg(all(not(feature = "no-entrypoint"), not(feature = "core")))]
 entrypoint::custom_panic_default!();
 
 /// # Safety
