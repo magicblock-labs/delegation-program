@@ -10,7 +10,6 @@ mod utils;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
 
-#[cfg(feature = "pinocchio-support")]
 pub mod fast;
 
 pub use call_handler::*;

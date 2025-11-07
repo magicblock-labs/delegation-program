@@ -49,7 +49,6 @@ impl From<DlpError> for ProgramError {
     }
 }
 
-#[cfg(feature = "pinocchio-support")]
 impl From<DlpError> for pinocchio::program_error::ProgramError {
     fn from(e: DlpError) -> Self {
         pinocchio::program_error::ProgramError::Custom(e as u32)

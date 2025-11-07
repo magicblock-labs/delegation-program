@@ -1,5 +1,14 @@
 #![allow(unexpected_cfgs)]
 
+// Exactly one of `sdk` or `program` must be enabled
+#[cfg(all(feature = "sdk", feature = "program"))]
+compile_error!("Features `sdk` and `program` are mutually exclusive. Enable exactly one.");
+
+#[cfg(all(not(feature = "sdk"), not(feature = "program")))]
+compile_error!(
+    "Enable either `program` (default) or `sdk`. Building with neither is not supported."
+);
+
 #[cfg(not(feature = "sdk"))]
 use crate::discriminator::DlpDiscriminator;
 #[cfg(not(feature = "sdk"))]
@@ -27,42 +36,38 @@ pub mod instruction_builder;
 pub mod pda;
 pub mod state;
 
-#[cfg(feature = "pinocchio-support")]
+#[cfg(not(feature = "sdk"))]
 mod diff;
 #[cfg(not(feature = "sdk"))]
 mod processor;
 
-#[cfg(feature = "pinocchio-support")]
+#[cfg(not(feature = "sdk"))]
 pub use diff::*;
 
-#[cfg(all(feature = "log-cost", feature = "pinocchio-support"))]
+#[cfg(feature = "log-cost")]
 mod cu;
 
-#[cfg(all(not(feature = "no-entrypoint"), feature = "pinocchio-support"))]
+#[cfg(not(feature = "no-entrypoint"))]
 mod entrypoint;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
-#[cfg(feature = "pinocchio-support")]
+#[cfg(not(feature = "sdk"))]
 pub mod fast {
     pinocchio_pubkey::declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 }
 
-#[cfg(all(
-    not(feature = "no-entrypoint"),
-    not(feature = "sdk"),
-    feature = "solana-security-txt"
-))]
+#[cfg(feature = "solana-security-txt")]
 solana_security_txt::security_txt! {
     name: "MagicBlock Delegation Program",
-    project_url: "https://magicblock.gg",
+    project_url: "https://magicblock.xyz",
     contacts: "email:dev@magicblock.gg,twitter:@magicblock",
     policy: "https://github.com/magicblock-labs/delegation-program/blob/master/LICENSE.md",
     preferred_languages: "en",
     source_code: "https://github.com/magicblock-labs/delegation-program"
 }
 
-#[cfg(feature = "pinocchio-support")]
+#[cfg(not(feature = "sdk"))]
 pub fn fast_process_instruction(
     program_id: &pinocchio::pubkey::Pubkey,
     accounts: &[pinocchio::account_info::AccountInfo],

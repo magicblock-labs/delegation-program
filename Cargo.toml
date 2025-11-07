@@ -28,19 +28,19 @@ name = "dlp"
 [features]
 no-entrypoint = []
 sdk = ["no-entrypoint"]
-# Pinocchio and related crates support (enabled by default)
-pinocchio-support = [
-    "dep:pinocchio",
-    "dep:pinocchio-log",
-    "dep:pinocchio-pubkey",
-    "dep:pinocchio-system",
-    "dep:rkyv",
+program = [
+  "dep:pinocchio",
+  "dep:pinocchio-log",
+  "dep:pinocchio-pubkey",
+  "dep:pinocchio-system",
+  "dep:rkyv",
+  "dep:solana-curve25519",
 ]
-# Default (full) build pulls in all optional heavy deps
+
+# Default build = program path + security txt
 default = [
+    "program",
     "solana-security-txt",
-    "pinocchio-support",
-    "dep:solana-curve25519",
 ]
 unit_test_config = []
 log-cost = []
