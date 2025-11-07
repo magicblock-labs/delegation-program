@@ -10,15 +10,13 @@ compile_error!(
 );
 
 #[cfg(not(feature = "sdk"))]
-use crate::discriminator::DlpDiscriminator;
-#[cfg(not(feature = "sdk"))]
-use solana_program::account_info::AccountInfo;
-#[cfg(not(feature = "sdk"))]
-use solana_program::entrypoint::ProgramResult;
-#[cfg(not(feature = "sdk"))]
-use solana_program::program_error::ProgramError;
-#[cfg(not(feature = "sdk"))]
-use solana_program::pubkey::Pubkey;
+use {
+    crate::discriminator::DlpDiscriminator,
+    solana_program::{
+        account_info::AccountInfo, entrypoint::ProgramResult, program_error::ProgramError,
+        pubkey::Pubkey,
+    },
+};
 
 use solana_program::declare_id;
 
