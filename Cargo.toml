@@ -48,7 +48,7 @@ logging = []
 
 [dependencies]
 borsh = { version = "1.5.3", features = [ "derive" ] }
-solana-program = { version = ">=1.16" }
+solana-program = { version = ">=1.16, <3.0.0" }
 bytemuck = { version = ">=1", features = [ "derive" ] }
 num_enum = "^0.7.2"
 thiserror = { version = ">=1" }
