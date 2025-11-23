@@ -43,6 +43,7 @@ mod processor;
 pub use diff::*;
 
 // re-export
+#[cfg(not(feature = "sdk"))]
 pub use rkyv;
 
 #[cfg(feature = "log-cost")]
