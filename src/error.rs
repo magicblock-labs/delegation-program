@@ -41,6 +41,12 @@ pub enum DlpError {
     InvalidDiffAlignment = 16,
     #[error("MergeDiff precondition did not meet")]
     MergeDiffError = 17,
+    #[error("Invalid data length for deserialization")]
+    InvalidDataLength = 18,
+    #[error("Invalid discriminator for delegation record")]
+    InvalidDiscriminator = 19,
+    #[error("Invalid delegation record deserialization")]
+    InvalidDelegationRecordData = 20,
 }
 
 impl From<DlpError> for ProgramError {
