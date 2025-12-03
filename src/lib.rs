@@ -117,6 +117,9 @@ pub fn fast_process_instruction(
         DlpDiscriminator::Undelegate => Some(processor::fast::process_undelegate(
             program_id, accounts, data,
         )),
+        DlpDiscriminator::UndelegateConfinedAccount => Some(
+            processor::fast::process_undelegate_confined_account(program_id, accounts, data),
+        ),
         _ => None,
     }
 }

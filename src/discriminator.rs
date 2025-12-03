@@ -39,6 +39,8 @@ pub enum DlpDiscriminator {
     CommitDiff = 16,
     /// See [crate::processor::process_commit_diff_from_buffer] for docs.
     CommitDiffFromBuffer = 17,
+    /// See [crate::processor::process_undelegate_confined_account] for docs.
+    UndelegateConfinedAccount = 18,
 }
 
 impl DlpDiscriminator {

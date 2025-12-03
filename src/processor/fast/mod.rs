@@ -5,6 +5,7 @@ mod commit_state_from_buffer;
 mod delegate;
 mod finalize;
 mod undelegate;
+mod undelegate_confined_account;
 mod utils;
 
 pub use commit_diff::*;
@@ -14,6 +15,7 @@ pub use commit_state_from_buffer::*;
 pub use delegate::*;
 pub use finalize::*;
 pub use undelegate::*;
+pub use undelegate_confined_account::*;
 
 pub fn to_pinocchio_program_error(
     error: solana_program::program_error::ProgramError,
