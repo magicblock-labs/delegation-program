@@ -339,7 +339,6 @@ pub fn require_initialized_commit_record(
     Ok(())
 }
 
-
 /// Context for `require_uninitialized_account` / `require_uninitialized_pda`.
 ///
 /// This trait describes how to map low–level validation failures for a
@@ -353,117 +352,82 @@ pub(crate) trait RequireUninitializedAccountCtx {
     fn immutable(&self) -> DlpError;
 }
 
-pub(crate) struct CommitStateAccountCtx;
-impl RequireUninitializedAccountCtx for CommitStateAccountCtx {
-    fn label(&self) -> &str {
-        "commit state account"
-    }
+macro_rules! define_uninitialized_ctx {
+    (
+        $name:ident,
+        label = $label:expr,
+        seeds_error = $seeds:expr,
+        owner_error = $owner:expr,
+        already_init_error = $already_init:expr,
+        immutable_error = $immutable:expr
+    ) => {
+        pub(crate) struct $name;
 
-    fn invalid_seeds(&self) -> DlpError {
-        DlpError::CommitStateInvalidSeeds
-    }
+        impl $crate::processor::fast::utils::requires::RequireUninitializedAccountCtx for $name {
+            fn label(&self) -> &str {
+                $label
+            }
 
-    fn invalid_account_owner(&self) -> DlpError {
-        DlpError::CommitStateInvalidAccountOwner
-    }
+            fn invalid_seeds(&self) -> $crate::error::DlpError {
+                $seeds
+            }
 
-    fn account_already_initialized(&self) -> DlpError {
-        DlpError::CommitStateAlreadyInitialized
-    }
+            fn invalid_account_owner(&self) -> $crate::error::DlpError {
+                $owner
+            }
 
-    fn immutable(&self) -> DlpError {
-        DlpError::CommitStateImmutable
-    }
+            fn account_already_initialized(&self) -> $crate::error::DlpError {
+                $already_init
+            }
+
+            fn immutable(&self) -> $crate::error::DlpError {
+                $immutable
+            }
+        }
+    };
 }
 
-pub(crate) struct CommitRecordCtx;
-impl RequireUninitializedAccountCtx for CommitRecordCtx {
-    fn label(&self) -> &str {
-        "commit record"
-    }
+define_uninitialized_ctx!(
+    CommitStateAccountCtx,
+    label = "commit state account",
+    seeds_error = DlpError::CommitStateInvalidSeeds,
+    owner_error = DlpError::CommitStateInvalidAccountOwner,
+    already_init_error = DlpError::CommitStateAlreadyInitialized,
+    immutable_error = DlpError::CommitStateImmutable
+);
 
-    fn invalid_seeds(&self) -> DlpError {
-        DlpError::CommitRecordInvalidSeeds
-    }
+define_uninitialized_ctx!(
+    CommitRecordCtx,
+    label = "commit record",
+    seeds_error = DlpError::CommitRecordInvalidSeeds,
+    owner_error = DlpError::CommitRecordInvalidAccountOwner,
+    already_init_error = DlpError::CommitRecordAlreadyInitialized,
+    immutable_error = DlpError::CommitRecordImmutable
+);
 
-    fn invalid_account_owner(&self) -> DlpError {
-        DlpError::CommitRecordInvalidAccountOwner
-    }
+define_uninitialized_ctx!(
+    DelegationRecordCtx,
+    label = "delegation record",
+    seeds_error = DlpError::DelegationRecordInvalidSeeds,
+    owner_error = DlpError::DelegationRecordInvalidAccountOwner,
+    already_init_error = DlpError::DelegationRecordAlreadyInitialized,
+    immutable_error = DlpError::DelegationRecordImmutable
+);
 
-    fn account_already_initialized(&self) -> DlpError {
-        DlpError::CommitRecordAlreadyInitialized
-    }
+define_uninitialized_ctx!(
+    DelegationMetadataCtx,
+    label = "delegation metadata",
+    seeds_error = DlpError::DelegationMetadataInvalidSeeds,
+    owner_error = DlpError::DelegationMetadataInvalidAccountOwner,
+    already_init_error = DlpError::DelegationMetadataAlreadyInitialized,
+    immutable_error = DlpError::DelegationMetadataImmutable
+);
 
-    fn immutable(&self) -> DlpError {
-        DlpError::CommitRecordImmutable
-    }
-}
-
-pub(crate) struct DelegationRecordCtx;
-impl RequireUninitializedAccountCtx for DelegationRecordCtx {
-    fn label(&self) -> &str {
-        "delegation record"
-    }
-
-    fn invalid_seeds(&self) -> DlpError {
-        DlpError::DelegationRecordInvalidSeeds
-    }
-
-    fn invalid_account_owner(&self) -> DlpError {
-        DlpError::DelegationRecordInvalidAccountOwner
-    }
-
-    fn account_already_initialized(&self) -> DlpError {
-        DlpError::DelegationRecordAlreadyInitialized
-    }
-
-    fn immutable(&self) -> DlpError {
-        DlpError::DelegationRecordImmutable
-    }
-}
-
-pub(crate) struct DelegationMetadataCtx;
-impl RequireUninitializedAccountCtx for DelegationMetadataCtx {
-    fn label(&self) -> &str {
-        "delegation metadata"
-    }
-
-    fn invalid_seeds(&self) -> DlpError {
-        DlpError::DelegationMetadataInvalidSeeds
-    }
-
-    fn invalid_account_owner(&self) -> DlpError {
-        DlpError::DelegationMetadataInvalidAccountOwner
-    }
-
-    fn account_already_initialized(&self) -> DlpError {
-        DlpError::DelegationMetadataAlreadyInitialized
-    }
-
-    fn immutable(&self) -> DlpError {
-        DlpError::DelegationMetadataImmutable
-    }
-}
-
-pub(crate) struct UndelegateBufferCtx;
-impl RequireUninitializedAccountCtx for UndelegateBufferCtx {
-    fn label(&self) -> &str {
-        "undelegate buffer"
-    }
-
-    fn invalid_seeds(&self) -> DlpError {
-        DlpError::UndelegateBufferInvalidSeeds
-    }
-
-    fn invalid_account_owner(&self) -> DlpError {
-        DlpError::UndelegateBufferInvalidAccountOwner
-    }
-
-    fn account_already_initialized(&self) -> DlpError {
-        DlpError::UndelegateBufferAlreadyInitialized
-    }
-
-    fn immutable(&self) -> DlpError {
-        DlpError::UndelegateBufferImmutable
-    }
-}
+define_uninitialized_ctx!(
+    UndelegateBufferCtx,
+    label = "undelegate buffer",
+    seeds_error = DlpError::UndelegateBufferInvalidSeeds,
+    owner_error = DlpError::UndelegateBufferInvalidAccountOwner,
+    already_init_error = DlpError::UndelegateBufferAlreadyInitialized,
+    immutable_error = DlpError::UndelegateBufferImmutable
+);
