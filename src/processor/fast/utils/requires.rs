@@ -356,10 +356,10 @@ macro_rules! define_uninitialized_ctx {
     (
         $name:ident,
         label = $label:expr,
-        seeds_error = $seeds:expr,
-        owner_error = $owner:expr,
-        already_init_error = $already_init:expr,
-        immutable_error = $immutable:expr
+        invalid_seeds = $seeds:expr,
+        invalid_account_owner = $owner:expr,
+        account_already_initialized = $already_init:expr,
+        immutable = $immutable:expr
     ) => {
         pub(crate) struct $name;
 
@@ -390,44 +390,44 @@ macro_rules! define_uninitialized_ctx {
 define_uninitialized_ctx!(
     CommitStateAccountCtx,
     label = "commit state account",
-    seeds_error = DlpError::CommitStateInvalidSeeds,
-    owner_error = DlpError::CommitStateInvalidAccountOwner,
-    already_init_error = DlpError::CommitStateAlreadyInitialized,
-    immutable_error = DlpError::CommitStateImmutable
+    invalid_seeds = DlpError::CommitStateInvalidSeeds,
+    invalid_account_owner = DlpError::CommitStateInvalidAccountOwner,
+    account_already_initialized = DlpError::CommitStateAlreadyInitialized,
+    immutable = DlpError::CommitStateImmutable
 );
 
 define_uninitialized_ctx!(
     CommitRecordCtx,
     label = "commit record",
-    seeds_error = DlpError::CommitRecordInvalidSeeds,
-    owner_error = DlpError::CommitRecordInvalidAccountOwner,
-    already_init_error = DlpError::CommitRecordAlreadyInitialized,
-    immutable_error = DlpError::CommitRecordImmutable
+    invalid_seeds = DlpError::CommitRecordInvalidSeeds,
+    invalid_account_owner = DlpError::CommitRecordInvalidAccountOwner,
+    account_already_initialized = DlpError::CommitRecordAlreadyInitialized,
+    immutable = DlpError::CommitRecordImmutable
 );
 
 define_uninitialized_ctx!(
     DelegationRecordCtx,
     label = "delegation record",
-    seeds_error = DlpError::DelegationRecordInvalidSeeds,
-    owner_error = DlpError::DelegationRecordInvalidAccountOwner,
-    already_init_error = DlpError::DelegationRecordAlreadyInitialized,
-    immutable_error = DlpError::DelegationRecordImmutable
+    invalid_seeds = DlpError::DelegationRecordInvalidSeeds,
+    invalid_account_owner = DlpError::DelegationRecordInvalidAccountOwner,
+    account_already_initialized = DlpError::DelegationRecordAlreadyInitialized,
+    immutable = DlpError::DelegationRecordImmutable
 );
 
 define_uninitialized_ctx!(
     DelegationMetadataCtx,
     label = "delegation metadata",
-    seeds_error = DlpError::DelegationMetadataInvalidSeeds,
-    owner_error = DlpError::DelegationMetadataInvalidAccountOwner,
-    already_init_error = DlpError::DelegationMetadataAlreadyInitialized,
-    immutable_error = DlpError::DelegationMetadataImmutable
+    invalid_seeds = DlpError::DelegationMetadataInvalidSeeds,
+    invalid_account_owner = DlpError::DelegationMetadataInvalidAccountOwner,
+    account_already_initialized = DlpError::DelegationMetadataAlreadyInitialized,
+    immutable = DlpError::DelegationMetadataImmutable
 );
 
 define_uninitialized_ctx!(
     UndelegateBufferCtx,
     label = "undelegate buffer",
-    seeds_error = DlpError::UndelegateBufferInvalidSeeds,
-    owner_error = DlpError::UndelegateBufferInvalidAccountOwner,
-    already_init_error = DlpError::UndelegateBufferAlreadyInitialized,
-    immutable_error = DlpError::UndelegateBufferImmutable
+    invalid_seeds = DlpError::UndelegateBufferInvalidSeeds,
+    invalid_account_owner = DlpError::UndelegateBufferInvalidAccountOwner,
+    account_already_initialized = DlpError::UndelegateBufferAlreadyInitialized,
+    immutable = DlpError::UndelegateBufferImmutable
 );
