@@ -107,7 +107,7 @@ pub fn require_uninitialized_account(
         );
         pubkey::log(info.key());
         pubkey::log(info.owner());
-        return Err(ctx.invalid_account_owner().into());
+        return Err(ctx.invalid_account_owner());
     }
 
     if !info.data_is_empty() {
@@ -116,7 +116,7 @@ pub fn require_uninitialized_account(
             ctx.label(),
         );
         pubkey::log(info.key());
-        return Err(ctx.account_already_initialized().into());
+        return Err(ctx.account_already_initialized());
     }
 
     if is_writable && !info.is_writable() {
@@ -125,7 +125,7 @@ pub fn require_uninitialized_account(
             ctx.label()
         );
         pubkey::log(info.key());
-        return Err(ctx.immutable().into());
+        return Err(ctx.immutable());
     }
 
     Ok(())
@@ -147,7 +147,7 @@ pub fn require_uninitialized_pda(
     if !pubkey_eq(info.key(), &pda.0) {
         log!("Invalid seeds for account {}: ", ctx.label());
         pubkey::log(info.key());
-        return Err(ctx.invalid_seeds().into());
+        return Err(ctx.invalid_seeds());
     }
 
     require_uninitialized_account(info, is_writable, ctx)?;
@@ -346,10 +346,10 @@ pub fn require_initialized_commit_record(
 /// into concrete `DlpError` variants.
 pub(crate) trait RequireUninitializedAccountCtx {
     fn label(&self) -> &str;
-    fn invalid_seeds(&self) -> DlpError;
-    fn invalid_account_owner(&self) -> DlpError;
-    fn account_already_initialized(&self) -> DlpError;
-    fn immutable(&self) -> DlpError;
+    fn invalid_seeds(&self) -> ProgramError;
+    fn invalid_account_owner(&self) -> ProgramError;
+    fn account_already_initialized(&self) -> ProgramError;
+    fn immutable(&self) -> ProgramError;
 }
 
 macro_rules! define_uninitialized_ctx {
@@ -368,20 +368,20 @@ macro_rules! define_uninitialized_ctx {
                 $label
             }
 
-            fn invalid_seeds(&self) -> $crate::error::DlpError {
-                $seeds
+            fn invalid_seeds(&self) -> pinocchio::program_error::ProgramError {
+                $seeds.into()
             }
 
-            fn invalid_account_owner(&self) -> $crate::error::DlpError {
-                $owner
+            fn invalid_account_owner(&self) -> pinocchio::program_error::ProgramError {
+                $owner.into()
             }
 
-            fn account_already_initialized(&self) -> $crate::error::DlpError {
-                $already_init
+            fn account_already_initialized(&self) -> pinocchio::program_error::ProgramError {
+                $already_init.into()
             }
 
-            fn immutable(&self) -> $crate::error::DlpError {
-                $immutable
+            fn immutable(&self) -> pinocchio::program_error::ProgramError {
+                $immutable.into()
             }
         }
     };
