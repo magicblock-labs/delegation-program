@@ -339,6 +339,12 @@ pub fn require_initialized_commit_record(
     Ok(())
 }
 
+
+/// Context for `require_uninitialized_account` / `require_uninitialized_pda`.
+///
+/// This trait describes how to map low–level validation failures for a
+/// particular account (e.g. "commit state account", "delegation record")
+/// into concrete `DlpError` variants.
 pub(crate) trait RequireUninitializedAccountCtx {
     fn label(&self) -> &str;
     fn invalid_seeds(&self) -> DlpError;
@@ -390,5 +396,74 @@ impl RequireUninitializedAccountCtx for CommitRecordCtx {
 
     fn immutable(&self) -> DlpError {
         DlpError::CommitRecordImmutable
+    }
+}
+
+pub(crate) struct DelegationRecordCtx;
+impl RequireUninitializedAccountCtx for DelegationRecordCtx {
+    fn label(&self) -> &str {
+        "delegation record"
+    }
+
+    fn invalid_seeds(&self) -> DlpError {
+        DlpError::DelegationRecordInvalidSeeds
+    }
+
+    fn invalid_account_owner(&self) -> DlpError {
+        DlpError::DelegationRecordInvalidAccountOwner
+    }
+
+    fn account_already_initialized(&self) -> DlpError {
+        DlpError::DelegationRecordAlreadyInitialized
+    }
+
+    fn immutable(&self) -> DlpError {
+        DlpError::DelegationRecordImmutable
+    }
+}
+
+pub(crate) struct DelegationMetadataCtx;
+impl RequireUninitializedAccountCtx for DelegationMetadataCtx {
+    fn label(&self) -> &str {
+        "delegation metadata"
+    }
+
+    fn invalid_seeds(&self) -> DlpError {
+        DlpError::DelegationMetadataInvalidSeeds
+    }
+
+    fn invalid_account_owner(&self) -> DlpError {
+        DlpError::DelegationMetadataInvalidAccountOwner
+    }
+
+    fn account_already_initialized(&self) -> DlpError {
+        DlpError::DelegationMetadataAlreadyInitialized
+    }
+
+    fn immutable(&self) -> DlpError {
+        DlpError::DelegationMetadataImmutable
+    }
+}
+
+pub(crate) struct UndelegateBufferCtx;
+impl RequireUninitializedAccountCtx for UndelegateBufferCtx {
+    fn label(&self) -> &str {
+        "undelegate buffer"
+    }
+
+    fn invalid_seeds(&self) -> DlpError {
+        DlpError::UndelegateBufferInvalidSeeds
+    }
+
+    fn invalid_account_owner(&self) -> DlpError {
+        DlpError::UndelegateBufferInvalidAccountOwner
+    }
+
+    fn account_already_initialized(&self) -> DlpError {
+        DlpError::UndelegateBufferAlreadyInitialized
+    }
+
+    fn immutable(&self) -> DlpError {
+        DlpError::UndelegateBufferImmutable
     }
 }

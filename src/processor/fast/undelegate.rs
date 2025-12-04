@@ -16,7 +16,9 @@ use crate::error::DlpError;
 use crate::pda;
 use crate::processor::fast::utils::{
     pda::{close_pda, close_pda_with_fees, create_pda},
-    requires::require_uninitialized_pda,
+    requires::{
+        require_uninitialized_pda, CommitRecordCtx, CommitStateAccountCtx, UndelegateBufferCtx,
+    },
 };
 use crate::state::{DelegationMetadata, DelegationRecord};
 
@@ -99,14 +101,14 @@ pub fn process_undelegate(
         &[pda::COMMIT_STATE_TAG, delegated_account.key()],
         &crate::fast::ID,
         false,
-        "commit state",
+        CommitStateAccountCtx,
     )?;
     require_uninitialized_pda(
         commit_record_account,
         &[pda::COMMIT_RECORD_TAG, delegated_account.key()],
         &crate::fast::ID,
         false,
-        "commit record",
+        CommitRecordCtx,
     )?;
 
     // Load delegation record
@@ -176,7 +178,7 @@ pub fn process_undelegate(
         &[pda::UNDELEGATE_BUFFER_TAG, delegated_account.key()],
         &crate::fast::ID,
         true,
-        "undelegate buffer",
+        UndelegateBufferCtx,
     )?;
 
     create_pda(
