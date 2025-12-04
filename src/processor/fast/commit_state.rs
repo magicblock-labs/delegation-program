@@ -15,7 +15,7 @@ use crate::processor::fast::utils::{
     requires::{
         require_initialized_delegation_metadata, require_initialized_delegation_record,
         require_initialized_validator_fees_vault, require_owned_pda, require_program_config,
-        require_signer, require_uninitialized_pda,
+        require_signer, require_uninitialized_pda, CommitRecordCtx, CommitStateAccountCtx,
     },
 };
 use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
@@ -237,14 +237,14 @@ pub(crate) fn process_commit_state_internal(
         &[pda::COMMIT_STATE_TAG, args.delegated_account.key()],
         &crate::fast::ID,
         true,
-        "commit state account",
+        CommitStateAccountCtx,
     )?;
     let commit_record_bump = require_uninitialized_pda(
         args.commit_record_account,
         &[pda::COMMIT_RECORD_TAG, args.delegated_account.key()],
         &crate::fast::ID,
         true,
-        "commit record",
+        CommitRecordCtx,
     )?;
 
     // Initialize the PDA containing the new committed state

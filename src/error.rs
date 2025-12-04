@@ -41,6 +41,22 @@ pub enum DlpError {
     InvalidDiffAlignment = 16,
     #[error("MergeDiff precondition did not meet")]
     MergeDiffError = 17,
+    #[error("Commit state PDA invalid seeds")]
+    CommitStateInvalidSeeds = 18,
+    #[error("Commit state PDA invalid account owner")]
+    CommitStateInvalidAccountOwner = 19,
+    #[error("Commit state PDA is already initialized")]
+    CommitStateAlreadyInitialized = 20,
+    #[error("Commit state PDA immutable")]
+    CommitStateImmutable = 21,
+    #[error("Commit record PDA invalid seeds")]
+    CommitRecordInvalidSeeds = 22,
+    #[error("Commit record PDA invalid account owner")]
+    CommitRecordInvalidAccountOwner = 23,
+    #[error("Commit record PDA is already initialized")]
+    CommitRecordAlreadyInitialized = 24,
+    #[error("Commit record PDA immutable")]
+    CommitRecordImmutable = 25,
 }
 
 impl From<DlpError> for ProgramError {

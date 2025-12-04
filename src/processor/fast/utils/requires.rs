@@ -98,31 +98,34 @@ pub fn is_uninitialized_account(info: &AccountInfo) -> bool {
 pub fn require_uninitialized_account(
     info: &AccountInfo,
     is_writable: bool,
-    label: &str,
+    ctx: impl RequireUninitializedAccountCtx,
 ) -> Result<(), ProgramError> {
     if !pubkey_eq(info.owner(), &pinocchio_system::id()) {
         log!(
             "Invalid owner for account. Label: {}; account and owner: ",
-            label
+            ctx.label()
         );
         pubkey::log(info.key());
         pubkey::log(info.owner());
-        return Err(ProgramError::InvalidAccountOwner);
+        return Err(ctx.invalid_account_owner().into());
     }
 
     if !info.data_is_empty() {
         log!(
             "Account needs to be uninitialized. Label: {}, account: ",
-            label,
+            ctx.label(),
         );
         pubkey::log(info.key());
-        return Err(ProgramError::AccountAlreadyInitialized);
+        return Err(ctx.account_already_initialized().into());
     }
 
     if is_writable && !info.is_writable() {
-        log!("Account needs to be writable. label: {}, account: ", label);
+        log!(
+            "Account needs to be writable. label: {}, account: ",
+            ctx.label()
+        );
         pubkey::log(info.key());
-        return Err(ProgramError::Immutable);
+        return Err(ctx.immutable().into());
     }
 
     Ok(())
@@ -137,17 +140,17 @@ pub fn require_uninitialized_pda(
     seeds: &[&[u8]],
     program_id: &Pubkey,
     is_writable: bool,
-    label: &str,
+    ctx: impl RequireUninitializedAccountCtx,
 ) -> Result<u8, ProgramError> {
     let pda = pubkey::find_program_address(seeds, program_id);
 
     if !pubkey_eq(info.key(), &pda.0) {
-        log!("Invalid seeds for account {}: ", label);
+        log!("Invalid seeds for account {}: ", ctx.label());
         pubkey::log(info.key());
-        return Err(ProgramError::InvalidSeeds);
+        return Err(ctx.invalid_seeds().into());
     }
 
-    require_uninitialized_account(info, is_writable, label)?;
+    require_uninitialized_account(info, is_writable, ctx)?;
     Ok(pda.1)
 }
 
@@ -334,4 +337,58 @@ pub fn require_initialized_commit_record(
         "commit record",
     )?;
     Ok(())
+}
+
+pub(crate) trait RequireUninitializedAccountCtx {
+    fn label(&self) -> &str;
+    fn invalid_seeds(&self) -> DlpError;
+    fn invalid_account_owner(&self) -> DlpError;
+    fn account_already_initialized(&self) -> DlpError;
+    fn immutable(&self) -> DlpError;
+}
+
+pub(crate) struct CommitStateAccountCtx;
+impl RequireUninitializedAccountCtx for CommitStateAccountCtx {
+    fn label(&self) -> &str {
+        "commit state account"
+    }
+
+    fn invalid_seeds(&self) -> DlpError {
+        DlpError::CommitStateInvalidSeeds
+    }
+
+    fn invalid_account_owner(&self) -> DlpError {
+        DlpError::CommitStateInvalidAccountOwner
+    }
+
+    fn account_already_initialized(&self) -> DlpError {
+        DlpError::CommitStateAlreadyInitialized
+    }
+
+    fn immutable(&self) -> DlpError {
+        DlpError::CommitStateImmutable
+    }
+}
+
+pub(crate) struct CommitRecordCtx;
+impl RequireUninitializedAccountCtx for CommitRecordCtx {
+    fn label(&self) -> &str {
+        "commit record"
+    }
+
+    fn invalid_seeds(&self) -> DlpError {
+        DlpError::CommitRecordInvalidSeeds
+    }
+
+    fn invalid_account_owner(&self) -> DlpError {
+        DlpError::CommitRecordInvalidAccountOwner
+    }
+
+    fn account_already_initialized(&self) -> DlpError {
+        DlpError::CommitRecordAlreadyInitialized
+    }
+
+    fn immutable(&self) -> DlpError {
+        DlpError::CommitRecordImmutable
+    }
 }
