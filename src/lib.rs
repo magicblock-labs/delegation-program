@@ -26,7 +26,6 @@ use solana_program::msg;
 pub mod args;
 pub mod consts;
 mod discriminator;
-#[cfg(not(feature = "sdk"))]
 pub mod error;
 pub mod instruction_builder;
 pub mod pda;
