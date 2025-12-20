@@ -81,6 +81,8 @@ pub enum DlpError {
     UndelegateBufferAlreadyInitialized = 36,
     #[error("Undelegate buffer PDA immutable")]
     UndelegateBufferImmutable = 37,
+    #[error("An infallible error is encountered possibly due to logic error")]
+    InfallibleError = 100,
 }
 
 impl From<DlpError> for ProgramError {
