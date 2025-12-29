@@ -87,6 +87,8 @@ pub enum DlpError {
     InvalidDiscriminator = 39,
     #[error("Invalid delegation record deserialization")]
     InvalidDelegationRecordData = 40,
+    #[error("Delegated account is already closed")]
+    DelegateAccountClosed = 41,
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }

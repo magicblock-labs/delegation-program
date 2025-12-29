@@ -68,6 +68,7 @@ use super::{
 ///
 /// - Close the delegation metadata
 /// - Close the delegation record
+/// - If delegated account is closed then stop the process
 /// - If delegated account has no data, assign to prev owner (and stop here)
 /// - If there's data, create an "undelegate_buffer" and store the data in it
 /// - Close the original delegated account
@@ -86,6 +87,12 @@ pub fn process_undelegate(
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
     };
+
+    // Reject undelegation of closed account
+    if delegated_account.lamports() == 0 && delegated_account.data_is_empty() {
+        log!("Delegated account is already closed");
+        return Err(DlpError::DelegateAccountClosed.into());
+    }
 
     // Check accounts
     require_signer(validator, "validator")?;
