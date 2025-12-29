@@ -4,6 +4,7 @@ use ephemeral_rollups_sdk::cpi::DelegateConfig;
 
 declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
 
+const DEFAULT_VALIDATOR_IDENTITY: Pubkey = pubkey!("tEsT3eV6RFCWs1BZ7AXTzasHqTtMnMLCB2tjQ42TDXD");
 pub const TEST_PDA_SEED: &[u8] = b"test-pda";
 pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 
@@ -12,6 +13,7 @@ pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
 pub mod test_delegation {
     use super::*;
     use anchor_lang::system_program::{transfer, Transfer};
+    use ephemeral_rollups_sdk::types::DelegateAccountArgs;
 
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
         let counter = &mut ctx.accounts.counter;
