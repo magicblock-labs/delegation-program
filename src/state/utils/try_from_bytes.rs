@@ -6,26 +6,26 @@ macro_rules! impl_try_from_bytes_with_discriminator_zero_copy {
                 data: &[u8],
             ) -> Result<&Self, ::solana_program::program_error::ProgramError> {
                 if data.len() < 8 {
-                    return Err(::solana_program::program_error::ProgramError::InvalidAccountData);
+                    return Err($crate::error::DlpError::InvalidDataLength.into());
                 }
                 if Self::discriminator().to_bytes().ne(&data[..8]) {
-                    return Err(::solana_program::program_error::ProgramError::InvalidAccountData);
+                    return Err($crate::error::DlpError::InvalidDiscriminator.into());
                 }
                 bytemuck::try_from_bytes::<Self>(&data[8..]).or(Err(
-                    ::solana_program::program_error::ProgramError::InvalidAccountData,
+                    $crate::error::DlpError::InvalidDelegationRecordData.into(),
                 ))
             }
             pub fn try_from_bytes_with_discriminator_mut(
                 data: &mut [u8],
             ) -> Result<&mut Self, ::solana_program::program_error::ProgramError> {
                 if data.len() < 8 {
-                    return Err(::solana_program::program_error::ProgramError::InvalidAccountData);
+                    return Err($crate::error::DlpError::InvalidDataLength.into());
                 }
                 if Self::discriminator().to_bytes().ne(&data[..8]) {
-                    return Err(::solana_program::program_error::ProgramError::InvalidAccountData);
+                    return Err($crate::error::DlpError::InvalidDiscriminator.into());
                 }
                 bytemuck::try_from_bytes_mut::<Self>(&mut data[8..]).or(Err(
-                    ::solana_program::program_error::ProgramError::InvalidAccountData,
+                    $crate::error::DlpError::InvalidDelegationRecordData.into(),
                 ))
             }
         }
@@ -40,13 +40,13 @@ macro_rules! impl_try_from_bytes_with_discriminator_borsh {
                 data: &[u8],
             ) -> Result<Self, ::solana_program::program_error::ProgramError> {
                 if data.len() < 8 {
-                    return Err(::solana_program::program_error::ProgramError::InvalidAccountData);
+                    return Err($crate::error::DlpError::InvalidDataLength.into());
                 }
                 if Self::discriminator().to_bytes().ne(&data[..8]) {
-                    return Err(::solana_program::program_error::ProgramError::InvalidAccountData);
+                    return Err($crate::error::DlpError::InvalidDiscriminator.into());
                 }
                 Self::try_from_slice(&data[8..]).or(Err(
-                    ::solana_program::program_error::ProgramError::InvalidAccountData,
+                    $crate::error::DlpError::InvalidDelegationRecordData.into(),
                 ))
             }
         }
