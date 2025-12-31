@@ -10,6 +10,8 @@ use crate::DiffSet;
 
 use super::NewState;
 
+use crate::{require, require_n_accounts};
+
 /// Commit diff to a delegated PDA
 ///
 /// Accounts:
@@ -47,15 +49,22 @@ pub fn process_commit_diff(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, program_config_account, _system_program] =
-        accounts
-    else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
+    let [
+        validator, // force multi-line
+        delegated_account,
+        commit_state_account,
+        commit_record_account,
+        delegation_record_account,
+        delegation_metadata_account,
+        validator_fees_vault,
+        program_config_account,
+        _system_program,
+    ] = require_n_accounts!(accounts, 9);
 
-    if data.len() < SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF {
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    require!(
+        data.len() >= SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF,
+        ProgramError::InvalidInstructionData
+    );
 
     let (diff, data) = data.split_at(data.len() - SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF);
 

@@ -10,6 +10,8 @@ use super::{
     SIZE_OF_SINGLE_OFFSET_PAIR,
 };
 
+use crate::{require_eq, require_le};
+
 ///
 /// Compute diff between original and changed.
 ///
@@ -258,18 +260,18 @@ pub fn merge_diff_copy<'a>(
     original: &[u8],
     diffset: &DiffSet<'_>,
 ) -> Result<&'a mut [u8], ProgramError> {
-    if destination.len() != diffset.changed_len() {
-        return Err(DlpError::MergeDiffError.into());
-    }
+    require_eq!(
+        destination.len(),
+        diffset.changed_len(),
+        DlpError::MergeDiffError
+    );
 
     let mut write_index = 0;
     for item in diffset.iter() {
         let (diff_segment, OffsetInData { start, end }) = item?;
 
         if write_index < start {
-            if start > original.len() {
-                return Err(DlpError::InvalidDiff.into());
-            }
+            require_le!(start, original.len(), DlpError::InvalidDiff);
             // copy the unchanged bytes
             destination[write_index..start].copy_from_slice(&original[write_index..start]);
         }
