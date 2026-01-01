@@ -27,6 +27,139 @@ mod pubkey {
     }
 }
 
+// require true
+#[macro_export]
+macro_rules! require {
+    ($cond:expr, $error:expr) => {{
+        if !$cond {
+            let expr = stringify!($cond);
+            pinocchio_log::log!("require!({}) failed.", expr);
+            return Err($error.into());
+        }
+    }};
+}
+
+// require key1 == key2
+#[macro_export]
+macro_rules! require_eq_keys {
+    ( $key1:expr, $key2:expr, $error:expr) => {{
+        if !pinocchio::pubkey::pubkey_eq($key1, $key2) {
+            pinocchio_log::log!(
+                "require_eq_keys!({}, {}) failed: ",
+                stringify!($key1),
+                stringify!($key2)
+            );
+            pinocchio::pubkey::log($key1);
+            pinocchio::pubkey::log($key2);
+            return Err($error.into());
+        }
+    }};
+}
+
+// require a == b
+#[macro_export]
+macro_rules! require_eq {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 == $val2) {
+            pinocchio_log::log!(
+                "require_eq!({}, {}) failed: {} == {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
+// require a <= b
+#[macro_export]
+macro_rules! require_le {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 <= $val2) {
+            pinocchio_log::log!(
+                "require_le!({}, {}) failed: {} <= {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
+// require a < b
+#[macro_export]
+macro_rules! require_lt {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 < $val2) {
+            pinocchio_log::log!(
+                "require_lt!({}, {}) failed: {} < {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
+// require a >= b
+#[macro_export]
+macro_rules! require_ge {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 >= $val2) {
+            pinocchio_log::log!(
+                "require_ge!({}, {}) failed: {} >= {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! require_n_accounts {
+    ( $accounts:expr, $n:literal) => {{
+        match $accounts.len().cmp(&$n) {
+            core::cmp::Ordering::Less => {
+                pinocchio_log::log!(
+                    "Need {} accounts, but got less ({}) accounts",
+                    $n,
+                    $accounts.len()
+                );
+                return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
+            }
+            core::cmp::Ordering::Equal => TryInto::<&[_; $n]>::try_into($accounts)
+                .map_err(|_| $crate::error::DlpError::InfallibleError)?,
+            core::cmp::Ordering::Greater => {
+                pinocchio_log::log!(
+                    "Need {} accounts, but got more ({}) accounts",
+                    $n,
+                    $accounts.len()
+                );
+                return Err($crate::error::DlpError::TooManyAccountKeys.into());
+            }
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! require_some {
+    ($option:expr, $error:expr) => {{
+        match $option {
+            Some(val) => val,
+            None => return Err($error.into()),
+        }
+    }};
+}
+
 /// Errors if:
 /// - Account is not owned by expected program.
 #[inline(always)]
