@@ -9,6 +9,7 @@ use crate::pda::{
     delegate_buffer_pda_from_delegated_account_and_owner_program,
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
 };
+use crate::{total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS};
 
 /// Builds a delegate instruction
 /// See [crate::processor::process_delegate] for docs.
@@ -40,4 +41,22 @@ pub fn delegate(
         ],
         data,
     }
+}
+
+///
+/// Returns accounts-data-size budget for delegate instruction.
+///
+/// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
+///
+pub fn delegate_size_budget(delegated_account: AccountSizeClass) -> u32 {
+    total_size_budget(&[
+        DLP_PROGRAM_DATA_SIZE_CLASS,
+        AccountSizeClass::Tiny, // payer
+        delegated_account,      // delegated_account
+        AccountSizeClass::Tiny, // owner
+        delegated_account,      // delegate_buffer_pda
+        AccountSizeClass::Tiny, // delegation_record_pda
+        AccountSizeClass::Tiny, // delegation_metadata_pda
+        AccountSizeClass::Tiny, // system_program
+    ])
 }

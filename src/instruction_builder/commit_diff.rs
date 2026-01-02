@@ -10,6 +10,7 @@ use crate::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     program_config_from_program_id, validator_fees_vault_pda_from_validator,
 };
+use crate::{total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS};
 
 /// Builds a commit state instruction.
 /// See [crate::processor::fast::process_commit_diff] for docs.
@@ -42,4 +43,24 @@ pub fn commit_diff(
         ],
         data: [DlpDiscriminator::CommitDiff.to_vec(), commit_args].concat(),
     }
+}
+
+///
+/// Returns accounts-data-size budget for commit_diff instruction.
+///
+/// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
+///
+pub fn commit_diff_size_budget(delegated_account: AccountSizeClass) -> u32 {
+    total_size_budget(&[
+        DLP_PROGRAM_DATA_SIZE_CLASS,
+        AccountSizeClass::Tiny, // validator
+        delegated_account,      // delegated_account
+        delegated_account,      // commit_state_pda
+        AccountSizeClass::Tiny, // commit_record_pda
+        AccountSizeClass::Tiny, // delegation_record_pda
+        AccountSizeClass::Tiny, // delegation_metadata_pda
+        AccountSizeClass::Tiny, // validator_fees_vault_pda
+        AccountSizeClass::Tiny, // program_config_pda
+        AccountSizeClass::Tiny, // system_program
+    ])
 }
