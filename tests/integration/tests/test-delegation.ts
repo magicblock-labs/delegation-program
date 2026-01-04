@@ -17,6 +17,7 @@ const BPF_LOADER = new web3.PublicKey(
 );
 
 describe("TestDelegation", () => {
+  console.log("ANCHOR_PROVIDER_URL: ", process.env.ANCHOR_PROVIDER_URL);
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
@@ -115,15 +116,22 @@ describe("TestDelegation", () => {
   });
 
   // .skip() because currently tests are not independent and we cannot run two similar tests twice or more.
-  it.skip("Delegate one PDA", async () => {
+  it.only("Delegate one PDA", async () => {
+    console.log("delegate one PDA started: ", pda.toBase58());
+    console.log("before getHealth");
+    const health = await provider.connection.getVersion();
+    console.log("after getHealth", health);
     const counterAccountInfo = await provider.connection.getAccountInfo(pda);
+    console.log("delegate one PDA", counterAccountInfo);
     if (counterAccountInfo === null) {
+      console.log("delegate one PDA started");
       const tx = await testDelegation.methods
         .initialize()
         .accounts({
           user: provider.wallet.publicKey,
         })
-        .rpc({ skipPreflight: true });
+        .rpc({ skipPreflight: false });
+      console.log("delegate one PDA started");
       console.log("Init Pda Tx: ", tx);
     }
 
@@ -207,7 +215,7 @@ describe("TestDelegation", () => {
     console.log("Your transaction signature", txSign);
   });
 
-  it("Commit a new state to the PDA", async () => {
+  it.only("Commit a new state to the PDA", async () => {
     let account = await provider.connection.getAccountInfo(pda);
     let new_data = account.data;
     new_data[-1] = (new_data[-1] + 1) % 256;

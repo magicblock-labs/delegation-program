@@ -11,7 +11,7 @@ test_delegation = "3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "localnet"
 wallet = "./tests/fixtures/provider.json"
 
 [workspace]

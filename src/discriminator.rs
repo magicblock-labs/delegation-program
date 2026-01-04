@@ -39,12 +39,17 @@ pub enum DlpDiscriminator {
     CommitDiff = 16,
     /// See [crate::processor::process_commit_diff_from_buffer] for docs.
     CommitDiffFromBuffer = 17,
+
     /// See [crate::processor::process_undelegate_confined_account] for docs.
     UndelegateConfinedAccount = 18,
     /// See [crate::processor::process_delegate_with_any_validator] for docs.
     DelegateWithAnyValidator = 19,
+
     /// See [crate::processor::process_call_handler_v2] for docs.
     CallHandlerV2 = 20,
+
+    /// See [crate::processor::process_commit_finalize] for docs.
+    CommitFinalize = 21,
 }
 
 impl DlpDiscriminator {

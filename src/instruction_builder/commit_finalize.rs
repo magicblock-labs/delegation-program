@@ -1,0 +1,59 @@
+use borsh::to_vec;
+use solana_program::instruction::Instruction;
+use solana_program::system_program;
+use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+
+use crate::args::CommitFinalizeArgs;
+use crate::discriminator::DlpDiscriminator;
+use crate::pda::{
+    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+    program_config_from_program_id, validator_fees_vault_pda_from_validator,
+};
+use crate::{total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS};
+
+/// Builds a commit finalize instruction.
+/// See [crate::processor::process_commit_finalize] for docs.
+pub fn commit_finalize(
+    validator: Pubkey,
+    delegated_account: Pubkey,
+    delegated_account_owner: Pubkey,
+    commit_args: CommitFinalizeArgs,
+) -> Instruction {
+    let commit_args = to_vec(&commit_args).unwrap();
+    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
+    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator);
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&delegated_account);
+    let program_config_pda = program_config_from_program_id(&delegated_account_owner);
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new_readonly(validator, true),
+            AccountMeta::new(delegated_account, false),
+            AccountMeta::new_readonly(delegation_record_pda, false),
+            AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new_readonly(validator_fees_vault_pda, false),
+            AccountMeta::new_readonly(program_config_pda, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: [DlpDiscriminator::CommitFinalize.to_vec(), commit_args].concat(),
+    }
+}
+
+///
+/// Returns accounts-data-size budget for commit_state instruction.
+///
+/// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
+///
+pub fn commit_finalize_size_budget(delegated_account: AccountSizeClass) -> u32 {
+    total_size_budget(&[
+        DLP_PROGRAM_DATA_SIZE_CLASS,
+        AccountSizeClass::Tiny, // validator
+        delegated_account,      // delegated_account
+        AccountSizeClass::Tiny, // delegation_record_pda
+        AccountSizeClass::Tiny, // delegation_metadata_pda
+        AccountSizeClass::Tiny, // validator_fees_vault_pda
+        AccountSizeClass::Tiny, // program_config_pda
+        AccountSizeClass::Tiny, // system_program
+    ])
+}
