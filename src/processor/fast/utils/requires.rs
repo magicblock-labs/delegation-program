@@ -9,6 +9,10 @@ use crate::pda::{self, program_config_from_program_id, validator_fees_vault_pda_
 #[cfg(not(feature = "log-cost"))]
 use pinocchio::pubkey;
 
+#[cfg(not(feature = "unit_test_config"))]
+pub const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
+    pinocchio_pubkey::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111");
+
 #[cfg(feature = "log-cost")]
 mod pubkey {
     pub use pinocchio::pubkey::log;
@@ -334,4 +338,112 @@ pub fn require_initialized_commit_record(
         "commit record",
     )?;
     Ok(())
+}
+
+// require true
+#[macro_export]
+macro_rules! require {
+    ($cond:expr, $error:expr) => {{
+        if !$cond {
+            let expr = stringify!($cond);
+            pinocchio_log::log!("require!({}) failed.", expr);
+            return Err($error.into());
+        }
+    }};
+}
+
+// require key1 == key2
+#[macro_export]
+macro_rules! require_eq_keys {
+    ( $key1:expr, $key2:expr, $error:expr) => {{
+        if !pinocchio::pubkey::pubkey_eq($key1, $key2) {
+            pinocchio_log::log!(
+                "require_eq_keys!({}, {}) failed: ",
+                stringify!($key1),
+                stringify!($key2)
+            );
+            pinocchio::pubkey::log($key1);
+            pinocchio::pubkey::log($key2);
+            return Err($error.into());
+        }
+    }};
+}
+
+pub fn require_authorization(
+    program: &Pubkey,
+    program_data: &AccountInfo,
+    admin: &AccountInfo,
+) -> Result<(), ProgramError> {
+    #[cfg(feature = "unit_test_config")]
+    {
+        let _ = program;
+        let _ = program_data;
+
+        require_eq_keys!(
+            &crate::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes().into(),
+            admin.key(),
+            ProgramError::IncorrectAuthority
+        );
+        return Ok(());
+    }
+
+    #[cfg(not(feature = "unit_test_config"))]
+    {
+        // Derive and validate program data address
+        let program_data_address =
+            pubkey::find_program_address(&[program], &BPF_LOADER_UPGRADEABLE_ID);
+
+        require_eq_keys!(
+            &program_data_address.0,
+            program_data.key(),
+            ProgramError::IncorrectAuthority
+        );
+
+        require_eq_keys!(
+            program_data.owner(),
+            &BPF_LOADER_UPGRADEABLE_ID,
+            ProgramError::IncorrectAuthority
+        );
+
+        //
+        // ref: https://github.com/anza-xyz/solana-sdk/blob/55809cfe/loader-v3-interface/src/state.rs
+        let offset_of_upgrade_authority_address =
+            4 // for the variant ProgramData (u32)
+                + 8 // for slot (u64)
+            ;
+
+        // constants to enhance readability
+        const PROGRAM_DATA: u8 = 3;
+        const OPTION_SOME: u8 = 1;
+
+        //
+        // SAFETY: This authorization logic reads raw ProgramData bytes using the current
+        // Upgradeable Loader v3 layout. This is acceptable ONLY BECAUSE this presale
+        // program has a short lifespan (2–3 weeks) and will NOT run across loader
+        // version changes; for long-lived programs this approach is UNSAFE and NOT
+        // recommended. Also, it is done this way because pinocchio does not have
+        // UpgradeableLoaderState yet.
+        //
+        let data = program_data.try_borrow_data()?;
+        if data.len() >= offset_of_upgrade_authority_address + 33
+            && data[0] == PROGRAM_DATA
+            && data[offset_of_upgrade_authority_address] == OPTION_SOME
+        {
+            let bytes = &data
+                [offset_of_upgrade_authority_address + 1..offset_of_upgrade_authority_address + 33];
+
+            let upgrade_authority_address =
+                unsafe { *(bytes.as_ptr() as *const pinocchio::pubkey::Pubkey) };
+
+            require_eq_keys!(
+                &upgrade_authority_address,
+                admin.key(),
+                ProgramError::IncorrectAuthority
+            );
+
+            Ok(())
+        } else {
+            Err(ProgramError::InvalidAccountData)
+        }
+    }
 }

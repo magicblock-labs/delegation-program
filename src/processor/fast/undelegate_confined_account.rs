@@ -8,6 +8,7 @@ use pinocchio::{
 
 use crate::error::DlpError;
 use crate::pda;
+use crate::processor::fast::utils::requires::require_authorization;
 use crate::processor::fast::utils::{
     pda::{close_pda, create_pda},
     requires::{
@@ -34,7 +35,7 @@ pub fn process_undelegate_confined_account(
     accounts: &[AccountInfo],
     _data: &[u8],
 ) -> ProgramResult {
-    let [admin, delegated_account, owner_program, undelegate_buffer_account, delegation_record_account, delegation_metadata_account, system_program_ai, delegation_program_data] =
+    let [admin, delegated_account, owner_program, undelegate_buffer_account, delegation_record_account, delegation_metadata_account, system_program, delegation_program_data] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -44,40 +45,7 @@ pub fn process_undelegate_confined_account(
     require_signer(admin, "admin")?;
 
     // Verify admin is the program upgrade authority.
-    // In unit tests, accept DEFAULT_VALIDATOR_IDENTITY without requiring ProgramData.
-    #[cfg(feature = "unit_test_config")]
-    {
-        if !pubkey_eq(
-            &crate::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes(),
-            admin.key(),
-        ) {
-            return Err(DlpError::Unauthorized.into());
-        }
-    }
-
-    #[cfg(not(feature = "unit_test_config"))]
-    {
-        // Deserialize UpgradeableLoaderState::ProgramData to get upgrade_authority_address
-        let data = delegation_program_data.try_borrow_data()?;
-        // Use the same structure as solana_program to decode ProgramData
-        use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState as SolUpgradeableLoaderState;
-        let state: SolUpgradeableLoaderState =
-            bincode::deserialize(&data).map_err(|_| ProgramError::InvalidAccountData)?;
-        if let SolUpgradeableLoaderState::ProgramData {
-            upgrade_authority_address,
-            ..
-        } = state
-        {
-            let Some(auth) = upgrade_authority_address else {
-                return Err(DlpError::Unauthorized.into());
-            };
-            if !pubkey_eq(&auth.to_bytes(), admin.key()) {
-                return Err(DlpError::Unauthorized.into());
-            }
-        } else {
-            return Err(ProgramError::InvalidAccountData);
-        }
-    }
+    require_authorization(&crate::fast::ID, delegation_program_data, admin)?;
 
     // Basic checks
     require_owned_pda(delegated_account, &crate::fast::ID, "delegated account")?;
@@ -155,7 +123,7 @@ pub fn process_undelegate_confined_account(
             &[undelegate_buffer_bump]
         ))],
         delegation_metadata,
-        system_program_ai,
+        system_program,
     )?;
 
     // Dropping delegation references
