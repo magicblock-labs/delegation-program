@@ -618,12 +618,7 @@ pub fn require_authorization(
 
         //
         // SAFETY: This authorization logic reads raw ProgramData bytes using the current
-        // Upgradeable Loader v3 layout. This is acceptable ONLY BECAUSE this presale
-        // program has a short lifespan (2–3 weeks) and will NOT run across loader
-        // version changes; for long-lived programs this approach is UNSAFE and NOT
-        // recommended. Also, it is done this way because pinocchio does not have
-        // UpgradeableLoaderState yet.
-        //
+        // Upgradeable Loader v3 layout.
         let data = program_data.try_borrow_data()?;
         if data.len() >= offset_of_upgrade_authority_address + 33
             && data[0] == PROGRAM_DATA
