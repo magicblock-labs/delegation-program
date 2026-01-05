@@ -25,11 +25,8 @@ use solana_program::msg;
 
 pub mod args;
 pub mod consts;
-#[cfg(not(feature = "sdk"))]
 mod discriminator;
-#[cfg(not(feature = "sdk"))]
 pub mod error;
-#[cfg(not(feature = "sdk"))]
 pub mod instruction_builder;
 pub mod pda;
 pub mod state;
@@ -43,6 +40,7 @@ mod processor;
 pub use diff::*;
 
 // re-export
+#[cfg(not(feature = "sdk"))]
 pub use rkyv;
 
 #[cfg(feature = "log-cost")]

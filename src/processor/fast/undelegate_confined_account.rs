@@ -13,7 +13,7 @@ use crate::processor::fast::utils::{
     pda::{close_pda, create_pda},
     requires::{
         require_initialized_delegation_metadata, require_initialized_delegation_record,
-        require_owned_pda, require_signer, require_uninitialized_pda,
+        require_owned_pda, require_signer, require_uninitialized_pda, UndelegateBufferCtx,
     },
 };
 use crate::state::{DelegationMetadata, DelegationRecord};
@@ -45,7 +45,7 @@ pub fn process_undelegate_confined_account(
     require_signer(admin, "admin")?;
 
     // Verify admin is the program upgrade authority.
-    require_authorization(&crate::fast::ID, delegation_program_data, admin)?;
+    require_authorization(delegation_program_data, admin)?;
 
     // Basic checks
     require_owned_pda(delegated_account, &crate::fast::ID, "delegated account")?;
@@ -93,7 +93,7 @@ pub fn process_undelegate_confined_account(
         &[pda::UNDELEGATE_BUFFER_TAG, delegated_account.key()],
         &crate::fast::ID,
         true,
-        "undelegate buffer",
+        UndelegateBufferCtx,
     )?;
 
     create_pda(

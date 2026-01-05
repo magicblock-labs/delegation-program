@@ -17,7 +17,9 @@ use crate::processor::fast::utils::{pda::create_pda, requires::require_uninitial
 use crate::processor::utils::curve::is_on_curve_fast;
 use crate::state::{DelegationMetadata, DelegationRecord};
 
-use super::utils::requires::{require_owned_pda, require_pda, require_signer};
+use crate::processor::fast::utils::requires::{
+    require_owned_pda, require_pda, require_signer, DelegationMetadataCtx, DelegationRecordCtx,
+};
 
 /// Delegates an account
 ///
@@ -81,7 +83,7 @@ pub fn process_delegate(
         &[pda::DELEGATION_RECORD_TAG, delegated_account.key()],
         &crate::fast::ID,
         true,
-        "delegation record",
+        DelegationRecordCtx,
     )?;
 
     // Check that the delegation metadata PDA is uninitialized
@@ -92,7 +94,7 @@ pub fn process_delegate(
         &[pda::DELEGATION_METADATA_TAG, delegated_account.key()],
         &crate::fast::ID,
         true,
-        "delegation metadata",
+        DelegationMetadataCtx,
     )?;
 
     let args =

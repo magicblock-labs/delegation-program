@@ -13,6 +13,11 @@ use pinocchio::pubkey;
 pub const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
     pinocchio_pubkey::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111");
 
+#[cfg(not(feature = "unit_test_config"))]
+pub const PROGRAM_DATA_ID: Pubkey =
+    const_crypto::ed25519::derive_program_address(&[&crate::fast::ID], &BPF_LOADER_UPGRADEABLE_ID)
+        .0;
+
 #[cfg(feature = "log-cost")]
 mod pubkey {
     pub use pinocchio::pubkey::log;
@@ -29,6 +34,139 @@ mod pubkey {
         log!(">> find_program_address => {} CU", prev - curr);
         rv
     }
+}
+
+// require true
+#[macro_export]
+macro_rules! require {
+    ($cond:expr, $error:expr) => {{
+        if !$cond {
+            let expr = stringify!($cond);
+            pinocchio_log::log!("require!({}) failed.", expr);
+            return Err($error.into());
+        }
+    }};
+}
+
+// require key1 == key2
+#[macro_export]
+macro_rules! require_eq_keys {
+    ( $key1:expr, $key2:expr, $error:expr) => {{
+        if !pinocchio::pubkey::pubkey_eq($key1, $key2) {
+            pinocchio_log::log!(
+                "require_eq_keys!({}, {}) failed: ",
+                stringify!($key1),
+                stringify!($key2)
+            );
+            pinocchio::pubkey::log($key1);
+            pinocchio::pubkey::log($key2);
+            return Err($error.into());
+        }
+    }};
+}
+
+// require a == b
+#[macro_export]
+macro_rules! require_eq {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 == $val2) {
+            pinocchio_log::log!(
+                "require_eq!({}, {}) failed: {} == {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
+// require a <= b
+#[macro_export]
+macro_rules! require_le {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 <= $val2) {
+            pinocchio_log::log!(
+                "require_le!({}, {}) failed: {} <= {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
+// require a < b
+#[macro_export]
+macro_rules! require_lt {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 < $val2) {
+            pinocchio_log::log!(
+                "require_lt!({}, {}) failed: {} < {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
+// require a >= b
+#[macro_export]
+macro_rules! require_ge {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 >= $val2) {
+            pinocchio_log::log!(
+                "require_ge!({}, {}) failed: {} >= {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! require_n_accounts {
+    ( $accounts:expr, $n:literal) => {{
+        match $accounts.len().cmp(&$n) {
+            core::cmp::Ordering::Less => {
+                pinocchio_log::log!(
+                    "Need {} accounts, but got less ({}) accounts",
+                    $n,
+                    $accounts.len()
+                );
+                return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
+            }
+            core::cmp::Ordering::Equal => TryInto::<&[_; $n]>::try_into($accounts)
+                .map_err(|_| $crate::error::DlpError::InfallibleError)?,
+            core::cmp::Ordering::Greater => {
+                pinocchio_log::log!(
+                    "Need {} accounts, but got more ({}) accounts",
+                    $n,
+                    $accounts.len()
+                );
+                return Err($crate::error::DlpError::TooManyAccountKeys.into());
+            }
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! require_some {
+    ($option:expr, $error:expr) => {{
+        match $option {
+            Some(val) => val,
+            None => return Err($error.into()),
+        }
+    }};
 }
 
 /// Errors if:
@@ -102,31 +240,34 @@ pub fn is_uninitialized_account(info: &AccountInfo) -> bool {
 pub fn require_uninitialized_account(
     info: &AccountInfo,
     is_writable: bool,
-    label: &str,
+    ctx: impl RequireUninitializedAccountCtx,
 ) -> Result<(), ProgramError> {
     if !pubkey_eq(info.owner(), &pinocchio_system::id()) {
         log!(
             "Invalid owner for account. Label: {}; account and owner: ",
-            label
+            ctx.label()
         );
         pubkey::log(info.key());
         pubkey::log(info.owner());
-        return Err(ProgramError::InvalidAccountOwner);
+        return Err(ctx.invalid_account_owner());
     }
 
     if !info.data_is_empty() {
         log!(
             "Account needs to be uninitialized. Label: {}, account: ",
-            label,
+            ctx.label(),
         );
         pubkey::log(info.key());
-        return Err(ProgramError::AccountAlreadyInitialized);
+        return Err(ctx.account_already_initialized());
     }
 
     if is_writable && !info.is_writable() {
-        log!("Account needs to be writable. label: {}, account: ", label);
+        log!(
+            "Account needs to be writable. label: {}, account: ",
+            ctx.label()
+        );
         pubkey::log(info.key());
-        return Err(ProgramError::Immutable);
+        return Err(ctx.immutable());
     }
 
     Ok(())
@@ -141,17 +282,17 @@ pub fn require_uninitialized_pda(
     seeds: &[&[u8]],
     program_id: &Pubkey,
     is_writable: bool,
-    label: &str,
+    ctx: impl RequireUninitializedAccountCtx,
 ) -> Result<u8, ProgramError> {
     let pda = pubkey::find_program_address(seeds, program_id);
 
     if !pubkey_eq(info.key(), &pda.0) {
-        log!("Invalid seeds for account {}: ", label);
+        log!("Invalid seeds for account {}: ", ctx.label());
         pubkey::log(info.key());
-        return Err(ProgramError::InvalidSeeds);
+        return Err(ctx.invalid_seeds());
     }
 
-    require_uninitialized_account(info, is_writable, label)?;
+    require_uninitialized_account(info, is_writable, ctx)?;
     Ok(pda.1)
 }
 
@@ -340,43 +481,105 @@ pub fn require_initialized_commit_record(
     Ok(())
 }
 
-// require true
-#[macro_export]
-macro_rules! require {
-    ($cond:expr, $error:expr) => {{
-        if !$cond {
-            let expr = stringify!($cond);
-            pinocchio_log::log!("require!({}) failed.", expr);
-            return Err($error.into());
-        }
-    }};
+/// Context for `require_uninitialized_account` / `require_uninitialized_pda`.
+///
+/// This trait describes how to map low–level validation failures for a
+/// particular account (e.g. "commit state account", "delegation record")
+/// into concrete `DlpError` variants.
+pub(crate) trait RequireUninitializedAccountCtx {
+    fn label(&self) -> &str;
+    fn invalid_seeds(&self) -> ProgramError;
+    fn invalid_account_owner(&self) -> ProgramError;
+    fn account_already_initialized(&self) -> ProgramError;
+    fn immutable(&self) -> ProgramError;
 }
 
-// require key1 == key2
-#[macro_export]
-macro_rules! require_eq_keys {
-    ( $key1:expr, $key2:expr, $error:expr) => {{
-        if !pinocchio::pubkey::pubkey_eq($key1, $key2) {
-            pinocchio_log::log!(
-                "require_eq_keys!({}, {}) failed: ",
-                stringify!($key1),
-                stringify!($key2)
-            );
-            pinocchio::pubkey::log($key1);
-            pinocchio::pubkey::log($key2);
-            return Err($error.into());
+macro_rules! define_uninitialized_ctx {
+    (
+        $name:ident,
+        label = $label:expr,
+        invalid_seeds = $seeds:expr,
+        invalid_account_owner = $owner:expr,
+        account_already_initialized = $already_init:expr,
+        immutable = $immutable:expr
+    ) => {
+        pub(crate) struct $name;
+
+        impl $crate::processor::fast::utils::requires::RequireUninitializedAccountCtx for $name {
+            fn label(&self) -> &str {
+                $label
+            }
+
+            fn invalid_seeds(&self) -> pinocchio::program_error::ProgramError {
+                $seeds.into()
+            }
+
+            fn invalid_account_owner(&self) -> pinocchio::program_error::ProgramError {
+                $owner.into()
+            }
+
+            fn account_already_initialized(&self) -> pinocchio::program_error::ProgramError {
+                $already_init.into()
+            }
+
+            fn immutable(&self) -> pinocchio::program_error::ProgramError {
+                $immutable.into()
+            }
         }
-    }};
+    };
 }
+
+define_uninitialized_ctx!(
+    CommitStateAccountCtx,
+    label = "commit state account",
+    invalid_seeds = DlpError::CommitStateInvalidSeeds,
+    invalid_account_owner = DlpError::CommitStateInvalidAccountOwner,
+    account_already_initialized = DlpError::CommitStateAlreadyInitialized,
+    immutable = DlpError::CommitStateImmutable
+);
+
+define_uninitialized_ctx!(
+    CommitRecordCtx,
+    label = "commit record",
+    invalid_seeds = DlpError::CommitRecordInvalidSeeds,
+    invalid_account_owner = DlpError::CommitRecordInvalidAccountOwner,
+    account_already_initialized = DlpError::CommitRecordAlreadyInitialized,
+    immutable = DlpError::CommitRecordImmutable
+);
+
+define_uninitialized_ctx!(
+    DelegationRecordCtx,
+    label = "delegation record",
+    invalid_seeds = DlpError::DelegationRecordInvalidSeeds,
+    invalid_account_owner = DlpError::DelegationRecordInvalidAccountOwner,
+    account_already_initialized = DlpError::DelegationRecordAlreadyInitialized,
+    immutable = DlpError::DelegationRecordImmutable
+);
+
+define_uninitialized_ctx!(
+    DelegationMetadataCtx,
+    label = "delegation metadata",
+    invalid_seeds = DlpError::DelegationMetadataInvalidSeeds,
+    invalid_account_owner = DlpError::DelegationMetadataInvalidAccountOwner,
+    account_already_initialized = DlpError::DelegationMetadataAlreadyInitialized,
+    immutable = DlpError::DelegationMetadataImmutable
+);
+
+define_uninitialized_ctx!(
+    UndelegateBufferCtx,
+    label = "undelegate buffer",
+    invalid_seeds = DlpError::UndelegateBufferInvalidSeeds,
+    invalid_account_owner = DlpError::UndelegateBufferInvalidAccountOwner,
+    account_already_initialized = DlpError::UndelegateBufferAlreadyInitialized,
+    immutable = DlpError::UndelegateBufferImmutable
+);
 
 pub fn require_authorization(
-    program: &Pubkey,
     program_data: &AccountInfo,
     admin: &AccountInfo,
 ) -> Result<(), ProgramError> {
     #[cfg(feature = "unit_test_config")]
     {
-        let _ = program;
         let _ = program_data;
 
         require_eq_keys!(
@@ -390,11 +593,8 @@ pub fn require_authorization(
     #[cfg(not(feature = "unit_test_config"))]
     {
         // Derive and validate program data address
-        let program_data_address =
-            pubkey::find_program_address(&[program], &BPF_LOADER_UPGRADEABLE_ID);
-
         require_eq_keys!(
-            &program_data_address.0,
+            &PROGRAM_DATA_ID,
             program_data.key(),
             ProgramError::IncorrectAuthority
         );
