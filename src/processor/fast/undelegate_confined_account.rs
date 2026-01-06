@@ -64,12 +64,7 @@ pub fn process_undelegate_confined_account(
             .map_err(to_pinocchio_program_error)?;
 
     // Confined account: authority must be system program
-    if !pubkey_eq(
-        delegation_record.authority.as_array(),
-        &pinocchio_system::ID,
-    ) {
-        return Err(DlpError::InvalidAuthority.into());
-    }
+    require_eq_keys!(delegation_record.authority, &pinocchio_system::ID, DlpError::InvalidAuthority);
 
     // Owner must match the one stored in the record
     if !pubkey_eq(delegation_record.owner.as_array(), owner_program.key()) {
