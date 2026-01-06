@@ -1,8 +1,5 @@
 use pinocchio::{
-    account_info::AccountInfo,
-    instruction::Signer,
-    program_error::ProgramError,
-    pubkey::{pubkey_eq, Pubkey},
+    account_info::AccountInfo, instruction::Signer, program_error::ProgramError, pubkey::Pubkey,
     seeds, ProgramResult,
 };
 
@@ -64,7 +61,11 @@ pub fn process_undelegate_confined_account(
             .map_err(to_pinocchio_program_error)?;
 
     // Confined account: authority must be system program
-    require_eq_keys!(delegation_record.authority, &pinocchio_system::ID, DlpError::InvalidAuthority);
+    require_eq_keys!(
+        &delegation_record.authority.to_bytes(),
+        &pinocchio_system::ID,
+        DlpError::InvalidAuthority
+    );
 
     // Owner must match the one stored in the record
     require_eq_keys!(
