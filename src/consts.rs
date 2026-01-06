@@ -35,3 +35,5 @@ pub const DELEGATION_PROGRAM_DATA_ID: [u8; 32] = const_crypto::ed25519::derive_p
     &BPF_LOADER_UPGRADEABLE_ID,
 )
 .0;
+
+pub const RENT_EXCEPTION_ZERO_BYTES_LAMPORTS: u64 = 890880;

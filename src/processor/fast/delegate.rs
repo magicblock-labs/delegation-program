@@ -7,9 +7,10 @@ use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 use pinocchio_log::log;
+use pinocchio_system::instructions as system;
 
 use crate::args::DelegateArgs;
-use crate::consts::DEFAULT_VALIDATOR_IDENTITY;
+use crate::consts::{DEFAULT_VALIDATOR_IDENTITY, RENT_EXCEPTION_ZERO_BYTES_LAMPORTS};
 use crate::error::DlpError;
 use crate::pda;
 use crate::processor::fast::to_pinocchio_program_error;
@@ -223,6 +224,16 @@ pub fn process_delegate(
         let mut delegated_data = delegated_account.try_borrow_mut_data()?;
         let delegate_buffer_data = delegate_buffer_account.try_borrow_data()?;
         (*delegated_data).copy_from_slice(&delegate_buffer_data);
+    }
+
+    // Make the account rent exempt if it's not
+    if delegated_account.lamports() == 0 {
+        system::Transfer {
+            from: payer,
+            to: delegated_account,
+            lamports: RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+        }
+        .invoke()?;
     }
 
     Ok(())
