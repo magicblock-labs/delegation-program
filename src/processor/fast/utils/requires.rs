@@ -9,15 +9,6 @@ use crate::pda::{self, program_config_from_program_id, validator_fees_vault_pda_
 #[cfg(not(feature = "log-cost"))]
 use pinocchio::pubkey;
 
-#[cfg(not(feature = "unit_test_config"))]
-pub const BPF_LOADER_UPGRADEABLE_ID: Pubkey =
-    pinocchio_pubkey::pubkey!("BPFLoaderUpgradeab1e11111111111111111111111");
-
-#[cfg(not(feature = "unit_test_config"))]
-pub const PROGRAM_DATA_ID: Pubkey =
-    const_crypto::ed25519::derive_program_address(&[&crate::fast::ID], &BPF_LOADER_UPGRADEABLE_ID)
-        .0;
-
 #[cfg(feature = "log-cost")]
 mod pubkey {
     pub use pinocchio::pubkey::log;
@@ -594,14 +585,8 @@ pub fn require_authorization(
     {
         // Derive and validate program data address
         require_eq_keys!(
-            &PROGRAM_DATA_ID,
+            &crate::consts::DELEGATION_PROGRAM_DATA_ID,
             program_data.key(),
-            ProgramError::IncorrectAuthority
-        );
-
-        require_eq_keys!(
-            program_data.owner(),
-            &BPF_LOADER_UPGRADEABLE_ID,
             ProgramError::IncorrectAuthority
         );
 

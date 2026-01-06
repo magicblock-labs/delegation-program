@@ -1,9 +1,9 @@
-use solana_program::instruction::Instruction;
-use solana_program::{bpf_loader_upgradeable, system_program};
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
-
+use crate::consts::DELEGATION_PROGRAM_DATA_ID;
 use crate::discriminator::DlpDiscriminator;
 use crate::pda::validator_fees_vault_pda_from_validator;
+use solana_program::instruction::Instruction;
+use solana_program::system_program;
+use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 /// Initialize a validator fees vault PDA.
 /// See [crate::processor::process_init_validator_fees_vault] for docs.
@@ -13,8 +13,7 @@ pub fn init_validator_fees_vault(
     validator_identity: Pubkey,
 ) -> Instruction {
     let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator_identity);
-    let delegation_program_data =
-        Pubkey::find_program_address(&[crate::ID.as_ref()], &bpf_loader_upgradeable::id()).0;
+    let delegation_program_data = Pubkey::new_from_array(DELEGATION_PROGRAM_DATA_ID);
     Instruction {
         program_id: crate::id(),
         accounts: vec![

@@ -7,7 +7,6 @@ use pinocchio::{
 };
 
 use crate::error::DlpError;
-use crate::pda;
 use crate::processor::fast::utils::requires::require_authorization;
 use crate::processor::fast::utils::{
     pda::{close_pda, create_pda},
@@ -17,6 +16,7 @@ use crate::processor::fast::utils::{
     },
 };
 use crate::state::{DelegationMetadata, DelegationRecord};
+use crate::{pda, require_eq_keys};
 
 use super::{process_undelegation_with_cpi, to_pinocchio_program_error};
 
@@ -67,9 +67,11 @@ pub fn process_undelegate_confined_account(
     require_eq_keys!(delegation_record.authority, &pinocchio_system::ID, DlpError::InvalidAuthority);
 
     // Owner must match the one stored in the record
-    if !pubkey_eq(delegation_record.owner.as_array(), owner_program.key()) {
-        return Err(ProgramError::InvalidAccountOwner);
-    }
+    require_eq_keys!(
+        &delegation_record.owner.to_bytes(),
+        owner_program.key(),
+        ProgramError::InvalidAccountOwner
+    );
 
     // If the delegated account has no data, simply assign back to the original owner and clean up PDAs
     if delegated_account.data_is_empty() {

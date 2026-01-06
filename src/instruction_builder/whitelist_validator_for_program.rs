@@ -5,6 +5,7 @@ use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::args::WhitelistValidatorForProgramArgs;
+use crate::consts::DELEGATION_PROGRAM_DATA_ID;
 use crate::discriminator::DlpDiscriminator;
 use crate::pda::program_config_from_program_id;
 
@@ -20,8 +21,7 @@ pub fn whitelist_validator_for_program(
     let args = WhitelistValidatorForProgramArgs { insert };
     let program_data =
         Pubkey::find_program_address(&[program.as_ref()], &bpf_loader_upgradeable::id()).0;
-    let delegation_program_data =
-        Pubkey::find_program_address(&[crate::ID.as_ref()], &bpf_loader_upgradeable::id()).0;
+    let delegation_program_data = Pubkey::new_from_array(DELEGATION_PROGRAM_DATA_ID);
     let program_config_pda = program_config_from_program_id(&program);
     Instruction {
         program_id: crate::id(),
