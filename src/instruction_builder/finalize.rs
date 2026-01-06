@@ -8,6 +8,7 @@ use crate::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     validator_fees_vault_pda_from_validator,
 };
+use crate::{total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS};
 
 /// Builds a finalize state instruction.
 /// See [crate::processor::process_finalize] for docs.
@@ -32,4 +33,23 @@ pub fn finalize(validator: Pubkey, delegated_account: Pubkey) -> Instruction {
         ],
         data: DlpDiscriminator::Finalize.to_vec(),
     }
+}
+
+///
+/// Returns accounts-data-size budget for finalize instruction.
+///
+/// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
+///
+pub fn finalize_size_budget(delegated_account: AccountSizeClass) -> u32 {
+    total_size_budget(&[
+        DLP_PROGRAM_DATA_SIZE_CLASS,
+        AccountSizeClass::Tiny, // validator
+        delegated_account,      // delegated_account
+        delegated_account,      // commit_state_pda
+        AccountSizeClass::Tiny, // commit_record_pda
+        AccountSizeClass::Tiny, // delegation_record_pda
+        AccountSizeClass::Tiny, // delegation_metadata_pda
+        AccountSizeClass::Tiny, // validator_fees_vault_pda
+        AccountSizeClass::Tiny, // system_program
+    ])
 }

@@ -9,6 +9,7 @@ use crate::pda::{
     fees_vault_pda, undelegate_buffer_pda_from_delegated_account,
     validator_fees_vault_pda_from_validator,
 };
+use crate::{total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS};
 
 /// Builds an undelegate instruction.
 /// See [crate::processor::process_undelegate] for docs.
@@ -45,4 +46,27 @@ pub fn undelegate(
         ],
         data: DlpDiscriminator::Undelegate.to_vec(),
     }
+}
+
+///
+/// Returns accounts-data-size budget for undelegate instruction.
+///
+/// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
+///
+pub fn undelegate_size_budget(delegated_account: AccountSizeClass) -> u32 {
+    total_size_budget(&[
+        DLP_PROGRAM_DATA_SIZE_CLASS,
+        AccountSizeClass::Tiny, // validator
+        delegated_account,      // delegated_account
+        AccountSizeClass::Tiny, // owner_program
+        delegated_account,      // undelegate_buffer_pda
+        delegated_account,      // commit_state_pda
+        AccountSizeClass::Tiny, // commit_record_pda
+        AccountSizeClass::Tiny, // delegation_record_pda
+        AccountSizeClass::Tiny, // delegation_metadata_pda
+        AccountSizeClass::Tiny, // rent_reimbursement
+        AccountSizeClass::Tiny, // fees_vault_pda
+        AccountSizeClass::Tiny, // validator_fees_vault_pda
+        AccountSizeClass::Tiny, // system_program
+    ])
 }
