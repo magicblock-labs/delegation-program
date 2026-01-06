@@ -227,7 +227,7 @@ pub fn process_delegate(
     }
 
     // Make the account rent exempt if it's not
-    if delegated_account.lamports() == 0 {
+    if delegated_account.lamports() == 0 && delegated_account.data_len() == 0 {
         system::Transfer {
             from: payer,
             to: delegated_account,
