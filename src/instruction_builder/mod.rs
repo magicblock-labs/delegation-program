@@ -13,6 +13,7 @@ mod init_validator_fees_vault;
 mod protocol_claim_fees;
 mod top_up_ephemeral_balance;
 mod undelegate;
+mod undelegate_confined_account;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
 
@@ -31,5 +32,6 @@ pub use init_validator_fees_vault::*;
 pub use protocol_claim_fees::*;
 pub use top_up_ephemeral_balance::*;
 pub use undelegate::*;
+pub use undelegate_confined_account::*;
 pub use validator_claim_fees::*;
 pub use whitelist_validator_for_program::*;

@@ -564,3 +564,66 @@ define_uninitialized_ctx!(
     account_already_initialized = DlpError::UndelegateBufferAlreadyInitialized,
     immutable = DlpError::UndelegateBufferImmutable
 );
+
+pub fn require_authorization(
+    program_data: &AccountInfo,
+    admin: &AccountInfo,
+) -> Result<(), ProgramError> {
+    #[cfg(feature = "unit_test_config")]
+    {
+        let _ = program_data;
+
+        require_eq_keys!(
+            &crate::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes().into(),
+            admin.key(),
+            ProgramError::IncorrectAuthority
+        );
+        return Ok(());
+    }
+
+    #[cfg(not(feature = "unit_test_config"))]
+    {
+        // Derive and validate program data address
+        require_eq_keys!(
+            &crate::consts::DELEGATION_PROGRAM_DATA_ID,
+            program_data.key(),
+            ProgramError::IncorrectAuthority
+        );
+
+        //
+        // ref: https://github.com/anza-xyz/solana-sdk/blob/55809cfe/loader-v3-interface/src/state.rs
+        let offset_of_upgrade_authority_address =
+            4 // for the variant ProgramData (u32)
+                + 8 // for slot (u64)
+            ;
+
+        // constants to enhance readability
+        const PROGRAM_DATA: u8 = 3;
+        const OPTION_SOME: u8 = 1;
+
+        //
+        // SAFETY: This authorization logic reads raw ProgramData bytes using the current
+        // Upgradeable Loader v3 layout.
+        let data = program_data.try_borrow_data()?;
+        if data.len() >= offset_of_upgrade_authority_address + 33
+            && data[0] == PROGRAM_DATA
+            && data[offset_of_upgrade_authority_address] == OPTION_SOME
+        {
+            let bytes = &data
+                [offset_of_upgrade_authority_address + 1..offset_of_upgrade_authority_address + 33];
+
+            let upgrade_authority_address =
+                unsafe { *(bytes.as_ptr() as *const pinocchio::pubkey::Pubkey) };
+
+            require_eq_keys!(
+                &upgrade_authority_address,
+                admin.key(),
+                ProgramError::IncorrectAuthority
+            );
+
+            Ok(())
+        } else {
+            Err(ProgramError::InvalidAccountData)
+        }
+    }
+}

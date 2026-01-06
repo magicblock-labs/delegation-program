@@ -231,7 +231,7 @@ pub fn process_undelegate(
 /// 3. Check state
 /// 4. Settle lamports balance
 #[allow(clippy::too_many_arguments)]
-fn process_undelegation_with_cpi(
+pub(crate) fn process_undelegation_with_cpi(
     validator: &AccountInfo,
     delegated_account: &AccountInfo,
     owner_program: &AccountInfo,
@@ -300,7 +300,6 @@ fn cpi_external_undelegate(
     delegation_metadata: DelegationMetadata,
 ) -> ProgramResult {
     let data = {
-        // GAIN: 299  (42075 => 41776)
         let mut data = Vec::with_capacity(32);
         data.extend_from_slice(&EXTERNAL_UNDELEGATE_DISCRIMINATOR);
         borsh::to_writer(&mut data, &delegation_metadata.seeds)

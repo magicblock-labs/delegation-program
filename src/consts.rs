@@ -26,3 +26,12 @@ pub const DEFAULT_VALIDATOR_IDENTITY: Pubkey =
 /// Validators treat it as always delegatable, which is safe since such accounts
 /// cannot be committed or delegated
 pub const BROADCAST_IDENTITY: Pubkey = pubkey!("Broadcast1111111111111111111111111111111111");
+
+pub const BPF_LOADER_UPGRADEABLE_ID: [u8; 32] =
+    const_crypto::bs58::decode_pubkey("BPFLoaderUpgradeab1e11111111111111111111111");
+
+pub const DELEGATION_PROGRAM_DATA_ID: [u8; 32] = const_crypto::ed25519::derive_program_address(
+    &[&crate::ID.to_bytes()],
+    &BPF_LOADER_UPGRADEABLE_ID,
+)
+.0;
