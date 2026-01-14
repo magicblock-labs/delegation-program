@@ -125,24 +125,15 @@ pub(crate) fn close_pda_with_fees(
         }
     }
 
-    let mut destination_amount = init_lamports
-        .checked_sub(total_fee_amount)
-        .ok_or(ProgramError::InsufficientFunds)?;
+    let mut destination_amount = init_lamports - total_fee_amount;
 
     if *commit_fee_remaining > 0 && destination_amount > 0 {
         let commit_fee_taken = (*commit_fee_remaining).min(destination_amount);
-        destination_amount = destination_amount
-            .checked_sub(commit_fee_taken)
-            .ok_or(ProgramError::InsufficientFunds)?;
-        *commit_fee_remaining = commit_fee_remaining
-            .checked_sub(commit_fee_taken)
-            .ok_or(ProgramError::InsufficientFunds)?;
+        destination_amount -= commit_fee_taken;
+        *commit_fee_remaining -= commit_fee_taken;
 
         unsafe {
-            *commit_fee_destination.borrow_mut_lamports_unchecked() = commit_fee_destination
-                .lamports()
-                .checked_add(commit_fee_taken)
-                .ok_or(ProgramError::InsufficientFunds)?;
+            *commit_fee_destination.borrow_mut_lamports_unchecked() += commit_fee_taken;
         }
     }
 
