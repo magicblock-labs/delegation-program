@@ -101,6 +101,9 @@ pub fn fast_process_instruction(
         DlpDiscriminator::Delegate => Some(processor::fast::process_delegate(
             program_id, accounts, data,
         )),
+        DlpDiscriminator::DelegateWithAnyValidator => Some(
+            processor::fast::process_delegate_with_any_validator(program_id, accounts, data),
+        ),
         DlpDiscriminator::CommitState => Some(processor::fast::process_commit_state(
             program_id, accounts, data,
         )),

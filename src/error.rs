@@ -131,6 +131,9 @@ pub enum DlpError {
     #[error("Too many account keys passed to the instruction")]
     TooManyAccountKeys = 41,
 
+    #[error("Account cannot be delegated to the system program")]
+    DelegationToSystemProgramNotAllowed = 42,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }
