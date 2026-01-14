@@ -10,6 +10,9 @@ pub const PROTOCOL_FEES_PERCENTAGE: u8 = 10;
 /// Fixed fee per commit (charged for each commit after the first).
 pub const COMMIT_FEE_LAMPORTS: u64 = 100_000;
 
+/// Fixed fee per delegation session (0.0003 SOL).
+pub const SESSION_FEE_LAMPORTS: u64 = 300_000;
+
 /// The discriminator for the external undelegate instruction.
 pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] = [196, 28, 41, 206, 48, 37, 51, 167];
 

@@ -11,7 +11,7 @@ use pinocchio::{pubkey, seeds};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
-use crate::consts::{COMMIT_FEE_LAMPORTS, EXTERNAL_UNDELEGATE_DISCRIMINATOR, RENT_FEES_PERCENTAGE};
+use crate::consts::{COMMIT_FEE_LAMPORTS, EXTERNAL_UNDELEGATE_DISCRIMINATOR, SESSION_FEE_LAMPORTS};
 use crate::error::DlpError;
 use crate::pda;
 use crate::processor::fast::utils::{
@@ -342,37 +342,26 @@ fn process_delegation_cleanup(
     delegation_last_update_nonce: u64,
 ) -> ProgramResult {
     let commit_count = delegation_last_update_nonce.saturating_sub(1);
-    let mut commit_fee = COMMIT_FEE_LAMPORTS
+    let commit_fee = COMMIT_FEE_LAMPORTS
         .checked_mul(commit_count)
         .ok_or(DlpError::Overflow)?;
-    if commit_fee > 0 {
-        let rent = Rent::get()?;
-        let delegation_record_rent =
-            rent.minimum_balance(DelegationRecord::size_with_discriminator());
-        let delegation_metadata_rent = rent.minimum_balance(delegation_metadata_account.data_len());
-        let max_collectable = delegation_record_rent
-            .checked_add(delegation_metadata_rent)
-            .ok_or(DlpError::Overflow)?
-            .checked_mul((100 - RENT_FEES_PERCENTAGE) as u64)
-            .and_then(|v| v.checked_div(100))
-            .ok_or(DlpError::Overflow)?;
-        commit_fee = commit_fee.min(max_collectable);
-    }
+    let total_fee_requested = commit_fee + SESSION_FEE_LAMPORTS;
+    let total_lamports =
+        delegation_record_account.lamports() + delegation_metadata_account.lamports();
+    let mut fee_remaining = total_fee_requested.min(total_lamports);
     close_pda_with_fees(
         delegation_record_account,
         rent_reimbursement,
-        &[validator_fees_vault, fees_vault],
-        RENT_FEES_PERCENTAGE,
-        &mut commit_fee,
         fees_vault,
+        validator_fees_vault,
+        &mut fee_remaining,
     )?;
     close_pda_with_fees(
         delegation_metadata_account,
         rent_reimbursement,
-        &[validator_fees_vault, fees_vault],
-        RENT_FEES_PERCENTAGE,
-        &mut commit_fee,
         fees_vault,
+        validator_fees_vault,
+        &mut fee_remaining,
     )?;
     Ok(())
 }

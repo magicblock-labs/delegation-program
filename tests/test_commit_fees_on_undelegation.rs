@@ -1,4 +1,4 @@
-use dlp::consts::{COMMIT_FEE_LAMPORTS, RENT_FEES_PERCENTAGE};
+use dlp::consts::{COMMIT_FEE_LAMPORTS, SESSION_FEE_LAMPORTS};
 use dlp::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     fees_vault_pda, validator_fees_vault_pda_from_validator,
@@ -37,11 +37,9 @@ async fn test_commit_fees_on_undelegation() {
 
     let record_rent = Rent::default().minimum_balance(delegation_record_data.len());
     let metadata_rent = Rent::default().minimum_balance(delegation_metadata_data.len());
-    let max_commit_fee =
-        (record_rent + metadata_rent) * u64::from(100 - RENT_FEES_PERCENTAGE) / 100;
-    let expected_commit_fee = (COMMIT_FEE_LAMPORTS * 100).min(max_commit_fee);
-    let expected_rent_fees = record_rent / 100 + metadata_rent / 100;
-    let expected_fees = expected_commit_fee + expected_rent_fees;
+    let expected_total_fees =
+        (COMMIT_FEE_LAMPORTS * 100 + SESSION_FEE_LAMPORTS).min(record_rent + metadata_rent);
+    let expected_fees_vault_fee = expected_total_fees / 10;
 
     let ix = dlp::instruction_builder::undelegate(
         validator.pubkey(),
@@ -64,7 +62,10 @@ async fn test_commit_fees_on_undelegation() {
         .unwrap()
         .unwrap()
         .lamports;
-    assert_eq!(fees_vault_after, fees_vault_before + expected_fees);
+    assert_eq!(
+        fees_vault_after,
+        fees_vault_before + expected_fees_vault_fee
+    );
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
