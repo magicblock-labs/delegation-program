@@ -97,11 +97,11 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
             &delegated.pubkey(),
         ))
         .await
-        .unwrap()
-        .unwrap();
+        .expect("failed to fetch delegation record account")
+        .expect("delegation record account missing for delegated pubkey");
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_account.data)
-            .unwrap();
+            .expect("failed to deserialize DelegationRecord for delegated pubkey");
     assert_eq!(delegation_record.authority, system_program::id());
 }
 
