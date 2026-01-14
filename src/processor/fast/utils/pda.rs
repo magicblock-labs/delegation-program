@@ -87,6 +87,8 @@ pub(crate) fn close_pda_with_fees(
     destination: &AccountInfo,
     fees_addresses: &[&AccountInfo],
     fee_percentage: u8,
+    commit_fee_remaining: &mut u64,
+    commit_fee_destination: &AccountInfo,
 ) -> ProgramResult {
     if fees_addresses.is_empty() || fee_percentage > 100 {
         return Err(ProgramError::InvalidArgument);
@@ -123,10 +125,31 @@ pub(crate) fn close_pda_with_fees(
         }
     }
 
+    let mut destination_amount = init_lamports
+        .checked_sub(total_fee_amount)
+        .ok_or(ProgramError::InsufficientFunds)?;
+
+    if *commit_fee_remaining > 0 && destination_amount > 0 {
+        let commit_fee_taken = (*commit_fee_remaining).min(destination_amount);
+        destination_amount = destination_amount
+            .checked_sub(commit_fee_taken)
+            .ok_or(ProgramError::InsufficientFunds)?;
+        *commit_fee_remaining = commit_fee_remaining
+            .checked_sub(commit_fee_taken)
+            .ok_or(ProgramError::InsufficientFunds)?;
+
+        unsafe {
+            *commit_fee_destination.borrow_mut_lamports_unchecked() = commit_fee_destination
+                .lamports()
+                .checked_add(commit_fee_taken)
+                .ok_or(ProgramError::InsufficientFunds)?;
+        }
+    }
+
     unsafe {
         *destination.borrow_mut_lamports_unchecked() = destination
             .lamports()
-            .checked_add(init_lamports - total_fee_amount)
+            .checked_add(destination_amount)
             .ok_or(ProgramError::InsufficientFunds)?;
 
         *target_account.borrow_mut_lamports_unchecked() = 0;

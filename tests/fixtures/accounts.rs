@@ -109,8 +109,23 @@ pub fn create_delegation_metadata_data(
     seeds: &[&[u8]],
     is_undelegatable: bool,
 ) -> Vec<u8> {
+    create_delegation_metadata_data_with_nonce(
+        rent_payer,
+        seeds,
+        is_undelegatable,
+        DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
+    )
+}
+
+#[allow(dead_code)]
+pub fn create_delegation_metadata_data_with_nonce(
+    rent_payer: Pubkey,
+    seeds: &[&[u8]],
+    is_undelegatable: bool,
+    last_update_nonce: u64,
+) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
-        last_update_nonce: DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
+        last_update_nonce,
         is_undelegatable,
         seeds: seeds.iter().map(|s| s.to_vec()).collect(),
         rent_payer,

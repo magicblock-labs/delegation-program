@@ -11,7 +11,7 @@ use pinocchio::{pubkey, seeds};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
-use crate::consts::{EXTERNAL_UNDELEGATE_DISCRIMINATOR, RENT_FEES_PERCENTAGE};
+use crate::consts::{COMMIT_FEE_LAMPORTS, EXTERNAL_UNDELEGATE_DISCRIMINATOR, RENT_FEES_PERCENTAGE};
 use crate::error::DlpError;
 use crate::pda;
 use crate::processor::fast::utils::{
@@ -131,6 +131,7 @@ pub fn process_undelegate(
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
             .map_err(to_pinocchio_program_error)?;
+    let delegation_last_update_nonce = delegation_metadata.last_update_nonce;
 
     // Check if the delegated account is undelegatable
     if !delegation_metadata.is_undelegatable {
@@ -167,6 +168,7 @@ pub fn process_undelegate(
             rent_reimbursement,
             fees_vault,
             validator_fees_vault,
+            delegation_last_update_nonce,
         )?;
         return Ok(());
     }
@@ -222,6 +224,7 @@ pub fn process_undelegate(
         rent_reimbursement,
         fees_vault,
         validator_fees_vault,
+        delegation_last_update_nonce,
     )?;
     Ok(())
 }
@@ -336,18 +339,40 @@ fn process_delegation_cleanup(
     rent_reimbursement: &AccountInfo,
     fees_vault: &AccountInfo,
     validator_fees_vault: &AccountInfo,
+    delegation_last_update_nonce: u64,
 ) -> ProgramResult {
+    let commit_count = delegation_last_update_nonce.saturating_sub(1);
+    let mut commit_fee = COMMIT_FEE_LAMPORTS
+        .checked_mul(commit_count)
+        .ok_or(DlpError::Overflow)?;
+    if commit_fee > 0 {
+        let rent = Rent::get()?;
+        let delegation_record_rent =
+            rent.minimum_balance(DelegationRecord::size_with_discriminator());
+        let delegation_metadata_rent = rent.minimum_balance(delegation_metadata_account.data_len());
+        let max_collectable = delegation_record_rent
+            .checked_add(delegation_metadata_rent)
+            .ok_or(DlpError::Overflow)?
+            .checked_mul((100 - RENT_FEES_PERCENTAGE) as u64)
+            .and_then(|v| v.checked_div(100))
+            .ok_or(DlpError::Overflow)?;
+        commit_fee = commit_fee.min(max_collectable);
+    }
     close_pda_with_fees(
         delegation_record_account,
         rent_reimbursement,
         &[validator_fees_vault, fees_vault],
         RENT_FEES_PERCENTAGE,
+        &mut commit_fee,
+        fees_vault,
     )?;
     close_pda_with_fees(
         delegation_metadata_account,
         rent_reimbursement,
         &[validator_fees_vault, fees_vault],
         RENT_FEES_PERCENTAGE,
+        &mut commit_fee,
+        fees_vault,
     )?;
     Ok(())
 }
