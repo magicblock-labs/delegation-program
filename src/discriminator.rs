@@ -50,6 +50,9 @@ pub enum DlpDiscriminator {
 
     /// See [crate::processor::process_commit_finalize] for docs.
     CommitFinalize = 21,
+
+    /// See [crate::processor::process_commit_finalize_from_buffer] for docs.
+    CommitFinalizeFromBuffer = 22,
 }
 
 impl DlpDiscriminator {

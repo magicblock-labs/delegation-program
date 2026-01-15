@@ -121,6 +121,9 @@ pub fn fast_process_instruction(
         DlpDiscriminator::CommitFinalize => Some(processor::fast::process_commit_finalize(
             program_id, accounts, data,
         )),
+        DlpDiscriminator::CommitFinalizeFromBuffer => Some(
+            processor::fast::process_commit_finalize_from_buffer(program_id, accounts, data),
+        ),
         DlpDiscriminator::Finalize => Some(processor::fast::process_finalize(
             program_id, accounts, data,
         )),
