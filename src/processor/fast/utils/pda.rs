@@ -98,10 +98,7 @@ pub(crate) fn close_pda_with_fees(
         destination_amount -= fee_taken;
         *fee_remaining -= fee_taken;
 
-        let protocol_fee = fee_taken
-            .checked_mul(PROTOCOL_FEES_PERCENTAGE as u64)
-            .and_then(|value| value.checked_div(100))
-            .ok_or(ProgramError::ArithmeticOverflow)?;
+        let protocol_fee = fee_taken * PROTOCOL_FEES_PERCENTAGE as u64 / 100;
         let validator_fee = fee_taken - protocol_fee;
 
         unsafe {
