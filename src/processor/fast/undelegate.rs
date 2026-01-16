@@ -11,7 +11,7 @@ use pinocchio::{pubkey, seeds};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
-use crate::consts::{EXTERNAL_UNDELEGATE_DISCRIMINATOR, RENT_FEES_PERCENTAGE};
+use crate::consts::{COMMIT_FEE_LAMPORTS, EXTERNAL_UNDELEGATE_DISCRIMINATOR, SESSION_FEE_LAMPORTS};
 use crate::error::DlpError;
 use crate::pda;
 use crate::processor::fast::utils::{
@@ -131,6 +131,7 @@ pub fn process_undelegate(
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
             .map_err(to_pinocchio_program_error)?;
+    let delegation_last_update_nonce = delegation_metadata.last_update_nonce;
 
     // Check if the delegated account is undelegatable
     if !delegation_metadata.is_undelegatable {
@@ -167,6 +168,7 @@ pub fn process_undelegate(
             rent_reimbursement,
             fees_vault,
             validator_fees_vault,
+            delegation_last_update_nonce,
         )?;
         return Ok(());
     }
@@ -222,6 +224,7 @@ pub fn process_undelegate(
         rent_reimbursement,
         fees_vault,
         validator_fees_vault,
+        delegation_last_update_nonce,
     )?;
     Ok(())
 }
@@ -336,18 +339,29 @@ fn process_delegation_cleanup(
     rent_reimbursement: &AccountInfo,
     fees_vault: &AccountInfo,
     validator_fees_vault: &AccountInfo,
+    delegation_last_update_nonce: u64,
 ) -> ProgramResult {
+    let commit_count = delegation_last_update_nonce.saturating_sub(1);
+    let commit_fee = COMMIT_FEE_LAMPORTS
+        .checked_mul(commit_count)
+        .ok_or(DlpError::Overflow)?;
+    let total_fee_requested = commit_fee + SESSION_FEE_LAMPORTS;
+    let total_lamports =
+        delegation_record_account.lamports() + delegation_metadata_account.lamports();
+    let mut fee_remaining = total_fee_requested.min(total_lamports);
     close_pda_with_fees(
         delegation_record_account,
         rent_reimbursement,
-        &[validator_fees_vault, fees_vault],
-        RENT_FEES_PERCENTAGE,
+        fees_vault,
+        validator_fees_vault,
+        &mut fee_remaining,
     )?;
     close_pda_with_fees(
         delegation_metadata_account,
         rent_reimbursement,
-        &[validator_fees_vault, fees_vault],
-        RENT_FEES_PERCENTAGE,
+        fees_vault,
+        validator_fees_vault,
+        &mut fee_remaining,
     )?;
     Ok(())
 }

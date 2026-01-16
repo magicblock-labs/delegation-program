@@ -7,6 +7,8 @@ use pinocchio::sysvars::Sysvar;
 use pinocchio::ProgramResult;
 use pinocchio_system::instructions as system;
 
+use crate::consts::PROTOCOL_FEES_PERCENTAGE;
+
 /// Creates a new pda
 #[inline(always)]
 pub(crate) fn create_pda(
@@ -84,53 +86,30 @@ pub(crate) fn close_pda(target_account: &AccountInfo, destination: &AccountInfo)
 /// Each fee address receives fee_percentage % of the previous fee address's amount
 pub(crate) fn close_pda_with_fees(
     target_account: &AccountInfo,
-    destination: &AccountInfo,
-    fees_addresses: &[&AccountInfo],
-    fee_percentage: u8,
+    rent_reimbursement: &AccountInfo,
+    fees_vault: &AccountInfo,
+    validator_fees_vault: &AccountInfo,
+    fee_remaining: &mut u64,
 ) -> ProgramResult {
-    if fees_addresses.is_empty() || fee_percentage > 100 {
-        return Err(ProgramError::InvalidArgument);
-    }
+    let mut destination_amount = target_account.lamports();
 
-    let init_lamports = target_account.lamports();
-    let total_fee_amount = target_account
-        .lamports()
-        .checked_mul(fee_percentage as u64)
-        .and_then(|v| v.checked_div(100))
-        .ok_or(ProgramError::InsufficientFunds)?;
+    if *fee_remaining > 0 && destination_amount > 0 {
+        let fee_taken = (*fee_remaining).min(destination_amount);
+        destination_amount -= fee_taken;
+        *fee_remaining -= fee_taken;
 
-    let mut fees: Vec<u64> = vec![total_fee_amount; fees_addresses.len()];
+        let protocol_fee = fee_taken * PROTOCOL_FEES_PERCENTAGE as u64 / 100;
+        let validator_fee = fee_taken - protocol_fee;
 
-    let mut fee_amount = total_fee_amount;
-    for fee in fees.iter_mut().take(fees_addresses.len()).skip(1) {
-        fee_amount = fee_amount
-            .checked_mul(fee_percentage as u64)
-            .and_then(|v| v.checked_div(100))
-            .ok_or(ProgramError::InsufficientFunds)?;
-        *fee = fee_amount;
-    }
-
-    for i in 0..fees.len() - 1 {
-        fees[i] -= fees[i + 1];
-    }
-
-    for (i, &fee_address) in fees_addresses.iter().enumerate() {
         unsafe {
-            *fee_address.borrow_mut_lamports_unchecked() = fee_address
-                .lamports()
-                .checked_add(fees[i])
-                .ok_or(ProgramError::InsufficientFunds)?;
+            *fees_vault.borrow_mut_lamports_unchecked() += protocol_fee;
+            *validator_fees_vault.borrow_mut_lamports_unchecked() += validator_fee;
         }
     }
 
     unsafe {
-        *destination.borrow_mut_lamports_unchecked() = destination
-            .lamports()
-            .checked_add(init_lamports - total_fee_amount)
-            .ok_or(ProgramError::InsufficientFunds)?;
-
+        *rent_reimbursement.borrow_mut_lamports_unchecked() += destination_amount;
         *target_account.borrow_mut_lamports_unchecked() = 0;
-
         target_account.assign(&pinocchio_system::ID);
     }
     target_account.resize(0).map_err(Into::into)
