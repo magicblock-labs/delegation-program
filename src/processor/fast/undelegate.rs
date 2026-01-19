@@ -241,8 +241,6 @@ pub(crate) fn process_undelegation_with_cpi(
     delegation_metadata: DelegationMetadata,
     system_program: &AccountInfo,
 ) -> ProgramResult {
-    log!("undelegation CPI");
-
     let delegated_account_lamports_before_close = delegated_account.lamports();
     close_pda(delegated_account, validator)?;
 
