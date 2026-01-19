@@ -1,8 +1,3 @@
-use pinocchio::{
-    account_info::AccountInfo, instruction::Signer, program_error::ProgramError, pubkey::Pubkey,
-    seeds, ProgramResult,
-};
-
 use crate::error::DlpError;
 use crate::processor::fast::utils::requires::require_authorization;
 use crate::processor::fast::utils::{
@@ -14,6 +9,10 @@ use crate::processor::fast::utils::{
 };
 use crate::state::{DelegationMetadata, DelegationRecord};
 use crate::{pda, require_eq_keys};
+use pinocchio::{
+    account_info::AccountInfo, instruction::Signer, program_error::ProgramError, pubkey::Pubkey,
+    seeds, ProgramResult,
+};
 
 use super::{process_undelegation_with_cpi, to_pinocchio_program_error};
 
