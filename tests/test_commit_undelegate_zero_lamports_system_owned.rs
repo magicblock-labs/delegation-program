@@ -106,13 +106,16 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    // Setup a system-owned delegated account with zero lamports.
-    let data = vec![0u8; 32];
+    // Setup a delegated PDA that is system-owned (empty data) but initialized with
+    // the minimum rent-exempt lamports. The "zero lamports" in the test name refers
+    // to the commit args (lamports: 0), not the account balance itself.
+    let rent_data_size: usize = 4;
+    let data = vec![1u8; rent_data_size];
     program_test.add_account(
         DELEGATED_PDA_ID,
         Account {
-            lamports: Rent::default().minimum_balance(data.len()),
-            data: vec![],
+            lamports: Rent::default().minimum_balance(rent_data_size),
+            data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,
@@ -122,7 +125,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let delegation_record_data = create_delegation_record_data(
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID,
-        Some(Rent::default().minimum_balance(data.len())),
+        Some(Rent::default().minimum_balance(rent_data_size)),
     );
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
