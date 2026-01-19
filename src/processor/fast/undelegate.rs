@@ -1,3 +1,13 @@
+use crate::consts::{COMMIT_FEE_LAMPORTS, EXTERNAL_UNDELEGATE_DISCRIMINATOR, SESSION_FEE_LAMPORTS};
+use crate::error::DlpError;
+use crate::pda;
+use crate::processor::fast::utils::{
+    pda::{close_pda, close_pda_with_fees, create_pda},
+    requires::{
+        require_uninitialized_pda, CommitRecordCtx, CommitStateAccountCtx, UndelegateBufferCtx,
+    },
+};
+use crate::state::{DelegationMetadata, DelegationRecord};
 use pinocchio::{
     account_info::AccountInfo,
     cpi::invoke_signed,
@@ -10,17 +20,6 @@ use pinocchio::{
 use pinocchio::{pubkey, seeds};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
-
-use crate::consts::{COMMIT_FEE_LAMPORTS, EXTERNAL_UNDELEGATE_DISCRIMINATOR, SESSION_FEE_LAMPORTS};
-use crate::error::DlpError;
-use crate::pda;
-use crate::processor::fast::utils::{
-    pda::{close_pda, close_pda_with_fees, create_pda},
-    requires::{
-        require_uninitialized_pda, CommitRecordCtx, CommitStateAccountCtx, UndelegateBufferCtx,
-    },
-};
-use crate::state::{DelegationMetadata, DelegationRecord};
 
 #[cfg(feature = "log-cost")]
 use crate::compute;
@@ -156,7 +155,7 @@ pub fn process_undelegate(
     drop(delegation_record_data);
     drop(delegation_metadata_data);
 
-    // If there is no program to call CPI to, we can just assign the owner back and we're done
+    // If there is no data, we can just assign the owner back and we're done
     if delegated_account.data_is_empty() {
         // TODO - we could also do this fast-path if the data was non-empty but zeroed-out
         unsafe {
@@ -174,7 +173,6 @@ pub fn process_undelegate(
     }
 
     // Initialize the undelegation buffer PDA
-
     let undelegate_buffer_bump: u8 = require_uninitialized_pda(
         undelegate_buffer_account,
         &[pda::UNDELEGATE_BUFFER_TAG, delegated_account.key()],
@@ -243,6 +241,8 @@ pub(crate) fn process_undelegation_with_cpi(
     delegation_metadata: DelegationMetadata,
     system_program: &AccountInfo,
 ) -> ProgramResult {
+    log!("undelegation CPI");
+
     let delegated_account_lamports_before_close = delegated_account.lamports();
     close_pda(delegated_account, validator)?;
 
