@@ -51,9 +51,27 @@ use crate::processor::fast::utils::requires::{
 /// This instruction is meant to be called via CPI with the owning program signing for the
 /// delegated account.
 pub fn process_delegate(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> ProgramResult {
+    process_delegate_inner(program_id, accounts, data, false)
+}
+
+/// Delegates an account while allowing any validator identity.
+pub fn process_delegate_with_any_validator(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    data: &[u8],
+) -> ProgramResult {
+    process_delegate_inner(program_id, accounts, data, true)
+}
+
+fn process_delegate_inner(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
+    allow_system_program_validator: bool,
 ) -> ProgramResult {
     let [payer, delegated_account, owner_program, delegate_buffer_account, delegation_record_account, delegation_metadata_account, _system_program] =
         accounts
@@ -100,6 +118,13 @@ pub fn process_delegate(
 
     let args =
         DelegateArgs::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)?;
+    if !allow_system_program_validator {
+        if let Some(validator) = args.validator {
+            if validator.to_bytes() == pinocchio_system::ID {
+                return Err(DlpError::DelegationToSystemProgramNotAllowed.into());
+            }
+        }
+    }
 
     // Validate seeds if the delegate account is not on curve, i.e. is a PDA
     // If the owner is the system program, we check if the account is derived from the delegation program,
