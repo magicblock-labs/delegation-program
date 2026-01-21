@@ -1,5 +1,6 @@
-use crate::{fast_process_instruction, slow_process_instruction};
+use crate::{error::DlpError, fast_process_instruction, slow_process_instruction};
 
+use pinocchio::program_error::ToStr;
 use solana_program::entrypoint;
 
 entrypoint::custom_heap_default!();
@@ -17,13 +18,17 @@ pub unsafe extern "C" fn entrypoint(input: *mut u8) -> u64 {
 
     let (program_id, count, data) =
         pinocchio::entrypoint::deserialize::<{ pinocchio::MAX_TX_ACCOUNTS }>(input, &mut accounts);
+
     match fast_process_instruction(
         program_id,
         core::slice::from_raw_parts(accounts.as_ptr() as _, count),
         data,
     ) {
         Some(Ok(())) => pinocchio::SUCCESS,
-        Some(Err(error)) => error.into(),
+        Some(Err(error)) => {
+            pinocchio_log::log!("fast_process_instruction: {}", error.to_str::<DlpError>());
+            error.into()
+        }
 
         // Fallback to the slow path that does not use pinocchio SDK.
         None => slow_entrypoint(input),
@@ -39,6 +44,9 @@ pub unsafe fn slow_entrypoint(input: *mut u8) -> u64 {
     let (program_id, accounts, instruction_data) = unsafe { entrypoint::deserialize(input) };
     match slow_process_instruction(program_id, &accounts, instruction_data) {
         Ok(()) => entrypoint::SUCCESS,
-        Err(error) => error.into(),
+        Err(error) => {
+            solana_program::msg!("slow_process_instruction: {}", error);
+            error.into()
+        }
     }
 }

@@ -39,6 +39,17 @@ macro_rules! require {
     }};
 }
 
+#[macro_export]
+macro_rules! require_signer {
+    ($info: expr) => {{
+        if !$info.is_signer() {
+            log!("require_signer!({}): ", stringify!($info));
+            pubkey::log($info.key());
+            return Err(ProgramError::MissingRequiredSignature);
+        }
+    }};
+}
+
 // require key1 == key2
 #[macro_export]
 macro_rules! require_eq_keys {
@@ -157,6 +168,228 @@ macro_rules! require_some {
             Some(val) => val,
             None => return Err($error.into()),
         }
+    }};
+}
+
+///
+/// require_owned_by(
+///     info: &AccountInfo,
+///     owner: &Pubkey
+/// ) -> Result<(), ProgramError>
+///
+#[macro_export]
+macro_rules! require_owned_by {
+    ($info: expr, $owner: expr) => {{
+        if !pubkey_eq($info.owner(), $owner) {
+            pinocchio_log::log!(
+                "require_owned_pda!({}, {})",
+                stringify!($info),
+                stringify!($owner)
+            );
+            pubkey::log($info.key());
+            pubkey::log($owner);
+            return Err(ProgramError::InvalidAccountOwner);
+        }
+    }};
+}
+
+///
+/// require_initialized_pda(
+///     info: &AccountInfo,
+///     seeds: &[&[u8]],
+///     program_id: &Pubkey,
+///     is_writable: bool,
+/// ) -> Result<(), ProgramError> {
+///
+#[macro_export]
+macro_rules! require_initialized_pda {
+    ($info:expr, $seeds: expr, $program_id: expr, $is_writable: expr) => {{
+        let pda = match pubkey::create_program_address($seeds, $program_id) {
+            Ok(pda) => pda,
+            Err(_) => {
+                log!(
+                    "require_initialized_pda!({}, {}, {}, {}); create_program_address failed",
+                    stringify!($info),
+                    stringify!($seeds),
+                    stringify!($program_id),
+                    stringify!($is_writable),
+                );
+                return Err(ProgramError::InvalidSeeds);
+            }
+        };
+        if !pubkey_eq($info.key(), &pda) {
+            log!(
+                "require_initialized_pda!({}, {}, {}, {}); pubkey_eq failed",
+                stringify!($info),
+                stringify!($seeds),
+                stringify!($program_id),
+                stringify!($is_writable)
+            );
+            pubkey::log($info.key());
+            pubkey::log($program_id);
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        require_owned_by!($info, $program_id);
+
+        if $is_writable && !$info.is_writable() {
+            log!(
+                "require_initialized_pda!({}, {}, {}, {}); is_writable expectation failed",
+                stringify!($info),
+                stringify!($seeds),
+                stringify!($program_id),
+                stringify!($is_writable)
+            );
+            pubkey::log($info.key());
+            return Err(ProgramError::Immutable);
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! require_initialized_pda_unsafe {
+    ($info:expr, $seeds: expr, $program_id: expr, $is_writable: expr) => {{
+        use solana_sha256_hasher::hashv;
+        let pda = hashv($seeds).to_bytes();
+        if !pubkey_eq($info.key(), &pda) {
+            log!(
+                "require_initialized_pda!({}, {}, {}, {}); pubkey_eq failed",
+                stringify!($info),
+                stringify!($seeds),
+                stringify!($program_id),
+                stringify!($is_writable)
+            );
+            pubkey::log($info.key());
+            pubkey::log($program_id);
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        require_owned_by!($info, $program_id);
+
+        if $is_writable && !$info.is_writable() {
+            log!(
+                "require_initialized_pda!({}, {}, {}, {}); is_writable expectation failed",
+                stringify!($info),
+                stringify!($seeds),
+                stringify!($program_id),
+                stringify!($is_writable)
+            );
+            pubkey::log($info.key());
+            return Err(ProgramError::Immutable);
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! require_pda {
+    ($info:expr, $seeds: expr, $program_id: expr, $is_writable: expr) => {{
+        let pda = match pubkey::create_program_address($seeds, $program_id) {
+            Ok(pda) => pda,
+            Err(_) => {
+                log!(
+                    "require_pda!({}, {}, {}, {}); create_program_address failed",
+                    stringify!($info),
+                    stringify!($seeds),
+                    stringify!($program_id),
+                    stringify!($is_writable),
+                );
+                return Err(ProgramError::InvalidSeeds);
+            }
+        };
+        if !pubkey_eq($info.key(), &pda) {
+            log!(
+                "require_pda!({}, {}, {}, {}); pubkey_eq failed",
+                stringify!($info),
+                stringify!($seeds),
+                stringify!($program_id),
+                stringify!($is_writable)
+            );
+            pubkey::log($info.key());
+            pubkey::log($program_id);
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        if $is_writable && !$info.is_writable() {
+            log!(
+                "require_pda!({}, {}, {}, {}); is_writable expectation failed",
+                stringify!($info),
+                stringify!($seeds),
+                stringify!($program_id),
+                stringify!($is_writable)
+            );
+            pubkey::log($info.key());
+            return Err(ProgramError::Immutable);
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! require_pda_unsafe {
+    ($info:expr, $seeds: expr, $program_id: expr, $is_writable: expr) => {{
+        use solana_sha256_hasher::hashv;
+        let pda = hashv($seeds).to_bytes();
+        if !pubkey_eq($info.key(), &pda) {
+            log!(
+                "require_pda!({}, {}, {}, {}); pubkey_eq failed",
+                stringify!($info),
+                stringify!($seeds),
+                stringify!($program_id),
+                stringify!($is_writable)
+            );
+            pubkey::log($info.key());
+            pubkey::log($program_id);
+            return Err(ProgramError::InvalidSeeds);
+        }
+
+        if $is_writable && !$info.is_writable() {
+            log!(
+                "require_pda!({}, {}, {}, {}); is_writable expectation failed",
+                stringify!($info),
+                stringify!($seeds),
+                stringify!($program_id),
+                stringify!($is_writable)
+            );
+            pubkey::log($info.key());
+            return Err(ProgramError::Immutable);
+        }
+    }};
+}
+
+/// pub fn require_program_config(
+///     program_config: &AccountInfo,
+///     program: &Pubkey,
+///     bump: u8,
+///     is_writable: bool,
+/// ) -> Result<bool, ProgramError> {
+#[macro_export]
+macro_rules! require_program_config {
+    ($program_config: expr, $program: expr, $bump: expr, $is_writable: expr) => {{
+        require_pda!(
+            $program_config,
+            &[pda::PROGRAM_CONFIG_TAG, $program, &[$bump]],
+            &crate::fast::ID,
+            $is_writable
+        );
+        !pubkey_eq($program_config.owner(), &pinocchio_system::ID)
+    }};
+}
+
+#[macro_export]
+macro_rules! require_program_config_unsafe {
+    ($program_config: expr, $program: expr, $bump: expr, $is_writable: expr) => {{
+        crate::require_pda_unsafe!(
+            $program_config,
+            &[
+                pda::PROGRAM_CONFIG_TAG,
+                $program,
+                &[$bump],
+                &crate::fast::ID,
+                PDA_MARKER
+            ],
+            &crate::fast::ID,
+            $is_writable
+        );
+        !pubkey_eq($program_config.owner(), &pinocchio_system::ID)
     }};
 }
 

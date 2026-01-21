@@ -27,12 +27,16 @@ async fn test_commit_finalize() {
     let new_state: Vec<u8> = (0..255).collect();
 
     let new_account_balance = 1_000_000;
-    let commit_args = CommitFinalizeArgs {
-        data: new_state.clone(),
-        nonce: 1,
+    let mut commit_args = CommitFinalizeArgs {
+        commit_id: 1,
         allow_undelegation: 1,
         data_is_diff: 0,
+        delegation_metadata_bump: 0,
+        delegation_record_bump: 0,
+        validator_fees_vault_bump: 0,
+        program_config_bump: 0,
         lamports: new_account_balance,
+        reserved_padding: Default::default(),
     };
 
     // Commit the state for the delegated account
@@ -40,7 +44,8 @@ async fn test_commit_finalize() {
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
-        commit_args,
+        &mut commit_args,
+        &new_state,
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],

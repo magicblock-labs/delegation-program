@@ -1,21 +1,34 @@
+use bytemuck::{Pod, Zeroable};
 use std::mem::size_of;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
+use crate::args::ArgsWithBuffer;
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
 pub struct CommitFinalizeArgs {
-    /// "Nonce" of an account. Updates are submitted historically and nonce incremented by 1
-    /// Deprecated: The ephemeral slot at which the account data is committed
-    pub nonce: u64,
+    pub commit_id: u64,
+
     /// The lamports that the account holds in the ephemeral validator
     pub lamports: u64,
+
     /// Whether the account can be undelegated after the commit completes
     pub allow_undelegation: u8,
+
     /// Whether the account can be undelegated after the commit completes
     pub data_is_diff: u8,
-    /// The account data
-    pub data: Vec<u8>,
+
+    /// bumps of the PDA accounts to be validated by the ix
+    pub delegation_record_bump: u8,
+    pub delegation_metadata_bump: u8,
+    pub validator_fees_vault_bump: u8,
+    pub program_config_bump: u8,
+
+    pub reserved_padding: [u8; 2],
 }
+
+pub type CommitFinalizeArgsWithBuffer<'a> = ArgsWithBuffer<'a, CommitFinalizeArgs>;
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct CommitStateArgs {

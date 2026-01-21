@@ -1,23 +1,27 @@
-use pinocchio::pubkey::{self, pubkey_eq};
+use pinocchio::pubkey::{self, pubkey_eq, PDA_MARKER};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 use pinocchio_log::log;
 
-use crate::apply_diff_in_place;
 use crate::error::DlpError;
-use crate::processor::fast::utils::requires::{
-    require_initialized_delegation_metadata, require_initialized_delegation_record,
-    require_initialized_validator_fees_vault, require_owned_pda, require_program_config,
+use crate::pod_view::PodView;
+use crate::processor::fast::NewState;
+use crate::state::{DelegationMetadata, DelegationMetadataFast, DelegationRecord, ProgramConfig};
+use crate::{
+    apply_diff_in_place, pda, require_initialized_pda, require_initialized_pda_unsafe,
+    require_owned_by, require_pda, require_program_config, require_program_config_unsafe,
     require_signer,
 };
-use crate::processor::fast::NewState;
-use crate::state::{DelegationMetadata, DelegationRecord, ProgramConfig};
 
 use super::to_pinocchio_program_error;
 
 /// Arguments for the commit state internal function
 pub(crate) struct CommitFinalizeInternalArgs<'a> {
+    pub(crate) delegation_record_bump: u8,
+    pub(crate) delegation_metadata_bump: u8,
+    pub(crate) validator_fees_vault_bump: u8,
+    pub(crate) program_config_bump: u8,
     pub(crate) new_state: NewState<'a>,
-    pub(crate) commit_record_nonce: u64,
+    pub(crate) commit_id: u64,
     pub(crate) allow_undelegation: bool,
     pub(crate) validator: &'a AccountInfo,
     pub(crate) delegated_account: &'a AccountInfo,
@@ -31,59 +35,148 @@ pub(crate) struct CommitFinalizeInternalArgs<'a> {
 pub(crate) fn process_commit_finalize_internal(
     args: CommitFinalizeInternalArgs,
 ) -> Result<(), ProgramError> {
-    // Check that the origin account is delegated
-    require_owned_pda(
-        args.delegated_account,
-        &crate::fast::ID,
-        "delegated account",
-    )?;
-    require_signer(args.validator, "validator account")?;
-    require_initialized_delegation_record(
-        args.delegated_account,
-        args.delegation_record_account,
-        false,
-    )?;
-    require_initialized_delegation_metadata(
-        args.delegated_account,
-        args.delegation_metadata_account,
-        true,
-    )?;
-    require_initialized_validator_fees_vault(args.validator, args.validator_fees_vault, false)?;
+    // check delegated_account is actually delegated to the DLP
+    require_owned_by!(args.delegated_account, &crate::fast::ID);
 
-    // Read delegation metadata
-    let mut delegation_metadata_data = args.delegation_metadata_account.try_borrow_mut_data()?;
-    let mut delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
-            .map_err(to_pinocchio_program_error)?;
+    require_signer!(args.validator);
 
-    // To preserve correct history of account updates we require sequential commits
-    if args.commit_record_nonce != delegation_metadata.last_update_nonce + 1 {
-        log!(
-            "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
-            args.commit_record_nonce,
-            delegation_metadata.last_update_nonce
+    const USE_SAFE: bool = false;
+
+    if USE_SAFE {
+        require_initialized_pda!(
+            args.delegation_record_account,
+            &[
+                pda::DELEGATION_RECORD_TAG,
+                args.delegated_account.key(),
+                &[args.delegation_record_bump]
+            ],
+            &crate::fast::ID,
+            false
         );
-        return Err(DlpError::NonceOutOfOrder.into());
+
+        require_initialized_pda!(
+            args.delegation_metadata_account,
+            &[
+                pda::DELEGATION_METADATA_TAG,
+                args.delegated_account.key(),
+                &[args.delegation_metadata_bump]
+            ],
+            &crate::fast::ID,
+            true
+        );
+
+        require_initialized_pda!(
+            args.validator_fees_vault,
+            &[
+                pda::VALIDATOR_FEES_VAULT_TAG,
+                args.validator.key(),
+                &[args.validator_fees_vault_bump]
+            ],
+            &crate::fast::ID,
+            false
+        );
+    } else {
+        require_initialized_pda_unsafe!(
+            args.delegation_record_account,
+            &[
+                pda::DELEGATION_RECORD_TAG,
+                args.delegated_account.key(),
+                &[args.delegation_record_bump],
+                &crate::fast::ID,
+                PDA_MARKER
+            ],
+            &crate::fast::ID,
+            false
+        );
+
+        require_initialized_pda_unsafe!(
+            args.delegation_metadata_account,
+            &[
+                pda::DELEGATION_METADATA_TAG,
+                args.delegated_account.key(),
+                &[args.delegation_metadata_bump],
+                &crate::fast::ID,
+                PDA_MARKER
+            ],
+            &crate::fast::ID,
+            true
+        );
+
+        require_initialized_pda_unsafe!(
+            args.validator_fees_vault,
+            &[
+                pda::VALIDATOR_FEES_VAULT_TAG,
+                args.validator.key(),
+                &[args.validator_fees_vault_bump],
+                &crate::fast::ID,
+                PDA_MARKER
+            ],
+            &crate::fast::ID,
+            false
+        );
     }
 
-    // Once the account is marked as undelegatable, any subsequent commit should fail
-    if delegation_metadata.is_undelegatable {
-        log!("delegation metadata is already undelegated: ");
-        pubkey::log(args.delegation_metadata_account.key());
-        return Err(DlpError::AlreadyUndelegated.into());
+    if false {
+        // Read delegation metadata
+        let mut delegation_metadata_data =
+            args.delegation_metadata_account.try_borrow_mut_data()?;
+        let mut delegation_metadata =
+            DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
+                .map_err(to_pinocchio_program_error)?;
+
+        // To preserve correct history of account updates we require sequential commits
+        if args.commit_id != delegation_metadata.last_update_nonce + 1 {
+            log!(
+                "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
+                args.commit_id,
+                delegation_metadata.last_update_nonce
+            );
+            return Err(DlpError::NonceOutOfOrder.into());
+        }
+        delegation_metadata.last_update_nonce += 1;
+
+        // Once the account is marked as undelegatable, any subsequent commit should fail
+        if delegation_metadata.is_undelegatable {
+            log!("delegation metadata is already undelegated: ");
+            pubkey::log(args.delegation_metadata_account.key());
+            return Err(DlpError::AlreadyUndelegated.into());
+        }
+
+        // Update delegation metadata undelegation flag
+        delegation_metadata.is_undelegatable = args.allow_undelegation;
+        delegation_metadata
+            .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
+            .map_err(to_pinocchio_program_error)?;
+    } else {
+        let mut delegation_metadata =
+            DelegationMetadataFast::from_account(args.delegation_metadata_account)?;
+
+        // To preserve correct history of account updates we require sequential commits
+        let prev_id = delegation_metadata.replace_last_update_nonce(args.commit_id);
+        if args.commit_id != prev_id + 1 {
+            log!(
+                "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
+                args.commit_id,
+                prev_id
+            );
+            return Err(DlpError::NonceOutOfOrder.into());
+        }
+
+        // Once the account is marked as undelegatable, any subsequent commit should fail
+        if delegation_metadata.replace_is_undelegatable(args.allow_undelegation) {
+            log!("delegation metadata is already undelegated: ");
+            pubkey::log(args.delegation_metadata_account.key());
+            return Err(DlpError::AlreadyUndelegated.into());
+        }
     }
-
-    // Update delegation metadata undelegation flag
-    delegation_metadata.is_undelegatable = args.allow_undelegation;
-    delegation_metadata
-        .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
-        .map_err(to_pinocchio_program_error)?;
-
     // Load delegation record
     let delegation_record_data = args.delegation_record_account.try_borrow_data()?;
-    let delegation_record =
+    let delegation_record = if false {
         DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)
-            .map_err(to_pinocchio_program_error)?;
+            .map_err(to_pinocchio_program_error)?
+    } else {
+        DelegationRecord::try_view_from(&delegation_record_data.as_ref()[8..])?
+    };
 
     // Check that the authority is allowed to commit
     if !pubkey_eq(delegation_record.authority.as_array(), args.validator.key()) {
@@ -101,7 +194,6 @@ pub(crate) fn process_commit_finalize_internal(
         pubkey::log(args.delegated_account.key());
         return Err(DlpError::InvalidDelegatedState.into());
     }
-
     // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
     // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
     // We need to do that so that the finalizer already have all the lamports from the validators ready at finalize time
@@ -116,23 +208,38 @@ pub(crate) fn process_commit_finalize_internal(
     // }
 
     // Load the program configuration and validate it, if any
-    let has_program_config = require_program_config(
-        args.program_config_account,
-        delegation_record.owner.as_array(),
-        false,
-    )?;
-    if has_program_config {
-        let program_config_data = args.program_config_account.try_borrow_data()?;
 
-        let program_config = ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)
-            .map_err(to_pinocchio_program_error)?;
-        if !program_config
-            .approved_validators
-            .contains(&(*args.validator.key()).into())
-        {
-            log!("validator is not whitelisted in the program config: ");
-            pubkey::log(args.validator.key());
-            return Err(DlpError::InvalidWhitelistProgramConfig.into());
+    // OPTIMIZE 1
+    if true {
+        let has_program_config = if USE_SAFE {
+            require_program_config!(
+                args.program_config_account,
+                delegation_record.owner.as_array(),
+                args.program_config_bump,
+                false
+            )
+        } else {
+            require_program_config_unsafe!(
+                args.program_config_account,
+                delegation_record.owner.as_array(),
+                args.program_config_bump,
+                false
+            )
+        };
+        if has_program_config {
+            let program_config_data = args.program_config_account.try_borrow_data()?;
+
+            let program_config =
+                ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)
+                    .map_err(to_pinocchio_program_error)?;
+            if !program_config
+                .approved_validators
+                .contains(&(*args.validator.key()).into())
+            {
+                log!("validator is not whitelisted in the program config: ");
+                pubkey::log(args.validator.key());
+                return Err(DlpError::InvalidWhitelistProgramConfig.into());
+            }
         }
     }
 
@@ -146,8 +253,6 @@ pub(crate) fn process_commit_finalize_internal(
             apply_diff_in_place(&mut delegated_account_data, &diff)?;
         }
     }
-
-    // TODO - Add additional validation for the commitment, e.g. sufficient validator stake
 
     Ok(())
 }

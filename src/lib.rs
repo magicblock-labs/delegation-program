@@ -29,6 +29,7 @@ mod discriminator;
 pub mod error;
 pub mod instruction_builder;
 pub mod pda;
+pub mod pod_view;
 pub mod state;
 
 mod account_size_class;
@@ -37,6 +38,7 @@ pub use account_size_class::*;
 
 #[cfg(not(feature = "sdk"))]
 mod diff;
+
 #[cfg(not(feature = "sdk"))]
 mod processor;
 

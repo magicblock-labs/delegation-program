@@ -1,10 +1,9 @@
-use borsh::BorshDeserialize;
 use pinocchio::{
     account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
 };
 use pinocchio_log::log;
 
-use crate::args::CommitFinalizeArgs;
+use crate::args::CommitFinalizeArgsWithBuffer;
 use crate::processor::fast::commit_finalize_internal::{
     process_commit_finalize_internal, CommitFinalizeInternalArgs,
 };
@@ -23,6 +22,8 @@ use crate::{require_n_accounts, DiffSet};
 /// 5: `[writable]` the delegation metadata
 /// 6: `[]`         the validator fees vault
 /// 7: `[]`         the program config account
+///
+/// Instruction Data: CommitFinalizeArgsWithBuffer
 ///
 /// Requirements:
 ///
@@ -55,13 +56,17 @@ pub fn process_commit_finalize(
         _system_program,
     ] = require_n_accounts!(accounts, 7);
 
-    let args = CommitFinalizeArgs::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
+    let args = CommitFinalizeArgsWithBuffer::from_bytes(data)?;
 
     let commit_args = CommitFinalizeInternalArgs {
+        delegation_record_bump: args.delegation_record_bump,
+        delegation_metadata_bump: args.delegation_metadata_bump,
+        validator_fees_vault_bump: args.validator_fees_vault_bump,
+        program_config_bump: args.program_config_bump,
         new_state: match args.data_is_diff {
-            0 => NewState::FullBytes(&args.data),
+            0 => NewState::FullBytes(&args.buffer),
             1 => {
-                let diffset = DiffSet::try_new(&args.data)?;
+                let diffset = DiffSet::try_new(&args.buffer)?;
                 if diffset.segments_count() == 0 {
                     log!("WARN: noop; empty diff sent");
                 }
@@ -69,7 +74,7 @@ pub fn process_commit_finalize(
             }
             _ => return Err(ProgramError::InvalidInstructionData),
         },
-        commit_record_nonce: args.nonce,
+        commit_id: args.commit_id,
         allow_undelegation: args.allow_undelegation == 1,
         validator,
         delegated_account,
