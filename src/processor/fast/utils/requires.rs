@@ -364,10 +364,10 @@ macro_rules! require_pda_unsafe {
 #[macro_export]
 macro_rules! require_program_config {
     ($program_config: expr, $program: expr, $bump: expr, $is_writable: expr) => {{
-        require_pda!(
+        $crate::require_pda!(
             $program_config,
             &[pda::PROGRAM_CONFIG_TAG, $program, &[$bump]],
-            &crate::fast::ID,
+            &$crate::fast::ID,
             $is_writable
         );
         !pubkey_eq($program_config.owner(), &pinocchio_system::ID)
@@ -377,16 +377,16 @@ macro_rules! require_program_config {
 #[macro_export]
 macro_rules! require_program_config_unsafe {
     ($program_config: expr, $program: expr, $bump: expr, $is_writable: expr) => {{
-        crate::require_pda_unsafe!(
+        $crate::require_pda_unsafe!(
             $program_config,
             &[
                 pda::PROGRAM_CONFIG_TAG,
                 $program,
                 &[$bump],
-                &crate::fast::ID,
+                &$crate::fast::ID,
                 PDA_MARKER
             ],
-            &crate::fast::ID,
+            &$crate::fast::ID,
             $is_writable
         );
         !pubkey_eq($program_config.owner(), &pinocchio_system::ID)

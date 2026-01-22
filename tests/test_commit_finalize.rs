@@ -23,19 +23,16 @@ mod fixtures;
 #[tokio::test]
 async fn test_commit_finalize() {
     // Setup
-    let (banks, _, authority, blockhash) = setup_program_test_env().await;
-    let new_state: Vec<u8> = (0..255).collect();
+    let (banks, _, authority, blockhash) = setup_program_test_env(vec![0; 10240]).await;
+    let new_state: Vec<u8> = vec![1; 10240];
 
     let new_account_balance = 1_000_000;
     let mut commit_args = CommitFinalizeArgs {
         commit_id: 1,
         allow_undelegation: 1,
         data_is_diff: 0,
-        delegation_metadata_bump: 0,
-        delegation_record_bump: 0,
-        validator_fees_vault_bump: 0,
-        program_config_bump: 0,
         lamports: new_account_balance,
+        bumps: Default::default(),
         reserved_padding: Default::default(),
     };
 
@@ -78,7 +75,7 @@ async fn test_commit_out_of_order() {
         "transport transaction error: Error processing Instruction 0: custom program error: 0xc";
 
     // Setup
-    let (banks, _, authority, blockhash) = setup_program_test_env().await;
+    let (banks, _, authority, blockhash) = setup_program_test_env(vec![]).await;
     let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
 
     let new_account_balance = 1_000_000;
@@ -109,7 +106,7 @@ async fn test_commit_out_of_order() {
     );
 }
 
-async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
+async fn setup_program_test_env(pda_data: Vec<u8>) -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);
 
@@ -131,7 +128,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         DELEGATED_PDA_ID,
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![],
+            data: pda_data,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

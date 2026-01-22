@@ -2,24 +2,21 @@ use pinocchio::pubkey::{self, pubkey_eq, PDA_MARKER};
 use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
 use pinocchio_log::log;
 
+use crate::args::CommitBumps;
 use crate::error::DlpError;
 use crate::pod_view::PodView;
 use crate::processor::fast::NewState;
 use crate::state::{DelegationMetadata, DelegationMetadataFast, DelegationRecord, ProgramConfig};
 use crate::{
     apply_diff_in_place, pda, require_initialized_pda, require_initialized_pda_unsafe,
-    require_owned_by, require_pda, require_program_config, require_program_config_unsafe,
-    require_signer,
+    require_owned_by, require_program_config, require_program_config_unsafe, require_signer,
 };
 
 use super::to_pinocchio_program_error;
 
 /// Arguments for the commit state internal function
 pub(crate) struct CommitFinalizeInternalArgs<'a> {
-    pub(crate) delegation_record_bump: u8,
-    pub(crate) delegation_metadata_bump: u8,
-    pub(crate) validator_fees_vault_bump: u8,
-    pub(crate) program_config_bump: u8,
+    pub(crate) bumps: &'a CommitBumps,
     pub(crate) new_state: NewState<'a>,
     pub(crate) commit_id: u64,
     pub(crate) allow_undelegation: bool,
@@ -48,7 +45,7 @@ pub(crate) fn process_commit_finalize_internal(
             &[
                 pda::DELEGATION_RECORD_TAG,
                 args.delegated_account.key(),
-                &[args.delegation_record_bump]
+                &[args.bumps.delegation_record]
             ],
             &crate::fast::ID,
             false
@@ -59,7 +56,7 @@ pub(crate) fn process_commit_finalize_internal(
             &[
                 pda::DELEGATION_METADATA_TAG,
                 args.delegated_account.key(),
-                &[args.delegation_metadata_bump]
+                &[args.bumps.delegation_metadata]
             ],
             &crate::fast::ID,
             true
@@ -70,7 +67,7 @@ pub(crate) fn process_commit_finalize_internal(
             &[
                 pda::VALIDATOR_FEES_VAULT_TAG,
                 args.validator.key(),
-                &[args.validator_fees_vault_bump]
+                &[args.bumps.validator_fees_vault]
             ],
             &crate::fast::ID,
             false
@@ -81,7 +78,7 @@ pub(crate) fn process_commit_finalize_internal(
             &[
                 pda::DELEGATION_RECORD_TAG,
                 args.delegated_account.key(),
-                &[args.delegation_record_bump],
+                &[args.bumps.delegation_record],
                 &crate::fast::ID,
                 PDA_MARKER
             ],
@@ -94,7 +91,7 @@ pub(crate) fn process_commit_finalize_internal(
             &[
                 pda::DELEGATION_METADATA_TAG,
                 args.delegated_account.key(),
-                &[args.delegation_metadata_bump],
+                &[args.bumps.delegation_metadata],
                 &crate::fast::ID,
                 PDA_MARKER
             ],
@@ -107,7 +104,7 @@ pub(crate) fn process_commit_finalize_internal(
             &[
                 pda::VALIDATOR_FEES_VAULT_TAG,
                 args.validator.key(),
-                &[args.validator_fees_vault_bump],
+                &[args.bumps.validator_fees_vault],
                 &crate::fast::ID,
                 PDA_MARKER
             ],
@@ -210,19 +207,19 @@ pub(crate) fn process_commit_finalize_internal(
     // Load the program configuration and validate it, if any
 
     // OPTIMIZE 1
-    if true {
+    if false {
         let has_program_config = if USE_SAFE {
             require_program_config!(
                 args.program_config_account,
                 delegation_record.owner.as_array(),
-                args.program_config_bump,
+                args.bumps.program_config,
                 false
             )
         } else {
             require_program_config_unsafe!(
                 args.program_config_account,
                 delegation_record.owner.as_array(),
-                args.program_config_bump,
+                args.bumps.program_config,
                 false
             )
         };

@@ -6,6 +6,16 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use crate::args::ArgsWithBuffer;
 
 #[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Default)]
+pub struct CommitBumps {
+    /// bumps of the PDA accounts to be validated by ix
+    pub delegation_record: u8,
+    pub delegation_metadata: u8,
+    pub validator_fees_vault: u8,
+    pub program_config: u8,
+}
+
+#[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct CommitFinalizeArgs {
     pub commit_id: u64,
@@ -20,10 +30,7 @@ pub struct CommitFinalizeArgs {
     pub data_is_diff: u8,
 
     /// bumps of the PDA accounts to be validated by the ix
-    pub delegation_record_bump: u8,
-    pub delegation_metadata_bump: u8,
-    pub validator_fees_vault_bump: u8,
-    pub program_config_bump: u8,
+    pub bumps: CommitBumps,
 
     pub reserved_padding: [u8; 2],
 }

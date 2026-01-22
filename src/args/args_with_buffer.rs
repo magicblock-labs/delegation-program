@@ -23,7 +23,7 @@ impl<'a, H: Pod> ArgsWithBuffer<'a, H> {
     }
 }
 
-impl<'a, H> Deref for ArgsWithBuffer<'a, H> {
+impl<H> Deref for ArgsWithBuffer<'_, H> {
     type Target = H;
     fn deref(&self) -> &Self::Target {
         self.header

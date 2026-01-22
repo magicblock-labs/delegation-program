@@ -2,7 +2,7 @@ use solana_program::instruction::Instruction;
 use solana_program::system_program;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
-use crate::args::CommitFinalizeArgs;
+use crate::args::{CommitBumps, CommitFinalizeArgs};
 use crate::discriminator::DlpDiscriminator;
 use crate::pod_view::PodView;
 use crate::{
@@ -42,10 +42,12 @@ pub fn commit_finalize(
     );
 
     // save the bumps in the args
-    commit_args.delegation_record_bump = delegation_record.1;
-    commit_args.delegation_metadata_bump = delegation_metadata.1;
-    commit_args.validator_fees_vault_bump = validator_fees_vault.1;
-    commit_args.program_config_bump = program_config.1;
+    commit_args.bumps = CommitBumps {
+        delegation_record: delegation_record.1,
+        delegation_metadata: delegation_metadata.1,
+        validator_fees_vault: validator_fees_vault.1,
+        program_config: program_config.1,
+    };
 
     Instruction {
         program_id: crate::id(),

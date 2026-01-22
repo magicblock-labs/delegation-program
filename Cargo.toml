@@ -47,6 +47,7 @@ pinocchio-system = { version = "0.3.0", optional = true }
 rkyv = { version = "0.7.45", optional = true }
 solana-curve25519 = { version = ">=2.2", optional = true }
 solana-program = { version = ">=1.16, <3.0.0" }
+solana-sha256-hasher = "3.1.0"
 solana-security-txt = { version = ">=1.1", optional = true }
 static_assertions = "1.1.0"
 strum = { version = ">=0.27", features = ["derive"] }

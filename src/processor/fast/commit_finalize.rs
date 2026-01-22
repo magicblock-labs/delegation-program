@@ -59,14 +59,11 @@ pub fn process_commit_finalize(
     let args = CommitFinalizeArgsWithBuffer::from_bytes(data)?;
 
     let commit_args = CommitFinalizeInternalArgs {
-        delegation_record_bump: args.delegation_record_bump,
-        delegation_metadata_bump: args.delegation_metadata_bump,
-        validator_fees_vault_bump: args.validator_fees_vault_bump,
-        program_config_bump: args.program_config_bump,
+        bumps: &args.bumps,
         new_state: match args.data_is_diff {
-            0 => NewState::FullBytes(&args.buffer),
+            0 => NewState::FullBytes(args.buffer),
             1 => {
-                let diffset = DiffSet::try_new(&args.buffer)?;
+                let diffset = DiffSet::try_new(args.buffer)?;
                 if diffset.segments_count() == 0 {
                     log!("WARN: noop; empty diff sent");
                 }
