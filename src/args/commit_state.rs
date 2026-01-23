@@ -18,15 +18,16 @@ pub struct CommitBumps {
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct CommitFinalizeArgs {
+    /// the commit_id ensures correct ordering of commits
     pub commit_id: u64,
 
-    /// The lamports that the account holds in the ephemeral validator
+    /// the lamports that the delegated account holds in the ephemeral validator
     pub lamports: u64,
 
-    /// Whether the account can be undelegated after the commit completes
+    /// whether the account can be undelegated after the commit completes
     pub allow_undelegation: u8,
 
-    /// Whether the account can be undelegated after the commit completes
+    /// whether the account can be undelegated after the commit completes
     pub data_is_diff: u8,
 
     /// bumps of the PDA accounts to be validated by the ix

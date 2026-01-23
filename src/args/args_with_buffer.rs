@@ -1,14 +1,15 @@
 use std::ops::Deref;
 
-use bytemuck::Pod;
 use pinocchio::program_error::ProgramError;
+
+use crate::pod_view::PodView;
 
 pub struct ArgsWithBuffer<'a, H> {
     header: &'a H,
     pub buffer: &'a [u8],
 }
 
-impl<'a, H: Pod> ArgsWithBuffer<'a, H> {
+impl<'a, H: PodView> ArgsWithBuffer<'a, H> {
     pub fn from_bytes(input: &'a [u8]) -> Result<Self, ProgramError> {
         let header_size = size_of::<H>();
 
@@ -17,7 +18,8 @@ impl<'a, H: Pod> ArgsWithBuffer<'a, H> {
         }
 
         let (header_bytes, buffer) = input.split_at(header_size);
-        let header = bytemuck::from_bytes::<H>(header_bytes);
+
+        let header = H::try_view_from(header_bytes)?;
 
         Ok(Self { header, buffer })
     }

@@ -135,6 +135,23 @@ macro_rules! require_ge {
     }};
 }
 
+// require a > b
+#[macro_export]
+macro_rules! require_gt {
+    ( $val1:expr, $val2:expr, $error:expr) => {{
+        if !($val1 > $val2) {
+            pinocchio_log::log!(
+                "require_gt!({}, {}) failed: {} > {}",
+                stringify!($val1),
+                stringify!($val2),
+                $val1,
+                $val2
+            );
+            return Err($error.into());
+        }
+    }};
+}
+
 #[macro_export]
 macro_rules! require_n_accounts {
     ( $accounts:expr, $n:literal) => {{

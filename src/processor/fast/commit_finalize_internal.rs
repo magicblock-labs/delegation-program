@@ -8,8 +8,9 @@ use crate::pod_view::PodView;
 use crate::processor::fast::NewState;
 use crate::state::{DelegationMetadata, DelegationMetadataFast, DelegationRecord, ProgramConfig};
 use crate::{
-    apply_diff_in_place, pda, require_initialized_pda, require_initialized_pda_unsafe,
-    require_owned_by, require_program_config, require_program_config_unsafe, require_signer,
+    apply_diff_in_place, pda, require, require_eq, require_eq_keys, require_ge,
+    require_initialized_pda, require_initialized_pda_unsafe, require_owned_by,
+    require_program_config, require_program_config_unsafe, require_signer,
 };
 
 use super::to_pinocchio_program_error;
@@ -145,26 +146,16 @@ pub(crate) fn process_commit_finalize_internal(
             .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
             .map_err(to_pinocchio_program_error)?;
     } else {
-        let mut delegation_metadata =
-            DelegationMetadataFast::from_account(args.delegation_metadata_account)?;
+        let mut metadata = DelegationMetadataFast::from_account(args.delegation_metadata_account)?;
 
-        // To preserve correct history of account updates we require sequential commits
-        let prev_id = delegation_metadata.replace_last_update_nonce(args.commit_id);
-        if args.commit_id != prev_id + 1 {
-            log!(
-                "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
-                args.commit_id,
-                prev_id
-            );
-            return Err(DlpError::NonceOutOfOrder.into());
-        }
+        let prev_id = metadata.replace_last_update_nonce(args.commit_id);
 
-        // Once the account is marked as undelegatable, any subsequent commit should fail
-        if delegation_metadata.replace_is_undelegatable(args.allow_undelegation) {
-            log!("delegation metadata is already undelegated: ");
-            pubkey::log(args.delegation_metadata_account.key());
-            return Err(DlpError::AlreadyUndelegated.into());
-        }
+        require_eq!(args.commit_id, prev_id + 1, DlpError::NonceOutOfOrder);
+
+        require!(
+            !metadata.replace_is_undelegatable(args.allow_undelegation),
+            DlpError::AlreadyUndelegated
+        );
     }
     // Load delegation record
     let delegation_record_data = args.delegation_record_account.try_borrow_data()?;
@@ -176,25 +167,19 @@ pub(crate) fn process_commit_finalize_internal(
     };
 
     // Check that the authority is allowed to commit
-    if !pubkey_eq(delegation_record.authority.as_array(), args.validator.key()) {
-        log!("validator is not the delegation authority. validator: ");
-        pubkey::log(args.validator.key());
-        log!("delegation authority: ");
-        pubkey::log(delegation_record.authority.as_array());
-        return Err(DlpError::InvalidAuthority.into());
-    }
+    require_eq_keys!(
+        delegation_record.authority.as_array(),
+        args.validator.key(),
+        DlpError::InvalidAuthority
+    );
 
     // If there was an issue with the lamport accounting in the past, abort (this should never happen)
-    if args.delegated_account.lamports() < delegation_record.lamports {
-        log!(
-            "delegated account has less lamports than the delegation record indicates. delegation account: ");
-        pubkey::log(args.delegated_account.key());
-        return Err(DlpError::InvalidDelegatedState.into());
-    }
-    // If committed lamports are more than the previous lamports balance, deposit the difference in the commitment account
-    // If committed lamports are less than the previous lamports balance, we have collateral to settle the balance at state finalization
-    // We need to do that so that the finalizer already have all the lamports from the validators ready at finalize time
-    // The finalizer can return any extra lamport to the validator during finalize, but this acts as the validator's proof of collateral
+    require_ge!(
+        args.delegated_account.lamports(),
+        delegation_record.lamports,
+        DlpError::InvalidDelegatedState
+    );
+
     // if args.commit_record_lamports > delegation_record.lamports {
     //     system::Transfer {
     //         from: args.validator,
@@ -204,10 +189,9 @@ pub(crate) fn process_commit_finalize_internal(
     //     .invoke()?;
     // }
 
-    // Load the program configuration and validate it, if any
-
     // OPTIMIZE 1
     if false {
+        // Load the program configuration and validate it, if any
         let has_program_config = if USE_SAFE {
             require_program_config!(
                 args.program_config_account,
