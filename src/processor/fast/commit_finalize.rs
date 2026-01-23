@@ -4,7 +4,7 @@ use pinocchio::{
 use pinocchio_log::log;
 
 use crate::args::CommitFinalizeArgsWithBuffer;
-use crate::processor::fast::commit_finalize_internal::{
+use crate::processor::fast::internal::{
     process_commit_finalize_internal, CommitFinalizeInternalArgs,
 };
 use crate::processor::fast::NewState;

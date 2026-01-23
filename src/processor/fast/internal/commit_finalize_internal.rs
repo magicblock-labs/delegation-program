@@ -5,15 +5,13 @@ use pinocchio_log::log;
 use crate::args::CommitBumps;
 use crate::error::DlpError;
 use crate::pod_view::PodView;
-use crate::processor::fast::NewState;
+use crate::processor::fast::{to_pinocchio_program_error, NewState};
 use crate::state::{DelegationMetadata, DelegationMetadataFast, DelegationRecord, ProgramConfig};
 use crate::{
     apply_diff_in_place, pda, require, require_eq, require_eq_keys, require_ge,
     require_initialized_pda, require_initialized_pda_unsafe, require_owned_by,
     require_program_config, require_program_config_unsafe, require_signer,
 };
-
-use super::to_pinocchio_program_error;
 
 /// Arguments for the commit state internal function
 pub(crate) struct CommitFinalizeInternalArgs<'a> {
@@ -189,7 +187,6 @@ pub(crate) fn process_commit_finalize_internal(
     //     .invoke()?;
     // }
 
-    // OPTIMIZE 1
     if false {
         // Load the program configuration and validate it, if any
         let has_program_config = if USE_SAFE {
@@ -226,7 +223,7 @@ pub(crate) fn process_commit_finalize_internal(
 
     args.delegated_account.resize(args.new_state.data_len())?;
 
-    // Copy the new state to the initialized PDA
+    // copy the new state to the delegated account
     let mut delegated_account_data = args.delegated_account.try_borrow_mut_data()?;
     match args.new_state {
         NewState::FullBytes(bytes) => (*delegated_account_data).copy_from_slice(bytes),
