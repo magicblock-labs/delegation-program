@@ -6,7 +6,7 @@ use crate::args::CommitBumps;
 use crate::error::DlpError;
 use crate::pod_view::PodView;
 use crate::processor::fast::{to_pinocchio_program_error, NewState};
-use crate::state::{DelegationMetadata, DelegationMetadataFast, DelegationRecord, ProgramConfig};
+use crate::state::{DelegationMetadataFast, DelegationRecord, ProgramConfig};
 use crate::{
     apply_diff_in_place, pda, require, require_eq, require_eq_keys, require_ge,
     require_initialized_pda, require_initialized_pda_unsafe, require_owned_by,
@@ -36,9 +36,8 @@ pub(crate) fn process_commit_finalize_internal(
 
     require_signer!(args.validator);
 
-    const USE_SAFE: bool = false;
-
-    if USE_SAFE {
+    // additional cost: 4105
+    if false {
         require_initialized_pda!(
             args.delegation_record_account,
             &[
@@ -112,38 +111,8 @@ pub(crate) fn process_commit_finalize_internal(
         );
     }
 
-    if false {
-        // Read delegation metadata
-        let mut delegation_metadata_data =
-            args.delegation_metadata_account.try_borrow_mut_data()?;
-        let mut delegation_metadata =
-            DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
-                .map_err(to_pinocchio_program_error)?;
-
-        // To preserve correct history of account updates we require sequential commits
-        if args.commit_id != delegation_metadata.last_update_nonce + 1 {
-            log!(
-                "Nonce {} is incorrect, previous nonce is {}. Rejecting commit",
-                args.commit_id,
-                delegation_metadata.last_update_nonce
-            );
-            return Err(DlpError::NonceOutOfOrder.into());
-        }
-        delegation_metadata.last_update_nonce += 1;
-
-        // Once the account is marked as undelegatable, any subsequent commit should fail
-        if delegation_metadata.is_undelegatable {
-            log!("delegation metadata is already undelegated: ");
-            pubkey::log(args.delegation_metadata_account.key());
-            return Err(DlpError::AlreadyUndelegated.into());
-        }
-
-        // Update delegation metadata undelegation flag
-        delegation_metadata.is_undelegatable = args.allow_undelegation;
-        delegation_metadata
-            .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
-            .map_err(to_pinocchio_program_error)?;
-    } else {
+    // validate and update metadata
+    {
         let mut metadata = DelegationMetadataFast::from_account(args.delegation_metadata_account)?;
 
         let prev_id = metadata.replace_last_update_nonce(args.commit_id);
@@ -155,6 +124,7 @@ pub(crate) fn process_commit_finalize_internal(
             DlpError::AlreadyUndelegated
         );
     }
+
     // Load delegation record
     let delegation_record_data = args.delegation_record_account.try_borrow_data()?;
     let delegation_record = if false {
@@ -187,9 +157,10 @@ pub(crate) fn process_commit_finalize_internal(
     //     .invoke()?;
     // }
 
+    // cost = 197 CU
     if false {
         // Load the program configuration and validate it, if any
-        let has_program_config = if USE_SAFE {
+        let has_program_config = if false {
             require_program_config!(
                 args.program_config_account,
                 delegation_record.owner.as_array(),

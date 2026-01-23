@@ -12,27 +12,34 @@ use crate::{
     DLP_PROGRAM_DATA_SIZE_CLASS,
 };
 
+pub struct CommitPDAs {
+    pub delegation_record: Pubkey,
+    pub delegation_metadata: Pubkey,
+    pub validator_fees_vault: Pubkey,
+    pub program_config: Pubkey,
+}
+
 /// Builds a commit finalize instruction.
 /// See [crate::processor::process_commit_finalize] for docs.
 pub fn commit_finalize(
     validator: Pubkey,
     delegated_account: Pubkey,
     delegated_account_owner: Pubkey,
-    commit_args: &mut CommitFinalizeArgs,
-    data: &[u8],
-) -> Instruction {
+    args: &mut CommitFinalizeArgs,
+    state_or_diff: &[u8],
+) -> (Instruction, CommitPDAs) {
     let delegation_record = Pubkey::find_program_address(
         delegation_record_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
     );
 
-    let validator_fees_vault = Pubkey::find_program_address(
-        validator_fees_vault_seeds_from_validator!(validator),
+    let delegation_metadata = Pubkey::find_program_address(
+        delegation_metadata_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
     );
 
-    let delegation_metadata = Pubkey::find_program_address(
-        delegation_metadata_seeds_from_delegated_account!(delegated_account),
+    let validator_fees_vault = Pubkey::find_program_address(
+        validator_fees_vault_seeds_from_validator!(validator),
         &crate::id(),
     );
 
@@ -42,31 +49,39 @@ pub fn commit_finalize(
     );
 
     // save the bumps in the args
-    commit_args.bumps = CommitBumps {
+    args.bumps = CommitBumps {
         delegation_record: delegation_record.1,
         delegation_metadata: delegation_metadata.1,
         validator_fees_vault: validator_fees_vault.1,
         program_config: program_config.1,
     };
 
-    Instruction {
-        program_id: crate::id(),
-        accounts: vec![
-            AccountMeta::new_readonly(validator, true),
-            AccountMeta::new(delegated_account, false),
-            AccountMeta::new_readonly(delegation_record.0, false),
-            AccountMeta::new(delegation_metadata.0, false),
-            AccountMeta::new_readonly(validator_fees_vault.0, false),
-            AccountMeta::new_readonly(program_config.0, false),
-            AccountMeta::new_readonly(system_program::id(), false),
-        ],
-        data: [
-            DlpDiscriminator::CommitFinalize.to_vec(),
-            commit_args.to_bytes(),
-            data.to_vec(),
-        ]
-        .concat(),
-    }
+    (
+        Instruction {
+            program_id: crate::id(),
+            accounts: vec![
+                AccountMeta::new_readonly(validator, true),
+                AccountMeta::new(delegated_account, false),
+                AccountMeta::new_readonly(delegation_record.0, false),
+                AccountMeta::new(delegation_metadata.0, false),
+                AccountMeta::new_readonly(validator_fees_vault.0, false),
+                AccountMeta::new_readonly(program_config.0, false),
+                AccountMeta::new_readonly(system_program::id(), false),
+            ],
+            data: [
+                DlpDiscriminator::CommitFinalize.to_vec(),
+                args.to_bytes(),
+                state_or_diff.to_vec(),
+            ]
+            .concat(),
+        },
+        CommitPDAs {
+            delegation_record: delegation_record.0,
+            delegation_metadata: delegation_metadata.0,
+            validator_fees_vault: validator_fees_vault.0,
+            program_config: program_config.0,
+        },
+    )
 }
 
 ///

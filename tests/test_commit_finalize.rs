@@ -1,4 +1,4 @@
-use dlp::args::{CommitFinalizeArgs, CommitStateArgs};
+use dlp::args::CommitFinalizeArgs;
 use dlp::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     validator_fees_vault_pda_from_validator,
@@ -6,7 +6,7 @@ use dlp::pda::{
 use dlp::state::DelegationMetadata;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{BanksClient, ProgramTest};
+use solana_program_test::{BanksClient, BanksTransactionResultWithMetadata, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -21,27 +21,25 @@ use crate::fixtures::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_commit_finalize() {
+async fn test_commit_finalize_perf() {
     // Setup
     let (banks, _, authority, blockhash) = setup_program_test_env(vec![0; 10240]).await;
     let new_state: Vec<u8> = vec![1; 10240];
 
     let new_account_balance = 1_000_000;
-    let mut commit_args = CommitFinalizeArgs {
-        commit_id: 1,
-        allow_undelegation: 1,
-        data_is_diff: 0,
-        lamports: new_account_balance,
-        bumps: Default::default(),
-        reserved_padding: Default::default(),
-    };
 
-    // Commit the state for the delegated account
-    let ix = dlp::instruction_builder::commit_finalize(
+    let (ix, pdas) = dlp::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
-        &mut commit_args,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: 1,
+            data_is_diff: 0,
+            lamports: new_account_balance,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
         &new_state,
     );
     let tx = Transaction::new_signed_with_payer(
@@ -50,59 +48,99 @@ async fn test_commit_finalize() {
         &[&authority],
         blockhash,
     );
-    let res = banks.process_transaction(tx).await;
-    println!("{:?}", res);
-    assert!(res.is_ok());
+
+    // execute CommitFinalize and validate CU performmace
+    {
+        let BanksTransactionResultWithMetadata {
+            result: _,
+            metadata,
+        } = banks.process_transaction_with_metadata(tx).await.unwrap();
+
+        let metadata = metadata.unwrap();
+
+        assertables::assert_lt!(metadata.compute_units_consumed, 1100);
+
+        assert_eq!(
+            metadata.log_messages.len(),
+            3,
+            "CommitFinalize must not log anything in OK scenario"
+        );
+    }
 
     let delegated_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
     assert_eq!(delegated_account.data, new_state);
 
-    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let delegation_metadata_account = banks
-        .get_account(delegation_metadata_pda)
+        .get_account(pdas.delegation_metadata)
         .await
         .unwrap()
         .unwrap();
+
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
             .unwrap();
+
     assert_eq!(delegation_metadata.is_undelegatable, true);
 }
 
 #[tokio::test]
-async fn test_commit_out_of_order() {
-    const OUTDATED_SLOT_ERR_MSG: &str =
-        "transport transaction error: Error processing Instruction 0: custom program error: 0xc";
-
+async fn test_commit_finalize_out_of_order() {
     // Setup
     let (banks, _, authority, blockhash) = setup_program_test_env(vec![]).await;
     let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
 
     let new_account_balance = 1_000_000;
-    let commit_args = CommitStateArgs {
-        data: new_state.clone(),
-        nonce: 101,
-        allow_undelegation: true,
-        lamports: new_account_balance,
-    };
 
-    // Commit the state for the delegated account
-    let ix = dlp::instruction_builder::commit_state(
+    let (ix, _pdas) = dlp::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
-        commit_args,
+        &mut CommitFinalizeArgs {
+            commit_id: 2, // this is the min value which will cause NonceOutOfOrder
+            allow_undelegation: 1,
+            data_is_diff: 0,
+            lamports: new_account_balance,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+        &new_state,
     );
+
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&authority.pubkey()),
         &[&authority],
         blockhash,
     );
-    let res = banks.process_transaction(tx).await;
+
+    let BanksTransactionResultWithMetadata { result, metadata } =
+        banks.process_transaction_with_metadata(tx).await.unwrap();
+
+    let metadata = metadata.unwrap();
+
+    let log = metadata
+        .log_messages
+        .iter()
+        .find(|log| log.contains("require"))
+        .unwrap();
+
     assert_eq!(
-        res.unwrap_err().to_string(),
-        OUTDATED_SLOT_ERR_MSG.to_string()
+        log,
+        "Program log: require_eq!(args.commit_id, prev_id + 1) failed: 2 == 1"
+    );
+
+    assert!(
+        metadata
+            .log_messages
+            .iter()
+            .any(|log| log.contains("NonceOutOfOrder")),
+        "{:#?}",
+        metadata
+    );
+
+    assert_eq!(
+        result.unwrap_err().to_string(),
+        "Error processing Instruction 0: custom program error: 0xc"
     );
 }
 

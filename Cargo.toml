@@ -54,6 +54,7 @@ strum = { version = ">=0.27", features = ["derive"] }
 thiserror = { version = ">=1" }
 
 [dev-dependencies]
+assertables = "9.8.2"
 magicblock-delegation-program = { path = ".", features = ["unit_test_config"] }
 rand = { version = "=0.8.5", features = ["small_rng"] }
 solana-program-test = ">=1.16"
