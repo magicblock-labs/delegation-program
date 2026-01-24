@@ -34,8 +34,8 @@ async fn test_commit_finalize_perf() {
         DELEGATED_PDA_OWNER_ID,
         &mut CommitFinalizeArgs {
             commit_id: 1,
-            allow_undelegation: 1,
-            data_is_diff: 0,
+            allow_undelegation: true.into(),
+            data_is_diff: false.into(),
             lamports: new_account_balance,
             bumps: Default::default(),
             reserved_padding: Default::default(),
@@ -97,8 +97,8 @@ async fn test_commit_finalize_out_of_order() {
         DELEGATED_PDA_OWNER_ID,
         &mut CommitFinalizeArgs {
             commit_id: 2, // this is the min value which will cause NonceOutOfOrder
-            allow_undelegation: 1,
-            data_is_diff: 0,
+            allow_undelegation: true.into(),
+            data_is_diff: false.into(),
             lamports: new_account_balance,
             bumps: Default::default(),
             reserved_padding: Default::default(),

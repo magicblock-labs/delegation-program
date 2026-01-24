@@ -1,6 +1,4 @@
-use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
-};
+use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
 use pinocchio_log::log;
 
 use crate::args::CommitFinalizeArgsWithBuffer;
@@ -60,19 +58,17 @@ pub fn process_commit_finalize(
 
     let commit_args = CommitFinalizeInternalArgs {
         bumps: &args.bumps,
-        new_state: match args.data_is_diff {
-            0 => NewState::FullBytes(args.buffer),
-            1 => {
-                let diffset = DiffSet::try_new(args.buffer)?;
-                if diffset.segments_count() == 0 {
-                    log!("WARN: noop; empty diff sent");
-                }
-                NewState::Diff(diffset)
+        new_state: if args.data_is_diff.is_true() {
+            let diffset = DiffSet::try_new(args.buffer)?;
+            if diffset.segments_count() == 0 {
+                log!("WARN: noop; empty diff sent");
             }
-            _ => return Err(ProgramError::InvalidInstructionData),
+            NewState::Diff(diffset)
+        } else {
+            NewState::FullBytes(args.buffer)
         },
         commit_id: args.commit_id,
-        allow_undelegation: args.allow_undelegation == 1,
+        allow_undelegation: args.allow_undelegation.is_true(),
         validator,
         delegated_account,
         delegation_record_account,

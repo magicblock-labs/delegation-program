@@ -3,8 +3,9 @@ use std::mem::size_of;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::args::ArgsWithBuffer;
+use crate::args::{ArgsWithBuffer, Boolean};
 
+/// bumps of the PDA accounts to be validated by ix
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable, Default)]
 pub struct CommitBumps {
@@ -25,10 +26,10 @@ pub struct CommitFinalizeArgs {
     pub lamports: u64,
 
     /// whether the account can be undelegated after the commit completes
-    pub allow_undelegation: u8,
+    pub allow_undelegation: Boolean,
 
     /// whether the account can be undelegated after the commit completes
-    pub data_is_diff: u8,
+    pub data_is_diff: Boolean,
 
     /// bumps of the PDA accounts to be validated by the ix
     pub bumps: CommitBumps,

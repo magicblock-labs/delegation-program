@@ -1,9 +1,36 @@
 use std::ops::Deref;
 
+use bytemuck::{Pod, Zeroable};
 use pinocchio::program_error::ProgramError;
 
 use crate::pod_view::PodView;
 
+///
+/// Boolean
+///
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Default)]
+pub struct Boolean(u8);
+
+impl Boolean {
+    pub fn is_true(&self) -> bool {
+        // any non-zero is true
+        self.0 != 0
+    }
+    pub fn is_false(&self) -> bool {
+        self.0 == 0
+    }
+}
+
+impl From<bool> for Boolean {
+    fn from(value: bool) -> Self {
+        Self(if value { 1 } else { 0 })
+    }
+}
+
+///
+/// ArgsWithBuffer
+///
 pub struct ArgsWithBuffer<'a, H> {
     header: &'a H,
     pub buffer: &'a [u8],
