@@ -9,15 +9,14 @@ use crate::processor::fast::utils::{
 };
 use crate::state::{DelegationMetadata, DelegationRecord};
 use pinocchio::{
-    account_info::AccountInfo,
+    address::{address_eq, Address},
     cpi::invoke_signed,
-    instruction::{AccountMeta, Instruction, Signer},
-    program_error::ProgramError,
-    pubkey::{pubkey_eq, Pubkey},
+    cpi::Signer,
+    error::ProgramError,
+    instruction::{seeds, InstructionAccount, InstructionView},
     sysvars::{rent::Rent, Sysvar},
-    ProgramResult,
+    AccountView, ProgramResult,
 };
-use pinocchio::{pubkey, seeds};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
@@ -76,8 +75,8 @@ use super::{
 /// - Verify that the new state is the same as the committed state
 /// - Close the undelegation buffer PDA
 pub fn process_undelegate(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {
     let [validator, delegated_account, owner_program, undelegate_buffer_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, rent_reimbursement, fees_vault, validator_fees_vault, system_program] =
@@ -97,36 +96,39 @@ pub fn process_undelegate(
     // Make sure there is no pending commits to be finalized before this call
     require_uninitialized_pda(
         commit_state_account,
-        &[pda::COMMIT_STATE_TAG, delegated_account.key()],
+        &[pda::COMMIT_STATE_TAG, delegated_account.address().as_ref()],
         &crate::fast::ID,
         false,
         CommitStateAccountCtx,
     )?;
     require_uninitialized_pda(
         commit_record_account,
-        &[pda::COMMIT_RECORD_TAG, delegated_account.key()],
+        &[pda::COMMIT_RECORD_TAG, delegated_account.address().as_ref()],
         &crate::fast::ID,
         false,
         CommitRecordCtx,
     )?;
 
     // Load delegation record
-    let delegation_record_data = delegation_record_account.try_borrow_data()?;
+    let delegation_record_data = delegation_record_account.try_borrow()?;
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)
             .map_err(to_pinocchio_program_error)?;
 
     // Check passed owner and owner stored in the delegation record match
-    if !pubkey_eq(delegation_record.owner.as_array(), owner_program.key()) {
+    if !address_eq(
+        &delegation_record.owner.to_bytes().into(),
+        owner_program.address(),
+    ) {
         log!("Expected delegation record owner to be : ");
-        pubkey::log(delegation_record.owner.as_array());
+        Address::from(delegation_record.owner.to_bytes()).log();
         log!("but got : ");
-        pubkey::log(owner_program.key());
+        owner_program.address().log();
         return Err(ProgramError::InvalidAccountOwner);
     }
 
     // Load delegated account metadata
-    let delegation_metadata_data = delegation_metadata_account.try_borrow_data()?;
+    let delegation_metadata_data = delegation_metadata_account.try_borrow()?;
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
             .map_err(to_pinocchio_program_error)?;
@@ -135,19 +137,19 @@ pub fn process_undelegate(
     // Check if the delegated account is undelegatable
     if !delegation_metadata.is_undelegatable {
         log!("delegation metadata indicates the account is not undelegatable : ");
-        pubkey::log(delegation_metadata_account.key());
+        delegation_metadata_account.address().log();
         return Err(DlpError::NotUndelegatable.into());
     }
 
     // Check if the rent payer is correct
-    if !pubkey_eq(
-        delegation_metadata.rent_payer.as_array(),
-        rent_reimbursement.key(),
+    if !address_eq(
+        &delegation_metadata.rent_payer.to_bytes().into(),
+        rent_reimbursement.address(),
     ) {
         log!("Expected rent payer to be : ");
-        pubkey::log(delegation_metadata.rent_payer.as_array());
+        Address::from(delegation_metadata.rent_payer.to_bytes()).log();
         log!("but got : ");
-        pubkey::log(rent_reimbursement.key());
+        rent_reimbursement.address().log();
         return Err(DlpError::InvalidReimbursementAddressForDelegationRent.into());
     }
 
@@ -156,10 +158,10 @@ pub fn process_undelegate(
     drop(delegation_metadata_data);
 
     // If there is no data, we can just assign the owner back and we're done
-    if delegated_account.data_is_empty() {
+    if delegated_account.is_data_empty() {
         // TODO - we could also do this fast-path if the data was non-empty but zeroed-out
         unsafe {
-            delegated_account.assign(owner_program.key());
+            delegated_account.assign(owner_program.address());
         }
         process_delegation_cleanup(
             delegation_record_account,
@@ -175,7 +177,10 @@ pub fn process_undelegate(
     // Initialize the undelegation buffer PDA
     let undelegate_buffer_bump: u8 = require_uninitialized_pda(
         undelegate_buffer_account,
-        &[pda::UNDELEGATE_BUFFER_TAG, delegated_account.key()],
+        &[
+            pda::UNDELEGATE_BUFFER_TAG,
+            delegated_account.address().as_ref(),
+        ],
         &crate::fast::ID,
         true,
         UndelegateBufferCtx,
@@ -187,15 +192,15 @@ pub fn process_undelegate(
         delegated_account.data_len(),
         &[Signer::from(&seeds!(
             pda::UNDELEGATE_BUFFER_TAG,
-            delegated_account.key(),
+            delegated_account.address().as_ref(),
             &[undelegate_buffer_bump]
         ))],
         validator,
     )?;
 
     // Copy data in the undelegation buffer PDA
-    (*undelegate_buffer_account.try_borrow_mut_data()?)
-        .copy_from_slice(&delegated_account.try_borrow_data()?);
+    (*undelegate_buffer_account.try_borrow_mut()?)
+        .copy_from_slice(&delegated_account.try_borrow()?);
 
     // Call a CPI to the owner program to give it back the new state
     process_undelegation_with_cpi(
@@ -205,7 +210,7 @@ pub fn process_undelegate(
         undelegate_buffer_account,
         &[Signer::from(&seeds!(
             pda::UNDELEGATE_BUFFER_TAG,
-            delegated_account.key(),
+            delegated_account.address().as_ref(),
             &[undelegate_buffer_bump]
         ))],
         delegation_metadata,
@@ -233,13 +238,13 @@ pub fn process_undelegate(
 /// 4. Settle lamports balance
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn process_undelegation_with_cpi(
-    validator: &AccountInfo,
-    delegated_account: &AccountInfo,
-    owner_program: &AccountInfo,
-    undelegate_buffer_account: &AccountInfo,
+    validator: &AccountView,
+    delegated_account: &AccountView,
+    owner_program: &AccountView,
+    undelegate_buffer_account: &AccountView,
     undelegate_buffer_signer_seeds: &[Signer],
     delegation_metadata: DelegationMetadata,
-    system_program: &AccountInfo,
+    system_program: &AccountView,
 ) -> ProgramResult {
     let delegated_account_lamports_before_close = delegated_account.lamports();
     close_pda(delegated_account, validator)?;
@@ -253,14 +258,15 @@ pub(crate) fn process_undelegation_with_cpi(
         undelegate_buffer_account,
         undelegate_buffer_signer_seeds,
         system_program,
-        owner_program.key(),
+        owner_program.address(),
         delegation_metadata,
     )?;
 
     let validator_lamports_after_cpi = validator.lamports();
 
     // Check that the validator lamports are exactly as expected
-    let delegated_account_min_rent = Rent::get()?.minimum_balance(delegated_account.data_len());
+    let delegated_account_min_rent =
+        Rent::get()?.try_minimum_balance(delegated_account.data_len())?;
     if validator_lamports_before_cpi
         != validator_lamports_after_cpi
             .checked_add(delegated_account_min_rent)
@@ -270,8 +276,7 @@ pub(crate) fn process_undelegation_with_cpi(
     }
 
     // Check that the owner program properly moved the state back into the original account during CPI
-    if delegated_account.try_borrow_data()?.as_ref()
-        != undelegate_buffer_account.try_borrow_data()?.as_ref()
+    if delegated_account.try_borrow()?.as_ref() != undelegate_buffer_account.try_borrow()?.as_ref()
     {
         return Err(DlpError::InvalidAccountDataAfterCPI.into());
     }
@@ -292,12 +297,12 @@ pub(crate) fn process_undelegation_with_cpi(
 
 /// CPI to the original owner program to re-open the PDA with the new state
 fn cpi_external_undelegate(
-    payer: &AccountInfo,
-    delegated_account: &AccountInfo,
-    undelegate_buffer_account: &AccountInfo,
+    payer: &AccountView,
+    delegated_account: &AccountView,
+    undelegate_buffer_account: &AccountView,
     undelegate_buffer_signer_seeds: &[Signer],
-    system_program: &AccountInfo,
-    owner_program_id: &Pubkey,
+    system_program: &AccountView,
+    owner_program_id: &Address,
     delegation_metadata: DelegationMetadata,
 ) -> ProgramResult {
     let data = {
@@ -308,14 +313,14 @@ fn cpi_external_undelegate(
         data
     };
 
-    let external_undelegate_instruction = Instruction {
+    let external_undelegate_instruction = InstructionView {
         program_id: owner_program_id,
         data: &data,
         accounts: &[
-            AccountMeta::new(delegated_account.key(), true, false),
-            AccountMeta::new(undelegate_buffer_account.key(), true, true),
-            AccountMeta::new(payer.key(), true, true),
-            AccountMeta::new(system_program.key(), false, false),
+            InstructionAccount::new(delegated_account.address(), true, false),
+            InstructionAccount::new(undelegate_buffer_account.address(), true, true),
+            InstructionAccount::new(payer.address(), true, true),
+            InstructionAccount::new(system_program.address(), false, false),
         ],
     };
 
@@ -332,11 +337,11 @@ fn cpi_external_undelegate(
 }
 
 fn process_delegation_cleanup(
-    delegation_record_account: &AccountInfo,
-    delegation_metadata_account: &AccountInfo,
-    rent_reimbursement: &AccountInfo,
-    fees_vault: &AccountInfo,
-    validator_fees_vault: &AccountInfo,
+    delegation_record_account: &AccountView,
+    delegation_metadata_account: &AccountView,
+    rent_reimbursement: &AccountView,
+    fees_vault: &AccountView,
+    validator_fees_vault: &AccountView,
     delegation_last_update_nonce: u64,
 ) -> ProgramResult {
     let commit_count = delegation_last_update_nonce.saturating_sub(1);

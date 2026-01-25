@@ -1,31 +1,10 @@
-use pinocchio::account_info::AccountInfo;
-use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{pubkey_eq, Pubkey};
+use pinocchio::address::{address_eq, Address};
+use pinocchio::error::ProgramError;
+use pinocchio::AccountView;
 use pinocchio_log::log;
 
 use crate::error::DlpError;
 use crate::pda::{self, program_config_from_program_id, validator_fees_vault_pda_from_validator};
-
-#[cfg(not(feature = "log-cost"))]
-use pinocchio::pubkey;
-
-#[cfg(feature = "log-cost")]
-mod pubkey {
-    pub use pinocchio::pubkey::log;
-
-    use pinocchio::pubkey::{self, Pubkey};
-    use pinocchio::syscalls::sol_remaining_compute_units;
-    use pinocchio_log::log;
-
-    #[inline(always)]
-    pub fn find_program_address(seeds: &[&[u8]], program_id: &Pubkey) -> (Pubkey, u8) {
-        let prev = unsafe { sol_remaining_compute_units() };
-        let rv = pubkey::find_program_address(seeds, program_id);
-        let curr = unsafe { sol_remaining_compute_units() };
-        log!(">> find_program_address => {} CU", prev - curr);
-        rv
-    }
-}
 
 // require true
 #[macro_export]
@@ -39,12 +18,13 @@ macro_rules! require {
     }};
 }
 
+// require (info.is_signer())
 #[macro_export]
 macro_rules! require_signer {
     ($info: expr) => {{
         if !$info.is_signer() {
             log!("require_signer!({}): ", stringify!($info));
-            pubkey::log($info.key());
+            $info.address().log();
             return Err(ProgramError::MissingRequiredSignature);
         }
     }};
@@ -54,14 +34,14 @@ macro_rules! require_signer {
 #[macro_export]
 macro_rules! require_eq_keys {
     ( $key1:expr, $key2:expr, $error:expr) => {{
-        if !pinocchio::pubkey::pubkey_eq($key1, $key2) {
+        if !pinocchio::address::address_eq($key1, $key2) {
             pinocchio_log::log!(
                 "require_eq_keys!({}, {}) failed: ",
                 stringify!($key1),
                 stringify!($key2)
             );
-            pinocchio::pubkey::log($key1);
-            pinocchio::pubkey::log($key2);
+            $key1.log();
+            $key2.log();
             return Err($error.into());
         }
     }};
@@ -162,7 +142,7 @@ macro_rules! require_n_accounts {
                     $n,
                     $accounts.len()
                 );
-                return Err(pinocchio::program_error::ProgramError::NotEnoughAccountKeys);
+                return Err(pinocchio::error::ProgramError::NotEnoughAccountKeys);
             }
             core::cmp::Ordering::Equal => TryInto::<&[_; $n]>::try_into($accounts)
                 .map_err(|_| $crate::error::DlpError::InfallibleError)?,
@@ -190,21 +170,21 @@ macro_rules! require_some {
 
 ///
 /// require_owned_by(
-///     info: &AccountInfo,
-///     owner: &Pubkey
+///     info: &AccountView,
+///     owner: &Address
 /// ) -> Result<(), ProgramError>
 ///
 #[macro_export]
 macro_rules! require_owned_by {
     ($info: expr, $owner: expr) => {{
-        if !pubkey_eq($info.owner(), $owner) {
+        if !address_eq(unsafe { $info.owner() }, $owner) {
             pinocchio_log::log!(
                 "require_owned_by!({}, {})",
                 stringify!($info),
                 stringify!($owner)
             );
-            pubkey::log($info.key());
-            pubkey::log($owner);
+            $info.address().log();
+            $owner.log();
             return Err(ProgramError::InvalidAccountOwner);
         }
     }};
@@ -212,16 +192,16 @@ macro_rules! require_owned_by {
 
 ///
 /// require_initialized_pda(
-///     info: &AccountInfo,
+///     info: &AccountView,
 ///     seeds: &[&[u8]],
-///     program_id: &Pubkey,
+///     program_id: &Address,
 ///     is_writable: bool,
 /// ) -> Result<(), ProgramError> {
 ///
 #[macro_export]
 macro_rules! require_initialized_pda {
     ($info:expr, $seeds: expr, $program_id: expr, $is_writable: expr) => {{
-        let pda = match pubkey::create_program_address($seeds, $program_id) {
+        let pda = match pinocchio::Address::create_program_address($seeds, $program_id) {
             Ok(pda) => pda,
             Err(_) => {
                 log!(
@@ -234,16 +214,16 @@ macro_rules! require_initialized_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
         };
-        if !pubkey_eq($info.key(), &pda) {
+        if !address_eq($info.address(), &pda) {
             log!(
-                "require_initialized_pda!({}, {}, {}, {}); pubkey_eq failed",
+                "require_initialized_pda!({}, {}, {}, {}); address_eq failed",
                 stringify!($info),
                 stringify!($seeds),
                 stringify!($program_id),
                 stringify!($is_writable)
             );
-            pubkey::log($info.key());
-            pubkey::log($program_id);
+            $info.address().log();
+            $program_id.log();
             return Err(ProgramError::InvalidSeeds);
         }
 
@@ -257,7 +237,7 @@ macro_rules! require_initialized_pda {
                 stringify!($program_id),
                 stringify!($is_writable)
             );
-            pubkey::log($info.key());
+            $info.address().log();
             return Err(ProgramError::Immutable);
         }
     }};
@@ -267,15 +247,14 @@ macro_rules! require_initialized_pda {
 macro_rules! require_initialized_pda_fast {
     ($info:expr, $seeds: expr, $is_writable: expr) => {{
         let pda = solana_sha256_hasher::hashv($seeds).to_bytes();
-
-        if !pubkey_eq($info.key(), &pda) {
+        if !address_eq($info.address(), &pda.into()) {
             log!(
-                "require_initialized_pda!({}, {}, {}); pubkey_eq failed",
+                "require_initialized_pda!({}, {}, {}); address_eq failed",
                 stringify!($info),
                 stringify!($seeds),
                 stringify!($is_writable)
             );
-            pubkey::log($info.key());
+            $info.address().log();
             return Err(ProgramError::InvalidSeeds);
         }
 
@@ -288,7 +267,7 @@ macro_rules! require_initialized_pda_fast {
                 stringify!($seeds),
                 stringify!($is_writable)
             );
-            pubkey::log($info.key());
+            $info.address().log();
             return Err(ProgramError::Immutable);
         }
     }};
@@ -297,7 +276,7 @@ macro_rules! require_initialized_pda_fast {
 #[macro_export]
 macro_rules! require_pda {
     ($info:expr, $seeds: expr, $program_id: expr, $is_writable: expr) => {{
-        let pda = match pubkey::create_program_address($seeds, $program_id) {
+        let pda = match pinocchio::Address::create_program_address($seeds, $program_id) {
             Ok(pda) => pda,
             Err(_) => {
                 log!(
@@ -310,16 +289,16 @@ macro_rules! require_pda {
                 return Err(ProgramError::InvalidSeeds);
             }
         };
-        if !pubkey_eq($info.key(), &pda) {
+        if !address_eq($info.address(), &pda) {
             log!(
-                "require_pda!({}, {}, {}, {}); pubkey_eq failed",
+                "require_pda!({}, {}, {}, {}); address_eq failed",
                 stringify!($info),
                 stringify!($seeds),
                 stringify!($program_id),
                 stringify!($is_writable)
             );
-            pubkey::log($info.key());
-            pubkey::log($program_id);
+            $info.address().log();
+            $program_id.log();
             return Err(ProgramError::InvalidSeeds);
         }
 
@@ -331,28 +310,9 @@ macro_rules! require_pda {
                 stringify!($program_id),
                 stringify!($is_writable)
             );
-            pubkey::log($info.key());
+            $info.address().log();
             return Err(ProgramError::Immutable);
         }
-    }};
-}
-
-/// require_program_config(
-///     program_config: &AccountInfo,
-///     program: &Pubkey,
-///     bump: u8,
-///     is_writable: bool,
-/// ) -> Result<bool, ProgramError> {
-#[macro_export]
-macro_rules! require_program_config {
-    ($program_config: expr, $program: expr, $bump: expr, $is_writable: expr) => {{
-        $crate::require_pda!(
-            $program_config,
-            &[pda::PROGRAM_CONFIG_TAG, $program, &[$bump]],
-            &$crate::fast::ID,
-            $is_writable
-        );
-        !pubkey_eq($program_config.owner(), &pinocchio_system::ID)
     }};
 }
 
@@ -360,15 +320,15 @@ macro_rules! require_program_config {
 /// - Account is not owned by expected program.
 #[inline(always)]
 pub fn require_owned_pda(
-    info: &AccountInfo,
-    owner: &Pubkey,
+    info: &AccountView,
+    owner: &Address,
     label: &str,
 ) -> Result<(), ProgramError> {
-    if !pubkey_eq(info.owner(), owner) {
+    if !address_eq(unsafe { info.owner() }, owner) {
         log!("Invalid account owner for {}:", label);
-        pubkey::log(info.key());
-        pubkey::log(info.owner());
-        pubkey::log(owner);
+        info.address().log();
+        unsafe { info.owner() }.log();
+        owner.log();
         return Err(ProgramError::InvalidAccountOwner);
     }
     Ok(())
@@ -377,10 +337,10 @@ pub fn require_owned_pda(
 /// Errors if:
 /// - Account is not a signer.
 #[inline(always)]
-pub fn require_signer(info: &AccountInfo, label: &str) -> Result<(), ProgramError> {
+pub fn require_signer(info: &AccountView, label: &str) -> Result<(), ProgramError> {
     if !info.is_signer() {
         log!("Account needs to be signer {}: ", label);
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ProgramError::MissingRequiredSignature);
     }
 
@@ -391,23 +351,23 @@ pub fn require_signer(info: &AccountInfo, label: &str) -> Result<(), ProgramErro
 /// - Address does not match PDA derived from provided seeds.
 #[inline(always)]
 pub fn require_pda(
-    info: &AccountInfo,
+    info: &AccountView,
     seeds: &[&[u8]],
-    program_id: &Pubkey,
+    program_id: &Address,
     is_writable: bool,
     label: &str,
 ) -> Result<u8, ProgramError> {
-    let pda = pubkey::find_program_address(seeds, program_id);
+    let pda = Address::find_program_address(seeds, program_id);
 
-    if !pubkey_eq(info.key(), &pda.0) {
+    if !address_eq(info.address(), &pda.0) {
         log!("Invalid seeds for {}: ", label);
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ProgramError::InvalidSeeds);
     }
 
     if is_writable && !info.is_writable() {
         log!("Account needs to be writable. Label: {}", label);
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ProgramError::Immutable);
     }
 
@@ -417,8 +377,8 @@ pub fn require_pda(
 /// Returns true if the account is uninitialized based on the following conditions:
 /// - Owner is the system program.
 /// - Data is empty.
-pub fn is_uninitialized_account(info: &AccountInfo) -> bool {
-    pubkey_eq(info.owner(), &pinocchio_system::ID) && info.data_is_empty()
+pub fn is_uninitialized_account(info: &AccountView) -> bool {
+    address_eq(unsafe { info.owner() }, &pinocchio_system::ID) && info.is_data_empty()
 }
 
 /// Errors if:
@@ -427,26 +387,26 @@ pub fn is_uninitialized_account(info: &AccountInfo) -> bool {
 /// - Account is not writable.
 #[inline(always)]
 pub fn require_uninitialized_account(
-    info: &AccountInfo,
+    info: &AccountView,
     is_writable: bool,
     ctx: impl RequireUninitializedAccountCtx,
 ) -> Result<(), ProgramError> {
-    if !pubkey_eq(info.owner(), &pinocchio_system::id()) {
+    if !address_eq(unsafe { info.owner() }, &pinocchio_system::id()) {
         log!(
             "Invalid owner for account. Label: {}; account and owner: ",
             ctx.label()
         );
-        pubkey::log(info.key());
-        pubkey::log(info.owner());
+        info.address().log();
+        unsafe { info.owner() }.log();
         return Err(ctx.invalid_account_owner());
     }
 
-    if !info.data_is_empty() {
+    if !info.is_data_empty() {
         log!(
             "Account needs to be uninitialized. Label: {}, account: ",
             ctx.label(),
         );
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ctx.account_already_initialized());
     }
 
@@ -455,7 +415,7 @@ pub fn require_uninitialized_account(
             "Account needs to be writable. label: {}, account: ",
             ctx.label()
         );
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ctx.immutable());
     }
 
@@ -467,17 +427,17 @@ pub fn require_uninitialized_account(
 /// - Cannot load as an uninitialized account.
 #[inline(always)]
 pub fn require_uninitialized_pda(
-    info: &AccountInfo,
+    info: &AccountView,
     seeds: &[&[u8]],
-    program_id: &Pubkey,
+    program_id: &Address,
     is_writable: bool,
     ctx: impl RequireUninitializedAccountCtx,
 ) -> Result<u8, ProgramError> {
-    let pda = pubkey::find_program_address(seeds, program_id);
+    let pda = Address::find_program_address(seeds, program_id);
 
-    if !pubkey_eq(info.key(), &pda.0) {
+    if !address_eq(info.address(), &pda.0) {
         log!("Invalid seeds for account {}: ", ctx.label());
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ctx.invalid_seeds());
     }
 
@@ -490,16 +450,16 @@ pub fn require_uninitialized_pda(
 /// - Owner is not the expected program.
 /// - Account is not writable if set to writable.
 pub fn require_initialized_pda(
-    info: &AccountInfo,
+    info: &AccountView,
     seeds: &[&[u8]],
-    program_id: &Pubkey,
+    program_id: &Address,
     is_writable: bool,
     label: &str,
 ) -> Result<u8, ProgramError> {
-    let pda = pubkey::find_program_address(seeds, program_id);
-    if !pubkey_eq(info.key(), &pda.0) {
+    let pda = Address::find_program_address(seeds, program_id);
+    if !address_eq(info.address(), &pda.0) {
         log!("Invalid seeds (label: {}) for account ", label);
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ProgramError::InvalidSeeds);
     }
 
@@ -507,7 +467,7 @@ pub fn require_initialized_pda(
 
     if is_writable && !info.is_writable() {
         log!("Account needs to be writable. label: {}, account: ", label);
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ProgramError::Immutable);
     }
 
@@ -519,16 +479,16 @@ pub fn require_initialized_pda(
 /// - Account is not executable.
 #[inline(always)]
 #[allow(dead_code)]
-pub fn require_program(info: &AccountInfo, key: &Pubkey, label: &str) -> Result<(), ProgramError> {
-    if !pubkey_eq(info.key(), key) {
+pub fn require_program(info: &AccountView, key: &Address, label: &str) -> Result<(), ProgramError> {
+    if !address_eq(info.address(), key) {
         log!("Invalid program account {}: ", label);
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ProgramError::IncorrectProgramId);
     }
 
     if !info.executable() {
         log!("{} program is not executable: ", label);
-        pubkey::log(info.key());
+        info.address().log();
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -538,7 +498,7 @@ pub fn require_program(info: &AccountInfo, key: &Pubkey, label: &str) -> Result<
 /// Load fee vault PDA
 /// - Protocol fees vault PDA
 pub fn require_initialized_protocol_fees_vault(
-    fees_vault: &AccountInfo,
+    fees_vault: &AccountView,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
     require_initialized_pda(
@@ -555,21 +515,23 @@ pub fn require_initialized_protocol_fees_vault(
 /// - Validator fees vault PDA must be derived from the validator pubkey
 /// - Validator fees vault PDA must be initialized with the expected seeds and owner
 pub fn require_initialized_validator_fees_vault(
-    validator: &AccountInfo,
-    validator_fees_vault: &AccountInfo,
+    validator: &AccountView,
+    validator_fees_vault: &AccountView,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
-    let pda = validator_fees_vault_pda_from_validator(&(*validator.key()).into());
-    if !pubkey_eq(validator_fees_vault.key(), pda.as_array()) {
+    let pda = validator_fees_vault_pda_from_validator(&validator.address().to_bytes().into())
+        .to_bytes()
+        .into();
+    if !address_eq(validator_fees_vault.address(), &pda) {
         log!("Invalid validator fees vault PDA, expected: ");
-        pubkey::log(pda.as_array());
+        pda.log();
         log!("but got: ");
-        pubkey::log(validator_fees_vault.key());
+        validator_fees_vault.address().log();
         return Err(DlpError::InvalidAuthority.into());
     }
     require_initialized_pda(
         validator_fees_vault,
-        &[pda::VALIDATOR_FEES_VAULT_TAG, validator.key()],
+        &[pda::VALIDATOR_FEES_VAULT_TAG, validator.address().as_ref()],
         &crate::fast::ID,
         is_writable,
         "validator fees vault",
@@ -580,38 +542,44 @@ pub fn require_initialized_validator_fees_vault(
 /// Load program config PDA
 /// - Program config PDA must be initialized with the expected seeds and owner, or not exists
 pub fn require_program_config(
-    program_config: &AccountInfo,
-    program: &Pubkey,
+    program_config: &AccountView,
+    program: &Address,
     is_writable: bool,
 ) -> Result<bool, ProgramError> {
-    let pda = program_config_from_program_id(&(*program).into());
-    if !pubkey_eq(pda.as_array(), program_config.key()) {
+    let pda = program_config_from_program_id(&program.to_bytes().into());
+    if !address_eq(&pda.to_bytes().into(), program_config.address()) {
         log!("Invalid program config PDA, expected: ");
-        pubkey::log(pda.as_array());
+        pda.log();
         log!("but got: ");
-        pubkey::log(program_config.key());
+        program_config.address().log();
         return Err(DlpError::InvalidAuthority.into());
     }
     require_pda(
         program_config,
-        &[pda::PROGRAM_CONFIG_TAG, program],
+        &[pda::PROGRAM_CONFIG_TAG, program.as_ref()],
         &crate::fast::ID,
         is_writable,
         "program config",
     )?;
-    Ok(!pubkey_eq(program_config.owner(), &pinocchio_system::ID))
+    Ok(!address_eq(
+        unsafe { program_config.owner() },
+        &pinocchio_system::ID,
+    ))
 }
 
 /// Load initialized delegation record
 /// - Delegation record must be derived from the delegated account
 pub fn require_initialized_delegation_record(
-    delegated_account: &AccountInfo,
-    delegation_record: &AccountInfo,
+    delegated_account: &AccountView,
+    delegation_record: &AccountView,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
     require_initialized_pda(
         delegation_record,
-        &[pda::DELEGATION_RECORD_TAG, delegated_account.key()],
+        &[
+            pda::DELEGATION_RECORD_TAG,
+            delegated_account.address().as_ref(),
+        ],
         &crate::fast::ID,
         is_writable,
         "delegation record",
@@ -622,13 +590,16 @@ pub fn require_initialized_delegation_record(
 /// Load initialized delegation metadata
 /// - Delegation metadata must be derived from the delegated account
 pub fn require_initialized_delegation_metadata(
-    delegated_account: &AccountInfo,
-    delegation_metadata: &AccountInfo,
+    delegated_account: &AccountView,
+    delegation_metadata: &AccountView,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
     require_initialized_pda(
         delegation_metadata,
-        &[pda::DELEGATION_METADATA_TAG, delegated_account.key()],
+        &[
+            pda::DELEGATION_METADATA_TAG,
+            delegated_account.address().as_ref(),
+        ],
         &crate::fast::ID,
         is_writable,
         "delegation metadata",
@@ -639,13 +610,13 @@ pub fn require_initialized_delegation_metadata(
 /// Load initialized commit state account
 /// - Commit state account must be derived from the delegated account pubkey
 pub fn require_initialized_commit_state(
-    delegated_account: &AccountInfo,
-    commit_state: &AccountInfo,
+    delegated_account: &AccountView,
+    commit_state: &AccountView,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
     require_initialized_pda(
         commit_state,
-        &[pda::COMMIT_STATE_TAG, delegated_account.key()],
+        &[pda::COMMIT_STATE_TAG, delegated_account.address().as_ref()],
         &crate::fast::ID,
         is_writable,
         "commit state",
@@ -656,13 +627,13 @@ pub fn require_initialized_commit_state(
 /// Load initialized commit state record
 /// - Commit record account must be derived from the delegated account pubkey
 pub fn require_initialized_commit_record(
-    delegated_account: &AccountInfo,
-    commit_record: &AccountInfo,
+    delegated_account: &AccountView,
+    commit_record: &AccountView,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
     require_initialized_pda(
         commit_record,
-        &[pda::COMMIT_RECORD_TAG, delegated_account.key()],
+        &[pda::COMMIT_RECORD_TAG, delegated_account.address().as_ref()],
         &crate::fast::ID,
         is_writable,
         "commit record",
@@ -699,19 +670,19 @@ macro_rules! define_uninitialized_ctx {
                 $label
             }
 
-            fn invalid_seeds(&self) -> pinocchio::program_error::ProgramError {
+            fn invalid_seeds(&self) -> pinocchio::error::ProgramError {
                 $seeds.into()
             }
 
-            fn invalid_account_owner(&self) -> pinocchio::program_error::ProgramError {
+            fn invalid_account_owner(&self) -> pinocchio::error::ProgramError {
                 $owner.into()
             }
 
-            fn account_already_initialized(&self) -> pinocchio::program_error::ProgramError {
+            fn account_already_initialized(&self) -> pinocchio::error::ProgramError {
                 $already_init.into()
             }
 
-            fn immutable(&self) -> pinocchio::program_error::ProgramError {
+            fn immutable(&self) -> pinocchio::error::ProgramError {
                 $immutable.into()
             }
         }
@@ -764,16 +735,16 @@ define_uninitialized_ctx!(
 );
 
 pub fn require_authorization(
-    program_data: &AccountInfo,
-    admin: &AccountInfo,
+    program_data: &AccountView,
+    admin: &AccountView,
 ) -> Result<(), ProgramError> {
     #[cfg(feature = "unit_test_config")]
     {
         let _ = program_data;
 
         require_eq_keys!(
-            &crate::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes().into(),
-            admin.key(),
+            &Address::from(crate::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes()),
+            admin.address(),
             ProgramError::IncorrectAuthority
         );
         return Ok(());
@@ -784,7 +755,7 @@ pub fn require_authorization(
         // Derive and validate program data address
         require_eq_keys!(
             &crate::consts::DELEGATION_PROGRAM_DATA_ID,
-            program_data.key(),
+            program_data.address(),
             ProgramError::IncorrectAuthority
         );
 
@@ -802,7 +773,7 @@ pub fn require_authorization(
         //
         // SAFETY: This authorization logic reads raw ProgramData bytes using the current
         // Upgradeable Loader v3 layout.
-        let data = program_data.try_borrow_data()?;
+        let data = program_data.try_borrow()?;
         if data.len() >= offset_of_upgrade_authority_address + 33
             && data[0] == PROGRAM_DATA
             && data[offset_of_upgrade_authority_address] == OPTION_SOME
@@ -810,12 +781,11 @@ pub fn require_authorization(
             let bytes = &data
                 [offset_of_upgrade_authority_address + 1..offset_of_upgrade_authority_address + 33];
 
-            let upgrade_authority_address =
-                unsafe { *(bytes.as_ptr() as *const pinocchio::pubkey::Pubkey) };
+            let upgrade_authority_address = unsafe { &*(bytes.as_ptr() as *const Address) };
 
             require_eq_keys!(
-                &upgrade_authority_address,
-                admin.key(),
+                upgrade_authority_address,
+                admin.address(),
                 ProgramError::IncorrectAuthority
             );
 

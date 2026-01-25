@@ -1,10 +1,8 @@
 use borsh::BorshDeserialize;
-use pinocchio::instruction::Signer;
-use pinocchio::pubkey::{self, pubkey_eq};
-use pinocchio::seeds;
-use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
-};
+use pinocchio::address::address_eq;
+use pinocchio::cpi::Signer;
+use pinocchio::instruction::seeds;
+use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
@@ -53,8 +51,8 @@ use super::to_pinocchio_program_error;
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
 pub fn process_commit_state(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     let args = CommitStateArgs::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
@@ -107,14 +105,14 @@ pub(crate) struct CommitStateInternalArgs<'a> {
     pub(crate) commit_record_lamports: u64,
     pub(crate) commit_record_nonce: u64,
     pub(crate) allow_undelegation: bool,
-    pub(crate) validator: &'a AccountInfo,
-    pub(crate) delegated_account: &'a AccountInfo,
-    pub(crate) commit_state_account: &'a AccountInfo,
-    pub(crate) commit_record_account: &'a AccountInfo,
-    pub(crate) delegation_record_account: &'a AccountInfo,
-    pub(crate) delegation_metadata_account: &'a AccountInfo,
-    pub(crate) validator_fees_vault: &'a AccountInfo,
-    pub(crate) program_config_account: &'a AccountInfo,
+    pub(crate) validator: &'a AccountView,
+    pub(crate) delegated_account: &'a AccountView,
+    pub(crate) commit_state_account: &'a AccountView,
+    pub(crate) commit_record_account: &'a AccountView,
+    pub(crate) delegation_record_account: &'a AccountView,
+    pub(crate) delegation_metadata_account: &'a AccountView,
+    pub(crate) validator_fees_vault: &'a AccountView,
+    pub(crate) program_config_account: &'a AccountView,
 }
 
 /// Commit a new state of a delegated Pda
@@ -141,7 +139,7 @@ pub(crate) fn process_commit_state_internal(
     require_initialized_validator_fees_vault(args.validator, args.validator_fees_vault, false)?;
 
     // Read delegation metadata
-    let mut delegation_metadata_data = args.delegation_metadata_account.try_borrow_mut_data()?;
+    let mut delegation_metadata_data = args.delegation_metadata_account.try_borrow_mut()?;
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
             .map_err(to_pinocchio_program_error)?;
@@ -159,7 +157,7 @@ pub(crate) fn process_commit_state_internal(
     // Once the account is marked as undelegatable, any subsequent commit should fail
     if delegation_metadata.is_undelegatable {
         log!("delegation metadata is already undelegated: ");
-        pubkey::log(args.delegation_metadata_account.key());
+        args.delegation_metadata_account.address().log();
         return Err(DlpError::AlreadyUndelegated.into());
     }
 
@@ -170,17 +168,20 @@ pub(crate) fn process_commit_state_internal(
         .map_err(to_pinocchio_program_error)?;
 
     // Load delegation record
-    let delegation_record_data = args.delegation_record_account.try_borrow_data()?;
+    let delegation_record_data = args.delegation_record_account.try_borrow()?;
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)
             .map_err(to_pinocchio_program_error)?;
 
     // Check that the authority is allowed to commit
-    if !pubkey_eq(delegation_record.authority.as_array(), args.validator.key()) {
+    if !address_eq(
+        &delegation_record.authority.to_bytes().into(),
+        args.validator.address(),
+    ) {
         log!("validator is not the delegation authority. validator: ");
-        pubkey::log(args.validator.key());
+        args.validator.address().log();
         log!("delegation authority: ");
-        pubkey::log(delegation_record.authority.as_array());
+        Address::from(delegation_record.authority.to_bytes()).log();
         return Err(DlpError::InvalidAuthority.into());
     }
 
@@ -188,7 +189,7 @@ pub(crate) fn process_commit_state_internal(
     if args.delegated_account.lamports() < delegation_record.lamports {
         log!(
             "delegated account has less lamports than the delegation record indicates. delegation account: ");
-        pubkey::log(args.delegated_account.key());
+        args.delegated_account.address().log();
         return Err(DlpError::InvalidDelegatedState.into());
     }
 
@@ -208,20 +209,20 @@ pub(crate) fn process_commit_state_internal(
     // Load the program configuration and validate it, if any
     let has_program_config = require_program_config(
         args.program_config_account,
-        delegation_record.owner.as_array(),
+        &Address::from(delegation_record.owner.to_bytes()),
         false,
     )?;
     if has_program_config {
-        let program_config_data = args.program_config_account.try_borrow_data()?;
+        let program_config_data = args.program_config_account.try_borrow()?;
 
         let program_config = ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)
             .map_err(to_pinocchio_program_error)?;
         if !program_config
             .approved_validators
-            .contains(&(*args.validator.key()).into())
+            .contains(&args.validator.address().to_bytes().into())
         {
             log!("validator is not whitelisted in the program config: ");
-            pubkey::log(args.validator.key());
+            args.validator.address().log();
             return Err(DlpError::InvalidWhitelistProgramConfig.into());
         }
     }
@@ -229,14 +230,20 @@ pub(crate) fn process_commit_state_internal(
     // Load the uninitialized PDAs
     let commit_state_bump = require_uninitialized_pda(
         args.commit_state_account,
-        &[pda::COMMIT_STATE_TAG, args.delegated_account.key()],
+        &[
+            pda::COMMIT_STATE_TAG,
+            args.delegated_account.address().as_ref(),
+        ],
         &crate::fast::ID,
         true,
         CommitStateAccountCtx,
     )?;
     let commit_record_bump = require_uninitialized_pda(
         args.commit_record_account,
-        &[pda::COMMIT_RECORD_TAG, args.delegated_account.key()],
+        &[
+            pda::COMMIT_RECORD_TAG,
+            args.delegated_account.address().as_ref(),
+        ],
         &crate::fast::ID,
         true,
         CommitRecordCtx,
@@ -249,7 +256,7 @@ pub(crate) fn process_commit_state_internal(
         args.commit_state_bytes.data_len(),
         &[Signer::from(&seeds!(
             pda::COMMIT_STATE_TAG,
-            args.delegated_account.key(),
+            args.delegated_account.address().as_ref(),
             &[commit_state_bump]
         ))],
         args.validator,
@@ -262,7 +269,7 @@ pub(crate) fn process_commit_state_internal(
         CommitRecord::size_with_discriminator(),
         &[Signer::from(&seeds!(
             pda::COMMIT_RECORD_TAG,
-            args.delegated_account.key(),
+            args.delegated_account.address().as_ref(),
             &[commit_record_bump]
         ))],
         args.validator,
@@ -270,23 +277,23 @@ pub(crate) fn process_commit_state_internal(
 
     // Initialize the commit record
     let commit_record = CommitRecord {
-        identity: (*args.validator.key()).into(),
-        account: (*args.delegated_account.key()).into(),
+        identity: args.validator.address().to_bytes().into(),
+        account: args.delegated_account.address().to_bytes().into(),
         nonce: args.commit_record_nonce,
         lamports: args.commit_record_lamports,
     };
-    let mut commit_record_data = args.commit_record_account.try_borrow_mut_data()?;
+    let mut commit_record_data = args.commit_record_account.try_borrow_mut()?;
     commit_record
         .to_bytes_with_discriminator(&mut commit_record_data)
         .map_err(to_pinocchio_program_error)?;
 
     // Copy the new state to the initialized PDA
-    let mut commit_state_data = args.commit_state_account.try_borrow_mut_data()?;
+    let mut commit_state_data = args.commit_state_account.try_borrow_mut()?;
 
     match args.commit_state_bytes {
         NewState::FullBytes(bytes) => (*commit_state_data).copy_from_slice(bytes),
         NewState::Diff(diff) => {
-            let original_data = args.delegated_account.try_borrow_data()?;
+            let original_data = args.delegated_account.try_borrow()?;
             merge_diff_copy(&mut commit_state_data, &original_data, &diff)?;
         }
     }

@@ -21,7 +21,7 @@ pub fn whitelist_validator_for_program(
     let args = WhitelistValidatorForProgramArgs { insert };
     let program_data =
         Pubkey::find_program_address(&[program.as_ref()], &bpf_loader_upgradeable::id()).0;
-    let delegation_program_data = Pubkey::new_from_array(DELEGATION_PROGRAM_DATA_ID);
+    let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     let program_config_pda = program_config_from_program_id(&program);
     Instruction {
         program_id: crate::id(),

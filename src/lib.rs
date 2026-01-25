@@ -59,7 +59,7 @@ declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
 #[cfg(not(feature = "sdk"))]
 pub mod fast {
-    pinocchio_pubkey::declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
+    pinocchio::address::declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 }
 
 #[cfg(feature = "solana-security-txt")]
@@ -74,14 +74,12 @@ solana_security_txt::security_txt! {
 
 #[cfg(not(feature = "sdk"))]
 pub fn fast_process_instruction(
-    program_id: &pinocchio::pubkey::Pubkey,
-    accounts: &[pinocchio::account_info::AccountInfo],
+    program_id: &pinocchio::Address,
+    accounts: &[pinocchio::AccountView],
     data: &[u8],
 ) -> Option<pinocchio::ProgramResult> {
     if data.len() < 8 {
-        return Some(Err(
-            pinocchio::program_error::ProgramError::InvalidInstructionData,
-        ));
+        return Some(Err(pinocchio::error::ProgramError::InvalidInstructionData));
     }
 
     let (discriminator_bytes, data) = data.split_at(8);
@@ -90,9 +88,7 @@ pub fn fast_process_instruction(
         Ok(discriminator) => discriminator,
         Err(_) => {
             pinocchio_log::log!("Failed to read and parse discriminator");
-            return Some(Err(
-                pinocchio::program_error::ProgramError::InvalidInstructionData,
-            ));
+            return Some(Err(pinocchio::error::ProgramError::InvalidInstructionData));
         }
     };
 

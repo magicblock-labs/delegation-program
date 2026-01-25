@@ -1,6 +1,5 @@
 use crate::{error::DlpError, fast_process_instruction, slow_process_instruction};
 
-use pinocchio::program_error::ToStr;
 use solana_program::entrypoint;
 
 entrypoint::custom_heap_default!();
@@ -12,8 +11,8 @@ entrypoint::custom_panic_default!();
 /// support fallback branch.
 #[no_mangle]
 pub unsafe extern "C" fn entrypoint(input: *mut u8) -> u64 {
-    const UNINIT: core::mem::MaybeUninit<pinocchio::account_info::AccountInfo> =
-        core::mem::MaybeUninit::<pinocchio::account_info::AccountInfo>::uninit();
+    const UNINIT: core::mem::MaybeUninit<pinocchio::AccountView> =
+        core::mem::MaybeUninit::<pinocchio::AccountView>::uninit();
     let mut accounts = [UNINIT; { pinocchio::MAX_TX_ACCOUNTS }];
 
     let (program_id, count, data) =

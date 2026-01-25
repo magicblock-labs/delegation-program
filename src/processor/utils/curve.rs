@@ -1,10 +1,10 @@
-pub fn is_on_curve_fast(key: &pinocchio::pubkey::Pubkey) -> bool {
+pub fn is_on_curve_fast(key: &pinocchio::Address) -> bool {
     #[cfg(not(target_os = "solana"))]
     {
         use solana_curve25519::edwards::{validate_edwards, PodEdwardsPoint};
         // SAFETY: the layout of pinocchio::pubkey::Pubkey and PodEdwardsPoint is identical
         // so one can be casted to the other without any issue.
-        validate_edwards(unsafe { &*(key as *const u8 as *const PodEdwardsPoint) })
+        validate_edwards(unsafe { &*(key.as_array().as_ptr() as *const PodEdwardsPoint) })
     }
 
     #[cfg(target_os = "solana")]
@@ -16,7 +16,7 @@ pub fn is_on_curve_fast(key: &pinocchio::pubkey::Pubkey) -> bool {
         let ret = unsafe {
             pinocchio::syscalls::sol_curve_validate_point(
                 0, // 0 means Ed25519
-                key.as_ptr(),
+                key.as_array().as_ptr(),
                 &mut result as *mut u8,
             )
         };

@@ -1,3 +1,4 @@
+use pinocchio::Address;
 use solana_program::pubkey;
 use solana_program::pubkey::Pubkey;
 
@@ -33,13 +34,16 @@ pub const DEFAULT_VALIDATOR_IDENTITY: Pubkey =
 /// cannot be committed or delegated
 pub const BROADCAST_IDENTITY: Pubkey = pubkey!("Broadcast1111111111111111111111111111111111");
 
-pub const BPF_LOADER_UPGRADEABLE_ID: [u8; 32] =
-    const_crypto::bs58::decode_pubkey("BPFLoaderUpgradeab1e11111111111111111111111");
+pub const BPF_LOADER_UPGRADEABLE_ID: Address = Address::new_from_array(
+    const_crypto::bs58::decode_pubkey("BPFLoaderUpgradeab1e11111111111111111111111"),
+);
 
-pub const DELEGATION_PROGRAM_DATA_ID: [u8; 32] = const_crypto::ed25519::derive_program_address(
-    &[&crate::ID.to_bytes()],
-    &BPF_LOADER_UPGRADEABLE_ID,
-)
-.0;
+pub const DELEGATION_PROGRAM_DATA_ID: Address = Address::new_from_array(
+    const_crypto::ed25519::derive_program_address(
+        &[crate::fast::ID.as_array()],
+        BPF_LOADER_UPGRADEABLE_ID.as_array(),
+    )
+    .0,
+);
 
 pub const RENT_EXCEPTION_ZERO_BYTES_LAMPORTS: u64 = 890880;

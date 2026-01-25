@@ -1,4 +1,4 @@
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
+use pinocchio::{AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 
 use crate::args::CommitFinalizeArgs;
@@ -40,8 +40,8 @@ use crate::{require_n_accounts, DiffSet};
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
 pub fn process_commit_finalize_from_buffer(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     let [
@@ -56,7 +56,7 @@ pub fn process_commit_finalize_from_buffer(
 
     let args = CommitFinalizeArgs::try_view_from(data)?;
 
-    let data = data_account.try_borrow_data()?;
+    let data = data_account.try_borrow()?;
     let commit_args = CommitFinalizeInternalArgs {
         bumps: &args.bumps,
         new_state: if args.data_is_diff.is_true() {

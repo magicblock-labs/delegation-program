@@ -1,6 +1,6 @@
 use std::cmp::{min, Ordering};
 
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 use rkyv::util::AlignedVec;
 
 use crate::error::DlpError;

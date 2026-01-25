@@ -1,6 +1,6 @@
-use pinocchio::account_info::AccountInfo;
-use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::{pubkey_eq, Pubkey};
+use pinocchio::address::{address_eq, Address};
+use pinocchio::error::ProgramError;
+use pinocchio::AccountView;
 use pinocchio::ProgramResult;
 use pinocchio_log::log;
 
@@ -49,8 +49,8 @@ use super::to_pinocchio_program_error;
 /// 3. Close the state diff account
 /// 4. Close the commit state record
 pub fn process_finalize(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {
     let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, _system_program] =
@@ -86,26 +86,32 @@ pub fn process_finalize(
     require_cr?;
 
     // Load delegation metadata
-    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
+    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut()?;
     let mut delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
             .map_err(to_pinocchio_program_error)?;
 
-    let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
+    let mut delegation_record_data = delegation_record_account.try_borrow_mut()?;
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator_mut(&mut delegation_record_data)
             .map_err(to_pinocchio_program_error)?;
 
     // Load commit record
-    let commit_record_data = commit_record_account.try_borrow_data()?;
+    let commit_record_data = commit_record_account.try_borrow()?;
     let commit_record = CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)
         .map_err(to_pinocchio_program_error)?;
 
     // Check that the commit record is the right one
-    if !pubkey_eq(commit_record.account.as_array(), delegated_account.key()) {
+    if !address_eq(
+        &commit_record.account.to_bytes().into(),
+        delegated_account.address(),
+    ) {
         return Err(DlpError::InvalidDelegatedAccount.into());
     }
-    if !pubkey_eq(commit_record.identity.as_array(), validator.key()) {
+    if !address_eq(
+        &commit_record.identity.to_bytes().into(),
+        validator.address(),
+    ) {
         return Err(DlpError::InvalidReimbursementAccount.into());
     }
 
@@ -128,12 +134,12 @@ pub fn process_finalize(
     delegation_record.lamports = delegated_account.lamports();
 
     // Load commit state
-    let commit_state_data = commit_state_account.try_borrow_data()?;
+    let commit_state_data = commit_state_account.try_borrow()?;
 
     // Copying the new commit state to the delegated account
     delegated_account.resize(commit_state_data.len())?;
 
-    let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
+    let mut delegated_account_data = delegated_account.try_borrow_mut()?;
     (*delegated_account_data).copy_from_slice(&commit_state_data);
 
     // Drop remaining reference before closing accounts
@@ -149,9 +155,9 @@ pub fn process_finalize(
 
 /// Settle the committed lamports to the delegated account
 fn settle_lamports_balance(
-    delegated_account: &AccountInfo,
-    commit_state_account: &AccountInfo,
-    validator_fees_vault: &AccountInfo,
+    delegated_account: &AccountView,
+    commit_state_account: &AccountView,
+    validator_fees_vault: &AccountView,
     delegation_record_lamports: u64,
     commit_record_lamports: u64,
 ) -> Result<(), ProgramError> {
@@ -174,14 +180,14 @@ fn settle_lamports_balance(
             std::cmp::Ordering::Equal => return Ok(()),
         };
 
-    *transfer_source.try_borrow_mut_lamports()? = transfer_source
-        .lamports()
-        .checked_sub(transfer_lamports)
-        .ok_or(DlpError::Overflow)?;
-    *transfer_destination.try_borrow_mut_lamports()? = transfer_destination
-        .lamports()
-        .checked_add(transfer_lamports)
-        .ok_or(DlpError::Overflow)?;
+    transfer_source.set_lamports(
+        transfer_source
+            .lamports()
+            .checked_sub(transfer_lamports)
+            .ok_or(DlpError::Overflow)?,
+    );
+
+    transfer_destination.set_lamports(transfer_destination.lamports() + transfer_lamports);
 
     Ok(())
 }

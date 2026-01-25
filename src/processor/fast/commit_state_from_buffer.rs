@@ -2,16 +2,16 @@ use crate::args::CommitStateFromBufferArgs;
 use crate::processor::fast::{process_commit_state_internal, CommitStateInternalArgs};
 
 use borsh::BorshDeserialize;
-use pinocchio::account_info::AccountInfo;
-use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::error::ProgramError;
+use pinocchio::AccountView;
+use pinocchio::Address;
 use pinocchio::ProgramResult;
 
 use super::NewState;
 
 pub fn process_commit_state_from_buffer(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, state_buffer_account, validator_fees_vault, program_config_account, _system_program] =
@@ -27,7 +27,7 @@ pub fn process_commit_state_from_buffer(
     let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
 
-    let state = state_buffer_account.try_borrow_data()?;
+    let state = state_buffer_account.try_borrow()?;
 
     let commit_args = CommitStateInternalArgs {
         commit_state_bytes: NewState::FullBytes(&state),

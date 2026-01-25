@@ -151,18 +151,15 @@ impl From<DlpError> for ProgramError {
 }
 
 #[cfg(not(feature = "sdk"))]
-impl From<DlpError> for pinocchio::program_error::ProgramError {
+impl From<DlpError> for pinocchio::error::ProgramError {
     fn from(e: DlpError) -> Self {
-        pinocchio::program_error::ProgramError::Custom(e as u32)
+        pinocchio::error::ProgramError::Custom(e as u32)
     }
 }
 
 #[cfg(not(feature = "sdk"))]
-impl pinocchio::program_error::ToStr for DlpError {
-    fn to_str<E>(&self) -> &'static str
-    where
-        E: 'static + pinocchio::program_error::ToStr + TryFrom<u32>,
-    {
+impl pinocchio::error::ToStr for DlpError {
+    fn to_str(&self) -> &'static str {
         self.into()
     }
 }
