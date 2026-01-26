@@ -33,6 +33,7 @@ default = ["program", "solana-security-txt"]
 unit_test_config = []
 log-cost = []
 logging = []
+unsafe = []
 
 [dependencies]
 bincode = { version = "^1.3" }

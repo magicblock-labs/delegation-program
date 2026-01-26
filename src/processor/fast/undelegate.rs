@@ -81,7 +81,6 @@ use crate::{
 /// - Verify that the new state is the same as the committed state
 /// - Close the undelegation buffer PDA
 pub fn process_undelegate(
-    _program_id: &Address,
     accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {

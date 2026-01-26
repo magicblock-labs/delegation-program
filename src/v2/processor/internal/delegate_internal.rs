@@ -1,4 +1,3 @@
-use borsh::BorshDeserialize;
 use bytemuck::{Pod, Zeroable};
 use pinocchio::{
     address::address_eq,
@@ -15,28 +14,31 @@ use crate::{
     args::ArgsWithBuffer,
     consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
     error::DlpError,
-    pda,
+    pda::{self},
     pod_view::PodView,
     processor::{fast::utils::pda::create_pda, utils::curve::is_on_curve_fast},
-    v2::{DelegationState, DelegationStateHeader, ValidatedDelegationBindings},
-    v2_require, v2_require_eq_keys, v2_require_n_accounts, v2_require_owned_by,
+    v2::{DelegationStateHeader, ValidatedDelegationBindings},
+    v2_require_eq_keys, v2_require_n_accounts, v2_require_owned_by,
     v2_require_pda_fast, v2_require_signer, v2_require_uninitialized_pda,
+    validator_fees_vault_seeds_from_validator,
 };
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 struct DelegateArgsHeader {
-    /// The frequency at which the validator should commit the account data
-    /// if no commit is triggered by the owning program
-    pub commit_frequency_ms: u32,
-    /// The seeds used to derive the PDA of the delegated account
     /// The validator authority that is added to the delegation record
     pub validator: Address,
 
+    /// The frequency at which the validator should commit the account data
+    /// if no commit is triggered by the owning program
+    pub commit_frequency_ms: u32,
+
+    /// The seeds used to derive the PDA of the delegated account
     delegate_buffer_bump: u8,
     delegation_state_bump: u8,
+    validator_fees_vault_bump: u8,
 
-    reserved_padding0: [u8; 2],
+    reserved_padding0: [u8; 1],
     //pub seeds: Vec<Vec<u8>>,
 }
 
@@ -177,17 +179,23 @@ pub(crate) fn process_delegate_internal<
     //let mut delegation_state_view =
     //    DelegationState::from_bytes(&mut delegation_state_data)?;
 
+    let validator_fees_vault = Address::find_program_address(
+        validator_fees_vault_seeds_from_validator!(args.validator),
+        &crate::fast::ID,
+    )
+    .0;
+
     // Initialize the delegation record
     let header = DelegationStateHeader {
         discriminator: DelegationStateHeader::DISCRIMINATOR,
         original_owner: owner_program.address().to_bytes().into(),
         delegation_slot: Clock::get()?.slot,
-        lamports: delegated_account.lamports(),
+        original_lamports: delegated_account.lamports(),
         commit_frequency_ms: args.commit_frequency_ms as u64,
         bindings: ValidatedDelegationBindings {
-            delegation_account: *delegated_account.address(),
+            delegated_account: *delegated_account.address(),
             validator_as_authority: args.validator,
-            // validator_fees_vault: validator_fees_vault
+            validator_fees_vault,
         },
         last_commit_id: 0,
         rent_payer: payer.address().to_bytes().into(),

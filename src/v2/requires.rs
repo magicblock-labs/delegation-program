@@ -1,17 +1,6 @@
-use pinocchio::{
-    address::{address_eq, Address},
-    error::ProgramError,
-    AccountView,
-};
-use pinocchio_log::log;
+use pinocchio::Address;
 
-use crate::{
-    error::DlpError,
-    pda::{
-        self, program_config_from_program_id,
-        validator_fees_vault_pda_from_validator,
-    },
-};
+use core::ptr::read;
 
 // require true
 #[macro_export]
@@ -30,7 +19,7 @@ macro_rules! v2_require {
 macro_rules! v2_require_signer {
     ($info: expr) => {{
         if !$info.is_signer() {
-            log!("require_signer!({}): ", stringify!($info));
+            pinocchio_log::log!("require_signer!({}): ", stringify!($info));
             $info.address().log();
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -42,6 +31,43 @@ macro_rules! v2_require_signer {
 macro_rules! v2_require_eq_keys {
     ( $key1:expr, $key2:expr, $error:expr) => {{
         if !pinocchio::address::address_eq($key1, $key2) {
+            pinocchio_log::log!(
+                "require_eq_keys!({}, {}) failed: ",
+                stringify!($key1),
+                stringify!($key2)
+            );
+            $key1.log();
+            $key2.log();
+            return Err($error.into());
+        }
+    }};
+}
+
+#[inline(always)]
+pub unsafe fn unsafe_address_eq(a1: &Address, a2: &Address) -> bool {
+    if true {
+        let p1_ptr = a1.as_array().as_ptr().cast::<u64>();
+        let p2_ptr = a2.as_array().as_ptr().cast::<u64>();
+
+        read(p1_ptr) == read(p2_ptr)
+            && read(p1_ptr.add(1)) == read(p2_ptr.add(1))
+            && read(p1_ptr.add(2)) == read(p2_ptr.add(2))
+            && read(p1_ptr.add(3)) == read(p2_ptr.add(3))
+    } else {
+        let a1: &[[u8; 8]; 4] = bytemuck::cast_ref(a1.as_array());
+        let a2: &[[u8; 8]; 4] = bytemuck::cast_ref(a2.as_array());
+
+        u64::from_le_bytes(a1[0]) == u64::from_le_bytes(a2[0])
+            && u64::from_le_bytes(a1[1]) == u64::from_le_bytes(a2[1])
+            && u64::from_le_bytes(a1[2]) == u64::from_le_bytes(a2[2])
+            && u64::from_le_bytes(a1[3]) == u64::from_le_bytes(a2[3])
+    }
+}
+// require key1 == key2
+#[macro_export]
+macro_rules! v2_require_eq_keys_unsafe {
+    ( $key1:expr, $key2:expr, $error:expr) => {{
+        if !$crate::v2::requires::unsafe_address_eq($key1, $key2) {
             pinocchio_log::log!(
                 "require_eq_keys!({}, {}) failed: ",
                 stringify!($key1),
@@ -142,29 +168,24 @@ macro_rules! v2_require_gt {
 #[macro_export]
 macro_rules! v2_require_n_accounts {
     ( $accounts:expr, $n:literal) => {{
-        match $accounts.len().cmp(&$n) {
-            core::cmp::Ordering::Less => {
-                pinocchio_log::log!(
-                    "Need {} accounts, but got less ({}) accounts",
-                    $n,
-                    $accounts.len()
-                );
-                return Err(
-                    pinocchio::error::ProgramError::NotEnoughAccountKeys,
-                );
-            }
-            core::cmp::Ordering::Equal => {
-                TryInto::<&[_; $n]>::try_into($accounts)
-                    .map_err(|_| $crate::error::DlpError::InfallibleError)?
-            }
-            core::cmp::Ordering::Greater => {
-                pinocchio_log::log!(
-                    "Need {} accounts, but got more ({}) accounts",
-                    $n,
-                    $accounts.len()
-                );
-                return Err($crate::error::DlpError::TooManyAccountKeys.into());
-            }
+        let n = $accounts.len();
+        if n == $n {
+            TryInto::<&[_; $n]>::try_into($accounts)
+                .map_err(|_| $crate::error::DlpError::InfallibleError)?
+        } else if n < $n {
+            pinocchio_log::log!(
+                "Need {} accounts, but got less ({}) accounts",
+                $n,
+                $accounts.len()
+            );
+            return Err(pinocchio::error::ProgramError::NotEnoughAccountKeys);
+        } else {
+            pinocchio_log::log!(
+                "Need {} accounts, but got more ({}) accounts",
+                $n,
+                $accounts.len()
+            );
+            return Err($crate::error::DlpError::TooManyAccountKeys.into());
         }
     }};
 }
@@ -188,9 +209,9 @@ macro_rules! v2_require_some {
 #[macro_export]
 macro_rules! v2_require_owned_by {
     ($info: expr, $owner: expr) => {{
-        if !address_eq(unsafe { $info.owner() }, $owner) {
+        if !pinocchio::address::address_eq(unsafe { $info.owner() }, $owner) {
             pinocchio_log::log!(
-                "require_owned_pda!({}, {})",
+                "require_owned_by!({}, {})",
                 stringify!($info),
                 stringify!($owner)
             );

@@ -1,4 +1,4 @@
-use pinocchio::{AccountView, Address, ProgramResult};
+use pinocchio::{AccountView, ProgramResult};
 use pinocchio_log::log;
 
 use crate::{
@@ -28,7 +28,6 @@ use crate::{
 /// Instruction Data: CommitFinalizeArgsWithBuffer
 ///
 pub fn process_commit_finalize(
-    _program_id: &Address,
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {

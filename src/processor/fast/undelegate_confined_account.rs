@@ -30,7 +30,6 @@ use crate::{
 ///  6: []          system program
 ///  7: []          delegation program data (UpgradeableLoader ProgramData of this program)
 pub fn process_undelegate_confined_account(
-    _program_id: &Address,
     accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {

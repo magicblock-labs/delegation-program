@@ -1,6 +1,8 @@
 use num_enum::TryFromPrimitive;
-use pinocchio::{error::ProgramError, ProgramResult};
+use pinocchio::ProgramResult;
 use strum::IntoStaticStr;
+
+use crate::error::DlpError;
 
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive, IntoStaticStr)]
@@ -19,6 +21,7 @@ pub enum DlpInstruction {
     CommitFromBuffer = 112,
     CommitFinalize = 113,
     CommitFinalizeFromBuffer = 114,
+    HyperCommitFinalize = 115,
 
     ///
     /// Finalize group: [121, 130] => 10 slots
@@ -63,50 +66,38 @@ impl DlpInstruction {
     pub fn name(&self) -> &'static str {
         self.into()
     }
-}
 
-pub fn v2_process_instruction(
-    accounts: &[pinocchio::AccountView],
-    data: &[u8],
-) -> ProgramResult {
-    let (ix, data) = data.split_at(8);
-
-    let ix = match DlpInstruction::try_from(ix[0]) {
-        Ok(discriminator) => discriminator,
-        Err(_) => {
-            pinocchio_log::log!("Failed to read and parse discriminator");
-            return Err(pinocchio::error::ProgramError::InvalidInstructionData);
-        }
-    };
-
-    use super::processor::*;
-
-    let coming_soon = || {
-        solana_program::msg!("Instruction {:#?} not yet implemented", ix);
-        return Err(ProgramError::InvalidInstructionData);
-    };
-
-    match ix {
-        DlpInstruction::Delegate => process_delegate(accounts, data),
-        DlpInstruction::DelegateWithAnyValidator => {
-            process_delegate_with_any_validator(accounts, data)
-        }
-        DlpInstruction::Commit => coming_soon(),
-        DlpInstruction::CommitFromBuffer => coming_soon(),
-        DlpInstruction::CommitFinalize => coming_soon(),
-        DlpInstruction::CommitFinalizeFromBuffer => coming_soon(),
-        DlpInstruction::Finalize => coming_soon(),
-        DlpInstruction::Undelegate => coming_soon(),
-        DlpInstruction::UndelegateConfinedAccount => coming_soon(),
-        DlpInstruction::CallHandler => coming_soon(),
-        DlpInstruction::InitProtocolFeesVault => coming_soon(),
-        DlpInstruction::ProtocolClaimFees => coming_soon(),
-        DlpInstruction::InitValidatorFeesVault => coming_soon(),
-        DlpInstruction::ValidatorClaimFees => coming_soon(),
-        DlpInstruction::CloseValidatorFeesVault => coming_soon(),
-        DlpInstruction::WhitelistValidatorForProgram => coming_soon(),
-        DlpInstruction::TopUpEphemeralBalance => coming_soon(),
-        DlpInstruction::DelegateEphemeralBalance => coming_soon(),
-        DlpInstruction::CloseEphemeralBalance => coming_soon(),
+    const fn index(self) -> usize {
+        self as usize
     }
 }
+
+#[inline(always)]
+fn instruction_not_found(
+    _: &[pinocchio::AccountView],
+    _: &[u8],
+) -> ProgramResult {
+    Err(DlpError::InstructionNotFound.into())
+}
+
+pub type IxHandler = fn(&[pinocchio::AccountView], &[u8]) -> ProgramResult;
+
+#[rustfmt::skip]
+pub const IX_TABLE: [IxHandler; 256] = {
+    use super::processor::*;
+
+    let mut table = [instruction_not_found as IxHandler; 256];
+
+    use DlpInstruction::*;
+
+    // Delegate group
+    table[Delegate.index()]                 = process_delegate;
+    table[DelegateWithAnyValidator.index()] = process_delegate_with_any_validator;
+
+    // Commit group
+    table[CommitFinalize.index()]           = process_commit_finalize;
+    table[CommitFinalizeFromBuffer.index()] = process_commit_finalize_from_buffer;
+    table[HyperCommitFinalize.index()]       = process_hyper_commit_finalize;
+
+    table
+};

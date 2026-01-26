@@ -57,7 +57,6 @@ use crate::{
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
 pub fn process_commit_state(
-    _program_id: &Address,
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {

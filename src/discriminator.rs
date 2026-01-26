@@ -64,4 +64,8 @@ impl DlpDiscriminator {
     pub fn name(&self) -> &'static str {
         self.into()
     }
+
+    pub const fn index(self) -> usize {
+        self as usize
+    }
 }

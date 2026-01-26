@@ -149,6 +149,9 @@ pub enum DlpError {
     #[error("Account cannot be delegated to the system program")]
     DelegationToSystemProgramNotAllowed = 42,
 
+    #[error("Account cannot be delegated to the system program")]
+    InstructionNotFound = 43,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }

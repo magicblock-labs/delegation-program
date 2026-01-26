@@ -17,12 +17,12 @@ pub unsafe extern "C" fn entrypoint(input: *mut u8) -> u64 {
         core::mem::MaybeUninit::<pinocchio::AccountView>::uninit();
     let mut accounts = [UNINIT; { pinocchio::MAX_TX_ACCOUNTS }];
 
-    let (program_id, count, data) = pinocchio::entrypoint::deserialize::<
+    let (_program_id, count, data) = pinocchio::entrypoint::deserialize::<
         { pinocchio::MAX_TX_ACCOUNTS },
     >(input, &mut accounts);
 
+    // 23 CU so far
     match fast_process_instruction(
-        program_id,
         core::slice::from_raw_parts(accounts.as_ptr() as _, count),
         data,
     ) {

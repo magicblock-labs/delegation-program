@@ -1,7 +1,5 @@
 use pinocchio::{
-    address::{address_eq, Address},
-    error::ProgramError,
-    AccountView, ProgramResult,
+    address::address_eq, error::ProgramError, AccountView, ProgramResult,
 };
 use pinocchio_log::log;
 
@@ -56,7 +54,6 @@ use crate::{
 /// 3. Close the state diff account
 /// 4. Close the commit state record
 pub fn process_finalize(
-    _program_id: &Address,
     accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {
