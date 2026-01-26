@@ -85,7 +85,7 @@ pub fn commit_finalize(
 }
 
 ///
-/// Returns accounts-data-size budget for commit_state instruction.
+/// Returns accounts-data-size budget for commit_finalize instruction.
 ///
 /// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
 ///

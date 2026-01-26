@@ -1,6 +1,9 @@
 use std::ptr;
 
-use crate::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh};
+use crate::{
+    impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh,
+    require_ge,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::{
     account_info::{AccountInfo, RefMut},
@@ -32,6 +35,15 @@ pub struct DelegationMetadataFast<'a> {
 
 impl<'a> DelegationMetadataFast<'a> {
     pub fn from_account(account: &'a AccountInfo) -> Result<Self, ProgramError> {
+        require_ge!(
+            account.data_len(),
+            8  // last_update_nonce
+            + 1 // is_undelegatable
+            + 32 // rent_payer
+            + 4, // seeds (at least 4)
+            ProgramError::InvalidAccountData
+        );
+
         Ok(Self {
             data: account.try_borrow_mut_data()?,
         })

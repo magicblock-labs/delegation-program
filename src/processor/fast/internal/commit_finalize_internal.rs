@@ -9,8 +9,8 @@ use crate::processor::fast::{to_pinocchio_program_error, NewState};
 use crate::state::{DelegationMetadataFast, DelegationRecord, ProgramConfig};
 use crate::{
     apply_diff_in_place, pda, require, require_eq, require_eq_keys, require_ge,
-    require_initialized_pda, require_initialized_pda_unsafe, require_owned_by,
-    require_program_config, require_program_config_unsafe, require_signer,
+    require_initialized_pda, require_initialized_pda_fast, require_owned_by,
+    require_program_config, require_program_config_fast, require_signer,
 };
 
 /// Arguments for the commit state internal function
@@ -71,7 +71,7 @@ pub(crate) fn process_commit_finalize_internal(
             false
         );
     } else {
-        require_initialized_pda_unsafe!(
+        require_initialized_pda_fast!(
             args.delegation_record_account,
             &[
                 pda::DELEGATION_RECORD_TAG,
@@ -80,11 +80,10 @@ pub(crate) fn process_commit_finalize_internal(
                 &crate::fast::ID,
                 PDA_MARKER
             ],
-            &crate::fast::ID,
             false
         );
 
-        require_initialized_pda_unsafe!(
+        require_initialized_pda_fast!(
             args.delegation_metadata_account,
             &[
                 pda::DELEGATION_METADATA_TAG,
@@ -93,11 +92,10 @@ pub(crate) fn process_commit_finalize_internal(
                 &crate::fast::ID,
                 PDA_MARKER
             ],
-            &crate::fast::ID,
             true
         );
 
-        require_initialized_pda_unsafe!(
+        require_initialized_pda_fast!(
             args.validator_fees_vault,
             &[
                 pda::VALIDATOR_FEES_VAULT_TAG,
@@ -106,7 +104,6 @@ pub(crate) fn process_commit_finalize_internal(
                 &crate::fast::ID,
                 PDA_MARKER
             ],
-            &crate::fast::ID,
             false
         );
     }
@@ -125,14 +122,8 @@ pub(crate) fn process_commit_finalize_internal(
         );
     }
 
-    // Load delegation record
     let delegation_record_data = args.delegation_record_account.try_borrow_data()?;
-    let delegation_record = if false {
-        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)
-            .map_err(to_pinocchio_program_error)?
-    } else {
-        DelegationRecord::try_view_from(&delegation_record_data.as_ref()[8..])?
-    };
+    let delegation_record = DelegationRecord::try_view_from(&delegation_record_data.as_ref()[8..])?;
 
     // Check that the authority is allowed to commit
     require_eq_keys!(
@@ -168,7 +159,7 @@ pub(crate) fn process_commit_finalize_internal(
                 false
             )
         } else {
-            require_program_config_unsafe!(
+            require_program_config_fast!(
                 args.program_config_account,
                 delegation_record.owner.as_array(),
                 args.bumps.program_config,

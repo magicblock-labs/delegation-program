@@ -9,7 +9,6 @@ use crate::args::{ArgsWithBuffer, Boolean};
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable, Default)]
 pub struct CommitBumps {
-    /// bumps of the PDA accounts to be validated by ix
     pub delegation_record: u8,
     pub delegation_metadata: u8,
     pub validator_fees_vault: u8,
@@ -28,7 +27,7 @@ pub struct CommitFinalizeArgs {
     /// whether the account can be undelegated after the commit completes
     pub allow_undelegation: Boolean,
 
-    /// whether the account can be undelegated after the commit completes
+    /// whether the data (in the ixdata or in the data account) is diff or full state.
     pub data_is_diff: Boolean,
 
     /// bumps of the PDA accounts to be validated by the ix

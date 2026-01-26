@@ -157,6 +157,7 @@ impl From<DlpError> for pinocchio::program_error::ProgramError {
     }
 }
 
+#[cfg(not(feature = "sdk"))]
 impl pinocchio::program_error::ToStr for DlpError {
     fn to_str<E>(&self) -> &'static str
     where

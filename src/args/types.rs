@@ -3,7 +3,7 @@ use std::ops::Deref;
 use bytemuck::{Pod, Zeroable};
 use pinocchio::program_error::ProgramError;
 
-use crate::pod_view::PodView;
+use crate::{pod_view::PodView, require_ge};
 
 ///
 /// Boolean
@@ -31,24 +31,25 @@ impl From<bool> for Boolean {
 ///
 /// ArgsWithBuffer
 ///
-pub struct ArgsWithBuffer<'a, H> {
-    header: &'a H,
+pub struct ArgsWithBuffer<'a, Header> {
+    header: &'a Header,
     pub buffer: &'a [u8],
 }
 
-impl<'a, H: PodView> ArgsWithBuffer<'a, H> {
+impl<'a, Header: PodView> ArgsWithBuffer<'a, Header> {
     pub fn from_bytes(input: &'a [u8]) -> Result<Self, ProgramError> {
-        let header_size = size_of::<H>();
+        require_ge!(
+            input.len(),
+            Header::SPACE,
+            ProgramError::InvalidInstructionData
+        );
 
-        if input.len() < header_size {
-            return Err(ProgramError::InvalidInstructionData);
-        }
+        let (header_bytes, buffer) = input.split_at(Header::SPACE);
 
-        let (header_bytes, buffer) = input.split_at(header_size);
-
-        let header = H::try_view_from(header_bytes)?;
-
-        Ok(Self { header, buffer })
+        Ok(Self {
+            header: Header::try_view_from(header_bytes)?,
+            buffer,
+        })
     }
 }
 

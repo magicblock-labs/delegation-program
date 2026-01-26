@@ -137,20 +137,8 @@ impl<T: bytemuck::Pod> PodView for T {
     }
 
     #[cfg(feature = "unit_test_config")]
-    fn try_from_unaligned(unaligned_buffer: &[u8]) -> Result<Self, ProgramError> {
-        if unaligned_buffer.len() != Self::SPACE {
-            return Err(ProgramError::InvalidArgument);
-        }
-        let mut oversized_memory = vec![0; Self::SPACE + Self::ALIGN - 1];
-
-        let aligned_slice = {
-            let base = oversized_memory.as_mut_ptr() as usize;
-            let offset = (base + Self::ALIGN - 1) & !(Self::ALIGN - 1) - base;
-            let aligned = &mut oversized_memory[offset..offset + Self::SPACE];
-            aligned.copy_from_slice(unaligned_buffer);
-            aligned
-        };
-
-        Self::try_view_from(aligned_slice).map(|view| *view)
+    fn try_from_unaligned(possibly_unaligned_buffer: &[u8]) -> Result<Self, ProgramError> {
+        bytemuck::try_pod_read_unaligned(possibly_unaligned_buffer)
+            .map_err(|_| ProgramError::InvalidArgument)
     }
 }
