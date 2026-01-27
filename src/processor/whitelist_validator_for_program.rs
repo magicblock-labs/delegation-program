@@ -1,16 +1,20 @@
-use crate::args::WhitelistValidatorForProgramArgs;
-use crate::error::DlpError::Unauthorized;
-use crate::processor::utils::loaders::{
-    load_pda, load_program, load_program_upgrade_authority, load_signer,
-};
-use crate::processor::utils::pda::{create_pda, resize_pda};
-use crate::program_config_seeds_from_program_id;
-use crate::state::ProgramConfig;
 use borsh::BorshDeserialize;
-use solana_program::msg;
-use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
+    account_info::AccountInfo, entrypoint::ProgramResult, msg,
+    program_error::ProgramError, pubkey::Pubkey, system_program,
+};
+
+use crate::{
+    args::WhitelistValidatorForProgramArgs,
+    error::DlpError::Unauthorized,
+    processor::utils::{
+        loaders::{
+            load_pda, load_program, load_program_upgrade_authority, load_signer,
+        },
+        pda::{create_pda, resize_pda},
+    },
+    program_config_seeds_from_program_id,
+    state::ProgramConfig,
 };
 
 /// Whitelist a validator for a program
@@ -50,7 +54,12 @@ pub fn process_whitelist_validator_for_program(
     };
 
     load_signer(authority, "authority")?;
-    validate_authority(authority, program, program_data, delegation_program_data)?;
+    validate_authority(
+        authority,
+        program,
+        program_data,
+        delegation_program_data,
+    )?;
     load_program(system_program, system_program::id(), "system program")?;
 
     let program_config_bump = load_pda(
@@ -62,7 +71,10 @@ pub fn process_whitelist_validator_for_program(
     )?;
 
     // Get the program config. If the account doesn't exist, create it
-    let mut program_config = if program_config_account.owner.eq(system_program.key) {
+    let mut program_config = if program_config_account
+        .owner
+        .eq(system_program.key)
+    {
         create_pda(
             program_config_account,
             &crate::id(),
@@ -92,8 +104,10 @@ pub fn process_whitelist_validator_for_program(
         system_program,
         program_config.size_with_discriminator(),
     )?;
-    let mut program_config_data = program_config_account.try_borrow_mut_data()?;
-    program_config.to_bytes_with_discriminator(&mut program_config_data.as_mut())?;
+    let mut program_config_data =
+        program_config_account.try_borrow_mut_data()?;
+    program_config
+        .to_bytes_with_discriminator(&mut program_config_data.as_mut())?;
 
     Ok(())
 }
@@ -106,11 +120,14 @@ fn validate_authority(
     delegation_program_data: &AccountInfo,
 ) -> Result<(), ProgramError> {
     let admin_pubkey =
-        load_program_upgrade_authority(&crate::ID, delegation_program_data)?.ok_or(Unauthorized)?;
+        load_program_upgrade_authority(&crate::ID, delegation_program_data)?
+            .ok_or(Unauthorized)?;
     if authority.key.eq(&admin_pubkey)
-        || authority
-            .key
-            .eq(&load_program_upgrade_authority(program.key, program_data)?.ok_or(Unauthorized)?)
+        || authority.key.eq(&load_program_upgrade_authority(
+            program.key,
+            program_data,
+        )?
+        .ok_or(Unauthorized)?)
     {
         Ok(())
     } else {

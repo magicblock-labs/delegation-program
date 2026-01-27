@@ -1,7 +1,7 @@
-use bytemuck::{Pod, Zeroable};
 use std::mem::size_of;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+use bytemuck::{Pod, Zeroable};
 
 use crate::args::{ArgsWithBuffer, Boolean};
 
@@ -35,7 +35,8 @@ pub struct CommitFinalizeArgs {
     pub reserved_padding: [u8; 3],
 }
 
-pub type CommitFinalizeArgsWithBuffer<'a> = ArgsWithBuffer<'a, CommitFinalizeArgs>;
+pub type CommitFinalizeArgsWithBuffer<'a> =
+    ArgsWithBuffer<'a, CommitFinalizeArgs>;
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct CommitStateArgs {

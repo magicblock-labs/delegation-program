@@ -1,13 +1,15 @@
 use borsh::to_vec;
-use solana_program::bpf_loader_upgradeable;
-use solana_program::instruction::Instruction;
-use solana_program::system_program;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{
+    bpf_loader_upgradeable,
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
-use crate::args::WhitelistValidatorForProgramArgs;
-use crate::consts::DELEGATION_PROGRAM_DATA_ID;
-use crate::discriminator::DlpDiscriminator;
-use crate::pda::program_config_from_program_id;
+use crate::{
+    args::WhitelistValidatorForProgramArgs, consts::DELEGATION_PROGRAM_DATA_ID,
+    discriminator::DlpDiscriminator, pda::program_config_from_program_id,
+};
 
 /// Whitelist validator for program
 ///
@@ -19,8 +21,11 @@ pub fn whitelist_validator_for_program(
     insert: bool,
 ) -> Instruction {
     let args = WhitelistValidatorForProgramArgs { insert };
-    let program_data =
-        Pubkey::find_program_address(&[program.as_ref()], &bpf_loader_upgradeable::id()).0;
+    let program_data = Pubkey::find_program_address(
+        &[program.as_ref()],
+        &bpf_loader_upgradeable::id(),
+    )
+    .0;
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     let program_config_pda = program_config_from_program_id(&program);
     Instruction {

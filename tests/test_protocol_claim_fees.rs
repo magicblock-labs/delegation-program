@@ -1,13 +1,15 @@
-use crate::fixtures::TEST_AUTHORITY;
 use dlp::pda::fees_vault_pda;
-use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
+};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+
+use crate::fixtures::TEST_AUTHORITY;
 
 mod fixtures;
 

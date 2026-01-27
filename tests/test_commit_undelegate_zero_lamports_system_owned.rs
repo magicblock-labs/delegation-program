@@ -1,11 +1,16 @@
-use dlp::args::CommitStateArgs;
-use dlp::pda::{
-    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
-    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    fees_vault_pda, validator_fees_vault_pda_from_validator,
+use dlp::{
+    args::CommitStateArgs,
+    pda::{
+        commit_record_pda_from_delegated_account,
+        commit_state_pda_from_delegated_account,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account, fees_vault_pda,
+        validator_fees_vault_pda_from_validator,
+    },
 };
-use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
+};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
@@ -14,8 +19,8 @@ use solana_sdk::{
 };
 
 use crate::fixtures::{
-    create_delegation_record_data, get_delegation_metadata_data, DELEGATED_PDA_ID,
-    DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
+    create_delegation_record_data, get_delegation_metadata_data,
+    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -25,7 +30,8 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
     // Setup
     let (banks, _, validator, blockhash) = setup_program_test_env().await;
 
-    let delegated_account_before = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    let delegated_account_before =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
 
     // Assert that the account is delegated, with some lamports and owned by dlp
     assert!(delegated_account_before.lamports > 0);
@@ -53,7 +59,10 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
     let res_commit = banks.process_transaction(tx_commit).await;
     assert!(res_commit.is_ok());
 
-    let ix_finalize = dlp::instruction_builder::finalize(validator.pubkey(), DELEGATED_PDA_ID);
+    let ix_finalize = dlp::instruction_builder::finalize(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+    );
     let ix_undelegate = dlp::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
@@ -69,24 +78,33 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
-    let commit_state_pda = commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let commit_state_account = banks.get_account(commit_state_pda).await.unwrap();
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_state_account =
+        banks.get_account(commit_state_pda).await.unwrap();
     assert!(commit_state_account.is_none());
 
-    let commit_record_pda = commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let commit_record_account = banks.get_account(commit_record_pda).await.unwrap();
+    let commit_record_pda =
+        commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_record_account =
+        banks.get_account(commit_record_pda).await.unwrap();
     assert!(commit_record_account.is_none());
 
-    let delegation_record_pda = delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let delegation_record_account = banks.get_account(delegation_record_pda).await.unwrap();
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_record_account =
+        banks.get_account(delegation_record_pda).await.unwrap();
     assert!(delegation_record_account.is_none());
 
-    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let delegation_metadata_account = banks.get_account(delegation_metadata_pda).await.unwrap();
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_account =
+        banks.get_account(delegation_metadata_pda).await.unwrap();
     assert!(delegation_metadata_account.is_none());
 
     // Assert the account was closed
-    let delegated_account_after = banks.get_account(DELEGATED_PDA_ID).await.unwrap();
+    let delegated_account_after =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap();
     assert!(delegated_account_after.is_none());
 }
 
@@ -130,7 +148,8 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
@@ -138,11 +157,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         },
     );
 
-    let delegation_metadata_data = get_delegation_metadata_data(validator.pubkey(), None);
+    let delegation_metadata_data =
+        get_delegation_metadata_data(validator.pubkey(), None);
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,

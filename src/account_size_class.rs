@@ -13,7 +13,8 @@ const MB: u32 = 1024 * KB;
 //  That is because each *_size_budget() function includes this constant, so callers must subtract (N-1) instances
 //  when combining multiple instructions.
 //
-pub const DLP_PROGRAM_DATA_SIZE_CLASS: AccountSizeClass = AccountSizeClass::Dynamic(350 * KB);
+pub const DLP_PROGRAM_DATA_SIZE_CLASS: AccountSizeClass =
+    AccountSizeClass::Dynamic(350 * KB);
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub enum AccountSizeClass {

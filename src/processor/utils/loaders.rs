@@ -1,15 +1,22 @@
-use crate::error::DlpError::InvalidAuthority;
-use crate::pda::validator_fees_vault_pda_from_validator;
-use crate::{fees_vault_seeds, validator_fees_vault_seeds_from_validator};
-use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program::{
-    account_info::AccountInfo, bpf_loader_upgradeable, msg, program_error::ProgramError,
-    pubkey::Pubkey, system_program, sysvar,
+    account_info::AccountInfo, bpf_loader_upgradeable,
+    bpf_loader_upgradeable::UpgradeableLoaderState, msg,
+    program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
+};
+
+use crate::{
+    error::DlpError::InvalidAuthority, fees_vault_seeds,
+    pda::validator_fees_vault_pda_from_validator,
+    validator_fees_vault_seeds_from_validator,
 };
 
 /// Errors if:
 /// - Account is not owned by expected program.
-pub fn load_owned_pda(info: &AccountInfo, owner: &Pubkey, label: &str) -> Result<(), ProgramError> {
+pub fn load_owned_pda(
+    info: &AccountInfo,
+    owner: &Pubkey,
+    label: &str,
+) -> Result<(), ProgramError> {
     if !info.owner.eq(owner) {
         msg!("Invalid account owner for {} ({})", label, info.key);
         return Err(ProgramError::InvalidAccountOwner);
@@ -20,7 +27,10 @@ pub fn load_owned_pda(info: &AccountInfo, owner: &Pubkey, label: &str) -> Result
 
 /// Errors if:
 /// - Account is not a signer.
-pub fn load_signer(info: &AccountInfo, label: &str) -> Result<(), ProgramError> {
+pub fn load_signer(
+    info: &AccountInfo,
+    label: &str,
+) -> Result<(), ProgramError> {
     if !info.is_signer {
         msg!("Account needs to be signer {} ({})", label, info.key);
         return Err(ProgramError::MissingRequiredSignature);
@@ -139,7 +149,10 @@ pub fn load_uninitialized_account(
 /// - Owner is not the sysvar address.
 /// - Account cannot load with the expected address.
 #[allow(dead_code)]
-pub fn load_sysvar(info: &AccountInfo, key: Pubkey) -> Result<(), ProgramError> {
+pub fn load_sysvar(
+    info: &AccountInfo,
+    key: Pubkey,
+) -> Result<(), ProgramError> {
     if info.owner.ne(&sysvar::id()) {
         msg!("Invalid owner for sysvar: {}", info.key);
         return Err(ProgramError::InvalidAccountOwner);
@@ -173,7 +186,11 @@ pub fn load_account(
 /// Errors if:
 /// - Address does not match the expected value.
 /// - Account is not executable.
-pub fn load_program(info: &AccountInfo, key: Pubkey, label: &str) -> Result<(), ProgramError> {
+pub fn load_program(
+    info: &AccountInfo,
+    key: Pubkey,
+    label: &str,
+) -> Result<(), ProgramError> {
     if info.key.ne(&key) {
         msg!("Invalid program account: {} ({})", label, info.key);
         return Err(ProgramError::IncorrectProgramId);
@@ -192,8 +209,11 @@ pub fn load_program_upgrade_authority(
     program: &Pubkey,
     program_data: &AccountInfo,
 ) -> Result<Option<Pubkey>, ProgramError> {
-    let program_data_address =
-        Pubkey::find_program_address(&[program.as_ref()], &bpf_loader_upgradeable::id()).0;
+    let program_data_address = Pubkey::find_program_address(
+        &[program.as_ref()],
+        &bpf_loader_upgradeable::id(),
+    )
+    .0;
 
     // During tests, the upgrade authority is a test pubkey
     #[cfg(feature = "unit_test_config")]
@@ -270,13 +290,14 @@ pub fn load_initialized_validator_fees_vault(
 
 #[cfg(test)]
 mod tests {
-    use solana_program::{account_info::AccountInfo, pubkey::Pubkey, system_program};
-
-    use crate::processor::utils::loaders::{
-        load_account, load_signer, load_sysvar, load_uninitialized_account,
+    use solana_program::{
+        account_info::AccountInfo, pubkey::Pubkey, system_program,
     };
 
     use super::load_program;
+    use crate::processor::utils::loaders::{
+        load_account, load_signer, load_sysvar, load_uninitialized_account,
+    };
 
     #[test]
     pub fn test_signer_not_signer() {
@@ -332,7 +353,9 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info, true, "data not empty").is_err());
+        assert!(
+            load_uninitialized_account(&info, true, "data not empty").is_err()
+        );
     }
 
     #[test]
@@ -351,7 +374,9 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info, true, "not writeable").is_err());
+        assert!(
+            load_uninitialized_account(&info, true, "not writeable").is_err()
+        );
     }
 
     #[test]
@@ -370,7 +395,9 @@ mod tests {
             false,
             0,
         );
-        assert!(load_uninitialized_account(&info, false, "not writable").is_ok());
+        assert!(
+            load_uninitialized_account(&info, false, "not writable").is_ok()
+        );
     }
 
     #[test]
@@ -408,7 +435,8 @@ mod tests {
             false,
             0,
         );
-        assert!(load_account(&info, Pubkey::new_unique(), false, "bad key").is_err());
+        assert!(load_account(&info, Pubkey::new_unique(), false, "bad key")
+            .is_err());
     }
 
     #[test]

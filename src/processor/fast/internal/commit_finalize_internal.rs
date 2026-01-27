@@ -1,15 +1,20 @@
-use pinocchio::address::{address_eq, PDA_MARKER};
-use pinocchio::{error::ProgramError, AccountView, Address};
+use pinocchio::{
+    address::{address_eq, PDA_MARKER},
+    error::ProgramError,
+    AccountView, Address,
+};
 use pinocchio_log::log;
 
-use crate::args::CommitBumps;
-use crate::error::DlpError;
-use crate::pod_view::PodView;
-use crate::processor::fast::NewState;
-use crate::state::{DelegationMetadataFast, DelegationRecord};
 use crate::{
-    apply_diff_in_place, pda, require, require_eq, require_eq_keys, require_ge,
+    apply_diff_in_place,
+    args::CommitBumps,
+    error::DlpError,
+    pda,
+    pod_view::PodView,
+    processor::fast::NewState,
+    require, require_eq, require_eq_keys, require_ge,
     require_initialized_pda_fast, require_owned_by, require_signer,
+    state::{DelegationMetadataFast, DelegationRecord},
 };
 
 /// Arguments for the commit state internal function
@@ -72,7 +77,9 @@ pub(crate) fn process_commit_finalize_internal(
 
     // validate and update metadata
     {
-        let mut metadata = DelegationMetadataFast::from_account(args.delegation_metadata_account)?;
+        let mut metadata = DelegationMetadataFast::from_account(
+            args.delegation_metadata_account,
+        )?;
 
         let prev_id = metadata.replace_last_update_nonce(args.commit_id);
 
@@ -85,7 +92,8 @@ pub(crate) fn process_commit_finalize_internal(
     }
 
     let delegation_record_data = args.delegation_record_account.try_borrow()?;
-    let delegation_record = DelegationRecord::try_view_from(&delegation_record_data.as_ref()[8..])?;
+    let delegation_record =
+        DelegationRecord::try_view_from(&delegation_record_data.as_ref()[8..])?;
 
     // Check that the authority is allowed to commit
     require_eq_keys!(
@@ -115,7 +123,9 @@ pub(crate) fn process_commit_finalize_internal(
     // copy the new state to the delegated account
     let mut delegated_account_data = args.delegated_account.try_borrow_mut()?;
     match args.new_state {
-        NewState::FullBytes(bytes) => (*delegated_account_data).copy_from_slice(bytes),
+        NewState::FullBytes(bytes) => {
+            (*delegated_account_data).copy_from_slice(bytes)
+        }
         NewState::Diff(diff) => {
             apply_diff_in_place(&mut delegated_account_data, &diff)?;
         }

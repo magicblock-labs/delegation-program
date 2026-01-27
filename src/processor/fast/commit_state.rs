@@ -1,25 +1,31 @@
 use borsh::BorshDeserialize;
-use pinocchio::address::address_eq;
-use pinocchio::cpi::Signer;
-use pinocchio::instruction::seeds;
-use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
+use pinocchio::{
+    address::address_eq, cpi::Signer, error::ProgramError, instruction::seeds,
+    AccountView, Address, ProgramResult,
+};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
-use crate::args::CommitStateArgs;
-use crate::error::DlpError;
-use crate::processor::fast::utils::{
-    pda::create_pda,
-    requires::{
-        require_initialized_delegation_metadata, require_initialized_delegation_record,
-        require_initialized_validator_fees_vault, require_owned_pda, require_program_config,
-        require_signer, require_uninitialized_pda, CommitRecordCtx, CommitStateAccountCtx,
-    },
-};
-use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig};
-use crate::{merge_diff_copy, pda, DiffSet};
-
 use super::to_pinocchio_program_error;
+use crate::{
+    args::CommitStateArgs,
+    error::DlpError,
+    merge_diff_copy, pda,
+    processor::fast::utils::{
+        pda::create_pda,
+        requires::{
+            require_initialized_delegation_metadata,
+            require_initialized_delegation_record,
+            require_initialized_validator_fees_vault, require_owned_pda,
+            require_program_config, require_signer, require_uninitialized_pda,
+            CommitRecordCtx, CommitStateAccountCtx,
+        },
+    },
+    state::{
+        CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
+    },
+    DiffSet,
+};
 
 /// Commit a new state of a delegated PDA
 ///
@@ -55,7 +61,8 @@ pub fn process_commit_state(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    let args = CommitStateArgs::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
+    let args = CommitStateArgs::try_from_slice(data)
+        .map_err(|_| ProgramError::BorshIoError)?;
 
     let commit_record_lamports = args.lamports;
     let commit_record_nonce = args.nonce;
@@ -136,13 +143,20 @@ pub(crate) fn process_commit_state_internal(
         args.delegation_metadata_account,
         true,
     )?;
-    require_initialized_validator_fees_vault(args.validator, args.validator_fees_vault, false)?;
+    require_initialized_validator_fees_vault(
+        args.validator,
+        args.validator_fees_vault,
+        false,
+    )?;
 
     // Read delegation metadata
-    let mut delegation_metadata_data = args.delegation_metadata_account.try_borrow_mut()?;
+    let mut delegation_metadata_data =
+        args.delegation_metadata_account.try_borrow_mut()?;
     let mut delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
-            .map_err(to_pinocchio_program_error)?;
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
 
     // To preserve correct history of account updates we require sequential commits
     if args.commit_record_nonce != delegation_metadata.last_update_nonce + 1 {
@@ -170,8 +184,10 @@ pub(crate) fn process_commit_state_internal(
     // Load delegation record
     let delegation_record_data = args.delegation_record_account.try_borrow()?;
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)
-            .map_err(to_pinocchio_program_error)?;
+        DelegationRecord::try_from_bytes_with_discriminator(
+            &delegation_record_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
 
     // Check that the authority is allowed to commit
     if !address_eq(
@@ -215,8 +231,10 @@ pub(crate) fn process_commit_state_internal(
     if has_program_config {
         let program_config_data = args.program_config_account.try_borrow()?;
 
-        let program_config = ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)
-            .map_err(to_pinocchio_program_error)?;
+        let program_config = ProgramConfig::try_from_bytes_with_discriminator(
+            &program_config_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
         if !program_config
             .approved_validators
             .contains(&args.validator.address().to_bytes().into())
@@ -291,7 +309,9 @@ pub(crate) fn process_commit_state_internal(
     let mut commit_state_data = args.commit_state_account.try_borrow_mut()?;
 
     match args.commit_state_bytes {
-        NewState::FullBytes(bytes) => (*commit_state_data).copy_from_slice(bytes),
+        NewState::FullBytes(bytes) => {
+            (*commit_state_data).copy_from_slice(bytes)
+        }
         NewState::Diff(diff) => {
             let original_data = args.delegated_account.try_borrow()?;
             merge_diff_copy(&mut commit_state_data, &original_data, &diff)?;

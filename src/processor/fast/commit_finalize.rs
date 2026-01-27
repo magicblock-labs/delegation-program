@@ -1,12 +1,16 @@
 use pinocchio::{AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 
-use crate::args::CommitFinalizeArgsWithBuffer;
-use crate::processor::fast::internal::{
-    process_commit_finalize_internal, CommitFinalizeInternalArgs,
+use crate::{
+    args::CommitFinalizeArgsWithBuffer,
+    processor::fast::{
+        internal::{
+            process_commit_finalize_internal, CommitFinalizeInternalArgs,
+        },
+        NewState,
+    },
+    require_n_accounts, DiffSet,
 };
-use crate::processor::fast::NewState;
-use crate::{require_n_accounts, DiffSet};
 
 /// Commit a new state, or a diff, directly to the delegated account. Unlike, CommitState and
 /// CommitDiff variants, this instruction does not write to any temporary account first. In other

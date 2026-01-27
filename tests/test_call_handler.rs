@@ -1,25 +1,33 @@
-use crate::fixtures::{
-    create_delegation_metadata_data, create_delegation_record_data, get_commit_record_account_data,
-    get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
-    DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
-};
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
-use dlp::args::CallHandlerArgs;
-use dlp::ephemeral_balance_seeds_from_payer;
-use dlp::pda::{
-    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
-    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    ephemeral_balance_pda_from_payer, fees_vault_pda, validator_fees_vault_pda_from_validator,
+use dlp::{
+    args::CallHandlerArgs,
+    ephemeral_balance_seeds_from_payer,
+    pda::{
+        commit_record_pda_from_delegated_account,
+        commit_state_pda_from_delegated_account,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+        ephemeral_balance_pda_from_payer, fees_vault_pda,
+        validator_fees_vault_pda_from_validator,
+    },
 };
-use solana_program::instruction::AccountMeta;
-use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{
+    hash::Hash, instruction::AccountMeta, native_token::LAMPORTS_PER_SOL,
+    rent::Rent, system_program,
+};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
-use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::Account,
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
+};
+
+use crate::fixtures::{
+    create_delegation_metadata_data, create_delegation_record_data,
+    get_commit_record_account_data, get_delegation_metadata_data,
+    get_delegation_record_data, DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID,
+    TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -33,7 +41,10 @@ pub struct Counter {
     pub count: u64,
 }
 
-async fn setup_delegated_pda(program_test: &mut ProgramTest, authority_pubkey: &Pubkey) {
+async fn setup_delegated_pda(
+    program_test: &mut ProgramTest,
+    authority_pubkey: &Pubkey,
+) {
     let state = to_vec(&Counter { count: 100 }).unwrap();
     // Setup a delegated PDA
     program_test.add_account(
@@ -48,11 +59,13 @@ async fn setup_delegated_pda(program_test: &mut ProgramTest, authority_pubkey: &
     );
 
     // Setup the delegation record PDA
-    let delegation_record_data = get_delegation_record_data(*authority_pubkey, None);
+    let delegation_record_data =
+        get_delegation_record_data(*authority_pubkey, None);
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data.clone(),
             owner: dlp::id(),
             executable: false,
@@ -61,11 +74,13 @@ async fn setup_delegated_pda(program_test: &mut ProgramTest, authority_pubkey: &
     );
 
     // Setup the delegated account metadata PDA
-    let delegation_metadata_data = get_delegation_metadata_data(*authority_pubkey, Some(true));
+    let delegation_metadata_data =
+        get_delegation_metadata_data(*authority_pubkey, Some(true));
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,
@@ -74,7 +89,10 @@ async fn setup_delegated_pda(program_test: &mut ProgramTest, authority_pubkey: &
     );
 }
 
-async fn setup_commit_state(program_test: &mut ProgramTest, authority_pubkey: &Pubkey) {
+async fn setup_commit_state(
+    program_test: &mut ProgramTest,
+    authority_pubkey: &Pubkey,
+) {
     // Setup the commit state PDA
     let commit_state = to_vec(&Counter { count: 101 }).unwrap();
     program_test.add_account(
@@ -101,8 +119,12 @@ async fn setup_commit_state(program_test: &mut ProgramTest, authority_pubkey: &P
     );
 }
 
-async fn setup_invalid_escrow_account(program_test: &mut ProgramTest, authority_pubkey: &Pubkey) {
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&DELEGATED_PDA_ID, 0);
+async fn setup_invalid_escrow_account(
+    program_test: &mut ProgramTest,
+    authority_pubkey: &Pubkey,
+) {
+    let ephemeral_balance_pda =
+        ephemeral_balance_pda_from_payer(&DELEGATED_PDA_ID, 0);
 
     // Setup the delegated account PDA
     program_test.add_account(
@@ -117,12 +139,16 @@ async fn setup_invalid_escrow_account(program_test: &mut ProgramTest, authority_
     );
 
     // Setup the delegated record PDA
-    let delegation_record_data =
-        create_delegation_record_data(*authority_pubkey, dlp::id(), Some(LAMPORTS_PER_SOL));
+    let delegation_record_data = create_delegation_record_data(
+        *authority_pubkey,
+        dlp::id(),
+        Some(LAMPORTS_PER_SOL),
+    );
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&ephemeral_balance_pda),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
@@ -139,7 +165,8 @@ async fn setup_invalid_escrow_account(program_test: &mut ProgramTest, authority_
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&ephemeral_balance_pda),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,
@@ -153,7 +180,8 @@ async fn setup_delegated_ephemeral_balance(
     validator: &Keypair,
     payer: &Keypair,
 ) {
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 1);
+    let ephemeral_balance_pda =
+        ephemeral_balance_pda_from_payer(&payer.pubkey(), 1);
 
     // Setup the delegated account PDA
     program_test.add_account(
@@ -176,7 +204,8 @@ async fn setup_delegated_ephemeral_balance(
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&ephemeral_balance_pda),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
@@ -193,7 +222,8 @@ async fn setup_delegated_ephemeral_balance(
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&ephemeral_balance_pda),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,
@@ -202,8 +232,12 @@ async fn setup_delegated_ephemeral_balance(
     );
 }
 
-async fn setup_ephemeral_balance(program_test: &mut ProgramTest, payer: &Keypair) {
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer.pubkey(), 2);
+async fn setup_ephemeral_balance(
+    program_test: &mut ProgramTest,
+    payer: &Keypair,
+) {
+    let ephemeral_balance_pda =
+        ephemeral_balance_pda_from_payer(&payer.pubkey(), 2);
 
     // Setup the delegated account PDA
     program_test.add_account(
@@ -241,7 +275,8 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     setup_delegated_pda(&mut program_test, &validator.pubkey()).await;
     setup_commit_state(&mut program_test, &validator.pubkey()).await;
     setup_invalid_escrow_account(&mut program_test, &validator.pubkey()).await;
-    setup_delegated_ephemeral_balance(&mut program_test, &validator, &payer).await;
+    setup_delegated_ephemeral_balance(&mut program_test, &validator, &payer)
+        .await;
     setup_ephemeral_balance(&mut program_test, &payer).await;
 
     // Setup the protocol fees vault
@@ -292,7 +327,10 @@ async fn test_finalize_call_handler() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(validator.pubkey(), DELEGATED_PDA_ID);
+    let finalize_ix = dlp::instruction_builder::finalize(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+    );
     let call_handler_ix = dlp::instruction_builder::call_handler(
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
@@ -337,7 +375,10 @@ async fn test_undelegate_call_handler() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(validator.pubkey(), DELEGATED_PDA_ID);
+    let finalize_ix = dlp::instruction_builder::finalize(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+    );
     let undelegate_ix = dlp::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
@@ -370,7 +411,8 @@ async fn test_undelegate_call_handler() {
         blockhash,
     );
 
-    let counter_before = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    let counter_before =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
     println!("counter before: {:?}", counter_before.data);
     let counter_before = Counter::try_from_slice(&counter_before.data).unwrap();
     println!("counter before: {}", counter_before.count);
@@ -385,7 +427,8 @@ async fn test_undelegate_call_handler() {
         .unwrap();
     assert_eq!(transfer_destination.lamports, PRIZE);
 
-    let counter_after = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    let counter_after =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
     let counter_after = Counter::try_from_slice(&counter_after.data).unwrap();
     // Committing state from count 100 to 101, and then increasing in handler on 1
     assert_eq!(counter_before.count + 2, counter_after.count);
@@ -399,7 +442,10 @@ async fn test_finalize_invalid_escrow_call_handler() {
 
     // Submit the finalize with handler tx
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(authority.pubkey(), DELEGATED_PDA_ID);
+    let finalize_ix = dlp::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+    );
     let call_handler_ix = dlp::instruction_builder::call_handler(
         authority.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
@@ -431,7 +477,10 @@ async fn test_undelegate_invalid_escow_call_handler() {
 
     // Submit the finalize with handler tx
     let destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(authority.pubkey(), DELEGATED_PDA_ID);
+    let finalize_ix = dlp::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+    );
     let finalize_call_handler_ix = dlp::instruction_builder::call_handler(
         authority.pubkey(),
         DELEGATED_PDA_OWNER_ID, // handler program

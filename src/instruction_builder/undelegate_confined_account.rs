@@ -1,11 +1,18 @@
-use crate::consts::DELEGATION_PROGRAM_DATA_ID;
-use crate::discriminator::DlpDiscriminator;
-use crate::pda::{
-    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    undelegate_buffer_pda_from_delegated_account,
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
 };
-use solana_program::instruction::Instruction;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey, system_program};
+
+use crate::{
+    consts::DELEGATION_PROGRAM_DATA_ID,
+    discriminator::DlpDiscriminator,
+    pda::{
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+        undelegate_buffer_pda_from_delegated_account,
+    },
+};
 
 /// Builds an admin-only undelegate instruction for confined accounts.
 /// See [crate::processor::process_undelegate_confined_account] for docs.
@@ -14,8 +21,10 @@ pub fn undelegate_confined_account(
     delegated_account: Pubkey,
     owner_program: Pubkey,
 ) -> Instruction {
-    let undelegate_buffer_pda = undelegate_buffer_pda_from_delegated_account(&delegated_account);
-    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
+    let undelegate_buffer_pda =
+        undelegate_buffer_pda_from_delegated_account(&delegated_account);
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();

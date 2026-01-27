@@ -8,7 +8,9 @@ macro_rules! impl_to_bytes_with_discriminator_zero_copy {
             ) -> Result<(), ::solana_program::program_error::ProgramError> {
                 let expected_len = 8 + ::std::mem::size_of::<Self>();
                 if data.len() != expected_len {
-                    return Err($crate::error::DlpError::InvalidDataLength.into());
+                    return Err(
+                        $crate::error::DlpError::InvalidDataLength.into()
+                    );
                 }
                 data[..8].copy_from_slice(&Self::discriminator().to_bytes());
                 data[8..].copy_from_slice(bytemuck::bytes_of(self));

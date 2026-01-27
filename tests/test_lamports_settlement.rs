@@ -1,23 +1,29 @@
-use crate::fixtures::{
-    create_delegation_record_data, get_delegation_metadata_data,
-    get_delegation_metadata_data_on_curve, COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA_ID,
-    DELEGATED_PDA_OWNER_ID, ON_CURVE_KEYPAIR, TEST_AUTHORITY,
+use dlp::{
+    args::CommitStateArgs,
+    pda::{
+        commit_record_pda_from_delegated_account,
+        commit_state_pda_from_delegated_account,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account, fees_vault_pda,
+        validator_fees_vault_pda_from_validator,
+    },
+    state::{CommitRecord, DelegationMetadata},
 };
-use dlp::args::CommitStateArgs;
-use dlp::pda::{
-    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
-    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    fees_vault_pda, validator_fees_vault_pda_from_validator,
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
+    system_program,
 };
-use dlp::state::{CommitRecord, DelegationMetadata};
-use solana_program::pubkey::Pubkey;
-use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
+};
+
+use crate::fixtures::{
+    create_delegation_record_data, get_delegation_metadata_data,
+    get_delegation_metadata_data_on_curve, COMMIT_NEW_STATE_ACCOUNT_DATA,
+    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, ON_CURVE_KEYPAIR, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -63,43 +69,75 @@ async fn test_commit_undelegate_pda_after_balance_increase() {
 }
 
 #[tokio::test]
-async fn test_commit_finalise_system_account_after_balance_decrease_and_increase_mainchain() {
-    test_commit_system_account_after_balance_decrease_and_increase_mainchain(false, false).await;
+async fn test_commit_finalise_system_account_after_balance_decrease_and_increase_mainchain(
+) {
+    test_commit_system_account_after_balance_decrease_and_increase_mainchain(
+        false, false,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn test_commit_undelegate_system_account_after_balance_decrease_and_increase_mainchain() {
-    test_commit_system_account_after_balance_decrease_and_increase_mainchain(true, false).await;
+async fn test_commit_undelegate_system_account_after_balance_decrease_and_increase_mainchain(
+) {
+    test_commit_system_account_after_balance_decrease_and_increase_mainchain(
+        true, false,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn test_commit_finalise_pda_after_balance_decrease_and_increase_mainchain() {
-    test_commit_system_account_after_balance_decrease_and_increase_mainchain(false, true).await;
+async fn test_commit_finalise_pda_after_balance_decrease_and_increase_mainchain(
+) {
+    test_commit_system_account_after_balance_decrease_and_increase_mainchain(
+        false, true,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn test_commit_undelegate_pda_after_balance_decrease_and_increase_mainchain() {
-    test_commit_system_account_after_balance_decrease_and_increase_mainchain(true, true).await;
+async fn test_commit_undelegate_pda_after_balance_decrease_and_increase_mainchain(
+) {
+    test_commit_system_account_after_balance_decrease_and_increase_mainchain(
+        true, true,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn test_commit_finalise_system_account_after_balance_increase_and_increase_mainchain() {
-    test_commit_system_account_after_balance_increase_and_increase_mainchain(false, false).await;
+async fn test_commit_finalise_system_account_after_balance_increase_and_increase_mainchain(
+) {
+    test_commit_system_account_after_balance_increase_and_increase_mainchain(
+        false, false,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn test_commit_undelegate_system_account_after_balance_increase_and_increase_mainchain() {
-    test_commit_system_account_after_balance_increase_and_increase_mainchain(true, false).await;
+async fn test_commit_undelegate_system_account_after_balance_increase_and_increase_mainchain(
+) {
+    test_commit_system_account_after_balance_increase_and_increase_mainchain(
+        true, false,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn test_commit_finalise_pda_after_balance_increase_and_increase_mainchain() {
-    test_commit_system_account_after_balance_increase_and_increase_mainchain(false, true).await;
+async fn test_commit_finalise_pda_after_balance_increase_and_increase_mainchain(
+) {
+    test_commit_system_account_after_balance_increase_and_increase_mainchain(
+        false, true,
+    )
+    .await;
 }
 
 #[tokio::test]
-async fn test_commit_undelegate_pda_after_balance_increase_and_increase_mainchain() {
-    test_commit_system_account_after_balance_increase_and_increase_mainchain(true, true).await;
+async fn test_commit_undelegate_pda_after_balance_increase_and_increase_mainchain(
+) {
+    test_commit_system_account_after_balance_increase_and_increase_mainchain(
+        true, true,
+    )
+    .await;
 }
 
 pub async fn test_commit_system_account_after_balance_decrease(
@@ -107,7 +145,8 @@ pub async fn test_commit_system_account_after_balance_decrease(
     is_pda: bool,
 ) {
     // Setup
-    let (delegated_account, owner_program) = get_delegated_account_and_owner(is_pda);
+    let (delegated_account, owner_program) =
+        get_delegated_account_and_owner(is_pda);
     let (mut banks, _, authority, blockhash) =
         setup_program_for_commit_test_env(SetupProgramCommitTestEnvArgs {
             delegated_account_init_lamports: LAMPORTS_PER_SOL,
@@ -141,21 +180,30 @@ pub async fn test_commit_system_account_after_balance_decrease(
     .await;
 
     // Assert finalized lamports balance is correct
-    let delegated_account = banks.get_account(delegated_account).await.unwrap().unwrap();
+    let delegated_account =
+        banks.get_account(delegated_account).await.unwrap().unwrap();
     assert_eq!(delegated_account.lamports, new_delegated_account_lamports);
 
     // Assert the vault own the difference
     let validator_vault = banks
-        .get_account(validator_fees_vault_pda_from_validator(&authority.pubkey()))
+        .get_account(validator_fees_vault_pda_from_validator(
+            &authority.pubkey(),
+        ))
         .await
         .unwrap()
         .unwrap();
-    assert!(validator_vault.lamports >= Rent::default().minimum_balance(0) + 100);
+    assert!(
+        validator_vault.lamports >= Rent::default().minimum_balance(0) + 100
+    );
 }
 
-async fn test_commit_system_account_after_balance_increase(also_undelegate: bool, is_pda: bool) {
+async fn test_commit_system_account_after_balance_increase(
+    also_undelegate: bool,
+    is_pda: bool,
+) {
     // Setup
-    let (delegated_account, owner_program) = get_delegated_account_and_owner(is_pda);
+    let (delegated_account, owner_program) =
+        get_delegated_account_and_owner(is_pda);
     let (mut banks, _, authority, blockhash) =
         setup_program_for_commit_test_env(SetupProgramCommitTestEnvArgs {
             delegated_account_init_lamports: LAMPORTS_PER_SOL,
@@ -189,12 +237,15 @@ async fn test_commit_system_account_after_balance_increase(also_undelegate: bool
     .await;
 
     // Assert finalized lamports balance is correct
-    let delegated_account = banks.get_account(delegated_account).await.unwrap().unwrap();
+    let delegated_account =
+        banks.get_account(delegated_account).await.unwrap().unwrap();
     assert_eq!(delegated_account.lamports, new_delegated_account_lamports);
 
     // Assert the vault own the difference
     let validator_vault = banks
-        .get_account(validator_fees_vault_pda_from_validator(&authority.pubkey()))
+        .get_account(validator_fees_vault_pda_from_validator(
+            &authority.pubkey(),
+        ))
         .await
         .unwrap()
         .unwrap();
@@ -206,7 +257,8 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
     is_pda: bool,
 ) {
     // Setup
-    let (delegated_account, owner_program) = get_delegated_account_and_owner(is_pda);
+    let (delegated_account, owner_program) =
+        get_delegated_account_and_owner(is_pda);
     let (mut banks, _, authority, blockhash) =
         setup_program_for_commit_test_env(SetupProgramCommitTestEnvArgs {
             delegated_account_init_lamports: LAMPORTS_PER_SOL,
@@ -240,7 +292,8 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
     .await;
 
     // Assert finalized lamports balance is correct
-    let delegated_account = banks.get_account(delegated_account).await.unwrap().unwrap();
+    let delegated_account =
+        banks.get_account(delegated_account).await.unwrap().unwrap();
     assert_eq!(
         delegated_account.lamports,
         new_delegated_account_lamports + 9000
@@ -248,7 +301,9 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
 
     // Assert the vault own the difference
     let validator_vault = banks
-        .get_account(validator_fees_vault_pda_from_validator(&authority.pubkey()))
+        .get_account(validator_fees_vault_pda_from_validator(
+            &authority.pubkey(),
+        ))
         .await
         .unwrap()
         .unwrap();
@@ -260,7 +315,8 @@ async fn test_commit_system_account_after_balance_increase_and_increase_mainchai
     is_pda: bool,
 ) {
     // Setup
-    let (delegated_account, owner_program) = get_delegated_account_and_owner(is_pda);
+    let (delegated_account, owner_program) =
+        get_delegated_account_and_owner(is_pda);
     let (mut banks, _, authority, blockhash) =
         setup_program_for_commit_test_env(SetupProgramCommitTestEnvArgs {
             delegated_account_init_lamports: LAMPORTS_PER_SOL,
@@ -294,7 +350,8 @@ async fn test_commit_system_account_after_balance_increase_and_increase_mainchai
     .await;
 
     // Assert finalized lamports balance is correct
-    let delegated_account = banks.get_account(delegated_account).await.unwrap().unwrap();
+    let delegated_account =
+        banks.get_account(delegated_account).await.unwrap().unwrap();
     assert_eq!(
         delegated_account.lamports,
         new_delegated_account_lamports + 8200
@@ -302,7 +359,9 @@ async fn test_commit_system_account_after_balance_increase_and_increase_mainchai
 
     // Assert the vault own the difference
     let validator_vault = banks
-        .get_account(validator_fees_vault_pda_from_validator(&authority.pubkey()))
+        .get_account(validator_fees_vault_pda_from_validator(
+            &authority.pubkey(),
+        ))
         .await
         .unwrap()
         .unwrap();
@@ -379,7 +438,8 @@ async fn undelegate(args: UndelegateArgs<'_>) {
     assert!(res.is_ok());
 
     // Assert the delegation_record_pda was closed
-    let delegation_record_account = args.banks.get_account(delegation_record_pda).await.unwrap();
+    let delegation_record_account =
+        args.banks.get_account(delegation_record_pda).await.unwrap();
     assert!(delegation_record_account.is_none());
 
     // Assert the delegated metadata account pda was closed
@@ -410,7 +470,10 @@ struct FinalizeNewStateArgs<'a> {
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = dlp::instruction_builder::finalize(args.authority.pubkey(), args.delegated_account);
+    let ix = dlp::instruction_builder::finalize(
+        args.authority.pubkey(),
+        args.delegated_account,
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&args.authority.pubkey()),
@@ -470,7 +533,8 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let commit_state_pda = commit_state_pda_from_delegated_account(&args.delegated_account);
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&args.delegated_account);
     let commit_state_account = args
         .banks
         .get_account(commit_state_pda)
@@ -492,15 +556,18 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     );
 
     // Assert the record about the commitment exists
-    let commit_record_pda = commit_record_pda_from_delegated_account(&args.delegated_account);
+    let commit_record_pda =
+        commit_record_pda_from_delegated_account(&args.delegated_account);
     let commit_record_account = args
         .banks
         .get_account(commit_record_pda)
         .await
         .unwrap()
         .unwrap();
-    let commit_record =
-        CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
+    let commit_record = CommitRecord::try_from_bytes_with_discriminator(
+        &commit_record_account.data,
+    )
+    .unwrap();
     assert_eq!(commit_record.account, args.delegated_account);
     assert_eq!(commit_record.identity, args.authority.pubkey());
     assert_eq!(commit_record.nonce, 1);
@@ -514,8 +581,10 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap()
         .unwrap();
     let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
-            .unwrap();
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_account.data,
+        )
+        .unwrap();
     assert!(delegation_metadata.is_undelegatable);
 }
 
@@ -585,7 +654,8 @@ async fn setup_program_for_commit_test_env(
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&args.delegated_account),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
             owner: dlp::id(),
             executable: false,

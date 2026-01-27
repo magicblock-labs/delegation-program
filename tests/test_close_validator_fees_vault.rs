@@ -1,12 +1,15 @@
-use crate::fixtures::TEST_AUTHORITY;
 use dlp::pda::validator_fees_vault_pda_from_validator;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
+};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+
+use crate::fixtures::TEST_AUTHORITY;
 
 mod fixtures;
 
@@ -15,7 +18,8 @@ async fn test_close_validator_fees_vault() {
     // Setup
     let (banks, admin, validator, blockhash) = setup_program_test_env().await;
 
-    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator.pubkey());
+    let validator_fees_vault_pda =
+        validator_fees_vault_pda_from_validator(&validator.pubkey());
 
     // Submit the close vault tx
     let ix = dlp::instruction_builder::close_validator_fees_vault(
@@ -23,12 +27,18 @@ async fn test_close_validator_fees_vault() {
         admin.pubkey(),
         validator.pubkey(),
     );
-    let tx = Transaction::new_signed_with_payer(&[ix], Some(&admin.pubkey()), &[&admin], blockhash);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&admin.pubkey()),
+        &[&admin],
+        blockhash,
+    );
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
     // Assert the validator fees vault now has been closed
-    let validator_fees_vault_account = banks.get_account(validator_fees_vault_pda).await.unwrap();
+    let validator_fees_vault_account =
+        banks.get_account(validator_fees_vault_pda).await.unwrap();
     assert!(validator_fees_vault_account.is_none());
 }
 

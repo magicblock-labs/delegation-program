@@ -1,19 +1,23 @@
-use crate::error::DlpError;
-use crate::processor::fast::utils::requires::require_authorization;
-use crate::processor::fast::utils::{
-    pda::{close_pda, create_pda},
-    requires::{
-        require_initialized_delegation_metadata, require_initialized_delegation_record,
-        require_owned_pda, require_signer, require_uninitialized_pda, UndelegateBufferCtx,
-    },
-};
-use crate::state::{DelegationMetadata, DelegationRecord};
-use crate::{pda, require_eq_keys};
 use pinocchio::{
-    cpi::Signer, error::ProgramError, instruction::seeds, AccountView, Address, ProgramResult,
+    cpi::Signer, error::ProgramError, instruction::seeds, AccountView, Address,
+    ProgramResult,
 };
 
 use super::{process_undelegation_with_cpi, to_pinocchio_program_error};
+use crate::{
+    error::DlpError,
+    pda,
+    processor::fast::utils::{
+        pda::{close_pda, create_pda},
+        requires::{
+            require_authorization, require_initialized_delegation_metadata,
+            require_initialized_delegation_record, require_owned_pda,
+            require_signer, require_uninitialized_pda, UndelegateBufferCtx,
+        },
+    },
+    require_eq_keys,
+    state::{DelegationMetadata, DelegationRecord},
+};
 
 /// Admin-only undelegation for confined accounts (authority == system program)
 /// Accounts:
@@ -43,20 +47,36 @@ pub fn process_undelegate_confined_account(
     require_authorization(delegation_program_data, admin)?;
 
     // Basic checks
-    require_owned_pda(delegated_account, &crate::fast::ID, "delegated account")?;
-    require_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
-    require_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
+    require_owned_pda(
+        delegated_account,
+        &crate::fast::ID,
+        "delegated account",
+    )?;
+    require_initialized_delegation_record(
+        delegated_account,
+        delegation_record_account,
+        true,
+    )?;
+    require_initialized_delegation_metadata(
+        delegated_account,
+        delegation_metadata_account,
+        true,
+    )?;
 
     // Load delegation record
     let delegation_record_data = delegation_record_account.try_borrow()?;
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)
-            .map_err(to_pinocchio_program_error)?;
+        DelegationRecord::try_from_bytes_with_discriminator(
+            &delegation_record_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
 
     let delegation_metadata_data = delegation_metadata_account.try_borrow()?;
     let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
-            .map_err(to_pinocchio_program_error)?;
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
 
     // Confined account: authority must be system program
     require_eq_keys!(
