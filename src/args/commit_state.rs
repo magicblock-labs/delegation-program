@@ -12,7 +12,6 @@ pub struct CommitBumps {
     pub delegation_record: u8,
     pub delegation_metadata: u8,
     pub validator_fees_vault: u8,
-    pub program_config: u8,
 }
 
 #[repr(C)]
@@ -33,7 +32,7 @@ pub struct CommitFinalizeArgs {
     /// bumps of the PDA accounts to be validated by the ix
     pub bumps: CommitBumps,
 
-    pub reserved_padding: [u8; 2],
+    pub reserved_padding: [u8; 3],
 }
 
 pub type CommitFinalizeArgsWithBuffer<'a> = ArgsWithBuffer<'a, CommitFinalizeArgs>;

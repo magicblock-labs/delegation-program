@@ -5,12 +5,11 @@ use pinocchio_log::log;
 use crate::args::CommitBumps;
 use crate::error::DlpError;
 use crate::pod_view::PodView;
-use crate::processor::fast::{to_pinocchio_program_error, NewState};
-use crate::state::{DelegationMetadataFast, DelegationRecord, ProgramConfig};
+use crate::processor::fast::NewState;
+use crate::state::{DelegationMetadataFast, DelegationRecord};
 use crate::{
     apply_diff_in_place, pda, require, require_eq, require_eq_keys, require_ge,
-    require_initialized_pda, require_initialized_pda_fast, require_owned_by,
-    require_program_config, require_program_config_fast, require_signer,
+    require_initialized_pda_fast, require_owned_by, require_signer,
 };
 
 /// Arguments for the commit state internal function
@@ -24,7 +23,6 @@ pub(crate) struct CommitFinalizeInternalArgs<'a> {
     pub(crate) delegation_record_account: &'a AccountInfo,
     pub(crate) delegation_metadata_account: &'a AccountInfo,
     pub(crate) validator_fees_vault: &'a AccountInfo,
-    pub(crate) program_config_account: &'a AccountInfo,
 }
 
 /// Commit a new state of a delegated Pda
@@ -36,77 +34,41 @@ pub(crate) fn process_commit_finalize_internal(
 
     require_signer!(args.validator);
 
-    // additional cost: 4105
-    if false {
-        require_initialized_pda!(
-            args.delegation_record_account,
-            &[
-                pda::DELEGATION_RECORD_TAG,
-                args.delegated_account.key(),
-                &[args.bumps.delegation_record]
-            ],
+    require_initialized_pda_fast!(
+        args.delegation_record_account,
+        &[
+            pda::DELEGATION_RECORD_TAG,
+            args.delegated_account.key(),
+            &[args.bumps.delegation_record],
             &crate::fast::ID,
-            false
-        );
+            PDA_MARKER
+        ],
+        false
+    );
 
-        require_initialized_pda!(
-            args.delegation_metadata_account,
-            &[
-                pda::DELEGATION_METADATA_TAG,
-                args.delegated_account.key(),
-                &[args.bumps.delegation_metadata]
-            ],
+    require_initialized_pda_fast!(
+        args.delegation_metadata_account,
+        &[
+            pda::DELEGATION_METADATA_TAG,
+            args.delegated_account.key(),
+            &[args.bumps.delegation_metadata],
             &crate::fast::ID,
-            true
-        );
+            PDA_MARKER
+        ],
+        true
+    );
 
-        require_initialized_pda!(
-            args.validator_fees_vault,
-            &[
-                pda::VALIDATOR_FEES_VAULT_TAG,
-                args.validator.key(),
-                &[args.bumps.validator_fees_vault]
-            ],
+    require_initialized_pda_fast!(
+        args.validator_fees_vault,
+        &[
+            pda::VALIDATOR_FEES_VAULT_TAG,
+            args.validator.key(),
+            &[args.bumps.validator_fees_vault],
             &crate::fast::ID,
-            false
-        );
-    } else {
-        require_initialized_pda_fast!(
-            args.delegation_record_account,
-            &[
-                pda::DELEGATION_RECORD_TAG,
-                args.delegated_account.key(),
-                &[args.bumps.delegation_record],
-                &crate::fast::ID,
-                PDA_MARKER
-            ],
-            false
-        );
-
-        require_initialized_pda_fast!(
-            args.delegation_metadata_account,
-            &[
-                pda::DELEGATION_METADATA_TAG,
-                args.delegated_account.key(),
-                &[args.bumps.delegation_metadata],
-                &crate::fast::ID,
-                PDA_MARKER
-            ],
-            true
-        );
-
-        require_initialized_pda_fast!(
-            args.validator_fees_vault,
-            &[
-                pda::VALIDATOR_FEES_VAULT_TAG,
-                args.validator.key(),
-                &[args.bumps.validator_fees_vault],
-                &crate::fast::ID,
-                PDA_MARKER
-            ],
-            false
-        );
-    }
+            PDA_MARKER
+        ],
+        false
+    );
 
     // validate and update metadata
     {
@@ -147,41 +109,6 @@ pub(crate) fn process_commit_finalize_internal(
     //     }
     //     .invoke()?;
     // }
-
-    // cost = 197 CU
-    if false {
-        // Load the program configuration and validate it, if any
-        let has_program_config = if false {
-            require_program_config!(
-                args.program_config_account,
-                delegation_record.owner.as_array(),
-                args.bumps.program_config,
-                false
-            )
-        } else {
-            require_program_config_fast!(
-                args.program_config_account,
-                delegation_record.owner.as_array(),
-                args.bumps.program_config,
-                false
-            )
-        };
-        if has_program_config {
-            let program_config_data = args.program_config_account.try_borrow_data()?;
-
-            let program_config =
-                ProgramConfig::try_from_bytes_with_discriminator(&program_config_data)
-                    .map_err(to_pinocchio_program_error)?;
-            if !program_config
-                .approved_validators
-                .contains(&(*args.validator.key()).into())
-            {
-                log!("validator is not whitelisted in the program config: ");
-                pubkey::log(args.validator.key());
-                return Err(DlpError::InvalidWhitelistProgramConfig.into());
-            }
-        }
-    }
 
     args.delegated_account.resize(args.new_state.data_len())?;
 

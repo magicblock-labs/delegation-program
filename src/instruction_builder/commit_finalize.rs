@@ -7,16 +7,14 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pod_view::PodView;
 use crate::{
     delegation_metadata_seeds_from_delegated_account,
-    delegation_record_seeds_from_delegated_account, program_config_seeds_from_program_id,
-    total_size_budget, validator_fees_vault_seeds_from_validator, AccountSizeClass,
-    DLP_PROGRAM_DATA_SIZE_CLASS,
+    delegation_record_seeds_from_delegated_account, total_size_budget,
+    validator_fees_vault_seeds_from_validator, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
 
 pub struct CommitPDAs {
     pub delegation_record: Pubkey,
     pub delegation_metadata: Pubkey,
     pub validator_fees_vault: Pubkey,
-    pub program_config: Pubkey,
 }
 
 /// Builds a commit finalize instruction.
@@ -24,7 +22,6 @@ pub struct CommitPDAs {
 pub fn commit_finalize(
     validator: Pubkey,
     delegated_account: Pubkey,
-    delegated_account_owner: Pubkey,
     args: &mut CommitFinalizeArgs,
     state_or_diff: &[u8],
 ) -> (Instruction, CommitPDAs) {
@@ -43,17 +40,11 @@ pub fn commit_finalize(
         &crate::id(),
     );
 
-    let program_config = Pubkey::find_program_address(
-        program_config_seeds_from_program_id!(delegated_account_owner),
-        &crate::id(),
-    );
-
     // save the bumps in the args
     args.bumps = CommitBumps {
         delegation_record: delegation_record.1,
         delegation_metadata: delegation_metadata.1,
         validator_fees_vault: validator_fees_vault.1,
-        program_config: program_config.1,
     };
 
     (
@@ -65,7 +56,6 @@ pub fn commit_finalize(
                 AccountMeta::new_readonly(delegation_record.0, false),
                 AccountMeta::new(delegation_metadata.0, false),
                 AccountMeta::new_readonly(validator_fees_vault.0, false),
-                AccountMeta::new_readonly(program_config.0, false),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
             data: [
@@ -79,7 +69,6 @@ pub fn commit_finalize(
             delegation_record: delegation_record.0,
             delegation_metadata: delegation_metadata.0,
             validator_fees_vault: validator_fees_vault.0,
-            program_config: program_config.0,
         },
     )
 }
@@ -97,7 +86,6 @@ pub fn commit_finalize_size_budget(delegated_account: AccountSizeClass) -> u32 {
         AccountSizeClass::Tiny, // delegation_record_pda
         AccountSizeClass::Tiny, // delegation_metadata_pda
         AccountSizeClass::Tiny, // validator_fees_vault_pda
-        AccountSizeClass::Tiny, // program_config_pda
         AccountSizeClass::Tiny, // system_program
     ])
 }

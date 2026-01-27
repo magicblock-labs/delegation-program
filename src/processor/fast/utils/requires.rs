@@ -266,8 +266,13 @@ macro_rules! require_initialized_pda {
 #[macro_export]
 macro_rules! require_initialized_pda_fast {
     ($info:expr, $seeds: expr, $is_writable: expr) => {{
-        use solana_sha256_hasher::hashv;
-        let pda = hashv($seeds).to_bytes();
+        //
+        // Ideally, we want to der
+        //
+        //
+        //
+        let pda = solana_sha256_hasher::hashv($seeds).to_bytes();
+
         if !pubkey_eq($info.key(), &pda) {
             log!(
                 "require_initialized_pda!({}, {}, {}); pubkey_eq failed",
@@ -395,7 +400,7 @@ macro_rules! require_program_config_fast {
                 $program,
                 &[$bump],
                 &$crate::fast::ID,
-                PDA_MARKER
+                pinocchio::pubkey::PDA_MARKER
             ],
             $is_writable
         );

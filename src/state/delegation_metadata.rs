@@ -37,8 +37,9 @@ impl<'a> DelegationMetadataFast<'a> {
     pub fn from_account(account: &'a AccountInfo) -> Result<Self, ProgramError> {
         require_ge!(
             account.data_len(),
-            8  // last_update_nonce
-            + 1 // is_undelegatable
+            8    // discriminator
+            + 8  // last_update_nonce
+            + 1  // is_undelegatable
             + 32 // rent_payer
             + 4, // seeds (at least 4)
             ProgramError::InvalidAccountData
