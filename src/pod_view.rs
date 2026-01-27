@@ -110,7 +110,9 @@ pub trait PodView {
     /// In that case, we could create a "copy" instead of a "view" using this
     /// function that takes care of provided possibly-unaligned_buffer.
     #[cfg(feature = "unit_test_config")]
-    fn try_from_unaligned(unaligned_buffer: &[u8]) -> Result<Self, ProgramError>
+    fn try_from_unaligned(
+        unaligned_buffer: &[u8],
+    ) -> Result<Self, ProgramError>
     where
         Self: Sized;
 }
@@ -129,15 +131,19 @@ impl<T: bytemuck::Pod> PodView for T {
     }
 
     fn try_view_from(buffer: &[u8]) -> Result<&Self, ProgramError> {
-        bytemuck::try_from_bytes(buffer).map_err(|_| ProgramError::InvalidArgument)
+        bytemuck::try_from_bytes(buffer)
+            .map_err(|_| ProgramError::InvalidArgument)
     }
 
     fn try_view_from_mut(buffer: &mut [u8]) -> Result<&mut Self, ProgramError> {
-        bytemuck::try_from_bytes_mut(buffer).map_err(|_| ProgramError::InvalidArgument)
+        bytemuck::try_from_bytes_mut(buffer)
+            .map_err(|_| ProgramError::InvalidArgument)
     }
 
     #[cfg(feature = "unit_test_config")]
-    fn try_from_unaligned(possibly_unaligned_buffer: &[u8]) -> Result<Self, ProgramError> {
+    fn try_from_unaligned(
+        possibly_unaligned_buffer: &[u8],
+    ) -> Result<Self, ProgramError> {
         bytemuck::try_pod_read_unaligned(possibly_unaligned_buffer)
             .map_err(|_| ProgramError::InvalidArgument)
     }

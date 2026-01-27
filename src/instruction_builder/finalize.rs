@@ -1,24 +1,34 @@
-use solana_program::instruction::Instruction;
-use solana_program::system_program;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
-
-use crate::discriminator::DlpDiscriminator;
-use crate::pda::{
-    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
-    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    validator_fees_vault_pda_from_validator,
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
 };
-use crate::{total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS};
+
+use crate::{
+    discriminator::DlpDiscriminator,
+    pda::{
+        commit_record_pda_from_delegated_account,
+        commit_state_pda_from_delegated_account,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+        validator_fees_vault_pda_from_validator,
+    },
+    total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
+};
 
 /// Builds a finalize state instruction.
 /// See [crate::processor::process_finalize] for docs.
 pub fn finalize(validator: Pubkey, delegated_account: Pubkey) -> Instruction {
-    let commit_state_pda = commit_state_pda_from_delegated_account(&delegated_account);
-    let commit_record_pda = commit_record_pda_from_delegated_account(&delegated_account);
-    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&delegated_account);
+    let commit_record_pda =
+        commit_record_pda_from_delegated_account(&delegated_account);
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
-    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator);
+    let validator_fees_vault_pda =
+        validator_fees_vault_pda_from_validator(&validator);
     Instruction {
         program_id: crate::id(),
         accounts: vec![

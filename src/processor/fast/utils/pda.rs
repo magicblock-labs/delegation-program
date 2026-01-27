@@ -1,9 +1,8 @@
-use pinocchio::cpi::Signer;
-use pinocchio::sysvars::rent::Rent;
-use pinocchio::sysvars::Sysvar;
-use pinocchio::AccountView;
-use pinocchio::Address;
-use pinocchio::ProgramResult;
+use pinocchio::{
+    cpi::Signer,
+    sysvars::{rent::Rent, Sysvar},
+    AccountView, Address, ProgramResult,
+};
 use pinocchio_system::instructions as system;
 
 use crate::consts::PROTOCOL_FEES_PERCENTAGE;
@@ -64,10 +63,14 @@ pub(crate) fn create_pda(
 
 /// Close PDA
 #[inline(always)]
-pub(crate) fn close_pda(target_account: &AccountView, destination: &AccountView) -> ProgramResult {
+pub(crate) fn close_pda(
+    target_account: &AccountView,
+    destination: &AccountView,
+) -> ProgramResult {
     // Transfer tokens from the account to the destination.
 
-    destination.set_lamports(destination.lamports() + target_account.lamports());
+    destination
+        .set_lamports(destination.lamports() + target_account.lamports());
     target_account.set_lamports(0);
 
     unsafe {
@@ -98,10 +101,12 @@ pub(crate) fn close_pda_with_fees(
         let validator_fee = fee_taken - protocol_fee;
 
         fees_vault.set_lamports(fees_vault.lamports() + protocol_fee);
-        validator_fees_vault.set_lamports(validator_fees_vault.lamports() + validator_fee);
+        validator_fees_vault
+            .set_lamports(validator_fees_vault.lamports() + validator_fee);
     }
 
-    rent_reimbursement.set_lamports(rent_reimbursement.lamports() + destination_amount);
+    rent_reimbursement
+        .set_lamports(rent_reimbursement.lamports() + destination_amount);
     target_account.set_lamports(0);
 
     unsafe {

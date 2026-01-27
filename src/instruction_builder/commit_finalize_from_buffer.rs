@@ -1,14 +1,17 @@
-use solana_program::instruction::Instruction;
-use solana_program::system_program;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
-use crate::args::{CommitBumps, CommitFinalizeArgs};
-use crate::discriminator::DlpDiscriminator;
-use crate::pod_view::PodView;
 use crate::{
+    args::{CommitBumps, CommitFinalizeArgs},
     delegation_metadata_seeds_from_delegated_account,
-    delegation_record_seeds_from_delegated_account, total_size_budget,
-    validator_fees_vault_seeds_from_validator, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
+    delegation_record_seeds_from_delegated_account,
+    discriminator::DlpDiscriminator,
+    pod_view::PodView,
+    total_size_budget, validator_fees_vault_seeds_from_validator,
+    AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
 
 /// Builds a commit state from buffer instruction.
@@ -72,7 +75,9 @@ pub fn commit_finalize_from_buffer(
 ///
 /// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
 ///
-pub fn commit_finalize_from_buffer_size_budget(delegated_account: AccountSizeClass) -> u32 {
+pub fn commit_finalize_from_buffer_size_budget(
+    delegated_account: AccountSizeClass,
+) -> u32 {
     total_size_budget(&[
         DLP_PROGRAM_DATA_SIZE_CLASS,
         AccountSizeClass::Tiny, // validator

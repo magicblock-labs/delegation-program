@@ -1,13 +1,15 @@
-use crate::fixtures::TEST_AUTHORITY;
 use dlp::pda::validator_fees_vault_pda_from_validator;
-use solana_program::pubkey::Pubkey;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, system_program,
+};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+
+use crate::fixtures::TEST_AUTHORITY;
 
 mod fixtures;
 
@@ -32,8 +34,10 @@ async fn test_init_validator_fees_vault() {
     assert!(res.is_ok());
 
     // Assert the fees vault was created successfully
-    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator_identity);
-    let validator_fees_vault_account = banks.get_account(validator_fees_vault_pda).await.unwrap();
+    let validator_fees_vault_pda =
+        validator_fees_vault_pda_from_validator(&validator_identity);
+    let validator_fees_vault_account =
+        banks.get_account(validator_fees_vault_pda).await.unwrap();
     assert!(validator_fees_vault_account.is_some());
 
     // Assert record cannot be created if the admin is not the correct one
@@ -43,7 +47,12 @@ async fn test_init_validator_fees_vault() {
         payer.pubkey(),
         validator_identity,
     );
-    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer],
+        blockhash,
+    );
     let res = banks.process_transaction(tx).await;
     assert!(res.is_err());
 }

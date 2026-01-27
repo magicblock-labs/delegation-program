@@ -1,17 +1,6 @@
-use crate::consts::{COMMIT_FEE_LAMPORTS, EXTERNAL_UNDELEGATE_DISCRIMINATOR, SESSION_FEE_LAMPORTS};
-use crate::error::DlpError;
-use crate::pda;
-use crate::processor::fast::utils::{
-    pda::{close_pda, close_pda_with_fees, create_pda},
-    requires::{
-        require_uninitialized_pda, CommitRecordCtx, CommitStateAccountCtx, UndelegateBufferCtx,
-    },
-};
-use crate::state::{DelegationMetadata, DelegationRecord};
 use pinocchio::{
     address::{address_eq, Address},
-    cpi::invoke_signed,
-    cpi::Signer,
+    cpi::{invoke_signed, Signer},
     error::ProgramError,
     instruction::{seeds, InstructionAccount, InstructionView},
     sysvars::{rent::Rent, Sysvar},
@@ -20,16 +9,33 @@ use pinocchio::{
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
-#[cfg(feature = "log-cost")]
-use crate::compute;
-
 use super::{
     to_pinocchio_program_error,
     utils::requires::{
-        require_initialized_delegation_metadata, require_initialized_delegation_record,
-        require_initialized_protocol_fees_vault, require_initialized_validator_fees_vault,
-        require_owned_pda, require_signer,
+        require_initialized_delegation_metadata,
+        require_initialized_delegation_record,
+        require_initialized_protocol_fees_vault,
+        require_initialized_validator_fees_vault, require_owned_pda,
+        require_signer,
     },
+};
+#[cfg(feature = "log-cost")]
+use crate::compute;
+use crate::{
+    consts::{
+        COMMIT_FEE_LAMPORTS, EXTERNAL_UNDELEGATE_DISCRIMINATOR,
+        SESSION_FEE_LAMPORTS,
+    },
+    error::DlpError,
+    pda,
+    processor::fast::utils::{
+        pda::{close_pda, close_pda_with_fees, create_pda},
+        requires::{
+            require_uninitialized_pda, CommitRecordCtx, CommitStateAccountCtx,
+            UndelegateBufferCtx,
+        },
+    },
+    state::{DelegationMetadata, DelegationRecord},
 };
 
 /// Undelegate a delegated account
@@ -87,11 +93,27 @@ pub fn process_undelegate(
 
     // Check accounts
     require_signer(validator, "validator")?;
-    require_owned_pda(delegated_account, &crate::fast::ID, "delegated account")?;
-    require_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
-    require_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
+    require_owned_pda(
+        delegated_account,
+        &crate::fast::ID,
+        "delegated account",
+    )?;
+    require_initialized_delegation_record(
+        delegated_account,
+        delegation_record_account,
+        true,
+    )?;
+    require_initialized_delegation_metadata(
+        delegated_account,
+        delegation_metadata_account,
+        true,
+    )?;
     require_initialized_protocol_fees_vault(fees_vault, true)?;
-    require_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
+    require_initialized_validator_fees_vault(
+        validator,
+        validator_fees_vault,
+        true,
+    )?;
 
     // Make sure there is no pending commits to be finalized before this call
     require_uninitialized_pda(
@@ -112,8 +134,10 @@ pub fn process_undelegate(
     // Load delegation record
     let delegation_record_data = delegation_record_account.try_borrow()?;
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_data)
-            .map_err(to_pinocchio_program_error)?;
+        DelegationRecord::try_from_bytes_with_discriminator(
+            &delegation_record_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
 
     // Check passed owner and owner stored in the delegation record match
     if !address_eq(
@@ -130,13 +154,17 @@ pub fn process_undelegate(
     // Load delegated account metadata
     let delegation_metadata_data = delegation_metadata_account.try_borrow()?;
     let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
-            .map_err(to_pinocchio_program_error)?;
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
     let delegation_last_update_nonce = delegation_metadata.last_update_nonce;
 
     // Check if the delegated account is undelegatable
     if !delegation_metadata.is_undelegatable {
-        log!("delegation metadata indicates the account is not undelegatable : ");
+        log!(
+            "delegation metadata indicates the account is not undelegatable : "
+        );
         delegation_metadata_account.address().log();
         return Err(DlpError::NotUndelegatable.into());
     }
@@ -150,7 +178,9 @@ pub fn process_undelegate(
         Address::from(delegation_metadata.rent_payer.to_bytes()).log();
         log!("but got : ");
         rent_reimbursement.address().log();
-        return Err(DlpError::InvalidReimbursementAddressForDelegationRent.into());
+        return Err(
+            DlpError::InvalidReimbursementAddressForDelegationRent.into()
+        );
     }
 
     // Dropping delegation references
@@ -276,15 +306,17 @@ pub(crate) fn process_undelegation_with_cpi(
     }
 
     // Check that the owner program properly moved the state back into the original account during CPI
-    if delegated_account.try_borrow()?.as_ref() != undelegate_buffer_account.try_borrow()?.as_ref()
+    if delegated_account.try_borrow()?.as_ref()
+        != undelegate_buffer_account.try_borrow()?.as_ref()
     {
         return Err(DlpError::InvalidAccountDataAfterCPI.into());
     }
 
     // Return the extra lamports to the delegated account
-    let delegated_account_extra_lamports = delegated_account_lamports_before_close
-        .checked_sub(delegated_account_min_rent)
-        .ok_or(DlpError::Overflow)?;
+    let delegated_account_extra_lamports =
+        delegated_account_lamports_before_close
+            .checked_sub(delegated_account_min_rent)
+            .ok_or(DlpError::Overflow)?;
 
     system::Transfer {
         from: validator,
@@ -318,7 +350,11 @@ fn cpi_external_undelegate(
         data: &data,
         accounts: &[
             InstructionAccount::new(delegated_account.address(), true, false),
-            InstructionAccount::new(undelegate_buffer_account.address(), true, true),
+            InstructionAccount::new(
+                undelegate_buffer_account.address(),
+                true,
+                true,
+            ),
             InstructionAccount::new(payer.address(), true, true),
             InstructionAccount::new(system_program.address(), false, false),
         ],
@@ -349,8 +385,8 @@ fn process_delegation_cleanup(
         .checked_mul(commit_count)
         .ok_or(DlpError::Overflow)?;
     let total_fee_requested = commit_fee + SESSION_FEE_LAMPORTS;
-    let total_lamports =
-        delegation_record_account.lamports() + delegation_metadata_account.lamports();
+    let total_lamports = delegation_record_account.lamports()
+        + delegation_metadata_account.lamports();
     let mut fee_remaining = total_fee_requested.min(total_lamports);
     close_pda_with_fees(
         delegation_record_account,

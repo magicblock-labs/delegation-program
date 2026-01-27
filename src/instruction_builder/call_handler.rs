@@ -1,10 +1,18 @@
-use crate::args::CallHandlerArgs;
-use crate::discriminator::DlpDiscriminator;
-use crate::pda::{ephemeral_balance_pda_from_payer, validator_fees_vault_pda_from_validator};
-use crate::{total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS};
 use borsh::to_vec;
-use solana_program::instruction::Instruction;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+};
+
+use crate::{
+    args::CallHandlerArgs,
+    discriminator::DlpDiscriminator,
+    pda::{
+        ephemeral_balance_pda_from_payer,
+        validator_fees_vault_pda_from_validator,
+    },
+    total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
+};
 
 /// Builds a call handler instruction.
 /// See [crate::processor::call_handler] for docs.
@@ -16,10 +24,12 @@ pub fn call_handler(
     other_accounts: Vec<AccountMeta>,
     args: CallHandlerArgs,
 ) -> Instruction {
-    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator);
+    let validator_fees_vault_pda =
+        validator_fees_vault_pda_from_validator(&validator);
 
     // handler accounts
-    let escrow_account = ephemeral_balance_pda_from_payer(&escrow_authority, args.escrow_index);
+    let escrow_account =
+        ephemeral_balance_pda_from_payer(&escrow_authority, args.escrow_index);
     let mut accounts = vec![
         AccountMeta::new(validator, true),
         AccountMeta::new(validator_fees_vault_pda, false),
@@ -46,7 +56,10 @@ pub fn call_handler(
 ///
 /// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
 ///
-pub fn call_handler_size_budget(destination_program: AccountSizeClass, other_accounts: u32) -> u32 {
+pub fn call_handler_size_budget(
+    destination_program: AccountSizeClass,
+    other_accounts: u32,
+) -> u32 {
     total_size_budget(&[
         DLP_PROGRAM_DATA_SIZE_CLASS,
         AccountSizeClass::Tiny, // validator

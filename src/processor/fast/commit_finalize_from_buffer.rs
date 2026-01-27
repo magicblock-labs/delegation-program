@@ -1,13 +1,17 @@
 use pinocchio::{AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 
-use crate::args::CommitFinalizeArgs;
-use crate::pod_view::PodView;
-use crate::processor::fast::internal::{
-    process_commit_finalize_internal, CommitFinalizeInternalArgs,
+use crate::{
+    args::CommitFinalizeArgs,
+    pod_view::PodView,
+    processor::fast::{
+        internal::{
+            process_commit_finalize_internal, CommitFinalizeInternalArgs,
+        },
+        NewState,
+    },
+    require_n_accounts, DiffSet,
 };
-use crate::processor::fast::NewState;
-use crate::{require_n_accounts, DiffSet};
 
 /// Commit a new state of a delegated PDA
 ///

@@ -1,15 +1,13 @@
-use crate::args::CommitStateFromBufferArgs;
-use crate::processor::fast::{process_commit_state_internal, CommitStateInternalArgs};
-use crate::DiffSet;
-
 use borsh::BorshDeserialize;
-use pinocchio::error::ProgramError;
-use pinocchio::AccountView;
-use pinocchio::Address;
-use pinocchio::ProgramResult;
+use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 
 use super::NewState;
+use crate::{
+    args::CommitStateFromBufferArgs,
+    processor::fast::{process_commit_state_internal, CommitStateInternalArgs},
+    DiffSet,
+};
 
 pub fn process_commit_diff_from_buffer(
     _program_id: &Address,
@@ -22,8 +20,8 @@ pub fn process_commit_diff_from_buffer(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    let args =
-        CommitStateFromBufferArgs::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
+    let args = CommitStateFromBufferArgs::try_from_slice(data)
+        .map_err(|_| ProgramError::BorshIoError)?;
 
     let commit_record_lamports = args.lamports;
     let commit_record_nonce = args.nonce;

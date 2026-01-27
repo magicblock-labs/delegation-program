@@ -1,9 +1,13 @@
-use crate::consts::DELEGATION_PROGRAM_DATA_ID;
-use crate::discriminator::DlpDiscriminator;
-use crate::pda::validator_fees_vault_pda_from_validator;
-use solana_program::instruction::Instruction;
-use solana_program::system_program;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
+
+use crate::{
+    consts::DELEGATION_PROGRAM_DATA_ID, discriminator::DlpDiscriminator,
+    pda::validator_fees_vault_pda_from_validator,
+};
 
 /// Initialize a validator fees vault PDA.
 /// See [crate::processor::process_init_validator_fees_vault] for docs.
@@ -12,7 +16,8 @@ pub fn init_validator_fees_vault(
     admin: Pubkey,
     validator_identity: Pubkey,
 ) -> Instruction {
-    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator_identity);
+    let validator_fees_vault_pda =
+        validator_fees_vault_pda_from_validator(&validator_identity);
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     Instruction {
         program_id: crate::id(),

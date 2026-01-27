@@ -92,7 +92,8 @@ impl<'a> DiffSet<'a> {
                 //  - raw_pairs aligned to 4-byte
                 //  - raw_pairs is big enough to hold both changed_len and segments_count
                 this.offset_pairs = unsafe {
-                    let raw_pairs = buf.add(SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS)
+                    let raw_pairs = buf
+                        .add(SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS)
                         as *const OffsetPair;
                     slice::from_raw_parts(raw_pairs, segments_count)
                 };
@@ -103,7 +104,9 @@ impl<'a> DiffSet<'a> {
         Ok(this)
     }
 
-    pub fn try_new_from_borsh_vec(vec_buffer: &'a [u8]) -> Result<Self, ProgramError> {
+    pub fn try_new_from_borsh_vec(
+        vec_buffer: &'a [u8],
+    ) -> Result<Self, ProgramError> {
         if vec_buffer.len() < 4 {
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -164,9 +167,10 @@ impl<'a> DiffSet<'a> {
             return Err(DlpError::InvalidDiff.into());
         }
 
-        let segment = &self.concat_diff[segment_begin as usize..segment_end as usize];
-        let range =
-            offset_in_data as usize..(offset_in_data + segment_end - segment_begin) as usize;
+        let segment =
+            &self.concat_diff[segment_begin as usize..segment_end as usize];
+        let range = offset_in_data as usize
+            ..(offset_in_data + segment_end - segment_begin) as usize;
 
         if range.end > self.changed_len() {
             return Err(DlpError::InvalidDiff.into());
@@ -178,7 +182,8 @@ impl<'a> DiffSet<'a> {
     /// Iterates diff segments
     pub fn iter(
         &self,
-    ) -> impl Iterator<Item = Result<(&'a [u8], OffsetInData), ProgramError>> + '_ {
+    ) -> impl Iterator<Item = Result<(&'a [u8], OffsetInData), ProgramError>> + '_
+    {
         (0..self.segments_count).map(|index| {
             self.diff_segment_at(index)
                 .map(|val| val.expect("impossible: index can never be greater than segments_count"))

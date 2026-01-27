@@ -1,15 +1,20 @@
 use borsh::to_vec;
-use solana_program::instruction::Instruction;
-use solana_program::system_program;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
-
-use crate::args::DelegateArgs;
-use crate::discriminator::DlpDiscriminator;
-use crate::pda::{
-    delegate_buffer_pda_from_delegated_account_and_owner_program,
-    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
 };
-use crate::{total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS};
+
+use crate::{
+    args::DelegateArgs,
+    discriminator::DlpDiscriminator,
+    pda::{
+        delegate_buffer_pda_from_delegated_account_and_owner_program,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+    },
+    total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
+};
 
 /// Builds a delegate instruction
 /// See [crate::processor::process_delegate] for docs.
@@ -54,8 +59,12 @@ fn build_delegate_instruction(
 ) -> Instruction {
     let owner = owner.unwrap_or(system_program::id());
     let delegate_buffer_pda =
-        delegate_buffer_pda_from_delegated_account_and_owner_program(&delegated_account, &owner);
-    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
+        delegate_buffer_pda_from_delegated_account_and_owner_program(
+            &delegated_account,
+            &owner,
+        );
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
     let mut data = discriminator.to_vec();

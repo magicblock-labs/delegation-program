@@ -1,18 +1,23 @@
-use crate::args::CallHandlerArgs;
-use crate::ephemeral_balance_seeds_from_payer;
-use crate::error::{INVALID_ESCROW_OWNER, INVALID_ESCROW_PDA};
-use crate::processor::utils::loaders::{
-    load_initialized_validator_fees_vault, load_owned_pda, load_pda, load_signer,
+use borsh::BorshDeserialize;
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
+    program::invoke_signed,
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    system_program,
 };
 
-use borsh::BorshDeserialize;
-use solana_program::account_info::AccountInfo;
-use solana_program::entrypoint::ProgramResult;
-use solana_program::instruction::{AccountMeta, Instruction};
-use solana_program::program::invoke_signed;
-use solana_program::program_error::ProgramError;
-use solana_program::pubkey::Pubkey;
-use solana_program::system_program;
+use crate::{
+    args::CallHandlerArgs,
+    ephemeral_balance_seeds_from_payer,
+    error::{INVALID_ESCROW_OWNER, INVALID_ESCROW_PDA},
+    processor::utils::loaders::{
+        load_initialized_validator_fees_vault, load_owned_pda, load_pda,
+        load_signer,
+    },
+};
 
 /// Calls a handler on user specified program
 ///
@@ -61,11 +66,17 @@ pub fn process_call_handler(
     // verify account is a signer
     load_signer(validator, "validator")?;
     // verify signer is a registered validator
-    load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
+    load_initialized_validator_fees_vault(
+        validator,
+        validator_fees_vault,
+        true,
+    )?;
 
     // verify passed escrow_account derived from escrow authority
-    let escrow_seeds: &[&[u8]] =
-        ephemeral_balance_seeds_from_payer!(escrow_authority_account.key, args.escrow_index);
+    let escrow_seeds: &[&[u8]] = ephemeral_balance_seeds_from_payer!(
+        escrow_authority_account.key,
+        args.escrow_index
+    );
     let escrow_bump = load_pda(
         escrow_account,
         escrow_seeds,
@@ -73,10 +84,17 @@ pub fn process_call_handler(
         true,
         INVALID_ESCROW_PDA,
     )?;
-    load_owned_pda(escrow_account, &system_program::id(), INVALID_ESCROW_OWNER)?;
+    load_owned_pda(
+        escrow_account,
+        &system_program::id(),
+        INVALID_ESCROW_OWNER,
+    )?;
 
     // deduce necessary accounts for CPI
-    let (accounts_meta, handler_accounts): (Vec<AccountMeta>, Vec<AccountInfo>) = other_accounts
+    let (accounts_meta, handler_accounts): (
+        Vec<AccountMeta>,
+        Vec<AccountInfo>,
+    ) = other_accounts
         .iter()
         .chain([escrow_authority_account, escrow_account])
         .filter(|account| account.key != validator.key)

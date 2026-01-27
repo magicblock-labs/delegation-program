@@ -3,14 +3,11 @@ use std::cmp::{min, Ordering};
 use pinocchio::error::ProgramError;
 use rkyv::util::AlignedVec;
 
-use crate::error::DlpError;
-
 use super::{
-    DiffSet, OffsetInData, SizeChanged, SIZE_OF_CHANGED_LEN, SIZE_OF_NUM_OFFSET_PAIRS,
-    SIZE_OF_SINGLE_OFFSET_PAIR,
+    DiffSet, OffsetInData, SizeChanged, SIZE_OF_CHANGED_LEN,
+    SIZE_OF_NUM_OFFSET_PAIRS, SIZE_OF_SINGLE_OFFSET_PAIR,
 };
-
-use crate::{require_eq, require_le};
+use crate::{error::DlpError, require_eq, require_le};
 
 ///
 /// Compute diff between original and changed.
@@ -191,7 +188,10 @@ pub fn compute_diff(original: &[u8], changed: &[u8]) -> AlignedVec {
 ///  - None               means NO change
 ///  - Some(size_changed) means the data size has changed and size_changed indicates
 ///                       whether it has expanded or shrunk.
-pub fn detect_size_change(original: &[u8], diffset: &DiffSet<'_>) -> Option<SizeChanged> {
+pub fn detect_size_change(
+    original: &[u8],
+    diffset: &DiffSet<'_>,
+) -> Option<SizeChanged> {
     match diffset.changed_len().cmp(&original.len()) {
         Ordering::Less => Some(SizeChanged::Shrunk(diffset.changed_len())),
         Ordering::Greater => Some(SizeChanged::Expanded(diffset.changed_len())),
@@ -203,7 +203,10 @@ pub fn detect_size_change(original: &[u8], diffset: &DiffSet<'_>) -> Option<Size
 ///
 /// Precondition:
 ///   - original.len() must be equal to the length encoded in the diff.
-pub fn apply_diff_in_place(original: &mut [u8], diffset: &DiffSet<'_>) -> Result<(), ProgramError> {
+pub fn apply_diff_in_place(
+    original: &mut [u8],
+    diffset: &DiffSet<'_>,
+) -> Result<(), ProgramError> {
     if let Some(_layout) = detect_size_change(original, diffset) {
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -212,7 +215,10 @@ pub fn apply_diff_in_place(original: &mut [u8], diffset: &DiffSet<'_>) -> Result
 
 /// This function creates a copy of original, possibly extending or shrinking it,
 /// and then applies the diff to it, before returning it.
-pub fn apply_diff_copy(original: &[u8], diffset: &DiffSet<'_>) -> Result<Vec<u8>, ProgramError> {
+pub fn apply_diff_copy(
+    original: &[u8],
+    diffset: &DiffSet<'_>,
+) -> Result<Vec<u8>, ProgramError> {
     Ok(match detect_size_change(original, diffset) {
         Some(SizeChanged::Expanded(new_size)) => {
             let mut applied = Vec::with_capacity(new_size);
@@ -273,7 +279,8 @@ pub fn merge_diff_copy<'a>(
         if write_index < start {
             require_le!(start, original.len(), DlpError::InvalidDiff);
             // copy the unchanged bytes
-            destination[write_index..start].copy_from_slice(&original[write_index..start]);
+            destination[write_index..start]
+                .copy_from_slice(&original[write_index..start]);
         }
 
         destination[start..end].copy_from_slice(diff_segment);
@@ -319,12 +326,14 @@ pub fn merge_diff_copy<'a>(
             if destination.len() <= original.len() {
                 // case: all n bytes come from original
                 let dest_len = destination.len();
-                destination[write_index..].copy_from_slice(&original[write_index..dest_len]);
+                destination[write_index..]
+                    .copy_from_slice(&original[write_index..dest_len]);
                 dest_len
             } else if write_index < original.len() {
                 // case: some bytes come from original and the rest are "assumed" to be
                 // zero-initialized (by the caller).
-                destination[write_index..original.len()].copy_from_slice(&original[write_index..]);
+                destination[write_index..original.len()]
+                    .copy_from_slice(&original[write_index..]);
                 original.len()
             } else {
                 // case: all N bytes are "assumed" to be zero-initialized (by the caller).
@@ -344,7 +353,10 @@ pub fn merge_diff_copy<'a>(
 }
 
 // private function that does the actual work.
-fn apply_diff_impl(original: &mut [u8], diffset: &DiffSet<'_>) -> Result<(), ProgramError> {
+fn apply_diff_impl(
+    original: &mut [u8],
+    diffset: &DiffSet<'_>,
+) -> Result<(), ProgramError> {
     for item in diffset.iter() {
         let (diff_segment, offset_range) = item?;
         original[offset_range].copy_from_slice(diff_segment);
@@ -361,7 +373,10 @@ mod tests {
         Rng, RngCore, SeedableRng,
     };
 
-    use crate::{apply_diff_copy, apply_diff_in_place, compute_diff, merge_diff_copy, DiffSet};
+    use crate::{
+        apply_diff_copy, apply_diff_in_place, compute_diff, merge_diff_copy,
+        DiffSet,
+    };
 
     #[test]
     fn test_no_change() {
@@ -395,8 +410,9 @@ mod tests {
             // 2 (u32)
             expected_diff.extend_from_slice(&2u32.to_le_bytes());
         } else {
-            expected_diff
-                .extend_from_slice(&(2u32 + additional_changes.len() as u32).to_le_bytes());
+            expected_diff.extend_from_slice(
+                &(2u32 + additional_changes.len() as u32).to_le_bytes(),
+            );
         }
 
         // -- offsets
@@ -450,13 +466,15 @@ mod tests {
         assert_eq!(actual_diff.len(), 4 + 4 + 8 + 8 + (4 + 8));
         assert_eq!(actual_diff.as_slice(), expected_diff.as_slice());
 
-        let expected_changed = apply_diff_copy(&original, &actual_diffset).unwrap();
+        let expected_changed =
+            apply_diff_copy(&original, &actual_diffset).unwrap();
 
         assert_eq!(changed.as_slice(), expected_changed.as_slice());
 
         let expected_changed = {
             let mut destination = vec![255; original.len()];
-            merge_diff_copy(&mut destination, &original, &actual_diffset).unwrap();
+            merge_diff_copy(&mut destination, &original, &actual_diffset)
+                .unwrap();
             destination
         };
 
@@ -492,7 +510,8 @@ mod tests {
 
         let expected_changed = {
             let mut destination = vec![255; CHANGED_LEN];
-            merge_diff_copy(&mut destination, &original, &actual_diffset).unwrap();
+            merge_diff_copy(&mut destination, &original, &actual_diffset)
+                .unwrap();
             destination
         };
 
@@ -525,14 +544,17 @@ mod tests {
         //
         // TODO (snawaz): we could optimize compute_diff to not include the zero bytes which are
         // part of the expansion.
-        let expected_diff = get_example_expected_diff(CHANGED_LEN, vec![(100, &[0; 20])]);
+        let expected_diff =
+            get_example_expected_diff(CHANGED_LEN, vec![(100, &[0; 20])]);
 
         assert_eq!(actual_diff.len(), 4 + 4 + (8 + 8) + (4 + 8) + (4 + 4 + 20));
         assert_eq!(actual_diff.as_slice(), expected_diff.as_slice());
 
         let expected_changed = {
             let mut destination = vec![255; CHANGED_LEN];
-            let unwritten = merge_diff_copy(&mut destination, &original, &actual_diffset).unwrap();
+            let unwritten =
+                merge_diff_copy(&mut destination, &original, &actual_diffset)
+                    .unwrap();
 
             // TODO (snawaz): unwritten == &mut [], is because currently the expanded bytes are part of the diff.
             // Once compute_diff is optimized further, written must be &mut [0; 20].
@@ -587,7 +609,8 @@ mod tests {
                     }
                 }
                 // println!("{diff_offset}, {diff_end} => {diff_len}");
-                slices.push((diff_offset, copy[diff_offset..diff_end].to_vec()));
+                slices
+                    .push((diff_offset, copy[diff_offset..diff_end].to_vec()));
 
                 offset_range = (diff_end + 8)..(diff_end + 8 + slab);
             }
@@ -606,7 +629,9 @@ mod tests {
             let mut offset_in_diff = 0u32;
             for (offset_in_account, slice) in slices.iter() {
                 diff.extend_from_slice(&offset_in_diff.to_le_bytes());
-                diff.extend_from_slice(&(*offset_in_account as u32).to_le_bytes());
+                diff.extend_from_slice(
+                    &(*offset_in_account as u32).to_le_bytes(),
+                );
                 offset_in_diff += slice.len() as u32;
             }
 
@@ -634,7 +659,8 @@ mod tests {
 
         let expected_changed = {
             let mut destination = vec![255; original.len()];
-            merge_diff_copy(&mut destination, &original, &actual_diffset).unwrap();
+            merge_diff_copy(&mut destination, &original, &actual_diffset)
+                .unwrap();
             destination
         };
 

@@ -1,12 +1,13 @@
 use std::mem::size_of;
 
-use crate::impl_to_bytes_with_discriminator_zero_copy;
-use crate::impl_try_from_bytes_with_discriminator_zero_copy;
 use bytemuck::{Pod, Zeroable};
 use solana_program::pubkey::Pubkey;
 
-use super::discriminator::AccountDiscriminator;
-use super::discriminator::AccountWithDiscriminator;
+use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
+use crate::{
+    impl_to_bytes_with_discriminator_zero_copy,
+    impl_try_from_bytes_with_discriminator_zero_copy,
+};
 
 /// The Delegation Record stores information such as the authority, the owner and the commit frequency.
 /// This is used by the ephemeral validator to update the state of the delegated account.

@@ -1,10 +1,17 @@
-use pinocchio::address::{address_eq, Address};
-use pinocchio::error::ProgramError;
-use pinocchio::AccountView;
+use pinocchio::{
+    address::{address_eq, Address},
+    error::ProgramError,
+    AccountView,
+};
 use pinocchio_log::log;
 
-use crate::error::DlpError;
-use crate::pda::{self, program_config_from_program_id, validator_fees_vault_pda_from_validator};
+use crate::{
+    error::DlpError,
+    pda::{
+        self, program_config_from_program_id,
+        validator_fees_vault_pda_from_validator,
+    },
+};
 
 // require true
 #[macro_export]
@@ -142,10 +149,14 @@ macro_rules! require_n_accounts {
                     $n,
                     $accounts.len()
                 );
-                return Err(pinocchio::error::ProgramError::NotEnoughAccountKeys);
+                return Err(
+                    pinocchio::error::ProgramError::NotEnoughAccountKeys,
+                );
             }
-            core::cmp::Ordering::Equal => TryInto::<&[_; $n]>::try_into($accounts)
-                .map_err(|_| $crate::error::DlpError::InfallibleError)?,
+            core::cmp::Ordering::Equal => {
+                TryInto::<&[_; $n]>::try_into($accounts)
+                    .map_err(|_| $crate::error::DlpError::InfallibleError)?
+            }
             core::cmp::Ordering::Greater => {
                 pinocchio_log::log!(
                     "Need {} accounts, but got more ({}) accounts",
@@ -337,7 +348,10 @@ pub fn require_owned_pda(
 /// Errors if:
 /// - Account is not a signer.
 #[inline(always)]
-pub fn require_signer(info: &AccountView, label: &str) -> Result<(), ProgramError> {
+pub fn require_signer(
+    info: &AccountView,
+    label: &str,
+) -> Result<(), ProgramError> {
     if !info.is_signer() {
         log!("Account needs to be signer {}: ", label);
         info.address().log();
@@ -378,7 +392,8 @@ pub fn require_pda(
 /// - Owner is the system program.
 /// - Data is empty.
 pub fn is_uninitialized_account(info: &AccountView) -> bool {
-    address_eq(unsafe { info.owner() }, &pinocchio_system::ID) && info.is_data_empty()
+    address_eq(unsafe { info.owner() }, &pinocchio_system::ID)
+        && info.is_data_empty()
 }
 
 /// Errors if:
@@ -479,7 +494,11 @@ pub fn require_initialized_pda(
 /// - Account is not executable.
 #[inline(always)]
 #[allow(dead_code)]
-pub fn require_program(info: &AccountView, key: &Address, label: &str) -> Result<(), ProgramError> {
+pub fn require_program(
+    info: &AccountView,
+    key: &Address,
+    label: &str,
+) -> Result<(), ProgramError> {
     if !address_eq(info.address(), key) {
         log!("Invalid program account {}: ", label);
         info.address().log();
@@ -519,9 +538,11 @@ pub fn require_initialized_validator_fees_vault(
     validator_fees_vault: &AccountView,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
-    let pda = validator_fees_vault_pda_from_validator(&validator.address().to_bytes().into())
-        .to_bytes()
-        .into();
+    let pda = validator_fees_vault_pda_from_validator(
+        &validator.address().to_bytes().into(),
+    )
+    .to_bytes()
+    .into();
     if !address_eq(validator_fees_vault.address(), &pda) {
         log!("Invalid validator fees vault PDA, expected: ");
         pda.log();
@@ -721,7 +742,8 @@ define_uninitialized_ctx!(
     label = "delegation metadata",
     invalid_seeds = DlpError::DelegationMetadataInvalidSeeds,
     invalid_account_owner = DlpError::DelegationMetadataInvalidAccountOwner,
-    account_already_initialized = DlpError::DelegationMetadataAlreadyInitialized,
+    account_already_initialized =
+        DlpError::DelegationMetadataAlreadyInitialized,
     immutable = DlpError::DelegationMetadataImmutable
 );
 
@@ -743,7 +765,9 @@ pub fn require_authorization(
         let _ = program_data;
 
         require_eq_keys!(
-            &Address::from(crate::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes()),
+            &Address::from(
+                crate::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes()
+            ),
             admin.address(),
             ProgramError::IncorrectAuthority
         );
@@ -778,10 +802,11 @@ pub fn require_authorization(
             && data[0] == PROGRAM_DATA
             && data[offset_of_upgrade_authority_address] == OPTION_SOME
         {
-            let bytes = &data
-                [offset_of_upgrade_authority_address + 1..offset_of_upgrade_authority_address + 33];
+            let bytes = &data[offset_of_upgrade_authority_address + 1
+                ..offset_of_upgrade_authority_address + 33];
 
-            let upgrade_authority_address = unsafe { &*(bytes.as_ptr() as *const Address) };
+            let upgrade_authority_address =
+                unsafe { &*(bytes.as_ptr() as *const Address) };
 
             require_eq_keys!(
                 upgrade_authority_address,

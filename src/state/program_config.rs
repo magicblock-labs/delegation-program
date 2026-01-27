@@ -1,10 +1,13 @@
-use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::pubkey::Pubkey;
 use std::collections::BTreeSet;
 
-use crate::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh};
+use borsh::{BorshDeserialize, BorshSerialize};
+use solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
+use crate::{
+    impl_to_bytes_with_discriminator_borsh,
+    impl_try_from_bytes_with_discriminator_borsh,
+};
 
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
 pub struct ProgramConfig {
