@@ -7,9 +7,8 @@ use crate::discriminator::DlpDiscriminator;
 use crate::pod_view::PodView;
 use crate::{
     delegation_metadata_seeds_from_delegated_account,
-    delegation_record_seeds_from_delegated_account, program_config_seeds_from_program_id,
-    total_size_budget, validator_fees_vault_seeds_from_validator, AccountSizeClass,
-    DLP_PROGRAM_DATA_SIZE_CLASS,
+    delegation_record_seeds_from_delegated_account, total_size_budget,
+    validator_fees_vault_seeds_from_validator, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
 
 /// Builds a commit state from buffer instruction.
@@ -17,7 +16,6 @@ use crate::{
 pub fn commit_finalize_from_buffer(
     validator: Pubkey,
     delegated_account: Pubkey,
-    delegated_account_owner: Pubkey,
     data_buffer: Pubkey,
     commit_args: &mut CommitFinalizeArgs,
 ) -> (Instruction, super::CommitPDAs) {
@@ -36,17 +34,11 @@ pub fn commit_finalize_from_buffer(
         &crate::id(),
     );
 
-    let program_config = Pubkey::find_program_address(
-        program_config_seeds_from_program_id!(delegated_account_owner),
-        &crate::id(),
-    );
-
     // save the bumps in the args
     commit_args.bumps = CommitBumps {
         delegation_record: delegation_record.1,
         delegation_metadata: delegation_metadata.1,
         validator_fees_vault: validator_fees_vault.1,
-        program_config: program_config.1,
     };
 
     (
@@ -59,7 +51,6 @@ pub fn commit_finalize_from_buffer(
                 AccountMeta::new(delegation_metadata.0, false),
                 AccountMeta::new_readonly(data_buffer, false),
                 AccountMeta::new_readonly(validator_fees_vault.0, false),
-                AccountMeta::new_readonly(program_config.0, false),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
             data: [
@@ -72,7 +63,6 @@ pub fn commit_finalize_from_buffer(
             delegation_record: delegation_record.0,
             delegation_metadata: delegation_metadata.0,
             validator_fees_vault: validator_fees_vault.0,
-            program_config: program_config.0,
         },
     )
 }

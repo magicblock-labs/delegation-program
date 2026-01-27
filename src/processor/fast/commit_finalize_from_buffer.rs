@@ -20,7 +20,6 @@ use crate::{require_n_accounts, DiffSet};
 /// 4: `[]`         the delegation record
 /// 5: `[writable]` the delegation metadata
 /// 6: `[]`         the validator fees vault
-/// 7: `[]`         the program config account
 ///
 /// Instruction Data: CommitFinalizeArgs
 ///
@@ -52,9 +51,8 @@ pub fn process_commit_finalize_from_buffer(
         delegation_metadata_account,
         data_account, // full bytes or diff 
         validator_fees_vault,
-        program_config_account,
         _system_program,
-    ] = require_n_accounts!(accounts, 8);
+    ] = require_n_accounts!(accounts, 7);
 
     let args = CommitFinalizeArgs::try_view_from(data)?;
 
@@ -77,7 +75,6 @@ pub fn process_commit_finalize_from_buffer(
         delegation_record_account,
         delegation_metadata_account,
         validator_fees_vault,
-        program_config_account,
     };
 
     process_commit_finalize_internal(commit_args)
