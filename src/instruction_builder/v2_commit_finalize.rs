@@ -52,7 +52,7 @@ pub fn v2_commit_finalize(
     }
 }
 
-pub fn v2_hyper_commit_finalize(
+pub fn v2_commit_finalize_inline(
     validator: Pubkey,
     delegated_account: Pubkey,
     args: &mut CommitFinalizeArgs,
@@ -67,7 +67,7 @@ pub fn v2_hyper_commit_finalize(
             // AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
-            DlpInstruction::HyperCommitFinalize.to_vec(),
+            DlpInstruction::CommitFinalizeInline.to_vec(),
             args.to_bytes(),
             state_or_diff.to_vec(),
         ]

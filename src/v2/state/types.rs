@@ -35,6 +35,34 @@ impl<'a, Header: PodView> HeaderWithBuffer<'a, Header> {
         })
     }
 
+    #[inline(always)]
+    pub fn from_bytes_ptr(
+        data: *const u8,
+        len: usize,
+    ) -> Result<Self, ProgramError> {
+        v2_require_ge!(
+            len,
+            Header::SPACE,
+            ProgramError::InvalidInstructionData
+        );
+
+        Ok(Self {
+            header: {
+                //#[cfg(feature = "unsafe")]
+                unsafe { &*(data as *const Header) }
+
+                //#[cfg(not(feature = "unsafe"))]
+                //Header::try_view_from(header_bytes)?
+            },
+            buffer: unsafe {
+                core::slice::from_raw_parts(
+                    data.add(Header::SPACE),
+                    len - Header::SPACE,
+                )
+            },
+        })
+    }
+
     pub fn space(&self) -> usize {
         Header::SPACE + self.buffer.len()
     }

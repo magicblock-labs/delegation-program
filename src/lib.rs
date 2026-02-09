@@ -76,7 +76,7 @@ solana_security_txt::security_txt! {
 }
 
 #[rustfmt::skip]
-pub const GLOBAL_IX_TABLE: [v2::IxHandler; 256] = {
+pub const GLOBAL_IX_TABLE: [v2::Processor; 256] = {
     // start from v2 table as initial value and then write the
     // other empty slots with v1 instructions so that in the
     // end, we'll have a single table containing all v1 and v2 instructions
@@ -105,17 +105,19 @@ pub const GLOBAL_IX_TABLE: [v2::IxHandler; 256] = {
 #[cfg(not(feature = "sdk"))]
 pub fn fast_process_instruction(
     accounts: &[pinocchio::AccountView],
-    ixdata: &[u8],
+    //ixdata: &[u8],
+    ixdata: *const u8,
+    ixdatalen: usize,
 ) -> Option<pinocchio::ProgramResult> {
-    use crate::v2::process_hyper_commit_finalize;
+    //if ixdata.len() < 8 {
+    //    return Some(Err(
+    //        pinocchio::error::ProgramError::InvalidInstructionData,
+    //    ));
+    //}
 
-    if ixdata.len() < 8 {
-        return Some(Err(
-            pinocchio::error::ProgramError::InvalidInstructionData,
-        ));
-    }
+    //let (discriminator_bytes, data) = unsafe { ixdata.split_at_unchecked(8) };
 
-    let (discriminator_bytes, data) = unsafe { ixdata.split_at_unchecked(8) };
+    use pinocchio::hint::likely;
 
     #[cfg(feature = "logging")]
     msg!("Processing instruction: {:?}", discriminator);
@@ -123,10 +125,42 @@ pub fn fast_process_instruction(
     // 23 CU -- till here
 
     if true {
-        //return Some(Ok(()));
-        return Some(process_hyper_commit_finalize(accounts, data));
-    } else {
-        match GLOBAL_IX_TABLE[discriminator_bytes[0] as usize](accounts, data) {
+        if likely(
+            unsafe { *ixdata }
+                == v2::DlpInstruction::CommitFinalizeInline as u8,
+        ) {
+            //return Some(Ok(()));
+            return Some(v2::process_commit_finalize_inline(
+                accounts,
+                unsafe { ixdata.add(8) },
+                ixdatalen - 8,
+            ));
+        } else {
+            match GLOBAL_IX_TABLE[unsafe { *ixdata } as usize](
+                accounts,
+                unsafe {
+                    core::slice::from_raw_parts(ixdata.add(8), ixdatalen - 8)
+                },
+            ) {
+                e @ Err(pinocchio::error::ProgramError::Custom(val)) => {
+                    use crate::error::DlpError;
+
+                    if val == DlpError::InstructionNotFound as u32 {
+                        None
+                    } else {
+                        Some(e)
+                    }
+                }
+                otherwise => Some(otherwise),
+            }
+        }
+    } else if false {
+        match unsafe {
+            GLOBAL_IX_TABLE.get_unchecked(*ixdata as usize)(
+                accounts,
+                core::slice::from_raw_parts(ixdata.add(8), ixdatalen - 8),
+            )
+        } {
             e @ Err(pinocchio::error::ProgramError::Custom(val)) => {
                 use crate::error::DlpError;
 
@@ -137,6 +171,13 @@ pub fn fast_process_instruction(
                 }
             }
             otherwise => Some(otherwise),
+        }
+    } else {
+        unsafe {
+            Some(GLOBAL_IX_TABLE.get_unchecked(*ixdata as usize)(
+                accounts,
+                core::slice::from_raw_parts(ixdata.add(8), ixdatalen - 8),
+            ))
         }
     }
 }

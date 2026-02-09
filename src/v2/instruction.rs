@@ -15,46 +15,54 @@ pub enum DlpInstruction {
     DelegateWithAnyValidator = 102,
 
     ///
-    /// Commit group: [111, 120] => 10 slots
+    /// Commit group: [111, 130] => 20 slots
     ///
     Commit = 111,
     CommitFromBuffer = 112,
-    CommitFinalize = 113,
-    CommitFinalizeFromBuffer = 114,
-    HyperCommitFinalize = 115,
+    CommitInline = 113,
+    CommitInlineFromBuffer = 114,
+    CommitInlineResize = 115,
+    CommitInlineResizeFromBuffer = 116,
+
+    CommitFinalize = 117,
+    CommitFinalizeFromBuffer = 118,
+    CommitFinalizeInline = 119,
+    CommitFinalizeInlineFromBuffer = 120,
+    CommitFinalizeInlineResize = 121,
+    CommitFinalizeInlineResizeFromBuffer = 122,
 
     ///
-    /// Finalize group: [121, 130] => 10 slots
+    /// Finalize group: [131, 140] => 10 slots
     ///
-    Finalize = 121,
+    Finalize = 131,
 
     ///
-    /// Undelegate group: [131, 140] => 10 slots
+    /// Undelegate group: [141, 150] => 10 slots
     ///
-    Undelegate = 131,
+    Undelegate = 141,
     UndelegateConfinedAccount = 132,
 
     ///
-    /// User group: [141, 150] => 10 slots
+    /// User group: [151, 160] => 10 slots
     ///
-    CallHandler = 141,
+    CallHandler = 151,
 
     ///
-    /// Vaults group: [151, 160] => 10 slots
+    /// Vaults group: [161, 170] => 10 slots
     ///
-    InitProtocolFeesVault = 151,
-    ProtocolClaimFees = 152,
-    InitValidatorFeesVault = 153,
-    ValidatorClaimFees = 154,
-    CloseValidatorFeesVault = 155,
+    InitProtocolFeesVault = 161,
+    ProtocolClaimFees = 162,
+    InitValidatorFeesVault = 163,
+    ValidatorClaimFees = 164,
+    CloseValidatorFeesVault = 165,
 
     ///
-    /// Misc group: [161, 180] => 20 slots
+    /// Misc group: [171, 190] => 20 slots
     ///
-    WhitelistValidatorForProgram = 161,
-    TopUpEphemeralBalance = 162,
-    DelegateEphemeralBalance = 163,
-    CloseEphemeralBalance = 164,
+    WhitelistValidatorForProgram = 171,
+    TopUpEphemeralBalance = 172,
+    DelegateEphemeralBalance = 173,
+    CloseEphemeralBalance = 174,
 }
 
 impl DlpInstruction {
@@ -77,16 +85,17 @@ fn instruction_not_found(
     _: &[pinocchio::AccountView],
     _: &[u8],
 ) -> ProgramResult {
+    //unsafe { std::hint::unreachable_unchecked() }
     Err(DlpError::InstructionNotFound.into())
 }
 
-pub type IxHandler = fn(&[pinocchio::AccountView], &[u8]) -> ProgramResult;
+pub type Processor = fn(&[pinocchio::AccountView], &[u8]) -> ProgramResult;
 
 #[rustfmt::skip]
-pub const IX_TABLE: [IxHandler; 256] = {
+pub const IX_TABLE: [Processor; 256] = {
     use super::processor::*;
 
-    let mut table = [instruction_not_found as IxHandler; 256];
+    let mut table = [instruction_not_found as Processor; 256];
 
     use DlpInstruction::*;
 
@@ -97,7 +106,9 @@ pub const IX_TABLE: [IxHandler; 256] = {
     // Commit group
     table[CommitFinalize.index()]           = process_commit_finalize;
     table[CommitFinalizeFromBuffer.index()] = process_commit_finalize_from_buffer;
-    table[HyperCommitFinalize.index()]       = process_hyper_commit_finalize;
+    table[CommitFinalizeInline.index()]       = |accounts, data| {
+        process_commit_finalize_inline(accounts, data.as_ptr(), data.len())
+    };
 
     table
 };

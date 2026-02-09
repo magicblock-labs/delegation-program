@@ -28,7 +28,7 @@ use crate::fixtures::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_v2_hyper_commit_finalize_perf() {
+async fn test_v2_commit_finalize_inline_perf() {
     // Setup
     const KB: usize = 1024;
     const ACCOUNT_SIZE: usize = 4 * KB;
@@ -39,7 +39,7 @@ async fn test_v2_hyper_commit_finalize_perf() {
 
     let new_account_balance = 1_000_000;
 
-    let ix = dlp::instruction_builder::v2_hyper_commit_finalize(
+    let ix = dlp::instruction_builder::v2_commit_finalize_inline(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {
