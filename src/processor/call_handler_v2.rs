@@ -49,7 +49,7 @@ pub fn process_call_handler_v2(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    const OTHER_ACCOUNTS_OFFSET: usize = 5;
+    const OTHER_ACCOUNTS_OFFSET: usize = 6;
 
     if accounts.len() < OTHER_ACCOUNTS_OFFSET {
         return Err(ProgramError::NotEnoughAccountKeys);
