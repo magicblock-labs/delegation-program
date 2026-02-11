@@ -173,6 +173,9 @@ pub fn slow_process_instruction(
         DlpDiscriminator::CallHandler => {
             processor::process_call_handler(program_id, accounts, data)?
         }
+        DlpDiscriminator::CallHandlerV2 => {
+            processor::process_call_handler_v2(program_id, accounts, data)?
+        }
         _ => {
             #[cfg(feature = "logging")]
             msg!("PANIC: Instruction must be processed by fast_process_instruction");
