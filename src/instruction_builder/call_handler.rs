@@ -8,6 +8,7 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 /// Builds a call handler instruction.
 /// See [crate::processor::call_handler] for docs.
+#[deprecated(since = "1.1.4", note = "Use `call_handler_v2` instead")]
 pub fn call_handler(
     validator: Pubkey,
     destination_program: Pubkey,
