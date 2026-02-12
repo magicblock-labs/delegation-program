@@ -15,7 +15,12 @@ pub enum DlpInstruction {
     DelegateWithAnyValidator = 102,
 
     ///
-    /// Commit group: [111, 130] => 20 slots
+    /// Commit group: [111, 140] => 30 slots
+    ///
+    /// From users perspective, there are only 3 categories of commits:
+    ///     - commit
+    ///     - commit-inline
+    ///     - commit-finalize
     ///
     Commit = 111,
     CommitFromBuffer = 112,
@@ -31,38 +36,48 @@ pub enum DlpInstruction {
     CommitFinalizeInlineResize = 121,
     CommitFinalizeInlineResizeFromBuffer = 122,
 
-    ///
-    /// Finalize group: [131, 140] => 10 slots
-    ///
-    Finalize = 131,
+    // CommitInline32 = 113,
+    // CommitInline32FromBuffer = 114,
+    // CommitInline32Resize = 115,
+    // CommitInline32ResizeFromBuffer = 116,
+
+    // CommitFinalizeInline32 = 119,
+    // CommitFinalizeInline32FromBuffer = 120,
+    // CommitFinalizeInline32Resize = 121,
+    // CommitFinalizeInline32ResizeFromBuffer = 122,
 
     ///
-    /// Undelegate group: [141, 150] => 10 slots
+    /// Finalize group: [141, 150] => 10 slots
     ///
-    Undelegate = 141,
-    UndelegateConfinedAccount = 132,
+    Finalize = 141,
 
     ///
-    /// User group: [151, 160] => 10 slots
+    /// Undelegate group: [151, 160] => 10 slots
     ///
-    CallHandler = 151,
+    Undelegate = 151,
+    UndelegateConfinedAccount = 152,
 
     ///
-    /// Vaults group: [161, 170] => 10 slots
+    /// User group: [161, 170] => 10 slots
     ///
-    InitProtocolFeesVault = 161,
-    ProtocolClaimFees = 162,
-    InitValidatorFeesVault = 163,
-    ValidatorClaimFees = 164,
-    CloseValidatorFeesVault = 165,
+    CallHandler = 161,
 
     ///
-    /// Misc group: [171, 190] => 20 slots
+    /// Vaults group: [171, 180] => 10 slots
     ///
-    WhitelistValidatorForProgram = 171,
-    TopUpEphemeralBalance = 172,
-    DelegateEphemeralBalance = 173,
-    CloseEphemeralBalance = 174,
+    InitProtocolFeesVault = 171,
+    ProtocolClaimFees = 172,
+    InitValidatorFeesVault = 173,
+    ValidatorClaimFees = 174,
+    CloseValidatorFeesVault = 175,
+
+    ///
+    /// Misc group: [181, 200] => 20 slots
+    ///
+    WhitelistValidatorForProgram = 181,
+    TopUpEphemeralBalance = 182,
+    DelegateEphemeralBalance = 183,
+    CloseEphemeralBalance = 184,
 }
 
 impl DlpInstruction {

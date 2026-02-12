@@ -9,6 +9,8 @@ describe("counter", () => {
   const program = anchor.workspace.counter as Program<Counter>;
 
   it("Is initialized!", async () => {
+    console.log("programId: ", program.programId);
+    console.log("env: ", program.provider.connection.rpcEndpoint);
     // Add your test here.
     const tx = await program.methods.initialize().rpc();
     console.log("Your transaction signature", tx);

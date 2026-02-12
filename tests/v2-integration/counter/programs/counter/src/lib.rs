@@ -1,6 +1,8 @@
 use anchor_lang::prelude::*;
-use ephemeral_rollups_sdk::anchor::{delegate, ephemeral};
-use ephemeral_rollups_sdk::cpi::DelegateConfig;
+use ephemeral_rollups_sdk::{
+    anchor::{delegate, ephemeral},
+    cpi::DelegateConfig,
+};
 
 declare_id!("8Aw8uKuJL2Yhr7nNCYjKAtKAajyoRicCbipR1kT3qEmW");
 
