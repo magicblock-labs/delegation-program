@@ -43,7 +43,7 @@ pub enum DlpDiscriminator {
     UndelegateConfinedAccount = 18,
     /// See [crate::processor::process_delegate_with_any_validator] for docs.
     DelegateWithAnyValidator = 19,
-    /// See [crate::processor::process_call_handler_v2] for docs
+    /// See [crate::processor::process_call_handler_v2] for docs.
     CallHandlerV2 = 20,
 }
 

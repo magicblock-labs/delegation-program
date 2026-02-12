@@ -22,12 +22,12 @@ pub const INVALID_ESCROW_OWNER: &str = "escrow can not be delegated in CallHandl
 /// 0: `[signer]`   validator
 /// 1: `[]`         validator fee vault to verify its registration
 /// 2: `[]`         destination program of an action
-/// 3. `[]`         source program of an action
-/// 3: `[]`         escrow authority account which created escrow account
-/// 4: `[writable]` non delegated escrow pda created from 3
-/// 5: `[readonly/writable]` other accounts needed for action
+/// 3: `[]`         source program of an action
+/// 4: `[]`         escrow authority account which created escrow account
+/// 5: `[writable]` non delegated escrow PDA created from escrow_authority (index 4)
 /// 6: `[readonly/writable]` other accounts needed for action
-/// 7: ...
+/// 7: `[readonly/writable]` other accounts needed for action
+/// 8: ...
 ///
 /// Requirements:
 ///
@@ -81,7 +81,7 @@ pub fn process_call_handler_v2(
     if !source_program.executable {
         msg!(
             "{} program is not executable: source program",
-            destination_program.key
+            source_program.key
         );
         return Err(ProgramError::InvalidAccountData);
     }
