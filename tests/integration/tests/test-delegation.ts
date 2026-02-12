@@ -241,6 +241,21 @@ describe("TestDelegation", () => {
     );
   });
 
+  // Use a separate escrow authority so it doesn't collide with validator
+  // (the v2 processor filters out accounts matching the validator key)
+  const escrowAuthority = web3.Keypair.generate();
+
+  it("Top up ephemeral balance for call handler v2", async () => {
+    const ix = createTopUpEphemeralBalanceInstruction(
+      payer,
+      escrowAuthority.publicKey,
+      100_000_000, // 0.1 SOL
+      255
+    );
+    const txId = await processInstruction(ix);
+    console.log("Top up ephemeral balance tx:", txId);
+  });
+
   it("Finalize account state", async () => {
     const ix = createFinalizeInstruction(validator, pda);
     const txId = await processInstruction(ix);
@@ -256,6 +271,47 @@ describe("TestDelegation", () => {
       parseInt(consumedLog.split(" ").at(3)),
       17500,
       "finalize instruction must consume less than 17500"
+    );
+  });
+
+  it("Call handler v2 after finalize", async () => {
+    const destination = web3.Keypair.generate();
+    const transferAmount = 1_000_000; // 0.001 SOL
+
+    const callHandlerV2Ix = createCallHandlerV2Instruction(
+      validator,
+      ownerProgram,
+      ownerProgram,
+      escrowAuthority.publicKey,
+      255,
+      [
+        { pubkey: destination.publicKey, isSigner: false, isWritable: true },
+        {
+          pubkey: web3.SystemProgram.programId,
+          isSigner: false,
+          isWritable: false,
+        },
+      ],
+      // handler data: commit_base_action_handler_v2 discriminator + amount
+      Buffer.concat([
+        Buffer.from([1, 0, 3, 0]),
+        Buffer.from(
+          new Uint8Array(new BigUint64Array([BigInt(transferAmount)]).buffer)
+        ),
+      ])
+    );
+
+    const txId = await processInstruction(callHandlerV2Ix);
+    console.log("Call handler v2 tx:", txId);
+
+    const destAccount = await provider.connection.getAccountInfo(
+      destination.publicKey
+    );
+    assert.isNotNull(destAccount, "destination account should exist");
+    assert.strictEqual(
+      destAccount.lamports,
+      transferAmount,
+      "destination should have received the transfer amount"
     );
   });
 
@@ -571,6 +627,74 @@ describe("TestDelegation", () => {
     return ix;
   }
 
+  function createTopUpEphemeralBalanceInstruction(
+    funder: web3.PublicKey,
+    authority: web3.PublicKey,
+    amount: number,
+    index: number
+  ) {
+    const ephemeralBalancePda = ephemeralBalancePdaFromPayer(authority, index);
+    const keys = [
+      { pubkey: funder, isSigner: true, isWritable: true },
+      { pubkey: authority, isSigner: false, isWritable: false },
+      { pubkey: ephemeralBalancePda, isSigner: false, isWritable: true },
+      {
+        pubkey: web3.SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
+      },
+    ];
+    // discriminator(8) + amount(u64) + index(u8)
+    const data = Buffer.alloc(8 + 8 + 1);
+    data.writeUint8(9, 0); // TopUpEphemeralBalance discriminator = 9
+    data.writeBigUInt64LE(BigInt(amount), 8);
+    data.writeUint8(index, 16);
+    const ix = new web3.TransactionInstruction({
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
+      keys,
+      data,
+    });
+    return ix;
+  }
+
+  function createCallHandlerV2Instruction(
+    validator: web3.PublicKey,
+    destinationProgram: web3.PublicKey,
+    sourceProgram: web3.PublicKey,
+    escrowAuthority: web3.PublicKey,
+    escrowIndex: number,
+    otherAccounts: web3.AccountMeta[],
+    handlerData: Buffer
+  ) {
+    const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
+    const escrowAccount = ephemeralBalancePdaFromPayer(
+      escrowAuthority,
+      escrowIndex
+    );
+    const keys = [
+      { pubkey: validator, isSigner: true, isWritable: true },
+      { pubkey: validatorFeesVault, isSigner: false, isWritable: true },
+      { pubkey: destinationProgram, isSigner: false, isWritable: false },
+      { pubkey: sourceProgram, isSigner: false, isWritable: false },
+      { pubkey: escrowAuthority, isSigner: false, isWritable: true },
+      { pubkey: escrowAccount, isSigner: false, isWritable: true },
+      ...otherAccounts,
+    ];
+    // discriminator(8) + escrow_index(u8) + data_len(u32 LE) + data
+    const dataLen = handlerData.length;
+    const data = Buffer.alloc(8 + 1 + 4 + dataLen);
+    data.writeUint8(20, 0); // CallHandlerV2 discriminator = 20
+    data.writeUint8(escrowIndex, 8);
+    data.writeUint32LE(dataLen, 9);
+    handlerData.copy(data, 13);
+    const ix = new web3.TransactionInstruction({
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
+      keys,
+      data,
+    });
+    return ix;
+  }
+
   function createWhitelistValidatorForProgramInstruction(
     admin: web3.PublicKey,
     validator: web3.PublicKey,
@@ -640,6 +764,16 @@ function validatorFeesVaultPdaFromValidator(validator: web3.PublicKey) {
 function programConfigPdaFromProgramId(programId: web3.PublicKey) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("p-conf"), programId.toBuffer()],
+    new web3.PublicKey(DELEGATION_PROGRAM_ID)
+  )[0];
+}
+
+function ephemeralBalancePdaFromPayer(
+  payer: web3.PublicKey,
+  index: number
+) {
+  return web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("balance"), payer.toBuffer(), Buffer.from([index])],
     new web3.PublicKey(DELEGATION_PROGRAM_ID)
   )[0];
 }
