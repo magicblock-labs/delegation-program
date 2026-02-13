@@ -1,5 +1,6 @@
 use crate::args::CallHandlerArgs;
 use crate::ephemeral_balance_seeds_from_payer;
+use crate::error::{INVALID_ESCROW_OWNER, INVALID_ESCROW_PDA};
 use crate::processor::utils::loaders::{
     load_initialized_validator_fees_vault, load_owned_pda, load_pda, load_signer,
 };
@@ -11,10 +12,7 @@ use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke_signed;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
-use solana_program::{msg, system_program};
-
-pub const INVALID_ESCROW_PDA: &str = "invalid escrow pda in CallHandler";
-pub const INVALID_ESCROW_OWNER: &str = "escrow can not be delegated in CallHandler";
+use solana_program::system_program;
 
 /// Calls a handler on user specified program
 ///
@@ -50,10 +48,6 @@ pub fn process_call_handler(
 ) -> ProgramResult {
     const OTHER_ACCOUNTS_OFFSET: usize = 5;
 
-    if accounts.len() < OTHER_ACCOUNTS_OFFSET {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    }
-
     let (
         [validator, validator_fees_vault, destination_program, escrow_authority_account, escrow_account],
         other_accounts,
@@ -68,14 +62,6 @@ pub fn process_call_handler(
     load_signer(validator, "validator")?;
     // verify signer is a registered validator
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
-    // Check if destination program is executable
-    if !destination_program.executable {
-        msg!(
-            "{} program is not executable: destination program",
-            destination_program.key
-        );
-        return Err(ProgramError::InvalidAccountData);
-    }
 
     // verify passed escrow_account derived from escrow authority
     let escrow_seeds: &[&[u8]] =
