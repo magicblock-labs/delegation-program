@@ -1,14 +1,53 @@
+use std::ops::Deref;
+
 use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 
 use crate::{
     error::DlpError,
     pod_view::PodView,
     v2::{
-        CommitFinalizeArgsWithBuffer, DelegationStateHeader, DelegationStateMut,
+        processor::internal::process_commit_finalize_inline_internal,
+        CommitFinalizeArgsWithBuffer, DelegationStateHeader,
+        DelegationStateMut,
     },
     v2_require, v2_require_eq, v2_require_eq_keys, v2_require_ge,
     v2_require_signer,
 };
+
+#[inline(always)]
+pub fn process_commit_finalize_inline(
+    accounts: &[AccountView],
+    //data: &[u8],
+    ixdata: *const u8,
+    ixdatalen: usize,
+) -> ProgramResult {
+    // let [
+    //     validator, // force multi-line
+    //     delegated_account,
+    // ] = crate::v2_require_n_accounts!(accounts, 2);
+
+    let validator = unsafe { accounts.get_unchecked(0) };
+    let delegated_account = unsafe { accounts.get_unchecked(1) };
+
+    //let args = CommitFinalizeArgsWithBuffer::from_bytes(data)?;
+    let args = CommitFinalizeArgsWithBuffer::from_bytes_ptr(ixdata, ixdatalen)?;
+
+    if args.data_is_diff.is_true() {
+        process_commit_finalize_inline_internal::<true>(
+            validator,
+            delegated_account,
+            args.deref(),
+            args.buffer,
+        )
+    } else {
+        process_commit_finalize_inline_internal::<false>(
+            validator,
+            delegated_account,
+            args.deref(),
+            args.buffer,
+        )
+    }
+}
 
 /// Commit a new state, or a diff, directly to the delegated account. Unlike, CommitState and
 /// CommitDiff variants, this instruction does not write to any temporary account first. In other
@@ -30,17 +69,14 @@ use crate::{
 const VALIDATOR: Address =
     pinocchio::address::address!("tEsT3eV6RFCWs1BZ7AXTzasHqTtMnMLCB2tjQ42TDXD");
 
-#[inline(always)]
-pub fn process_commit_finalize_inline(
+#[allow(dead_code)]
+//#[inline(always)]
+pub fn process_commit_finalize_inline_101_cu(
     accounts: &[AccountView],
     //data: &[u8],
     ixdata: *const u8,
     ixdatalen: usize,
 ) -> ProgramResult {
-    //if data.len() != 0 {
-    //    return Ok(());
-    //}
-
     //let [
     //    validator, // force multi-line
     //    delegated_account,

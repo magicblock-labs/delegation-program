@@ -21,7 +21,6 @@ pub fn v2_commit_finalize(
     args: &mut CommitFinalizeArgs,
     state_or_diff: &[u8],
 ) -> Instruction {
-    println!("v2_commit_finalize");
     let delegation_state = Pubkey::find_program_address(
         &[DelegationStateHeader::SEED, delegated_account.as_ref()],
         &crate::id(),
@@ -58,16 +57,36 @@ pub fn v2_commit_finalize_inline(
     args: &mut CommitFinalizeArgs,
     state_or_diff: &[u8],
 ) -> Instruction {
-    println!("v2_commit_finalize_ugly");
     Instruction {
         program_id: crate::id(),
         accounts: vec![
             AccountMeta::new_readonly(validator, true),
             AccountMeta::new(delegated_account, false),
-            // AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
             DlpInstruction::CommitFinalizeInline.to_vec(),
+            args.to_bytes(),
+            state_or_diff.to_vec(),
+        ]
+        .concat(),
+    }
+}
+
+pub fn v2_commit_finalize_inline_resize(
+    validator: Pubkey,
+    delegated_account: Pubkey,
+    args: &mut CommitFinalizeArgs,
+    state_or_diff: &[u8],
+) -> Instruction {
+    Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new_readonly(validator, true),
+            AccountMeta::new(delegated_account, false),
+            // AccountMeta::new_readonly(system_program::id(), false), // 15 CU
+        ],
+        data: [
+            DlpInstruction::CommitFinalizeInlineResize.to_vec(),
             args.to_bytes(),
             state_or_diff.to_vec(),
         ]

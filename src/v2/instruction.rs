@@ -124,6 +124,9 @@ pub const IX_TABLE: [Processor; 256] = {
     table[CommitFinalizeInline.index()]       = |accounts, data| {
         process_commit_finalize_inline(accounts, data.as_ptr(), data.len())
     };
+    table[CommitFinalizeInlineResize.index()]       = |accounts, data| {
+        process_commit_finalize_inline_resize(accounts, data.as_ptr(), data.len())
+    };
 
     table
 };

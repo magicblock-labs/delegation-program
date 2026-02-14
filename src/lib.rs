@@ -124,7 +124,7 @@ pub fn fast_process_instruction(
 
     // 23 CU -- till here
 
-    if true {
+    if false {
         if likely(
             unsafe { *ixdata }
                 == v2::DlpInstruction::CommitFinalizeInline as u8,
