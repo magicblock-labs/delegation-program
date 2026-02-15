@@ -4,22 +4,22 @@ Delegation module for https://arxiv.org/pdf/2311.02650.pdf
 
 ## Public Api
 
-- [`Instruction Builders`](src/instruction_builder/*.rs) – utilities to generate Instructions.
-- [`Args`](src/args/*.rs) – Instructions arguments structures.
+- [`Instruction Builders`](src/instruction_builder/) – utilities to generate Instructions.
+- [`Args`](src/args/) – Instructions arguments structures.
 - [`Consts`](src/consts.rs) – Program constants.
 - [`Errors`](src/error.rs) – Custom program errors.
 
 ## Program
 
 - [`Entrypoint`](src/lib.rs) – The program entrypoint.
-- [`Processors`](src/processors/) – Instruction implementations.
+- [`Processors`](src/processor/) – Instruction implementations.
 
 ## Important Instructions
 
-- [`Delegate`](src/processor/delegate.rs) - Delegate an account
-- [`CommitState`](src/processor/commit_state.rs) – Commit a new state
-- [`Finalize`](src/processor/finalize.rs) – Finalize a new state
-- [`Undelegate`](src/processor/undelegate.rs) – Undelegate an account
+- [`Delegate`](src/processor/fast/delegate.rs) - Delegate an account
+- [`CommitState`](src/processor/fast/commit_state.rs) – Commit a new state
+- [`Finalize`](src/processor/fast/finalize.rs) – Finalize a new state
+- [`Undelegate`](src/processor/fast/undelegate.rs) – Undelegate an account
 
 ## Tests
 
