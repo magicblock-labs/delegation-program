@@ -13,12 +13,12 @@ pub mod counter {
 
     /// Create the PDA and initialize counter = 0
     pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        msg!("user: {}", ctx.accounts.user.key);
         let counter = &mut ctx.accounts.counter;
         counter.value = 0;
         Ok(())
     }
 
-    /// Increment counter by 1
     pub fn increment(ctx: Context<Increment>) -> Result<()> {
         let counter = &mut ctx.accounts.counter;
 
@@ -28,17 +28,20 @@ pub mod counter {
         Ok(())
     }
 
-    /// (Optional) Reset to zero (useful in tests)
-    pub fn reset(ctx: Context<Increment>) -> Result<()> {
-        let counter = &mut ctx.accounts.counter;
-        counter.value = 0;
+    pub fn delegate_counter(ctx: Context<DelegateCounter>) -> Result<()> {
+        ctx.accounts
+            .delegate_pda(
+                &ctx.accounts.payer,
+                &[],
+                DelegateConfig {
+                    commit_frequency_ms: 1000,
+                    validator: None, //"mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev"),
+                },
+            )
+            .unwrap();
         Ok(())
     }
 }
-
-/* ================================
-   Accounts
-================================ */
 
 #[derive(Accounts)]
 pub struct Initialize<'info> {
@@ -78,10 +81,6 @@ pub struct Increment<'info> {
     pub user: Signer<'info>,
 }
 
-/* ================================
-   State
-================================ */
-
 #[account]
 pub struct Counter {
     pub value: u64,
@@ -90,10 +89,6 @@ pub struct Counter {
 impl Counter {
     pub const SIZE: usize = 8; // u64
 }
-
-/* ================================
-   Errors
-================================ */
 
 #[error_code]
 pub enum ErrorCode {

@@ -1,6 +1,7 @@
 {
   "license": "ISC",
   "scripts": {
+    "check": "tsc --noEmit",
     "test": "vitest --run",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"

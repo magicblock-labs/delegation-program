@@ -30,6 +30,10 @@ export function wait(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+export function sol(amount: number) {
+  return amount * 10 ** 9;
+}
+
 // returns epoch seconds.
 export function now_since_epoch(): bigint {
   return BigInt(Math.floor(Date.now() / 1000));

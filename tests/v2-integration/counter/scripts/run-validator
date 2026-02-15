@@ -6,13 +6,24 @@ rm -rf ./test-ledger
 #cargo build-sbf
 #cargo build-sbf --features logging unit_test_config log-cost
 
+# solana-test-validator \
+#   --reset  \
+#   --rpc-port 8899 \
+#   --bpf-program DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh ../../../target/deploy/dlp.so \
+#   --bpf-program 8Aw8uKuJL2Yhr7nNCYjKAtKAajyoRicCbipR1kT3qEmW ./target/deploy/counter.so \
+#   --clone mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev \
+#   --clone EpJnX7ueXk7fKojBymqmVuCuwyhDQsYcLVL1XMsBbvDX \
+#   --clone 7JrkjmZPprHwtuvtuGTXp9hwfGYFAQLnLeFM52kqAgXg \
+#   --url "https://api.devnet.solana.com"
+
 solana-test-validator \
-  --reset  \
   --rpc-port 8899 \
-  --bpf-program DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh ../../../target/deploy/dlp.so \
-  --bpf-program 8Aw8uKuJL2Yhr7nNCYjKAtKAajyoRicCbipR1kT3qEmW ./target/deploy/counter.so \
-  #--clone mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev \
-  #--clone EpJnX7ueXk7fKojBymqmVuCuwyhDQsYcLVL1XMsBbvDX \
-  #--clone 7JrkjmZPprHwtuvtuGTXp9hwfGYFAQLnLeFM52kqAgXg \
-  #--url "https://api.devnet.solana.com"
+  -r \
+  --account mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev ./accounts/validator-authority.json \
+  --account EpJnX7ueXk7fKojBymqmVuCuwyhDQsYcLVL1XMsBbvDX ./accounts/validator-fees-vault.json \
+  --account 7JrkjmZPprHwtuvtuGTXp9hwfGYFAQLnLeFM52kqAgXg ./accounts/protocol-fees-vault.json \
+  --account LUzidNSiPNjYNkxZcUm5hYHwnWPwsUfh2US1cpWwaBm ./accounts/luzid-authority.json \
+  --limit-ledger-size 1000000 \
+  --bpf-program DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh ../../../../target/deploy/dlp.so \
+  --bpf-program 8Aw8uKuJL2Yhr7nNCYjKAtKAajyoRicCbipR1kT3qEmW ../target/deploy/counter.so \
 

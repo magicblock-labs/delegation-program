@@ -13,6 +13,8 @@ pub enum DlpInstruction {
     ///
     Delegate = 101,
     DelegateWithAnyValidator = 102,
+    DelegateInline = 103,
+    DelegateInline32 = 104,
 
     ///
     /// Commit group: [111, 140] => 30 slots
