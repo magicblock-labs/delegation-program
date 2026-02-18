@@ -20,11 +20,12 @@ use solana_program::system_program;
 /// 0: `[signer]`   validator
 /// 1: `[]`         validator fee vault to verify its registration
 /// 2: `[]`         destination program of an action
-/// 3: `[]`         escrow authority account which created escrow account
-/// 4: `[writable]` non delegated escrow pda created from 3
-/// 5: `[readonly/writable]` other accounts needed for action
+/// 3: `[]`         source program of an action
+/// 4: `[]`         escrow authority account which created escrow account
+/// 5: `[writable]` non delegated escrow PDA created from escrow_authority (index 4)
 /// 6: `[readonly/writable]` other accounts needed for action
-/// 7: ...
+/// 7: `[readonly/writable]` other accounts needed for action
+/// 8: ...
 ///
 /// Requirements:
 ///
@@ -41,15 +42,15 @@ use solana_program::system_program;
 ///
 /// This instruction is meant to be called via CPI with the owning program signing for the
 /// delegated account.
-pub fn process_call_handler(
+pub fn process_call_handler_v2(
     _program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    const OTHER_ACCOUNTS_OFFSET: usize = 5;
+    const OTHER_ACCOUNTS_OFFSET: usize = 6;
 
     let (
-        [validator, validator_fees_vault, destination_program, escrow_authority_account, escrow_account],
+        [validator, validator_fees_vault, destination_program, source_program, escrow_authority_account, escrow_account],
         other_accounts,
     ) = accounts.split_at(OTHER_ACCOUNTS_OFFSET)
     else {
@@ -78,7 +79,7 @@ pub fn process_call_handler(
     // deduce necessary accounts for CPI
     let (accounts_meta, handler_accounts): (Vec<AccountMeta>, Vec<AccountInfo>) = other_accounts
         .iter()
-        .chain([escrow_authority_account, escrow_account])
+        .chain([source_program, escrow_authority_account, escrow_account])
         .filter(|account| account.key != validator.key)
         .map(|account| {
             (

@@ -2,6 +2,9 @@ use num_enum::IntoPrimitive;
 use solana_program::program_error::ProgramError;
 use thiserror::Error;
 
+pub const INVALID_ESCROW_PDA: &str = "invalid escrow pda in CallHandler";
+pub const INVALID_ESCROW_OWNER: &str = "escrow can not be delegated in CallHandler";
+
 #[derive(Debug, Error, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
 #[repr(u32)]
 pub enum DlpError {

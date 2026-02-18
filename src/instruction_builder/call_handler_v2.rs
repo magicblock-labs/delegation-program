@@ -6,12 +6,12 @@ use borsh::to_vec;
 use solana_program::instruction::Instruction;
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
-/// Builds a call handler instruction.
-/// See [crate::processor::call_handler] for docs.
-#[deprecated(since = "1.1.4", note = "Use `call_handler_v2` instead")]
-pub fn call_handler(
+/// Builds a call handler v2 instruction.
+/// See [crate::processor::call_handler_v2] for docs.
+pub fn call_handler_v2(
     validator: Pubkey,
     destination_program: Pubkey,
+    source_program: Pubkey,
     escrow_authority: Pubkey,
     other_accounts: Vec<AccountMeta>,
     args: CallHandlerArgs,
@@ -24,6 +24,7 @@ pub fn call_handler(
         AccountMeta::new(validator, true),
         AccountMeta::new(validator_fees_vault_pda, false),
         AccountMeta::new_readonly(destination_program, false),
+        AccountMeta::new_readonly(source_program, false),
         AccountMeta::new(escrow_authority, false),
         AccountMeta::new(escrow_account, false),
     ];
@@ -34,7 +35,7 @@ pub fn call_handler(
         program_id: crate::id(),
         accounts,
         data: [
-            DlpDiscriminator::CallHandler.to_vec(),
+            DlpDiscriminator::CallHandlerV2.to_vec(),
             to_vec(&args).unwrap(),
         ]
         .concat(),
@@ -42,16 +43,21 @@ pub fn call_handler(
 }
 
 ///
-/// Returns accounts-data-size budget for call_handler instruction.
+/// Returns accounts-data-size budget for call_handler_v2 instruction.
 ///
 /// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
 ///
-pub fn call_handler_size_budget(destination_program: AccountSizeClass, other_accounts: u32) -> u32 {
+pub fn call_handler_v2_size_budget(
+    destination_program: AccountSizeClass,
+    source_program: AccountSizeClass,
+    other_accounts: u32,
+) -> u32 {
     total_size_budget(&[
         DLP_PROGRAM_DATA_SIZE_CLASS,
         AccountSizeClass::Tiny, // validator
         AccountSizeClass::Tiny, // validator_fees_vault_pda
         destination_program,
+        source_program,
         AccountSizeClass::Tiny, // escrow_authority
         AccountSizeClass::Tiny, // escrow_account
     ]) + other_accounts

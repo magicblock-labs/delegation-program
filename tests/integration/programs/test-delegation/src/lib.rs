@@ -117,6 +117,48 @@ pub mod test_delegation {
 
         Ok(())
     }
+
+    /// Delegation program call handler v2 (commit variant)
+    #[instruction(discriminator = [1, 0, 3, 0])]
+    pub fn commit_base_action_handler_v2(
+        ctx: Context<CommitBaseActionHandlerV2>,
+        amount: u64,
+    ) -> Result<()> {
+        msg!("commit_base_action_handler_v2!");
+        let transfer_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.escrow_account.to_account_info(),
+                to: ctx.accounts.destination_account.to_account_info(),
+            },
+        );
+
+        transfer(transfer_ctx, amount)
+    }
+
+    /// Delegation program call handler v2 (undelegate variant)
+    #[instruction(discriminator = [1, 0, 4, 0])]
+    pub fn undelegate_base_action_handler_v2(
+        ctx: Context<UndelegateBaseActionHandlerV2>,
+        amount: u64,
+    ) -> Result<()> {
+        msg!("undelegate_base_action_handler_v2");
+        let transfer_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.escrow_account.to_account_info(),
+                to: ctx.accounts.destination_account.to_account_info(),
+            },
+        );
+        transfer(transfer_ctx, amount)?;
+
+        let counter_data = &mut ctx.accounts.counter.try_borrow_mut_data()?;
+        let mut counter = Counter::try_from_slice(&counter_data)?;
+        counter.count += 1;
+        counter_data.copy_from_slice(&counter.try_to_vec()?);
+
+        Ok(())
+    }
 }
 
 pub fn transfer_from_undelegated(
@@ -205,6 +247,34 @@ pub struct UndelegateBaseActionHandler<'info> {
     /// CHECK: fails in finalize stage due to ownership by dlp
     pub counter: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
+    /// CHECK: The authority that owns the escrow account
+    pub escrow_authority: UncheckedAccount<'info>,
+    pub escrow_account: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct CommitBaseActionHandlerV2<'info> {
+    /// CHECK: The destination account to transfer lamports to
+    #[account(mut)]
+    pub destination_account: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    /// CHECK: The source program passed through by call_handler_v2
+    pub source_program: UncheckedAccount<'info>,
+    /// CHECK: The authority that owns the escrow account
+    pub escrow_authority: UncheckedAccount<'info>,
+    pub escrow_account: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UndelegateBaseActionHandlerV2<'info> {
+    /// CHECK: The destination account to transfer lamports to
+    #[account(mut)]
+    pub destination_account: AccountInfo<'info>,
+    /// CHECK: fails in finalize stage due to ownership by dlp
+    pub counter: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+    /// CHECK: The source program passed through by call_handler_v2
+    pub source_program: UncheckedAccount<'info>,
     /// CHECK: The authority that owns the escrow account
     pub escrow_authority: UncheckedAccount<'info>,
     pub escrow_account: Signer<'info>,
