@@ -12,7 +12,7 @@ use solana_program::instruction::{AccountMeta, Instruction};
 use solana_program::program::invoke_signed;
 use solana_program::program_error::ProgramError;
 use solana_program::pubkey::Pubkey;
-use solana_program::{msg, system_program};
+use solana_program::system_program;
 
 /// Calls a handler on user specified program
 ///
@@ -63,14 +63,6 @@ pub fn process_call_handler_v2(
     load_signer(validator, "validator")?;
     // verify signer is a registered validator
     load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
-    // Check if source program is executable
-    if !source_program.executable {
-        msg!(
-            "{} program is not executable: source program",
-            source_program.key
-        );
-        return Err(ProgramError::InvalidAccountData);
-    }
 
     // verify passed escrow_account derived from escrow authority
     let escrow_seeds: &[&[u8]] =
