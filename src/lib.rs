@@ -12,8 +12,10 @@ compile_error!(
 );
 
 use solana_program::declare_id;
+
 #[cfg(feature = "logging")]
 use solana_program::msg;
+
 #[cfg(not(feature = "sdk"))]
 use {
     crate::discriminator::DlpDiscriminator,
@@ -24,6 +26,7 @@ use {
 };
 
 pub mod args;
+pub mod compact;
 pub mod consts;
 mod discriminator;
 pub mod error;
@@ -34,18 +37,22 @@ pub mod state;
 
 mod account_size_class;
 
+#[cfg(feature = "sdk")]
+pub mod encryption;
+
 pub use account_size_class::*;
 
-#[cfg(not(feature = "sdk"))]
+//#[cfg(not(feature = "sdk"))]
 mod diff;
 
-#[cfg(not(feature = "sdk"))]
+//#[cfg(not(feature = "sdk"))]
 mod processor;
 
-#[cfg(not(feature = "sdk"))]
+//#[cfg(not(feature = "sdk"))]
 pub use diff::*;
+
 // re-export
-#[cfg(not(feature = "sdk"))]
+//#[cfg(not(feature = "sdk"))]
 pub use rkyv;
 
 #[cfg(feature = "log-cost")]
@@ -56,7 +63,7 @@ mod entrypoint;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
-#[cfg(not(feature = "sdk"))]
+//#[cfg(not(feature = "sdk"))]
 pub mod fast {
     pinocchio::address::declare_id!(
         "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
@@ -107,6 +114,11 @@ pub fn fast_process_instruction(
         )),
         DlpDiscriminator::DelegateWithAnyValidator => {
             Some(processor::fast::process_delegate_with_any_validator(
+                program_id, accounts, data,
+            ))
+        }
+        DlpDiscriminator::DelegateWithActions => {
+            Some(processor::fast::process_delegate_with_actions(
                 program_id, accounts, data,
             ))
         }

@@ -17,7 +17,21 @@ name = "dlp"
 
 [features]
 no-entrypoint = []
-sdk = ["no-entrypoint"]
+sdk = [
+    "no-entrypoint",
+    "dep:solana-sdk",
+    "dep:rand",
+    "dep:sha2",
+    "dep:x25519-dalek",
+    "dep:curve25519-dalek",
+    "dep:pinocchio",
+    "dep:pinocchio-log",
+    "dep:pinocchio-pubkey",
+    "dep:pinocchio-system",
+    "dep:const-crypto",
+    "dep:rkyv",
+    "dep:solana-curve25519",
+]
 program = [
     "dep:pinocchio",
     "dep:pinocchio-log",
@@ -60,7 +74,12 @@ pinocchio-associated-token-account = { version = "0.3.0" , optional = true }
 solana-address = { version = "2.0", features = ["bytemuck", "decode", "syscalls", "curve25519", "std"] }
 
 # manually resolves the conflict with a pinned version of serde
-serde = "=1.0.226"
+serde = { version = "1.0.228", features = ["derive"] }
+sha2 = { version = "0.10", optional = true }
+x25519-dalek = { version = "2", features = ["static_secrets"], optional = true }
+curve25519-dalek = { version = "4", optional = true }
+solana-sdk = { version = ">=1.16", optional = true }
+rand = { version = "=0.8.5", features = ["small_rng"], optional = true }
 
 [dev-dependencies]
 assertables = "9.8.2"

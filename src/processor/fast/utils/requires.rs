@@ -170,6 +170,34 @@ macro_rules! require_n_accounts {
 }
 
 #[macro_export]
+macro_rules! require_n_accounts_with_optionals {
+    ( $accounts:expr, $n:literal) => {{
+        match $accounts.len().cmp(&$n) {
+            core::cmp::Ordering::Less => {
+                pinocchio_log::log!(
+                    "Need {} accounts, but got less ({}) accounts",
+                    $n,
+                    $accounts.len()
+                );
+                return Err(
+                    pinocchio::error::ProgramError::NotEnoughAccountKeys,
+                );
+            }
+            _ => {
+                let (exact, optionals) = $accounts.split_at($n);
+
+                (
+                    TryInto::<&[_; $n]>::try_into(exact).map_err(|_| {
+                        $crate::error::DlpError::InfallibleError
+                    })?,
+                    optionals,
+                )
+            }
+        }
+    }};
+}
+
+#[macro_export]
 macro_rules! require_some {
     ($option:expr, $error:expr) => {{
         match $option {
