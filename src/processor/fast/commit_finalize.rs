@@ -1,4 +1,4 @@
-use pinocchio::{account_info::AccountInfo, pubkey::Pubkey, ProgramResult};
+use pinocchio::{AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 
 use crate::args::CommitFinalizeArgsWithBuffer;
@@ -24,8 +24,8 @@ use crate::{require_n_accounts, DiffSet};
 /// Instruction Data: CommitFinalizeArgsWithBuffer
 ///
 pub fn process_commit_finalize(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     let [

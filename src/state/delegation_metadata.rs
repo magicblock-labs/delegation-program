@@ -5,10 +5,7 @@ use crate::{
     require_ge,
 };
 use borsh::{BorshDeserialize, BorshSerialize};
-use pinocchio::{
-    account_info::{AccountInfo, RefMut},
-    program_error::ProgramError,
-};
+use pinocchio::{account::RefMut, error::ProgramError, AccountView};
 use solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
@@ -34,7 +31,7 @@ pub struct DelegationMetadataFast<'a> {
 }
 
 impl<'a> DelegationMetadataFast<'a> {
-    pub fn from_account(account: &'a AccountInfo) -> Result<Self, ProgramError> {
+    pub fn from_account(account: &'a AccountView) -> Result<Self, ProgramError> {
         require_ge!(
             account.data_len(),
             AccountDiscriminator::SPACE
@@ -46,7 +43,7 @@ impl<'a> DelegationMetadataFast<'a> {
         );
 
         Ok(Self {
-            data: account.try_borrow_mut_data()?,
+            data: account.try_borrow_mut()?,
         })
     }
 

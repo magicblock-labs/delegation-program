@@ -3,17 +3,17 @@ use crate::processor::fast::{process_commit_state_internal, CommitStateInternalA
 use crate::DiffSet;
 
 use borsh::BorshDeserialize;
-use pinocchio::account_info::AccountInfo;
-use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::error::ProgramError;
+use pinocchio::AccountView;
+use pinocchio::Address;
 use pinocchio::ProgramResult;
 use pinocchio_log::log;
 
 use super::NewState;
 
 pub fn process_commit_diff_from_buffer(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, diff_buffer_account, validator_fees_vault, program_config_account, _system_program] =
@@ -29,7 +29,7 @@ pub fn process_commit_diff_from_buffer(
     let commit_record_nonce = args.nonce;
     let allow_undelegation = args.allow_undelegation;
 
-    let diff = diff_buffer_account.try_borrow_data()?;
+    let diff = diff_buffer_account.try_borrow()?;
 
     let diffset = DiffSet::try_new(diff.as_ref())?;
 

@@ -1,9 +1,8 @@
-use pinocchio::account_info::AccountInfo;
-use pinocchio::instruction::Signer;
-use pinocchio::program_error::ProgramError;
-use pinocchio::pubkey::Pubkey;
+use pinocchio::cpi::Signer;
 use pinocchio::sysvars::rent::Rent;
 use pinocchio::sysvars::Sysvar;
+use pinocchio::AccountView;
+use pinocchio::Address;
 use pinocchio::ProgramResult;
 use pinocchio_system::instructions as system;
 
@@ -12,11 +11,11 @@ use crate::consts::PROTOCOL_FEES_PERCENTAGE;
 /// Creates a new pda
 #[inline(always)]
 pub(crate) fn create_pda(
-    target_account: &AccountInfo,
-    owner: &Pubkey,
+    target_account: &AccountView,
+    owner: &Address,
     space: usize,
     pda_signers: &[Signer],
-    payer: &AccountInfo,
+    payer: &AccountView,
 ) -> ProgramResult {
     // Create the account manually or using the create instruction
 
@@ -26,7 +25,7 @@ pub(crate) fn create_pda(
         system::CreateAccount {
             from: payer,
             to: target_account,
-            lamports: rent.minimum_balance(space),
+            lamports: rent.try_minimum_balance(space)?,
             space: space as u64,
             owner,
         }
@@ -36,7 +35,7 @@ pub(crate) fn create_pda(
 
         // 1) transfer sufficient lamports for rent exemption
         let rent_exempt_balance = rent
-            .minimum_balance(space)
+            .try_minimum_balance(space)?
             .saturating_sub(target_account.lamports());
         if rent_exempt_balance > 0 {
             system::Transfer {
@@ -65,16 +64,13 @@ pub(crate) fn create_pda(
 
 /// Close PDA
 #[inline(always)]
-pub(crate) fn close_pda(target_account: &AccountInfo, destination: &AccountInfo) -> ProgramResult {
+pub(crate) fn close_pda(target_account: &AccountView, destination: &AccountView) -> ProgramResult {
     // Transfer tokens from the account to the destination.
+
+    destination.set_lamports(destination.lamports() + target_account.lamports());
+    target_account.set_lamports(0);
+
     unsafe {
-        *destination.borrow_mut_lamports_unchecked() = destination
-            .lamports()
-            .checked_add(target_account.lamports())
-            .ok_or(ProgramError::ArithmeticOverflow)?;
-
-        *target_account.borrow_mut_lamports_unchecked() = 0;
-
         target_account.assign(&pinocchio_system::ID);
     }
 
@@ -85,10 +81,10 @@ pub(crate) fn close_pda(target_account: &AccountInfo, destination: &AccountInfo)
 /// The total fees are calculated as `fee_percentage` of the total lamports in the PDA
 /// Each fee address receives fee_percentage % of the previous fee address's amount
 pub(crate) fn close_pda_with_fees(
-    target_account: &AccountInfo,
-    rent_reimbursement: &AccountInfo,
-    fees_vault: &AccountInfo,
-    validator_fees_vault: &AccountInfo,
+    target_account: &AccountView,
+    rent_reimbursement: &AccountView,
+    fees_vault: &AccountView,
+    validator_fees_vault: &AccountView,
     fee_remaining: &mut u64,
 ) -> ProgramResult {
     let mut destination_amount = target_account.lamports();
@@ -101,16 +97,16 @@ pub(crate) fn close_pda_with_fees(
         let protocol_fee = fee_taken * PROTOCOL_FEES_PERCENTAGE as u64 / 100;
         let validator_fee = fee_taken - protocol_fee;
 
-        unsafe {
-            *fees_vault.borrow_mut_lamports_unchecked() += protocol_fee;
-            *validator_fees_vault.borrow_mut_lamports_unchecked() += validator_fee;
-        }
+        fees_vault.set_lamports(fees_vault.lamports() + protocol_fee);
+        validator_fees_vault.set_lamports(validator_fees_vault.lamports() + validator_fee);
     }
 
+    rent_reimbursement.set_lamports(rent_reimbursement.lamports() + destination_amount);
+    target_account.set_lamports(0);
+
     unsafe {
-        *rent_reimbursement.borrow_mut_lamports_unchecked() += destination_amount;
-        *target_account.borrow_mut_lamports_unchecked() = 0;
         target_account.assign(&pinocchio_system::ID);
     }
+
     target_account.resize(0).map_err(Into::into)
 }

@@ -8,7 +8,7 @@ use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 /// See [crate::processor::process_protocol_claim_fees] for docs.
 pub fn protocol_claim_fees(admin: Pubkey) -> Instruction {
     let fees_vault_pda = fees_vault_pda();
-    let delegation_program_data = Pubkey::new_from_array(DELEGATION_PROGRAM_DATA_ID);
+    let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     Instruction {
         program_id: crate::id(),
         accounts: vec![

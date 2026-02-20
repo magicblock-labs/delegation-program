@@ -12,7 +12,7 @@ pub fn close_validator_fees_vault(
     validator_identity: Pubkey,
 ) -> Instruction {
     let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator_identity);
-    let delegation_program_data = Pubkey::new_from_array(DELEGATION_PROGRAM_DATA_ID);
+    let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     Instruction {
         program_id: crate::id(),
         accounts: vec![

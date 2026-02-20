@@ -1,11 +1,9 @@
 use borsh::BorshDeserialize;
-use pinocchio::instruction::{Seed, Signer};
-use pinocchio::pubkey::{self, pubkey_eq};
+use pinocchio::address::address_eq;
+use pinocchio::cpi::{Seed, Signer};
 use pinocchio::sysvars::clock::Clock;
 use pinocchio::sysvars::Sysvar;
-use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
-};
+use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
@@ -51,8 +49,8 @@ use crate::processor::fast::utils::requires::{
 /// This instruction is meant to be called via CPI with the owning program signing for the
 /// delegated account.
 pub fn process_delegate(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     process_delegate_inner(program_id, accounts, data, false)
@@ -60,16 +58,16 @@ pub fn process_delegate(
 
 /// Delegates an account while allowing any validator identity.
 pub fn process_delegate_with_any_validator(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     process_delegate_inner(program_id, accounts, data, true)
 }
 
 fn process_delegate_inner(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
     allow_system_program_validator: bool,
 ) -> ProgramResult {
@@ -88,8 +86,11 @@ fn process_delegate_inner(
     // Check that the buffer PDA is initialized and derived correctly from the PDA
     require_pda(
         delegate_buffer_account,
-        &[pda::DELEGATE_BUFFER_TAG, delegated_account.key()],
-        owner_program.key(),
+        &[
+            pda::DELEGATE_BUFFER_TAG,
+            delegated_account.address().as_ref(),
+        ],
+        owner_program.address(),
         true,
         "delegate buffer",
     )?;
@@ -99,7 +100,10 @@ fn process_delegate_inner(
     // Could save considerable CU, especially in the v2 version where we will pass the bumps
     let delegation_record_bump = require_uninitialized_pda(
         delegation_record_account,
-        &[pda::DELEGATION_RECORD_TAG, delegated_account.key()],
+        &[
+            pda::DELEGATION_RECORD_TAG,
+            delegated_account.address().as_ref(),
+        ],
         &crate::fast::ID,
         true,
         DelegationRecordCtx,
@@ -110,7 +114,10 @@ fn process_delegate_inner(
     // Could save considerable CU, especially in the v2 version where we will pass the bumps
     let delegation_metadata_bump = require_uninitialized_pda(
         delegation_metadata_account,
-        &[pda::DELEGATION_METADATA_TAG, delegated_account.key()],
+        &[
+            pda::DELEGATION_METADATA_TAG,
+            delegated_account.address().as_ref(),
+        ],
         &crate::fast::ID,
         true,
         DelegationMetadataCtx,
@@ -120,7 +127,7 @@ fn process_delegate_inner(
         DelegateArgs::try_from_slice(data).map_err(|_| ProgramError::InvalidInstructionData)?;
     if !allow_system_program_validator {
         if let Some(validator) = args.validator {
-            if validator.to_bytes() == pinocchio_system::ID {
+            if validator.to_bytes() == pinocchio_system::ID.to_bytes() {
                 return Err(DlpError::DelegationToSystemProgramNotAllowed.into());
             }
         }
@@ -129,11 +136,11 @@ fn process_delegate_inner(
     // Validate seeds if the delegate account is not on curve, i.e. is a PDA
     // If the owner is the system program, we check if the account is derived from the delegation program,
     // allowing delegation of escrow accounts
-    if !is_on_curve_fast(delegated_account.key()) {
-        let program_id = if pubkey_eq(owner_program.key(), &pinocchio_system::ID) {
+    if !is_on_curve_fast(delegated_account.address()) {
+        let program_id = if address_eq(owner_program.address(), &pinocchio_system::ID) {
             &crate::fast::ID
         } else {
-            owner_program.key()
+            owner_program.address()
         };
         let seeds_to_validate: &[&[u8]] = match args.seeds.len() {
             1 => &[&args.seeds[0]],
@@ -181,13 +188,13 @@ fn process_delegate_inner(
             ],
             _ => return Err(DlpError::TooManySeeds.into()),
         };
-        let derived_pda = pubkey::find_program_address(seeds_to_validate, program_id).0;
+        let derived_pda = Address::find_program_address(seeds_to_validate, program_id).0;
 
-        if !pubkey_eq(&derived_pda, delegated_account.key()) {
+        if !address_eq(&derived_pda, delegated_account.address()) {
             log!("Expected delegated PDA to be: ");
-            pubkey::log(&derived_pda);
+            derived_pda.log();
             log!("but got: ");
-            pubkey::log(delegated_account.key());
+            delegated_account.address().log();
             return Err(ProgramError::InvalidSeeds);
         }
     }
@@ -198,7 +205,7 @@ fn process_delegate_inner(
         DelegationRecord::size_with_discriminator(),
         &[Signer::from(&[
             Seed::from(pda::DELEGATION_RECORD_TAG),
-            Seed::from(delegated_account.key()),
+            Seed::from(delegated_account.address().as_ref()),
             Seed::from(&[delegation_record_bump]),
         ])],
         payer,
@@ -206,14 +213,14 @@ fn process_delegate_inner(
 
     // Initialize the delegation record
     let delegation_record = DelegationRecord {
-        owner: (*owner_program.key()).into(),
+        owner: owner_program.address().to_bytes().into(),
         authority: args.validator.unwrap_or(DEFAULT_VALIDATOR_IDENTITY),
         commit_frequency_ms: args.commit_frequency_ms as u64,
         delegation_slot: Clock::get()?.slot,
         lamports: delegated_account.lamports(),
     };
 
-    let mut delegation_record_data = delegation_record_account.try_borrow_mut_data()?;
+    let mut delegation_record_data = delegation_record_account.try_borrow_mut()?;
     delegation_record
         .to_bytes_with_discriminator(&mut delegation_record_data)
         .map_err(to_pinocchio_program_error)?;
@@ -222,7 +229,7 @@ fn process_delegate_inner(
         seeds: args.seeds,
         last_update_nonce: 0,
         is_undelegatable: false,
-        rent_payer: (*payer.key()).into(),
+        rent_payer: payer.address().to_bytes().into(),
     };
 
     // Initialize the delegation metadata PDA
@@ -232,22 +239,22 @@ fn process_delegate_inner(
         delegation_metadata.serialized_size(),
         &[Signer::from(&[
             Seed::from(pda::DELEGATION_METADATA_TAG),
-            Seed::from(delegated_account.key()),
+            Seed::from(delegated_account.address().as_ref()),
             Seed::from(&[delegation_metadata_bump]),
         ])],
         payer,
     )?;
 
     // Copy the seeds to the delegated metadata PDA
-    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut_data()?;
+    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut()?;
     delegation_metadata
         .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
         .map_err(to_pinocchio_program_error)?;
 
     // Copy the data from the buffer into the original account
-    if !delegate_buffer_account.data_is_empty() {
-        let mut delegated_data = delegated_account.try_borrow_mut_data()?;
-        let delegate_buffer_data = delegate_buffer_account.try_borrow_data()?;
+    if !delegate_buffer_account.is_data_empty() {
+        let mut delegated_data = delegated_account.try_borrow_mut()?;
+        let delegate_buffer_data = delegate_buffer_account.try_borrow()?;
         (*delegated_data).copy_from_slice(&delegate_buffer_data);
     }
 

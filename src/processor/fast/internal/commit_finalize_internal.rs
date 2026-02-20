@@ -1,5 +1,5 @@
-use pinocchio::pubkey::{self, pubkey_eq, PDA_MARKER};
-use pinocchio::{account_info::AccountInfo, program_error::ProgramError};
+use pinocchio::address::{address_eq, PDA_MARKER};
+use pinocchio::{error::ProgramError, AccountView, Address};
 use pinocchio_log::log;
 
 use crate::args::CommitBumps;
@@ -18,11 +18,11 @@ pub(crate) struct CommitFinalizeInternalArgs<'a> {
     pub(crate) new_state: NewState<'a>,
     pub(crate) commit_id: u64,
     pub(crate) allow_undelegation: bool,
-    pub(crate) validator: &'a AccountInfo,
-    pub(crate) delegated_account: &'a AccountInfo,
-    pub(crate) delegation_record_account: &'a AccountInfo,
-    pub(crate) delegation_metadata_account: &'a AccountInfo,
-    pub(crate) validator_fees_vault: &'a AccountInfo,
+    pub(crate) validator: &'a AccountView,
+    pub(crate) delegated_account: &'a AccountView,
+    pub(crate) delegation_record_account: &'a AccountView,
+    pub(crate) delegation_metadata_account: &'a AccountView,
+    pub(crate) validator_fees_vault: &'a AccountView,
 }
 
 /// Commit a new state of a delegated Pda
@@ -38,9 +38,9 @@ pub(crate) fn process_commit_finalize_internal(
         args.delegation_record_account,
         &[
             pda::DELEGATION_RECORD_TAG,
-            args.delegated_account.key(),
+            args.delegated_account.address().as_ref(),
             &[args.bumps.delegation_record],
-            &crate::fast::ID,
+            crate::fast::ID.as_ref(),
             PDA_MARKER
         ],
         false
@@ -50,9 +50,9 @@ pub(crate) fn process_commit_finalize_internal(
         args.delegation_metadata_account,
         &[
             pda::DELEGATION_METADATA_TAG,
-            args.delegated_account.key(),
+            args.delegated_account.address().as_ref(),
             &[args.bumps.delegation_metadata],
-            &crate::fast::ID,
+            crate::fast::ID.as_ref(),
             PDA_MARKER
         ],
         true
@@ -62,9 +62,9 @@ pub(crate) fn process_commit_finalize_internal(
         args.validator_fees_vault,
         &[
             pda::VALIDATOR_FEES_VAULT_TAG,
-            args.validator.key(),
+            args.validator.address().as_ref(),
             &[args.bumps.validator_fees_vault],
-            &crate::fast::ID,
+            crate::fast::ID.as_ref(),
             PDA_MARKER
         ],
         false
@@ -84,13 +84,13 @@ pub(crate) fn process_commit_finalize_internal(
         );
     }
 
-    let delegation_record_data = args.delegation_record_account.try_borrow_data()?;
+    let delegation_record_data = args.delegation_record_account.try_borrow()?;
     let delegation_record = DelegationRecord::try_view_from(&delegation_record_data.as_ref()[8..])?;
 
     // Check that the authority is allowed to commit
     require_eq_keys!(
-        delegation_record.authority.as_array(),
-        args.validator.key(),
+        &Address::from(delegation_record.authority.to_bytes()),
+        args.validator.address(),
         DlpError::InvalidAuthority
     );
 
@@ -113,7 +113,7 @@ pub(crate) fn process_commit_finalize_internal(
     args.delegated_account.resize(args.new_state.data_len())?;
 
     // copy the new state to the delegated account
-    let mut delegated_account_data = args.delegated_account.try_borrow_mut_data()?;
+    let mut delegated_account_data = args.delegated_account.try_borrow_mut()?;
     match args.new_state {
         NewState::FullBytes(bytes) => (*delegated_account_data).copy_from_slice(bytes),
         NewState::Diff(diff) => {

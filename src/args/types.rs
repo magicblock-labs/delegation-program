@@ -1,7 +1,7 @@
 use std::ops::Deref;
 
 use bytemuck::{Pod, Zeroable};
-use pinocchio::program_error::ProgramError;
+use pinocchio::error::ProgramError;
 
 use crate::{pod_view::PodView, require_ge};
 

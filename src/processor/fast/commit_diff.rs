@@ -1,7 +1,5 @@
 use borsh::BorshDeserialize;
-use pinocchio::{
-    account_info::AccountInfo, program_error::ProgramError, pubkey::Pubkey, ProgramResult,
-};
+use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 
 use crate::args::{CommitDiffArgsWithoutDiff, SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF};
@@ -45,8 +43,8 @@ use crate::{require, require_n_accounts};
 /// 3. Copy the new state to the new PDA
 /// 4. Init a new PDA to store the record of the new state commitment
 pub fn process_commit_diff(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    _program_id: &Address,
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     let [

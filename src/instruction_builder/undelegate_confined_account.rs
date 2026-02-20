@@ -18,7 +18,7 @@ pub fn undelegate_confined_account(
     let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
-    let delegation_program_data = Pubkey::new_from_array(DELEGATION_PROGRAM_DATA_ID);
+    let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
 
     Instruction {
         program_id: crate::id(),
