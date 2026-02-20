@@ -1,5 +1,4 @@
 use dlp::args::CommitFinalizeArgs;
-use dlp::compute_diff;
 use dlp::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     validator_fees_vault_pda_from_validator,
@@ -8,6 +7,7 @@ use dlp::state::DelegationMetadata;
 use solana_program::rent::Rent;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
 use solana_program_test::{BanksClient, BanksTransactionResultWithMetadata, ProgramTest};
+use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
@@ -21,41 +21,27 @@ use crate::fixtures::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_commit_finalize_data_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1150).await;
-}
-
-#[tokio::test]
-async fn test_commit_finalize_diff_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1400).await;
-}
-
-async fn run_test_commit_finalize(
-    old_state: Vec<u8>,
-    new_state: Vec<u8>,
-    data_is_diff: bool,
-    max_expected_cu: u64,
-) {
+async fn test_commit_finalize_from_buffer_perf() {
     // Setup
-    let (banks, _, authority, blockhash) = setup_program_test_env(old_state.clone()).await;
+    let new_state = vec![1; 10240];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![0; 10240], new_state.clone()).await;
 
     let new_account_balance = 1_000_000;
+    let state_buffer_pda = Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
 
-    let (ix, pdas) = dlp::instruction_builder::commit_finalize(
+    let (ix, pdas) = dlp::instruction_builder::commit_finalize_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        state_buffer_pda,
         &mut CommitFinalizeArgs {
             commit_id: 1,
             allow_undelegation: true.into(),
-            data_is_diff: data_is_diff.into(),
+            data_is_diff: false.into(),
             lamports: new_account_balance,
             bumps: Default::default(),
             reserved_padding: Default::default(),
-        },
-        &if data_is_diff {
-            compute_diff(&old_state, &new_state).to_vec()
-        } else {
-            new_state.clone()
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -74,7 +60,7 @@ async fn run_test_commit_finalize(
 
         let metadata = metadata.unwrap();
 
-        assertables::assert_lt!(metadata.compute_units_consumed, max_expected_cu);
+        assertables::assert_lt!(metadata.compute_units_consumed, 1150);
 
         assert_eq!(
             metadata.log_messages.len(),
@@ -100,16 +86,18 @@ async fn run_test_commit_finalize(
 }
 
 #[tokio::test]
-async fn test_commit_finalize_out_of_order() {
+async fn test_commit_finalize_from_buffer_out_of_order() {
     // Setup
-    let (banks, _, authority, blockhash) = setup_program_test_env(vec![]).await;
-    let new_state = vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![], vec![0, 1, 2, 9, 9, 9, 6, 7, 8, 9]).await;
 
+    let state_buffer_pda = Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
     let new_account_balance = 1_000_000;
 
-    let (ix, _pdas) = dlp::instruction_builder::commit_finalize(
+    let (ix, _pdas) = dlp::instruction_builder::commit_finalize_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        state_buffer_pda,
         &mut CommitFinalizeArgs {
             commit_id: 2, // this is the min value which will cause NonceOutOfOrder
             allow_undelegation: true.into(),
@@ -118,7 +106,6 @@ async fn test_commit_finalize_out_of_order() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         },
-        &new_state,
     );
 
     let tx = Transaction::new_signed_with_payer(
@@ -159,7 +146,10 @@ async fn test_commit_finalize_out_of_order() {
     );
 }
 
-async fn setup_program_test_env(pda_data: Vec<u8>) -> (BanksClient, Keypair, Keypair, Hash) {
+async fn setup_program_test_env(
+    pda_data: Vec<u8>,
+    pda_new_state: Vec<u8>,
+) -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);
 
@@ -220,6 +210,17 @@ async fn setup_program_test_env(pda_data: Vec<u8>) -> (BanksClient, Keypair, Key
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
+            owner: dlp::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    program_test.add_account(
+        Pubkey::find_program_address(&[b"state_buffer"], &validator_keypair.pubkey()).0,
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: pda_new_state,
             owner: dlp::id(),
             executable: false,
             rent_epoch: 0,

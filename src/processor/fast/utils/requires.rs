@@ -367,6 +367,8 @@ pub fn require_owned_pda(
     if !pubkey_eq(info.owner(), owner) {
         log!("Invalid account owner for {}:", label);
         pubkey::log(info.key());
+        pubkey::log(info.owner());
+        pubkey::log(owner);
         return Err(ProgramError::InvalidAccountOwner);
     }
     Ok(())

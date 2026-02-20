@@ -16,7 +16,7 @@ use crate::validator_fees_vault_seeds_from_validator;
 /// Accounts:
 ///
 /// 0; `[signer]` payer
-/// 1; `[signer]` admin that controls the vault
+/// 1; `[signer]` magicblock admin that controls the vault
 /// 2; `[]`       validator_identity
 /// 3; `[]`       validator_fees_vault_pda
 /// 4; `[]`       system_program
