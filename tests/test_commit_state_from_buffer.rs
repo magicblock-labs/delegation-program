@@ -1,22 +1,28 @@
+use dlp::{
+    args::CommitStateFromBufferArgs,
+    pda::{
+        commit_record_pda_from_delegated_account,
+        commit_state_pda_from_delegated_account,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+        validator_fees_vault_pda_from_validator,
+    },
+    state::{CommitRecord, DelegationMetadata},
+};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
+};
+use solana_program_test::{BanksClient, ProgramTest};
+use solana_sdk::{
+    account::Account,
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::Transaction,
+};
+
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
     DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
-};
-use dlp::args::CommitStateFromBufferArgs;
-use dlp::pda::{
-    commit_record_pda_from_delegated_account, commit_state_pda_from_delegated_account,
-    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    validator_fees_vault_pda_from_validator,
-};
-use dlp::state::{CommitRecord, DelegationMetadata};
-use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
-use solana_program_test::{BanksClient, ProgramTest};
-use solana_sdk::pubkey::Pubkey;
-use solana_sdk::{
-    account::Account,
-    signature::{Keypair, Signer},
-    transaction::Transaction,
 };
 
 mod fixtures;
@@ -28,7 +34,8 @@ async fn test_commit_new_state_from_buffer() {
     // Setup
     let (banks, _, authority, blockhash) = setup_program_test_env().await;
     let new_account_balance = 1_000_000;
-    let state_buffer_pda = Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
 
     let commit_args = CommitStateFromBufferArgs {
         nonce: 1,
@@ -55,32 +62,45 @@ async fn test_commit_new_state_from_buffer() {
     assert!(res.is_ok());
 
     // Assert the state commitment was created and contains the new state
-    let commit_state_pda = commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let commit_state_account = banks.get_account(commit_state_pda).await.unwrap().unwrap();
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_state_account =
+        banks.get_account(commit_state_pda).await.unwrap().unwrap();
     assert_eq!(commit_state_account.data, NEW_STATE.to_vec());
 
     // Check that the commit has enough collateral to finalize the proposed state diff
-    let delegated_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert!(new_account_balance < commit_state_account.lamports + delegated_account.lamports);
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert!(
+        new_account_balance
+            < commit_state_account.lamports + delegated_account.lamports
+    );
 
     // Assert the record about the commitment exists
-    let commit_record_pda = commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let commit_record_account = banks.get_account(commit_record_pda).await.unwrap().unwrap();
-    let commit_record =
-        CommitRecord::try_from_bytes_with_discriminator(&commit_record_account.data).unwrap();
+    let commit_record_pda =
+        commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_record_account =
+        banks.get_account(commit_record_pda).await.unwrap().unwrap();
+    let commit_record = CommitRecord::try_from_bytes_with_discriminator(
+        &commit_record_account.data,
+    )
+    .unwrap();
     assert_eq!(commit_record.account, DELEGATED_PDA_ID);
     assert_eq!(commit_record.identity, authority.pubkey());
     assert_eq!(commit_record.nonce, 1);
 
-    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let delegation_metadata_account = banks
         .get_account(delegation_metadata_pda)
         .await
         .unwrap()
         .unwrap();
     let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_account.data)
-            .unwrap();
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_account.data,
+        )
+        .unwrap();
     assert!(delegation_metadata.is_undelegatable);
 }
 
@@ -114,11 +134,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let delegation_metadata_data = get_delegation_metadata_data(validator_keypair.pubkey(), None);
+    let delegation_metadata_data =
+        get_delegation_metadata_data(validator_keypair.pubkey(), None);
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,
@@ -127,11 +149,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
-    let delegation_record_data = get_delegation_record_data(validator_keypair.pubkey(), None);
+    let delegation_record_data =
+        get_delegation_record_data(validator_keypair.pubkey(), None);
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
@@ -153,7 +177,11 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup a state buffer account
     program_test.add_account(
-        Pubkey::find_program_address(&[b"state_buffer"], &validator_keypair.pubkey()).0,
+        Pubkey::find_program_address(
+            &[b"state_buffer"],
+            &validator_keypair.pubkey(),
+        )
+        .0,
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: NEW_STATE.to_vec(),

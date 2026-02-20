@@ -1,6 +1,8 @@
-use crate::{error::DlpError, fast_process_instruction, slow_process_instruction};
-
 use solana_program::entrypoint;
+
+use crate::{
+    error::DlpError, fast_process_instruction, slow_process_instruction,
+};
 
 entrypoint::custom_heap_default!();
 entrypoint::custom_panic_default!();
@@ -15,8 +17,9 @@ pub unsafe extern "C" fn entrypoint(input: *mut u8) -> u64 {
         core::mem::MaybeUninit::<pinocchio::AccountView>::uninit();
     let mut accounts = [UNINIT; { pinocchio::MAX_TX_ACCOUNTS }];
 
-    let (program_id, count, data) =
-        pinocchio::entrypoint::deserialize::<{ pinocchio::MAX_TX_ACCOUNTS }>(input, &mut accounts);
+    let (program_id, count, data) = pinocchio::entrypoint::deserialize::<
+        { pinocchio::MAX_TX_ACCOUNTS },
+    >(input, &mut accounts);
 
     match fast_process_instruction(
         program_id,
@@ -25,7 +28,10 @@ pub unsafe extern "C" fn entrypoint(input: *mut u8) -> u64 {
     ) {
         Some(Ok(())) => pinocchio::SUCCESS,
         Some(Err(error)) => {
-            pinocchio_log::log!("fast_process_instruction: {}", error.to_str::<DlpError>());
+            pinocchio_log::log!(
+                "fast_process_instruction: {}",
+                error.to_str::<DlpError>()
+            );
             error.into()
         }
 
@@ -40,7 +46,8 @@ pub unsafe extern "C" fn entrypoint(input: *mut u8) -> u64 {
 /// function name is slow_entrypoint() as opposed to entrypoint() because this is a fallback
 /// entrypoint (a slow one).
 pub unsafe fn slow_entrypoint(input: *mut u8) -> u64 {
-    let (program_id, accounts, instruction_data) = unsafe { entrypoint::deserialize(input) };
+    let (program_id, accounts, instruction_data) =
+        unsafe { entrypoint::deserialize(input) };
     match slow_process_instruction(program_id, &accounts, instruction_data) {
         Ok(()) => entrypoint::SUCCESS,
         Err(error) => {

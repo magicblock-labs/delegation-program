@@ -1,7 +1,6 @@
-use solana_program::program::invoke;
-use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, rent::Rent,
+    account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
+    program_error::ProgramError, pubkey::Pubkey, rent::Rent,
     system_instruction, sysvar::Sysvar,
 };
 
@@ -60,7 +59,10 @@ pub(crate) fn create_pda<'a, 'info>(
         }
         // 2) allocate space for the account
         solana_program::program::invoke_signed(
-            &solana_program::system_instruction::allocate(target_account.key, space as u64),
+            &solana_program::system_instruction::allocate(
+                target_account.key,
+                space as u64,
+            ),
             &[
                 target_account.as_ref().clone(),
                 system_program.as_ref().clone(),
@@ -69,7 +71,10 @@ pub(crate) fn create_pda<'a, 'info>(
         )?;
         // 3) assign our program as the owner
         solana_program::program::invoke_signed(
-            &solana_program::system_instruction::assign(target_account.key, owner),
+            &solana_program::system_instruction::assign(
+                target_account.key,
+                owner,
+            ),
             &[
                 target_account.as_ref().clone(),
                 system_program.as_ref().clone(),

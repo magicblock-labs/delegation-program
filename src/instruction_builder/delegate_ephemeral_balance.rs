@@ -1,14 +1,19 @@
 use borsh::to_vec;
-use solana_program::instruction::Instruction;
-use solana_program::system_program;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
-use crate::args::DelegateEphemeralBalanceArgs;
-use crate::discriminator::DlpDiscriminator;
-use crate::pda::{
-    delegate_buffer_pda_from_delegated_account_and_owner_program,
-    delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
-    ephemeral_balance_pda_from_payer,
+use crate::{
+    args::DelegateEphemeralBalanceArgs,
+    discriminator::DlpDiscriminator,
+    pda::{
+        delegate_buffer_pda_from_delegated_account_and_owner_program,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+        ephemeral_balance_pda_from_payer,
+    },
 };
 
 /// Delegate ephemeral balance
@@ -18,12 +23,15 @@ pub fn delegate_ephemeral_balance(
     pubkey: Pubkey,
     args: DelegateEphemeralBalanceArgs,
 ) -> Instruction {
-    let delegated_account = ephemeral_balance_pda_from_payer(&pubkey, args.index);
-    let delegate_buffer_pda = delegate_buffer_pda_from_delegated_account_and_owner_program(
-        &delegated_account,
-        &system_program::id(),
-    );
-    let delegation_record_pda = delegation_record_pda_from_delegated_account(&delegated_account);
+    let delegated_account =
+        ephemeral_balance_pda_from_payer(&pubkey, args.index);
+    let delegate_buffer_pda =
+        delegate_buffer_pda_from_delegated_account_and_owner_program(
+            &delegated_account,
+            &system_program::id(),
+        );
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&delegated_account);
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&delegated_account);
     let mut data = DlpDiscriminator::DelegateEphemeralBalance.to_vec();

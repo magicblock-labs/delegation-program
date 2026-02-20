@@ -95,7 +95,9 @@ macro_rules! ephemeral_balance_seeds_from_payer {
     };
 }
 
-pub fn delegation_record_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
+pub fn delegation_record_pda_from_delegated_account(
+    delegated_account: &Pubkey,
+) -> Pubkey {
     Pubkey::find_program_address(
         delegation_record_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
@@ -103,7 +105,9 @@ pub fn delegation_record_pda_from_delegated_account(delegated_account: &Pubkey) 
     .0
 }
 
-pub fn delegation_metadata_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
+pub fn delegation_metadata_pda_from_delegated_account(
+    delegated_account: &Pubkey,
+) -> Pubkey {
     Pubkey::find_program_address(
         delegation_metadata_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
@@ -111,7 +115,9 @@ pub fn delegation_metadata_pda_from_delegated_account(delegated_account: &Pubkey
     .0
 }
 
-pub fn commit_state_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
+pub fn commit_state_pda_from_delegated_account(
+    delegated_account: &Pubkey,
+) -> Pubkey {
     Pubkey::find_program_address(
         commit_state_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
@@ -119,7 +125,9 @@ pub fn commit_state_pda_from_delegated_account(delegated_account: &Pubkey) -> Pu
     .0
 }
 
-pub fn commit_record_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
+pub fn commit_record_pda_from_delegated_account(
+    delegated_account: &Pubkey,
+) -> Pubkey {
     Pubkey::find_program_address(
         commit_record_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
@@ -138,7 +146,9 @@ pub fn delegate_buffer_pda_from_delegated_account_and_owner_program(
     .0
 }
 
-pub fn undelegate_buffer_pda_from_delegated_account(delegated_account: &Pubkey) -> Pubkey {
+pub fn undelegate_buffer_pda_from_delegated_account(
+    delegated_account: &Pubkey,
+) -> Pubkey {
     Pubkey::find_program_address(
         undelegate_buffer_seeds_from_delegated_account!(delegated_account),
         &crate::id(),

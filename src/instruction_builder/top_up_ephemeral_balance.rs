@@ -1,11 +1,14 @@
 use borsh::to_vec;
-use solana_program::instruction::Instruction;
-use solana_program::system_program;
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
-use crate::args::TopUpEphemeralBalanceArgs;
-use crate::discriminator::DlpDiscriminator;
-use crate::pda::ephemeral_balance_pda_from_payer;
+use crate::{
+    args::TopUpEphemeralBalanceArgs, discriminator::DlpDiscriminator,
+    pda::ephemeral_balance_pda_from_payer,
+};
 
 /// Builds a top-up ephemeral balance instruction.
 /// See [crate::processor::process_top_up_ephemeral_balance] for docs.
@@ -19,7 +22,8 @@ pub fn top_up_ephemeral_balance(
         amount: amount.unwrap_or(10000),
         index: index.unwrap_or(0),
     };
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&pubkey, args.index);
+    let ephemeral_balance_pda =
+        ephemeral_balance_pda_from_payer(&pubkey, args.index);
     Instruction {
         program_id: crate::id(),
         accounts: vec![

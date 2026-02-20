@@ -1,11 +1,15 @@
-use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
+    account_info::AccountInfo, entrypoint::ProgramResult,
+    program_error::ProgramError, pubkey::Pubkey, system_program,
 };
 
-use crate::fees_vault_seeds;
-use crate::processor::utils::loaders::{load_program, load_signer, load_uninitialized_pda};
-use crate::processor::utils::pda::create_pda;
+use crate::{
+    fees_vault_seeds,
+    processor::utils::{
+        loaders::{load_program, load_signer, load_uninitialized_pda},
+        pda::create_pda,
+    },
+};
 
 /// Initialize the global fees vault
 ///

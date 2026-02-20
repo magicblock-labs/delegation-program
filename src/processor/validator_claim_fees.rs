@@ -1,14 +1,18 @@
-use crate::args::ValidatorClaimFeesArgs;
-use crate::consts::PROTOCOL_FEES_PERCENTAGE;
-use crate::error::DlpError;
-use crate::processor::utils::loaders::{
-    load_initialized_protocol_fees_vault, load_initialized_validator_fees_vault, load_signer,
-};
 use borsh::BorshDeserialize;
-use solana_program::msg;
-use solana_program::program_error::ProgramError;
-use solana_program::rent::Rent;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg,
+    program_error::ProgramError, pubkey::Pubkey, rent::Rent,
+};
+
+use crate::{
+    args::ValidatorClaimFeesArgs,
+    consts::PROTOCOL_FEES_PERCENTAGE,
+    error::DlpError,
+    processor::utils::loaders::{
+        load_initialized_protocol_fees_vault,
+        load_initialized_validator_fees_vault, load_signer,
+    },
+};
 
 /// Process validator request to claim fees from the fees vault
 ///
@@ -39,7 +43,11 @@ pub fn process_validator_claim_fees(
 
     load_signer(validator, "validator")?;
     load_initialized_protocol_fees_vault(fees_vault, true)?;
-    load_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
+    load_initialized_validator_fees_vault(
+        validator,
+        validator_fees_vault,
+        true,
+    )?;
 
     // Calculate the amount to transfer
     let min_rent = Rent::default().minimum_balance(8);

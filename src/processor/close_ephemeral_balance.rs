@@ -1,11 +1,12 @@
-use crate::ephemeral_balance_seeds_from_payer;
-use crate::processor::utils::loaders::{load_pda, load_signer};
-use solana_program::msg;
-use solana_program::program::invoke_signed;
-use solana_program::program_error::ProgramError;
-use solana_program::system_instruction::transfer;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
+    account_info::AccountInfo, entrypoint::ProgramResult, msg,
+    program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
+    system_instruction::transfer, system_program,
+};
+
+use crate::{
+    ephemeral_balance_seeds_from_payer,
+    processor::utils::loaders::{load_pda, load_signer},
 };
 
 /// Process the closing of an ephemeral balance account
@@ -38,7 +39,8 @@ pub fn process_close_ephemeral_balance(
 
     load_signer(payer, "payer")?;
 
-    let ephemeral_balance_seeds: &[&[u8]] = ephemeral_balance_seeds_from_payer!(payer.key, index);
+    let ephemeral_balance_seeds: &[&[u8]] =
+        ephemeral_balance_seeds_from_payer!(payer.key, index);
     let ephemeral_balance_bump = load_pda(
         ephemeral_balance_account,
         ephemeral_balance_seeds,

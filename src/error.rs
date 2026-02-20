@@ -4,10 +4,19 @@ use strum::IntoStaticStr;
 use thiserror::Error;
 
 pub const INVALID_ESCROW_PDA: &str = "invalid escrow pda in CallHandler";
-pub const INVALID_ESCROW_OWNER: &str = "escrow can not be delegated in CallHandler";
+pub const INVALID_ESCROW_OWNER: &str =
+    "escrow can not be delegated in CallHandler";
 
 #[derive(
-    Debug, Error, Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive, IntoStaticStr,
+    Debug,
+    Error,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    IntoPrimitive,
+    TryFromPrimitive,
+    IntoStaticStr,
 )]
 #[repr(u32)]
 pub enum DlpError {

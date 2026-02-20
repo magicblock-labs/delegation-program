@@ -1,4 +1,10 @@
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use dlp::{
+    args::DelegateArgs, error::DlpError,
+    pda::delegation_record_pda_from_delegated_account, state::DelegationRecord,
+};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
+};
 use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
 use solana_sdk::{
     account::Account,
@@ -6,11 +12,6 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::{Transaction, TransactionError},
 };
-
-use dlp::args::DelegateArgs;
-use dlp::error::DlpError;
-use dlp::pda::delegation_record_pda_from_delegated_account;
-use dlp::state::DelegationRecord;
 
 use crate::fixtures::ON_CURVE_KEYPAIR;
 
@@ -20,7 +21,10 @@ mod fixtures;
 async fn test_delegation_confined_accounts_rejects_system_validator() {
     let (banks, payer, delegated, blockhash) = setup_program_test_env().await;
 
-    let assign_ix = solana_program::system_instruction::assign(&delegated.pubkey(), &dlp::id());
+    let assign_ix = solana_program::system_instruction::assign(
+        &delegated.pubkey(),
+        &dlp::id(),
+    );
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
         Some(&delegated.pubkey()),
@@ -49,11 +53,16 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
     let res = banks.process_transaction(tx).await;
     let err = res.unwrap_err();
     match err {
-        BanksClientError::TransactionError(TransactionError::InstructionError(
-            _,
-            InstructionError::Custom(code),
-        )) => {
-            assert_eq!(code, DlpError::DelegationToSystemProgramNotAllowed as u32);
+        BanksClientError::TransactionError(
+            TransactionError::InstructionError(
+                _,
+                InstructionError::Custom(code),
+            ),
+        ) => {
+            assert_eq!(
+                code,
+                DlpError::DelegationToSystemProgramNotAllowed as u32
+            );
         }
         _ => panic!("unexpected error: {err:?}"),
     }
@@ -63,7 +72,10 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
 async fn test_delegation_confined_accounts_allows_system_validator() {
     let (banks, payer, delegated, blockhash) = setup_program_test_env().await;
 
-    let assign_ix = solana_program::system_instruction::assign(&delegated.pubkey(), &dlp::id());
+    let assign_ix = solana_program::system_instruction::assign(
+        &delegated.pubkey(),
+        &dlp::id(),
+    );
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
         Some(&delegated.pubkey()),
@@ -100,8 +112,10 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
         .expect("failed to fetch delegation record account")
         .expect("delegation record account missing for delegated pubkey");
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminator(&delegation_record_account.data)
-            .expect("failed to deserialize DelegationRecord for delegated pubkey");
+        DelegationRecord::try_from_bytes_with_discriminator(
+            &delegation_record_account.data,
+        )
+        .expect("failed to deserialize DelegationRecord for delegated pubkey");
     assert_eq!(delegation_record.authority, system_program::id());
 }
 

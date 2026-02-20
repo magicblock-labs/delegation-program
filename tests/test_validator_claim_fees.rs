@@ -1,13 +1,18 @@
-use crate::fixtures::TEST_AUTHORITY;
-use dlp::consts::PROTOCOL_FEES_PERCENTAGE;
-use dlp::pda::{fees_vault_pda, validator_fees_vault_pda_from_validator};
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use dlp::{
+    consts::PROTOCOL_FEES_PERCENTAGE,
+    pda::{fees_vault_pda, validator_fees_vault_pda_from_validator},
+};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
+};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+
+use crate::fixtures::TEST_AUTHORITY;
 
 mod fixtures;
 
@@ -24,7 +29,8 @@ async fn test_validator_claim_fees() {
         .unwrap()
         .lamports;
 
-    let validator_fees_vault_pda = validator_fees_vault_pda_from_validator(&validator.pubkey());
+    let validator_fees_vault_pda =
+        validator_fees_vault_pda_from_validator(&validator.pubkey());
     let validator_fees_vault_init_lamports = banks
         .get_account(validator_fees_vault_pda)
         .await
@@ -41,8 +47,10 @@ async fn test_validator_claim_fees() {
 
     // Submit the withdrawal tx
     let withdrawal_amount = 100000;
-    let ix =
-        dlp::instruction_builder::validator_claim_fees(validator.pubkey(), Some(withdrawal_amount));
+    let ix = dlp::instruction_builder::validator_claim_fees(
+        validator.pubkey(),
+        Some(withdrawal_amount),
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -53,7 +61,8 @@ async fn test_validator_claim_fees() {
     assert!(res.is_ok());
 
     // Assert the validator fees vault now has less lamports
-    let validator_fees_vault_account = banks.get_account(validator_fees_vault_pda).await.unwrap();
+    let validator_fees_vault_account =
+        banks.get_account(validator_fees_vault_pda).await.unwrap();
     assert!(validator_fees_vault_account.is_some());
     assert_eq!(
         validator_fees_vault_account.unwrap().lamports,
@@ -61,7 +70,8 @@ async fn test_validator_claim_fees() {
     );
 
     // Assert the fees vault now has prev lamports + fees
-    let protocol_fees = (withdrawal_amount * u64::from(PROTOCOL_FEES_PERCENTAGE)) / 100;
+    let protocol_fees =
+        (withdrawal_amount * u64::from(PROTOCOL_FEES_PERCENTAGE)) / 100;
     let fees_vault_account = banks.get_account(fees_vault_pda).await.unwrap();
     assert!(fees_vault_account.is_some());
     assert_eq!(
@@ -70,7 +80,8 @@ async fn test_validator_claim_fees() {
     );
 
     let claim_amount = withdrawal_amount.saturating_sub(protocol_fees);
-    let validator_account = banks.get_account(validator.pubkey()).await.unwrap();
+    let validator_account =
+        banks.get_account(validator.pubkey()).await.unwrap();
     assert_eq!(
         validator_account.unwrap().lamports,
         validator_init_lamports + claim_amount

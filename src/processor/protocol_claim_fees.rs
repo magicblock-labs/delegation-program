@@ -1,11 +1,15 @@
-use crate::error::DlpError::Unauthorized;
-use crate::processor::utils::loaders::{
-    load_initialized_protocol_fees_vault, load_program_upgrade_authority, load_signer,
+use solana_program::{
+    account_info::AccountInfo, entrypoint::ProgramResult, msg,
+    program_error::ProgramError, pubkey::Pubkey, rent::Rent,
 };
-use solana_program::msg;
-use solana_program::program_error::ProgramError;
-use solana_program::rent::Rent;
-use solana_program::{account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey};
+
+use crate::{
+    error::DlpError::Unauthorized,
+    processor::utils::loaders::{
+        load_initialized_protocol_fees_vault, load_program_upgrade_authority,
+        load_signer,
+    },
+};
 
 /// Process request to claim fees from the protocol fees vault
 ///
@@ -38,7 +42,8 @@ pub fn process_protocol_claim_fees(
 
     // Check if the admin is the correct one
     let admin_pubkey =
-        load_program_upgrade_authority(&crate::ID, delegation_program_data)?.ok_or(Unauthorized)?;
+        load_program_upgrade_authority(&crate::ID, delegation_program_data)?
+            .ok_or(Unauthorized)?;
     if !admin.key.eq(&admin_pubkey) {
         msg!(
             "Expected admin pubkey: {} but got {}",
@@ -61,10 +66,11 @@ pub fn process_protocol_claim_fees(
         .checked_sub(amount)
         .ok_or(ProgramError::InsufficientFunds)?;
 
-    **admin.try_borrow_mut_lamports()? = admin
-        .lamports()
-        .checked_add(amount)
-        .ok_or(ProgramError::ArithmeticOverflow)?;
+    **admin.try_borrow_mut_lamports()? =
+        admin
+            .lamports()
+            .checked_add(amount)
+            .ok_or(ProgramError::ArithmeticOverflow)?;
 
     Ok(())
 }

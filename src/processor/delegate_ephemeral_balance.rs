@@ -1,12 +1,14 @@
-use crate::args::DelegateEphemeralBalanceArgs;
-use crate::ephemeral_balance_seeds_from_payer;
-use crate::processor::utils::loaders::{load_program, load_signer};
 use borsh::BorshDeserialize;
-use solana_program::program::invoke_signed;
-use solana_program::program_error::ProgramError;
-use solana_program::system_program;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_instruction,
+    account_info::AccountInfo, entrypoint::ProgramResult,
+    program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
+    system_instruction, system_program,
+};
+
+use crate::{
+    args::DelegateEphemeralBalanceArgs,
+    ephemeral_balance_seeds_from_payer,
+    processor::utils::loaders::{load_program, load_signer},
 };
 
 /// Delegates an account to transfer lamports which are used to fund it inside
@@ -58,7 +60,8 @@ pub fn process_delegate_ephemeral_balance(
     }
 
     // Set the delegation seeds
-    args.delegate_args.seeds = ephemeral_balance_seeds.iter().map(|s| s.to_vec()).collect();
+    args.delegate_args.seeds =
+        ephemeral_balance_seeds.iter().map(|s| s.to_vec()).collect();
 
     // Generate the ephemeral balance PDA's signer seeds
     let ephemeral_balance_bump_slice = &[ephemeral_balance_bump];
@@ -67,7 +70,10 @@ pub fn process_delegate_ephemeral_balance(
 
     // Assign as owner the delegation program
     invoke_signed(
-        &system_instruction::assign(ephemeral_balance_account.key, &crate::id()),
+        &system_instruction::assign(
+            ephemeral_balance_account.key,
+            &crate::id(),
+        ),
         &[ephemeral_balance_account.clone(), system_program.clone()],
         &[&ephemeral_balance_signer_seeds],
     )?;

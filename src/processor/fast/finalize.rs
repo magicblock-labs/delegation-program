@@ -1,19 +1,26 @@
-use pinocchio::address::{address_eq, Address};
-use pinocchio::error::ProgramError;
-use pinocchio::AccountView;
-use pinocchio::ProgramResult;
+use pinocchio::{
+    address::{address_eq, Address},
+    error::ProgramError,
+    AccountView, ProgramResult,
+};
 use pinocchio_log::log;
 
-use crate::error::DlpError;
-use crate::processor::fast::utils::pda::close_pda;
-use crate::processor::fast::utils::requires::{
-    is_uninitialized_account, require_initialized_commit_record, require_initialized_commit_state,
-    require_initialized_delegation_metadata, require_initialized_delegation_record,
-    require_initialized_validator_fees_vault, require_owned_pda, require_signer,
-};
-use crate::state::{CommitRecord, DelegationMetadata, DelegationRecord};
-
 use super::to_pinocchio_program_error;
+use crate::{
+    error::DlpError,
+    processor::fast::utils::{
+        pda::close_pda,
+        requires::{
+            is_uninitialized_account, require_initialized_commit_record,
+            require_initialized_commit_state,
+            require_initialized_delegation_metadata,
+            require_initialized_delegation_record,
+            require_initialized_validator_fees_vault, require_owned_pda,
+            require_signer,
+        },
+    },
+    state::{CommitRecord, DelegationMetadata, DelegationRecord},
+};
 
 /// Finalize a committed state, after validation, to a delegated account
 ///
@@ -60,20 +67,44 @@ pub fn process_finalize(
     };
 
     require_signer(validator, "validator")?;
-    require_owned_pda(delegated_account, &crate::fast::ID, "delegated account")?;
-    require_initialized_delegation_record(delegated_account, delegation_record_account, true)?;
-    require_initialized_delegation_metadata(delegated_account, delegation_metadata_account, true)?;
-    require_initialized_validator_fees_vault(validator, validator_fees_vault, true)?;
+    require_owned_pda(
+        delegated_account,
+        &crate::fast::ID,
+        "delegated account",
+    )?;
+    require_initialized_delegation_record(
+        delegated_account,
+        delegation_record_account,
+        true,
+    )?;
+    require_initialized_delegation_metadata(
+        delegated_account,
+        delegation_metadata_account,
+        true,
+    )?;
+    require_initialized_validator_fees_vault(
+        validator,
+        validator_fees_vault,
+        true,
+    )?;
 
-    let require_cs =
-        require_initialized_commit_state(delegated_account, commit_state_account, true);
-    let require_cr =
-        require_initialized_commit_record(delegated_account, commit_record_account, true);
+    let require_cs = require_initialized_commit_state(
+        delegated_account,
+        commit_state_account,
+        true,
+    );
+    let require_cr = require_initialized_commit_record(
+        delegated_account,
+        commit_record_account,
+        true,
+    );
 
     // Since finalize instructions are typically bundled, we return without error
     // if there is nothing to be finalized, so that correct finalizes are executed
-    if let (Err(ProgramError::InvalidAccountOwner), Err(ProgramError::InvalidAccountOwner)) =
-        (&require_cs, &require_cr)
+    if let (
+        Err(ProgramError::InvalidAccountOwner),
+        Err(ProgramError::InvalidAccountOwner),
+    ) = (&require_cs, &require_cr)
     {
         if is_uninitialized_account(commit_state_account)
             && is_uninitialized_account(commit_record_account)
@@ -86,20 +117,27 @@ pub fn process_finalize(
     require_cr?;
 
     // Load delegation metadata
-    let mut delegation_metadata_data = delegation_metadata_account.try_borrow_mut()?;
+    let mut delegation_metadata_data =
+        delegation_metadata_account.try_borrow_mut()?;
     let mut delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(&delegation_metadata_data)
-            .map_err(to_pinocchio_program_error)?;
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
 
-    let mut delegation_record_data = delegation_record_account.try_borrow_mut()?;
+    let mut delegation_record_data =
+        delegation_record_account.try_borrow_mut()?;
     let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminator_mut(&mut delegation_record_data)
-            .map_err(to_pinocchio_program_error)?;
+        DelegationRecord::try_from_bytes_with_discriminator_mut(
+            &mut delegation_record_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
 
     // Load commit record
     let commit_record_data = commit_record_account.try_borrow()?;
-    let commit_record = CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)
-        .map_err(to_pinocchio_program_error)?;
+    let commit_record =
+        CommitRecord::try_from_bytes_with_discriminator(&commit_record_data)
+            .map_err(to_pinocchio_program_error)?;
 
     // Check that the commit record is the right one
     if !address_eq(
@@ -187,7 +225,8 @@ fn settle_lamports_balance(
             .ok_or(DlpError::Overflow)?,
     );
 
-    transfer_destination.set_lamports(transfer_destination.lamports() + transfer_lamports);
+    transfer_destination
+        .set_lamports(transfer_destination.lamports() + transfer_lamports);
 
     Ok(())
 }

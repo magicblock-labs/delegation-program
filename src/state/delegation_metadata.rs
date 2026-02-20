@@ -1,14 +1,14 @@
 use std::ptr;
 
-use crate::{
-    impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh,
-    require_ge,
-};
 use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::{account::RefMut, error::ProgramError, AccountView};
 use solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
+use crate::{
+    impl_to_bytes_with_discriminator_borsh,
+    impl_try_from_bytes_with_discriminator_borsh, require_ge,
+};
 
 /// The Delegated Metadata includes Account Seeds, max delegation time, seeds
 /// and other meta information about the delegated account.
@@ -31,7 +31,9 @@ pub struct DelegationMetadataFast<'a> {
 }
 
 impl<'a> DelegationMetadataFast<'a> {
-    pub fn from_account(account: &'a AccountView) -> Result<Self, ProgramError> {
+    pub fn from_account(
+        account: &'a AccountView,
+    ) -> Result<Self, ProgramError> {
         require_ge!(
             account.data_len(),
             AccountDiscriminator::SPACE
@@ -48,13 +50,17 @@ impl<'a> DelegationMetadataFast<'a> {
     }
 
     pub fn last_update_nonce(&self) -> u64 {
-        unsafe { ptr::read(self.data.as_ptr().add(AccountDiscriminator::SPACE) as *const u64) }
+        unsafe {
+            ptr::read(self.data.as_ptr().add(AccountDiscriminator::SPACE)
+                as *const u64)
+        }
     }
 
     pub fn set_last_update_nonce(&mut self, val: u64) {
         unsafe {
             ptr::write(
-                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE) as *mut u64,
+                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE)
+                    as *mut u64,
                 val,
             )
         }
@@ -63,7 +69,8 @@ impl<'a> DelegationMetadataFast<'a> {
     pub fn replace_last_update_nonce(&mut self, val: u64) -> u64 {
         unsafe {
             ptr::replace(
-                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE) as *mut u64,
+                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE)
+                    as *mut u64,
                 val,
             )
         }
@@ -72,7 +79,8 @@ impl<'a> DelegationMetadataFast<'a> {
     pub fn set_is_undelegatable(&mut self, val: bool) {
         unsafe {
             ptr::write(
-                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE + 8) as *mut bool,
+                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE + 8)
+                    as *mut bool,
                 val,
             )
         }
@@ -81,7 +89,8 @@ impl<'a> DelegationMetadataFast<'a> {
     pub fn replace_is_undelegatable(&mut self, val: bool) -> bool {
         unsafe {
             ptr::replace(
-                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE + 8) as *mut bool,
+                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE + 8)
+                    as *mut bool,
                 val,
             )
         }
@@ -119,8 +128,9 @@ mod tests {
             seeds: vec![
                 vec![],
                 vec![
-                    215, 233, 74, 188, 162, 203, 12, 212, 106, 87, 189, 226, 48, 38, 129, 7, 34,
-                    82, 254, 106, 161, 35, 74, 146, 30, 211, 164, 97, 139, 136, 136, 77,
+                    215, 233, 74, 188, 162, 203, 12, 212, 106, 87, 189, 226,
+                    48, 38, 129, 7, 34, 82, 254, 106, 161, 35, 74, 146, 30,
+                    211, 164, 97, 139, 136, 136, 77,
                 ],
             ],
             is_undelegatable: false,
@@ -133,7 +143,8 @@ mod tests {
 
         // Deserialize
         let deserialized: DelegationMetadata =
-            DelegationMetadata::try_from_slice(&serialized).expect("Deserialization failed");
+            DelegationMetadata::try_from_slice(&serialized)
+                .expect("Deserialization failed");
 
         assert_eq!(deserialized, original);
     }

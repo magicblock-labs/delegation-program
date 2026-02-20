@@ -1,10 +1,12 @@
 use dlp::pda::{
-    commit_state_pda_from_delegated_account, delegation_metadata_pda_from_delegated_account,
+    commit_state_pda_from_delegated_account,
+    delegation_metadata_pda_from_delegated_account,
     delegation_record_pda_from_delegated_account, fees_vault_pda,
     validator_fees_vault_pda_from_validator,
 };
-use solana_program::rent::Rent;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
+};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
@@ -25,13 +27,16 @@ async fn test_undelegate_without_commit() {
     let (banks, _, validator, blockhash) = setup_program_test_env().await;
 
     // Retrieve the accounts
-    let delegation_record_pda = delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let commit_state_pda = commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
 
     // Save the new state data before undelegating
     let delegated_pda_state_before_undelegation =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    let new_state_data_before_finalize = delegated_pda_state_before_undelegation.data.clone();
+    let new_state_data_before_finalize =
+        delegated_pda_state_before_undelegation.data.clone();
 
     // Submit the undelegate tx
     let ix = dlp::instruction_builder::undelegate(
@@ -51,24 +56,30 @@ async fn test_undelegate_without_commit() {
     assert!(res.is_ok());
 
     // Assert the state_diff was closed
-    let commit_state_account = banks.get_account(commit_state_pda).await.unwrap();
+    let commit_state_account =
+        banks.get_account(commit_state_pda).await.unwrap();
     assert!(commit_state_account.is_none());
 
     // Assert the delegation_record_pda was closed
-    let delegation_record_account = banks.get_account(delegation_record_pda).await.unwrap();
+    let delegation_record_account =
+        banks.get_account(delegation_record_pda).await.unwrap();
     assert!(delegation_record_account.is_none());
 
     // Assert the delegation_record_pda was closed
-    let delegation_record_account = banks.get_account(delegation_record_pda).await.unwrap();
+    let delegation_record_account =
+        banks.get_account(delegation_record_pda).await.unwrap();
     assert!(delegation_record_account.is_none());
 
     // Assert the delegated account seeds pda was closed
-    let delegation_metadata_pda = delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let delegation_metadata_account = banks.get_account(delegation_metadata_pda).await.unwrap();
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_account =
+        banks.get_account(delegation_metadata_pda).await.unwrap();
     assert!(delegation_metadata_account.is_none());
 
     // Assert that the account owner is now set to the owner program
-    let pda_account = banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    let pda_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
     assert!(pda_account.owner.eq(&DELEGATED_PDA_OWNER_ID));
 
     // Assert the delegated account contains the data from the new state
@@ -104,11 +115,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated record PDA
-    let delegation_record_data = get_delegation_record_data(validator.pubkey(), None);
+    let delegation_record_data =
+        get_delegation_record_data(validator.pubkey(), None);
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_record_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
             owner: dlp::id(),
             executable: false,
@@ -117,11 +130,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA
-    let delegation_metadata_data = get_delegation_metadata_data(validator.pubkey(), Some(true));
+    let delegation_metadata_data =
+        get_delegation_metadata_data(validator.pubkey(), Some(true));
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
-            lamports: Rent::default().minimum_balance(delegation_metadata_data.len()),
+            lamports: Rent::default()
+                .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
             owner: dlp::id(),
             executable: false,

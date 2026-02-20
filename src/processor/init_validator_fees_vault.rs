@@ -1,15 +1,19 @@
-use solana_program::msg;
-use solana_program::program_error::ProgramError;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey, system_program,
+    account_info::AccountInfo, entrypoint::ProgramResult, msg,
+    program_error::ProgramError, pubkey::Pubkey, system_program,
 };
 
-use crate::error::DlpError::Unauthorized;
-use crate::processor::utils::loaders::{
-    load_program, load_program_upgrade_authority, load_signer, load_uninitialized_pda,
+use crate::{
+    error::DlpError::Unauthorized,
+    processor::utils::{
+        loaders::{
+            load_program, load_program_upgrade_authority, load_signer,
+            load_uninitialized_pda,
+        },
+        pda::create_pda,
+    },
+    validator_fees_vault_seeds_from_validator,
 };
-use crate::processor::utils::pda::create_pda;
-use crate::validator_fees_vault_seeds_from_validator;
 
 /// Process the initialization of the validator fees vault
 ///
@@ -49,7 +53,8 @@ pub fn process_init_validator_fees_vault(
 
     // Check if the admin is the correct one
     let admin_pubkey =
-        load_program_upgrade_authority(&crate::ID, delegation_program_data)?.ok_or(Unauthorized)?;
+        load_program_upgrade_authority(&crate::ID, delegation_program_data)?
+            .ok_or(Unauthorized)?;
     if !admin.key.eq(&admin_pubkey) {
         msg!(
             "Expected admin pubkey: {} but got {}",

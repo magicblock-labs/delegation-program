@@ -2,13 +2,12 @@ use borsh::BorshDeserialize;
 use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 
-use crate::args::{CommitDiffArgsWithoutDiff, SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF};
-use crate::processor::fast::{process_commit_state_internal, CommitStateInternalArgs};
-use crate::DiffSet;
-
 use super::NewState;
-
-use crate::{require, require_n_accounts};
+use crate::{
+    args::{CommitDiffArgsWithoutDiff, SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF},
+    processor::fast::{process_commit_state_internal, CommitStateInternalArgs},
+    require, require_n_accounts, DiffSet,
+};
 
 /// Commit diff to a delegated PDA
 ///
@@ -64,10 +63,11 @@ pub fn process_commit_diff(
         ProgramError::InvalidInstructionData
     );
 
-    let (diff, data) = data.split_at(data.len() - SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF);
+    let (diff, data) =
+        data.split_at(data.len() - SIZE_COMMIT_DIFF_ARGS_WITHOUT_DIFF);
 
-    let args =
-        CommitDiffArgsWithoutDiff::try_from_slice(data).map_err(|_| ProgramError::BorshIoError)?;
+    let args = CommitDiffArgsWithoutDiff::try_from_slice(data)
+        .map_err(|_| ProgramError::BorshIoError)?;
 
     let diffset = DiffSet::try_new_from_borsh_vec(diff)?;
 

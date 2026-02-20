@@ -1,5 +1,7 @@
 use dlp::pda::fees_vault_pda;
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, system_program};
+use solana_program::{
+    hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
+};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
@@ -15,7 +17,12 @@ async fn test_init_fees_vault() {
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     let ix = dlp::instruction_builder::init_protocol_fees_vault(payer.pubkey());
-    let tx = Transaction::new_signed_with_payer(&[ix], Some(&payer.pubkey()), &[&payer], blockhash);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer],
+        blockhash,
+    );
     let res = banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
