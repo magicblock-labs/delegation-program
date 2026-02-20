@@ -1,5 +1,6 @@
 mod commit_diff;
 mod commit_diff_from_buffer;
+mod commit_finalize;
 mod commit_state;
 mod commit_state_from_buffer;
 mod delegate;
@@ -8,8 +9,11 @@ mod undelegate;
 mod undelegate_confined_account;
 mod utils;
 
+pub(crate) mod internal;
+
 pub use commit_diff::*;
 pub use commit_diff_from_buffer::*;
+pub use commit_finalize::*;
 pub use commit_state::*;
 pub use commit_state_from_buffer::*;
 pub use delegate::*;

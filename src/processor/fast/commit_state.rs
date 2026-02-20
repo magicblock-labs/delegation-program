@@ -197,15 +197,10 @@ pub(crate) fn process_commit_state_internal(
     // We need to do that so that the finalizer already have all the lamports from the validators ready at finalize time
     // The finalizer can return any extra lamport to the validator during finalize, but this acts as the validator's proof of collateral
     if args.commit_record_lamports > delegation_record.lamports {
-        let extra_lamports = args
-            .commit_record_lamports
-            .checked_sub(delegation_record.lamports)
-            .ok_or(DlpError::Overflow)?;
-
         system::Transfer {
             from: args.validator,
             to: args.commit_state_account,
-            lamports: extra_lamports,
+            lamports: args.commit_record_lamports - delegation_record.lamports,
         }
         .invoke()?;
     }

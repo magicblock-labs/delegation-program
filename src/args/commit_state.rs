@@ -1,6 +1,41 @@
+use bytemuck::{Pod, Zeroable};
 use std::mem::size_of;
 
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use crate::args::{ArgsWithBuffer, Boolean};
+
+/// bumps of the PDA accounts to be validated by ix
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable, Default)]
+pub struct CommitBumps {
+    pub delegation_record: u8,
+    pub delegation_metadata: u8,
+    pub validator_fees_vault: u8,
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+pub struct CommitFinalizeArgs {
+    /// the commit_id ensures correct ordering of commits
+    pub commit_id: u64,
+
+    /// the lamports that the delegated account holds in the ephemeral validator
+    pub lamports: u64,
+
+    /// whether the account can be undelegated after the commit completes
+    pub allow_undelegation: Boolean,
+
+    /// whether the data (in the ixdata or in the data account) is diff or full state.
+    pub data_is_diff: Boolean,
+
+    /// bumps of the PDA accounts to be validated by the ix
+    pub bumps: CommitBumps,
+
+    pub reserved_padding: [u8; 3],
+}
+
+pub type CommitFinalizeArgsWithBuffer<'a> = ArgsWithBuffer<'a, CommitFinalizeArgs>;
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct CommitStateArgs {

@@ -29,6 +29,7 @@ mod discriminator;
 pub mod error;
 pub mod instruction_builder;
 pub mod pda;
+pub mod pod_view;
 pub mod state;
 
 mod account_size_class;
@@ -37,6 +38,7 @@ pub use account_size_class::*;
 
 #[cfg(not(feature = "sdk"))]
 mod diff;
+
 #[cfg(not(feature = "sdk"))]
 mod processor;
 
@@ -116,6 +118,9 @@ pub fn fast_process_instruction(
         DlpDiscriminator::CommitDiffFromBuffer => Some(
             processor::fast::process_commit_diff_from_buffer(program_id, accounts, data),
         ),
+        DlpDiscriminator::CommitFinalize => Some(processor::fast::process_commit_finalize(
+            program_id, accounts, data,
+        )),
         DlpDiscriminator::Finalize => Some(processor::fast::process_finalize(
             program_id, accounts, data,
         )),

@@ -1,5 +1,14 @@
-use crate::{impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh};
+use std::ptr;
+
+use crate::{
+    impl_to_bytes_with_discriminator_borsh, impl_try_from_bytes_with_discriminator_borsh,
+    require_ge,
+};
 use borsh::{BorshDeserialize, BorshSerialize};
+use pinocchio::{
+    account_info::{AccountInfo, RefMut},
+    program_error::ProgramError,
+};
 use solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
@@ -18,6 +27,68 @@ pub struct DelegationMetadata {
     pub seeds: Vec<Vec<u8>>,
     /// The account that paid the rent for the delegation PDAs
     pub rent_payer: Pubkey,
+}
+
+pub struct DelegationMetadataFast<'a> {
+    data: RefMut<'a, [u8]>,
+}
+
+impl<'a> DelegationMetadataFast<'a> {
+    pub fn from_account(account: &'a AccountInfo) -> Result<Self, ProgramError> {
+        require_ge!(
+            account.data_len(),
+            AccountDiscriminator::SPACE
+            + 8  // last_update_nonce
+            + 1  // is_undelegatable
+            + 32 // rent_payer
+            + 4, // seeds (at least 4)
+            ProgramError::InvalidAccountData
+        );
+
+        Ok(Self {
+            data: account.try_borrow_mut_data()?,
+        })
+    }
+
+    pub fn last_update_nonce(&self) -> u64 {
+        unsafe { ptr::read(self.data.as_ptr().add(AccountDiscriminator::SPACE) as *const u64) }
+    }
+
+    pub fn set_last_update_nonce(&mut self, val: u64) {
+        unsafe {
+            ptr::write(
+                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE) as *mut u64,
+                val,
+            )
+        }
+    }
+
+    pub fn replace_last_update_nonce(&mut self, val: u64) -> u64 {
+        unsafe {
+            ptr::replace(
+                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE) as *mut u64,
+                val,
+            )
+        }
+    }
+
+    pub fn set_is_undelegatable(&mut self, val: bool) {
+        unsafe {
+            ptr::write(
+                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE + 8) as *mut bool,
+                val,
+            )
+        }
+    }
+
+    pub fn replace_is_undelegatable(&mut self, val: bool) -> bool {
+        unsafe {
+            ptr::replace(
+                self.data.as_mut_ptr().add(AccountDiscriminator::SPACE + 8) as *mut bool,
+                val,
+            )
+        }
+    }
 }
 
 impl AccountWithDiscriminator for DelegationMetadata {

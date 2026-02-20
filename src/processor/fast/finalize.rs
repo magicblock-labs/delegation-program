@@ -132,6 +132,7 @@ pub fn process_finalize(
 
     // Copying the new commit state to the delegated account
     delegated_account.resize(commit_state_data.len())?;
+
     let mut delegated_account_data = delegated_account.try_borrow_mut_data()?;
     (*delegated_account_data).copy_from_slice(&commit_state_data);
 

@@ -1,11 +1,14 @@
-use num_enum::IntoPrimitive;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 use solana_program::program_error::ProgramError;
+use strum::IntoStaticStr;
 use thiserror::Error;
 
 pub const INVALID_ESCROW_PDA: &str = "invalid escrow pda in CallHandler";
 pub const INVALID_ESCROW_OWNER: &str = "escrow can not be delegated in CallHandler";
 
-#[derive(Debug, Error, Clone, Copy, PartialEq, Eq, IntoPrimitive)]
+#[derive(
+    Debug, Error, Clone, Copy, PartialEq, Eq, IntoPrimitive, TryFromPrimitive, IntoStaticStr,
+)]
 #[repr(u32)]
 pub enum DlpError {
     #[error("Invalid Authority")]
@@ -151,5 +154,15 @@ impl From<DlpError> for ProgramError {
 impl From<DlpError> for pinocchio::program_error::ProgramError {
     fn from(e: DlpError) -> Self {
         pinocchio::program_error::ProgramError::Custom(e as u32)
+    }
+}
+
+#[cfg(not(feature = "sdk"))]
+impl pinocchio::program_error::ToStr for DlpError {
+    fn to_str<E>(&self) -> &'static str
+    where
+        E: 'static + pinocchio::program_error::ToStr + TryFrom<u32>,
+    {
+        self.into()
     }
 }
