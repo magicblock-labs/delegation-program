@@ -85,6 +85,11 @@ jobs:
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           cargo test-sbf --features unit_test_config
 
+      - name: run tests (with use-unsafe)
+        run: |
+          export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
+          cargo test-sbf --features unit_test_config use-unsafe
+
       - name: compile production version for integration tests
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"

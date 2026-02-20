@@ -34,7 +34,7 @@ pub mod state;
 
 mod account_size_class;
 
-mod v2;
+pub mod v2;
 
 pub use account_size_class::*;
 
@@ -75,88 +75,110 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/magicblock-labs/delegation-program"
 }
 
+#[rustfmt::skip]
+pub const GLOBAL_IX_TABLE: [v2::Processor; 256] = {
+    // start from v2 table as initial value and then write the
+    // other empty slots with v1 instructions so that in the
+    // end, we'll have a single table containing all v1 and v2 instructions
+    // that use pinocchio, though for non-pinocchio based instructions, we
+    // use fallback using InstructionNotFound error returned by the default handler.
+    let mut table = v2::IX_TABLE;
+
+    use crate::discriminator::DlpDiscriminator::*;
+    use crate::processor::fast::*;
+
+    table[Delegate.index()]                  = process_delegate;
+    table[DelegateWithAnyValidator.index()]  = process_delegate_with_any_validator;
+    table[CommitState.index()]               = process_commit_state;
+    table[CommitStateFromBuffer.index()]     = process_commit_state_from_buffer;
+    table[CommitDiff.index()]                = process_commit_diff;
+    table[CommitDiffFromBuffer.index()]      = process_commit_diff_from_buffer;
+    table[CommitFinalize.index()]            = process_commit_finalize;
+    table[CommitFinalizeFromBuffer.index()]  = process_commit_finalize_from_buffer;
+    table[Finalize.index()]                  = process_finalize;
+    table[Undelegate.index()]                = process_undelegate;
+    table[UndelegateConfinedAccount.index()] = process_undelegate_confined_account;
+
+    table
+};
+
 #[cfg(not(feature = "sdk"))]
 pub fn fast_process_instruction(
-    program_id: &pinocchio::Address,
     accounts: &[pinocchio::AccountView],
-    data: &[u8],
+    //ixdata: &[u8],
+    ixdata: *const u8,
+    ixdatalen: usize,
 ) -> Option<pinocchio::ProgramResult> {
-    use crate::v2::DlpInstruction;
+    //if ixdata.len() < 8 {
+    //    return Some(Err(
+    //        pinocchio::error::ProgramError::InvalidInstructionData,
+    //    ));
+    //}
 
-    if data.len() < 8 {
-        return Some(Err(
-            pinocchio::error::ProgramError::InvalidInstructionData,
-        ));
-    }
+    //let (discriminator_bytes, data) = unsafe { ixdata.split_at_unchecked(8) };
 
-    let (discriminator_bytes, data) = data.split_at(8);
-
-    if discriminator_bytes[0] >= DlpInstruction::Delegate as u8 {
-        use crate::v2::v2_process_instruction;
-        return Some(v2_process_instruction(accounts, data));
-    }
-
-    let discriminator = match DlpDiscriminator::try_from(discriminator_bytes[0])
-    {
-        Ok(discriminator) => discriminator,
-        Err(_) => {
-            pinocchio_log::log!("Failed to read and parse discriminator");
-            return Some(Err(
-                pinocchio::error::ProgramError::InvalidInstructionData,
-            ));
-        }
-    };
+    use pinocchio::hint::likely;
 
     #[cfg(feature = "logging")]
     msg!("Processing instruction: {:?}", discriminator);
 
-    match discriminator {
-        DlpDiscriminator::Delegate => Some(processor::fast::process_delegate(
-            program_id, accounts, data,
-        )),
-        DlpDiscriminator::DelegateWithAnyValidator => {
-            Some(processor::fast::process_delegate_with_any_validator(
-                program_id, accounts, data,
+    // 23 CU -- till here
+
+    if false {
+        if likely(
+            unsafe { *ixdata }
+                == v2::DlpInstruction::CommitFinalizeInline as u8,
+        ) {
+            //return Some(Ok(()));
+            return Some(v2::process_commit_finalize_inline(
+                accounts,
+                unsafe { ixdata.add(8) },
+                ixdatalen - 8,
+            ));
+        } else {
+            match GLOBAL_IX_TABLE[unsafe { *ixdata } as usize](
+                accounts,
+                unsafe {
+                    core::slice::from_raw_parts(ixdata.add(8), ixdatalen - 8)
+                },
+            ) {
+                e @ Err(pinocchio::error::ProgramError::Custom(val)) => {
+                    use crate::error::DlpError;
+
+                    if val == DlpError::InstructionNotFound as u32 {
+                        None
+                    } else {
+                        Some(e)
+                    }
+                }
+                otherwise => Some(otherwise),
+            }
+        }
+    } else if false {
+        match unsafe {
+            GLOBAL_IX_TABLE.get_unchecked(*ixdata as usize)(
+                accounts,
+                core::slice::from_raw_parts(ixdata.add(8), ixdatalen - 8),
+            )
+        } {
+            e @ Err(pinocchio::error::ProgramError::Custom(val)) => {
+                use crate::error::DlpError;
+
+                if val == DlpError::InstructionNotFound as u32 {
+                    None
+                } else {
+                    Some(e)
+                }
+            }
+            otherwise => Some(otherwise),
+        }
+    } else {
+        unsafe {
+            Some(GLOBAL_IX_TABLE.get_unchecked(*ixdata as usize)(
+                accounts,
+                core::slice::from_raw_parts(ixdata.add(8), ixdatalen - 8),
             ))
         }
-        DlpDiscriminator::CommitState => Some(
-            processor::fast::process_commit_state(program_id, accounts, data),
-        ),
-        DlpDiscriminator::CommitStateFromBuffer => {
-            Some(processor::fast::process_commit_state_from_buffer(
-                program_id, accounts, data,
-            ))
-        }
-        DlpDiscriminator::CommitDiff => Some(
-            processor::fast::process_commit_diff(program_id, accounts, data),
-        ),
-        DlpDiscriminator::CommitDiffFromBuffer => {
-            Some(processor::fast::process_commit_diff_from_buffer(
-                program_id, accounts, data,
-            ))
-        }
-        DlpDiscriminator::CommitFinalize => {
-            Some(processor::fast::process_commit_finalize(
-                program_id, accounts, data,
-            ))
-        }
-        DlpDiscriminator::CommitFinalizeFromBuffer => {
-            Some(processor::fast::process_commit_finalize_from_buffer(
-                program_id, accounts, data,
-            ))
-        }
-        DlpDiscriminator::Finalize => Some(processor::fast::process_finalize(
-            program_id, accounts, data,
-        )),
-        DlpDiscriminator::Undelegate => Some(
-            processor::fast::process_undelegate(program_id, accounts, data),
-        ),
-        DlpDiscriminator::UndelegateConfinedAccount => {
-            Some(processor::fast::process_undelegate_confined_account(
-                program_id, accounts, data,
-            ))
-        }
-        _ => None,
     }
 }
 

@@ -136,8 +136,16 @@ impl<T: bytemuck::Pod> PodView for T {
     }
 
     fn try_view_from_mut(buffer: &mut [u8]) -> Result<&mut Self, ProgramError> {
-        bytemuck::try_from_bytes_mut(buffer)
-            .map_err(|_| ProgramError::InvalidArgument)
+        #[cfg(feature = "unsafe")]
+        {
+            Ok(unsafe { &mut *(buffer.as_mut_ptr() as *mut Self) })
+        }
+
+        #[cfg(not(feature = "unsafe"))]
+        {
+            bytemuck::try_from_bytes_mut(buffer)
+                .map_err(|_| ProgramError::InvalidArgument)
+        }
     }
 
     #[cfg(feature = "unit_test_config")]

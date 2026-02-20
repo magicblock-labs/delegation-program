@@ -41,3 +41,9 @@ pub use undelegate::*;
 pub use undelegate_confined_account::*;
 pub use validator_claim_fees::*;
 pub use whitelist_validator_for_program::*;
+
+mod v2_commit_finalize;
+mod v2_commit_finalize_from_buffer;
+
+pub use v2_commit_finalize::*;
+pub use v2_commit_finalize_from_buffer::*;

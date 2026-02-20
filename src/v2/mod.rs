@@ -5,5 +5,4 @@ mod state;
 
 pub use instruction::*;
 pub use processor::*;
-pub use requires::*;
 pub use state::*;

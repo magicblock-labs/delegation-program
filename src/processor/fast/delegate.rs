@@ -60,24 +60,21 @@ use crate::{
 /// This instruction is meant to be called via CPI with the owning program signing for the
 /// delegated account.
 pub fn process_delegate(
-    program_id: &Address,
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    process_delegate_inner(program_id, accounts, data, false)
+    process_delegate_inner(accounts, data, false)
 }
 
 /// Delegates an account while allowing any validator identity.
 pub fn process_delegate_with_any_validator(
-    program_id: &Address,
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    process_delegate_inner(program_id, accounts, data, true)
+    process_delegate_inner(accounts, data, true)
 }
 
 fn process_delegate_inner(
-    _program_id: &Address,
     accounts: &[AccountView],
     data: &[u8],
     allow_system_program_validator: bool,

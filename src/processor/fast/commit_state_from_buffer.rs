@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
+use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 
 use super::NewState;
 use crate::{
@@ -8,7 +8,6 @@ use crate::{
 };
 
 pub fn process_commit_state_from_buffer(
-    _program_id: &Address,
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {

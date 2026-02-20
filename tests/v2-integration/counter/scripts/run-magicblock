@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -xeuo pipefail
+
+rm -rf ./test-ledger-magicblock
+
+# solana airdrop 20 mAGicPQYBMvcYveUZA5F5UNNwyHvfYh5xkLS2Fr1mev
+solana airdrop 20 tEsT3eV6RFCWs1BZ7AXTzasHqTtMnMLCB2tjQ42TDXD
+
+# RUST_LOG=info ephemeral-validator --accounts-lifecycle ephemeral --rpc-port 7799 --remote-url "http://localhost:8899"
+
+RUST_LOG=info ../../../../../magicblock-validator/target/release/magicblock-validator --lifecycle ephemeral --listen 0.0.0.0:7799 --remotes  "http://localhost:8899"
+
+

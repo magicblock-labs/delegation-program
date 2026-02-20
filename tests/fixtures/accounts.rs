@@ -7,11 +7,11 @@ use solana_program::{
 use solana_sdk::pubkey;
 
 // Constants for default values
-const DEFAULT_DELEGATION_SLOT: u64 = 0;
-const DEFAULT_COMMIT_FREQUENCY_MS: u64 = 0;
-const DEFAULT_LAST_UPDATE_EXTERNAL_SLOT: u64 = 0;
-const DEFAULT_IS_UNDELEGATABLE: bool = false;
-const DEFAULT_SEEDS: &[&[u8]] = &[&[116, 101, 115, 116, 45, 112, 100, 97]];
+pub const DEFAULT_DELEGATION_SLOT: u64 = 0;
+pub const DEFAULT_COMMIT_FREQUENCY_MS: u64 = 0;
+pub const DEFAULT_LAST_UPDATE_EXTERNAL_SLOT: u64 = 0;
+pub const DEFAULT_IS_UNDELEGATABLE: bool = false;
+pub const DEFAULT_SEEDS: &[&[u8]] = &[&[116, 101, 115, 116, 45, 112, 100, 97]];
 
 #[allow(dead_code)]
 pub const COMMIT_STATE_AUTHORITY: Pubkey =

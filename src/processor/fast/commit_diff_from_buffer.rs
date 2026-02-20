@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
+use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 use pinocchio_log::log;
 
 use super::NewState;
@@ -10,7 +10,6 @@ use crate::{
 };
 
 pub fn process_commit_diff_from_buffer(
-    _program_id: &Address,
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
