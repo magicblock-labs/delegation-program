@@ -37,7 +37,7 @@ impl<'a> DelegationMetadataFast<'a> {
     pub fn from_account(account: &'a AccountInfo) -> Result<Self, ProgramError> {
         require_ge!(
             account.data_len(),
-            8    // discriminator
+            AccountDiscriminator::SPACE
             + 8  // last_update_nonce
             + 1  // is_undelegatable
             + 32 // rent_payer

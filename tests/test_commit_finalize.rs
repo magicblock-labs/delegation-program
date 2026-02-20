@@ -1,4 +1,5 @@
 use dlp::args::CommitFinalizeArgs;
+use dlp::compute_diff;
 use dlp::pda::{
     delegation_metadata_pda_from_delegated_account, delegation_record_pda_from_delegated_account,
     validator_fees_vault_pda_from_validator,
@@ -20,10 +21,23 @@ use crate::fixtures::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_commit_finalize_perf() {
+async fn test_commit_finalize_data_perf() {
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1100).await;
+}
+
+#[tokio::test]
+async fn test_commit_finalize_diff_perf() {
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1400).await;
+}
+
+async fn run_test_commit_finalize(
+    old_state: Vec<u8>,
+    new_state: Vec<u8>,
+    data_is_diff: bool,
+    max_expected_cu: u64,
+) {
     // Setup
-    let (banks, _, authority, blockhash) = setup_program_test_env(vec![0; 10240]).await;
-    let new_state: Vec<u8> = vec![1; 10240];
+    let (banks, _, authority, blockhash) = setup_program_test_env(old_state.clone()).await;
 
     let new_account_balance = 1_000_000;
 
@@ -33,12 +47,16 @@ async fn test_commit_finalize_perf() {
         &mut CommitFinalizeArgs {
             commit_id: 1,
             allow_undelegation: true.into(),
-            data_is_diff: false.into(),
+            data_is_diff: data_is_diff.into(),
             lamports: new_account_balance,
             bumps: Default::default(),
             reserved_padding: Default::default(),
         },
-        &new_state,
+        &if data_is_diff {
+            compute_diff(&old_state, &new_state).to_vec()
+        } else {
+            new_state.clone()
+        },
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -56,7 +74,7 @@ async fn test_commit_finalize_perf() {
 
         let metadata = metadata.unwrap();
 
-        assertables::assert_lt!(metadata.compute_units_consumed, 1100);
+        assertables::assert_lt!(metadata.compute_units_consumed, max_expected_cu);
 
         assert_eq!(
             metadata.log_messages.len(),

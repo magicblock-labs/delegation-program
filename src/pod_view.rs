@@ -69,7 +69,7 @@ use pinocchio::program_error::ProgramError;
 /// As a result, neither char nor bool can be safely reinterpreted from
 /// raw bytes, cannot be Pod, and must not appear in account or instruction
 /// layouts. Use u8 instead. Note that `#[repr(u8)] enum` is disgusting
-/// type as well, so we cannot that either.
+/// type as well, so we cannot use that either.
 ///
 /// Ref: https://docs.rs/bytemuck/latest/bytemuck/trait.Pod.html
 ///

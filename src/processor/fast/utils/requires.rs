@@ -199,7 +199,7 @@ macro_rules! require_owned_by {
     ($info: expr, $owner: expr) => {{
         if !pubkey_eq($info.owner(), $owner) {
             pinocchio_log::log!(
-                "require_owned_pda!({}, {})",
+                "require_owned_by!({}, {})",
                 stringify!($info),
                 stringify!($owner)
             );
@@ -266,11 +266,6 @@ macro_rules! require_initialized_pda {
 #[macro_export]
 macro_rules! require_initialized_pda_fast {
     ($info:expr, $seeds: expr, $is_writable: expr) => {{
-        //
-        // Ideally, we want to der
-        //
-        //
-        //
         let pda = solana_sha256_hasher::hashv($seeds).to_bytes();
 
         if !pubkey_eq($info.key(), &pda) {
@@ -342,36 +337,7 @@ macro_rules! require_pda {
     }};
 }
 
-#[macro_export]
-macro_rules! require_pda_fast {
-    ($info:expr, $seeds: expr, $is_writable: expr) => {{
-        use solana_sha256_hasher::hashv;
-        let pda = hashv($seeds).to_bytes();
-        if !pubkey_eq($info.key(), &pda) {
-            log!(
-                "require_pda!({}, {}, {}); pubkey_eq failed",
-                stringify!($info),
-                stringify!($seeds),
-                stringify!($is_writable)
-            );
-            pubkey::log($info.key());
-            return Err(ProgramError::InvalidSeeds);
-        }
-
-        if $is_writable && !$info.is_writable() {
-            log!(
-                "require_pda!({}, {}, {}); is_writable expectation failed",
-                stringify!($info),
-                stringify!($seeds),
-                stringify!($is_writable)
-            );
-            pubkey::log($info.key());
-            return Err(ProgramError::Immutable);
-        }
-    }};
-}
-
-/// pub fn require_program_config(
+/// require_program_config(
 ///     program_config: &AccountInfo,
 ///     program: &Pubkey,
 ///     bump: u8,
@@ -384,24 +350,6 @@ macro_rules! require_program_config {
             $program_config,
             &[pda::PROGRAM_CONFIG_TAG, $program, &[$bump]],
             &$crate::fast::ID,
-            $is_writable
-        );
-        !pubkey_eq($program_config.owner(), &pinocchio_system::ID)
-    }};
-}
-
-#[macro_export]
-macro_rules! require_program_config_fast {
-    ($program_config: expr, $program: expr, $bump: expr, $is_writable: expr) => {{
-        $crate::require_pda_fast!(
-            $program_config,
-            &[
-                pda::PROGRAM_CONFIG_TAG,
-                $program,
-                &[$bump],
-                &$crate::fast::ID,
-                pinocchio::pubkey::PDA_MARKER
-            ],
             $is_writable
         );
         !pubkey_eq($program_config.owner(), &pinocchio_system::ID)
