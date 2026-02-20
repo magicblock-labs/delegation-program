@@ -121,6 +121,8 @@ pub const IX_TABLE: [Processor; 256] = {
     table[DelegateWithAnyValidator.index()] = process_delegate_with_any_validator;
 
     // Commit group
+    table[Commit.index()]                   = process_commit;
+    table[CommitFromBuffer.index()]         = process_commit_from_buffer;
     table[CommitFinalize.index()]           = process_commit_finalize;
     table[CommitFinalizeFromBuffer.index()] = process_commit_finalize_from_buffer;
     table[CommitFinalizeInline.index()]       = |accounts, data| {

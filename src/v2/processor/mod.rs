@@ -1,16 +1,20 @@
+mod commit;
 mod commit_finalize;
 mod commit_finalize_from_buffer;
 mod commit_finalize_inline;
 mod commit_finalize_inline_from_buffer;
 mod commit_finalize_inline_resize;
 mod commit_finalize_inline_resize_from_buffer;
+mod commit_from_buffer;
 mod delegate;
 mod internal;
 
+pub use commit::*;
 pub use commit_finalize::*;
 pub use commit_finalize_from_buffer::*;
 pub use commit_finalize_inline::*;
 pub use commit_finalize_inline_from_buffer::*;
 pub use commit_finalize_inline_resize::*;
 pub use commit_finalize_inline_resize_from_buffer::*;
+pub use commit_from_buffer::*;
 pub use delegate::*;
