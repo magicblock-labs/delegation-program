@@ -7,7 +7,7 @@ mod init_protocol_fees_vault;
 mod init_validator_fees_vault;
 mod protocol_claim_fees;
 mod top_up_ephemeral_balance;
-mod utils;
+pub mod utils;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
 

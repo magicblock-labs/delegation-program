@@ -34,6 +34,8 @@ pub mod state;
 
 mod account_size_class;
 
+mod v2;
+
 pub use account_size_class::*;
 
 #[cfg(not(feature = "sdk"))]
@@ -79,6 +81,8 @@ pub fn fast_process_instruction(
     accounts: &[pinocchio::AccountView],
     data: &[u8],
 ) -> Option<pinocchio::ProgramResult> {
+    use crate::v2::DlpInstruction;
+
     if data.len() < 8 {
         return Some(Err(
             pinocchio::error::ProgramError::InvalidInstructionData,
@@ -86,6 +90,11 @@ pub fn fast_process_instruction(
     }
 
     let (discriminator_bytes, data) = data.split_at(8);
+
+    if discriminator_bytes[0] >= DlpInstruction::Delegate as u8 {
+        use crate::v2::v2_process_instruction;
+        return Some(v2_process_instruction(accounts, data));
+    }
 
     let discriminator = match DlpDiscriminator::try_from(discriminator_bytes[0])
     {

@@ -8,7 +8,7 @@ mod delegate;
 mod finalize;
 mod undelegate;
 mod undelegate_confined_account;
-mod utils;
+pub mod utils;
 
 pub(crate) mod internal;
 
