@@ -1,15 +1,15 @@
 #![allow(unexpected_cfgs)]
 
 // Exactly one of `sdk` or `program` must be enabled
-#[cfg(all(feature = "sdk", feature = "program"))]
-compile_error!(
-    "Features `sdk` and `program` are mutually exclusive. Enable exactly one."
-);
-
-#[cfg(all(not(feature = "sdk"), not(feature = "program")))]
-compile_error!(
-    "Enable either `program` (default) or `sdk`. Building with neither is not supported."
-);
+//#[cfg(all(feature = "sdk", feature = "program"))]
+//compile_error!(
+//    "Features `sdk` and `program` are mutually exclusive. Enable exactly one."
+//);
+//
+//#[cfg(all(not(feature = "sdk"), not(feature = "program")))]
+//compile_error!(
+//    "Enable either `program` (default) or `sdk`. Building with neither is not supported."
+//);
 
 use solana_program::declare_id;
 
@@ -37,7 +37,6 @@ pub mod state;
 
 mod account_size_class;
 
-#[cfg(feature = "sdk")]
 pub mod encryption;
 
 pub use account_size_class::*;

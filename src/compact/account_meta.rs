@@ -41,7 +41,7 @@ impl AccountMeta {
         Some(Self(packed))
     }
 
-    pub fn index(self) -> u8 {
+    pub fn key(self) -> u8 {
         self.0 & ACCOUNT_INDEX_MASK
     }
 

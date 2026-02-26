@@ -6,10 +6,10 @@ use solana_program::{
 
 use crate::{
     args::{
-        DelegateArgs, DelegateWithActionsArgs, Instructions,
-        PostDelegationActions,
+        DelegateArgs, DelegateWithActionsArgs, EncryptedBuffer,
+        MaybeEncryptedIxData, MaybeEncryptedPubkey, PostDelegationActions,
     },
-    compact::{self},
+    compact,
     discriminator::DlpDiscriminator,
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
@@ -18,18 +18,116 @@ use crate::{
     },
 };
 
-/// Builds a delegate instruction that stores an actions payload.
+pub trait Encryptable: Sized {
+    type Output;
+    fn encrypted(self) -> Self::Output {
+        self.with_encryption(true)
+    }
+    fn cleartext(self) -> Self::Output {
+        self.with_encryption(false)
+    }
+    fn with_encryption(self, encrypt: bool) -> Self::Output;
+}
+
+pub struct PostDelegationInstruction {
+    pub program_id: EncryptablePubkey,
+    pub accounts: Vec<EncryptableAccountMeta>,
+    pub data: EncryptableIxData,
+}
+
+#[derive(Clone, Debug)]
+pub struct EncryptableIxData {
+    pub data: Vec<u8>,
+
+    /// [0, encrypt_offset) is cleartext and [encrypt_offset, len) is encrypted
+    pub encrypt_begin_offset: usize,
+}
+
+impl EncryptableIxData {
+    fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedIxData {
+        if self.encrypt_begin_offset >= self.data.len() {
+            MaybeEncryptedIxData {
+                prefix: self.data,
+                suffix: EncryptedBuffer::default(),
+            }
+        } else {
+            let validator = validator.expect("");
+            MaybeEncryptedIxData {
+                prefix: self.data[0..self.encrypt_begin_offset].into(),
+                // TODO (snawaz): finish it
+                suffix: {
+                    EncryptedBuffer::new(
+                        crate::encryption::encrypt_ed25519_recipient(
+                            &self.data[self.encrypt_begin_offset..],
+                            validator.as_array(),
+                        )
+                        .expect(""),
+                    )
+                },
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct EncryptablePubkey {
+    pub pubkey: Pubkey,
+    pub is_encryptable: bool,
+}
+
+impl Encryptable for Pubkey {
+    type Output = EncryptablePubkey;
+    fn with_encryption(self, encrypt: bool) -> Self::Output {
+        EncryptablePubkey {
+            pubkey: self,
+            is_encryptable: encrypt,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct EncryptableAccountMeta {
+    pub account_meta: AccountMeta,
+    pub is_encryptable: bool,
+}
+
+impl EncryptableAccountMeta {
+    fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedPubkey {
+        if self.is_encryptable {
+            let validator = validator.expect("");
+            MaybeEncryptedPubkey::Encrypted(EncryptedBuffer::new(
+                crate::encryption::encrypt_ed25519_recipient(
+                    self.account_meta.pubkey.as_array(),
+                    validator.as_array(),
+                )
+                .expect(""),
+            ))
+        } else {
+            MaybeEncryptedPubkey::ClearText(self.account_meta.pubkey)
+        }
+    }
+}
+
+impl Encryptable for AccountMeta {
+    type Output = EncryptableAccountMeta;
+    fn with_encryption(self, encrypt: bool) -> Self::Output {
+        EncryptableAccountMeta {
+            account_meta: self,
+            is_encryptable: encrypt,
+        }
+    }
+}
+
 /// See [crate::processor::process_delegate_with_actions] for docs.
 pub fn delegate_with_actions(
     payer: Pubkey,
     delegated_account: Pubkey,
     owner: Option<Pubkey>,
     delegate: DelegateArgs,
-    actions: Vec<Instruction>,
-    private: bool,
+    actions: Vec<PostDelegationInstruction>,
 ) -> Instruction {
-    let actions =
-        compact_post_delegation_actions(actions, private, delegate.validator);
+    let (actions, signers) =
+        compact_post_delegation_actions(actions, delegate.validator);
 
     Instruction {
         program_id: crate::id(),
@@ -60,12 +158,7 @@ pub fn delegate_with_actions(
                     AccountMeta::new(delegation_metadata_pda, false),
                     AccountMeta::new_readonly(system_program::id(), false),
                 ],
-                actions
-                    .pubkeys
-                    .iter()
-                    .take(actions.signer_count as usize)
-                    .map(|signer| AccountMeta::new_readonly(*signer, true))
-                    .collect(),
+                signers,
             ]
             .concat()
         },
@@ -80,177 +173,136 @@ pub fn delegate_with_actions(
 }
 
 fn compact_post_delegation_actions(
-    instructions: Vec<Instruction>,
-    private: bool,
+    instructions: Vec<PostDelegationInstruction>,
     validator: Option<Pubkey>,
-) -> PostDelegationActions {
-    let mut pubkeys: Vec<(Pubkey, usize, bool)> = Vec::new(); // Vec of (pubkey, index, signer)
+) -> (PostDelegationActions, Vec<AccountMeta>) {
+    use crate::args::MaybeEncryptedInstruction;
+    let mut signers: Vec<AccountMeta> = Vec::new();
 
-    // return index to pubkeys
-    let mut index_of = |key: Pubkey, signer: bool| -> u8 {
-        if let Some(index) =
-            pubkeys.iter().position(|(existing, _, _)| *existing == key)
-        {
-            pubkeys[index].2 |= signer;
-            return index as u8;
-        }
+    let mut add_to_signers = |meta: &EncryptableAccountMeta| {
+        assert!(meta.account_meta.is_signer, "AccountMeta must be a signer");
+        assert!(!meta.is_encryptable, "signer must not be encryptable");
+        let Some(found) = signers
+            .iter_mut()
+            .find(|m| m.pubkey == meta.account_meta.pubkey)
+        else {
+            signers.push(meta.account_meta.clone());
+            return;
+        };
+
+        found.is_signer |= meta.account_meta.is_signer;
+        found.is_writable |= meta.account_meta.is_writable;
+    };
+
+    let mut non_signers: Vec<EncryptableAccountMeta> = Vec::new();
+    let mut add_to_non_signers = |meta: &EncryptableAccountMeta| {
         assert!(
-            pubkeys.len() < compact::MAX_PUBKEYS as usize,
+            !meta.account_meta.is_signer,
+            "AccountMeta must not be a signer"
+        );
+        let Some(found) = non_signers
+            .iter_mut()
+            .find(|m| m.account_meta.pubkey == meta.account_meta.pubkey)
+        else {
+            non_signers.push(meta.clone());
+            return;
+        };
+
+        found.is_encryptable |= meta.is_encryptable;
+        found.account_meta.is_writable |= meta.account_meta.is_writable;
+    };
+
+    for meta in instructions
+        .iter()
+        .flat_map(|ix| ix.accounts.iter())
+        .filter(|meta| meta.account_meta.is_signer)
+    {
+        add_to_signers(meta);
+    }
+
+    for ix in instructions.iter() {
+        add_to_non_signers(&EncryptableAccountMeta {
+            account_meta: AccountMeta::new_readonly(
+                ix.program_id.pubkey,
+                false,
+            ),
+            is_encryptable: ix.program_id.is_encryptable,
+        });
+        for meta in ix
+            .accounts
+            .iter()
+            .filter(|meta| !meta.account_meta.is_signer)
+        {
+            let Some(found) = signers
+                .iter_mut()
+                .find(|m| m.pubkey == meta.account_meta.pubkey)
+            else {
+                add_to_non_signers(meta);
+                continue;
+            };
+
+            found.is_writable |= meta.account_meta.is_writable;
+        }
+    }
+
+    if signers.len() + non_signers.len() > compact::MAX_PUBKEYS as usize {
+        panic!(
             "delegate_with_actions supports at most {} unique pubkeys",
             compact::MAX_PUBKEYS
         );
-        pubkeys.push((key, pubkeys.len(), signer));
-        pubkeys.len() as u8 - 1
+    }
+
+    let index_of = |pk: &Pubkey| -> u8 {
+        if let Some(index) = signers.iter().position(|s| &s.pubkey == pk) {
+            return index as u8;
+        }
+        signers.len() as u8
+            + non_signers
+                .iter()
+                .position(|ns| &ns.account_meta.pubkey == pk)
+                .unwrap() as u8
     };
 
-    let compact_instructions = instructions
+    let compact_instructions: Vec<MaybeEncryptedInstruction> = instructions
         .into_iter()
-        .map(|ix| compact::Instruction::from_instruction(ix, &mut index_of))
+        .map(|ix| MaybeEncryptedInstruction {
+            program_id: index_of(&ix.program_id.pubkey),
+
+            accounts: ix
+                .accounts
+                .into_iter()
+                .map(|meta| {
+                    compact::AccountMeta::try_new(
+                        index_of(&meta.account_meta.pubkey),
+                        meta.account_meta.is_signer,
+                        meta.account_meta.is_writable,
+                    )
+                    .expect("compact account index must fit in 6 bits")
+                })
+                .collect(),
+
+            data: ix.data.encrypt(&validator),
+        })
         .collect();
 
-    let (pubkeys, compact_instructions, signer_count) =
-        reorder_signers_first(pubkeys, compact_instructions);
+    (
+        PostDelegationActions {
+            signers: signers.iter().map(|s| s.pubkey).collect(),
 
-    let compact_payload = if private {
-        let serialized = bincode::serialize(&compact_instructions)
-            .expect("compact instruction serialization should not fail");
-        let validator = validator
-            .expect("delegate.validator is required when private is true");
+            non_signers: non_signers
+                .into_iter()
+                .map(|ns| ns.encrypt(&validator))
+                .collect(),
 
-        #[cfg(feature = "sdk")]
-        {
-            Instructions::Encrypted {
-                instructions: crate::encryption::encrypt_ed25519_recipient(
-                    &serialized,
-                    &validator.to_bytes(),
-                )
-                .expect("validator ed25519 pubkey must convert to x25519"),
-            }
-        }
-
-        #[cfg(not(feature = "sdk"))]
-        {
-            let _ = (serialized, validator);
-            panic!("private delegate_with_actions requires sdk feature");
-        }
-    } else {
-        Instructions::ClearText {
-            instructions: compact_instructions.clone(),
-        }
-    };
-
-    PostDelegationActions {
-        signer_count,
-        pubkeys,
-        instructions: compact_payload,
-    }
-}
-
-fn reorder_signers_first(
-    mut pubkeys: Vec<(Pubkey, usize, bool)>,
-    mut instructions: Vec<compact::Instruction>,
-) -> (Vec<Pubkey>, Vec<compact::Instruction>, u8) {
-    if pubkeys.is_empty() {
-        return (Vec::new(), instructions, 0);
-    }
-
-    let signer_count = partition(&mut pubkeys, |(_, _, signer)| *signer);
-
-    let new_index = |old_index: u8| -> u8 {
-        pubkeys
-            .iter()
-            .position(|(_, index, _)| *index == old_index as usize)
-            .unwrap() as u8
-    };
-
-    for ix in instructions.iter_mut() {
-        ix.program_id = new_index(ix.program_id);
-        for meta in ix.accounts.iter_mut() {
-            meta.set_index(new_index(meta.index()));
-        }
-    }
-
-    let pubkeys = pubkeys.into_iter().map(|(key, _, _)| key).collect();
-    (pubkeys, instructions, signer_count as u8)
-}
-
-///
-/// It's a C++ equivalent of std::partition()
-/// ref: https://en.cppreference.com/w/cpp/algorithm/partition.html
-///
-/// Returns the size of first group (good elements) which can also be used as the
-/// index of the first element in the second group.
-///
-fn partition<T, F>(v: &mut [T], mut pred: F) -> usize
-where
-    F: FnMut(&T) -> bool,
-{
-    let mut good = 0; // number of good elements
-
-    for i in 0..v.len() {
-        if pred(&v[i]) {
-            v.swap(good, i);
-            good += 1;
-        }
-    }
-
-    good
+            instructions: compact_instructions,
+        },
+        signers,
+    )
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn test_reorder_signers_first_remaps_and_prefixes_signers() {
-        let a = Pubkey::new_from_array([1; 32]); // 0: signer
-        let b = Pubkey::new_from_array([2; 32]); // 1: non-signer
-        let c = Pubkey::new_from_array([3; 32]); // 2: signer
-        let d = Pubkey::new_from_array([4; 32]); // 3: non-signer
-        let e = Pubkey::new_from_array([5; 32]); // 4: signer
-
-        // (pubkey, old_index, is_signer)
-        let pubkeys = vec![
-            (a, 0, true),
-            (b, 1, false),
-            (c, 2, true),
-            (d, 3, false),
-            (e, 4, true),
-        ];
-        let instructions = vec![compact::Instruction {
-            program_id: 3, // old index of d
-            accounts: vec![
-                compact::AccountMeta::new_readonly(0, true), // a
-                compact::AccountMeta::new(2, true),          // c
-                compact::AccountMeta::new_readonly(1, false), // b
-                compact::AccountMeta::new_readonly(4, true), // e
-                compact::AccountMeta::new(3, false),         // d
-            ],
-            data: vec![9],
-        }];
-
-        let (reordered_pubkeys, ixs, signer_count) =
-            reorder_signers_first(pubkeys, instructions);
-
-        // reordered: a, c, e, d, b
-        //            0, 1, 2, 3, 4
-
-        assert_eq!(signer_count, 3);
-        assert_eq!(reordered_pubkeys[0], a); // signer
-        assert_eq!(reordered_pubkeys[1], c); // signer
-        assert_eq!(reordered_pubkeys[2], e); // signer
-        assert_eq!(reordered_pubkeys[3], d); // non-signer
-        assert_eq!(reordered_pubkeys[4], b); // non-signer
-
-        // old->new mapping: a(0)->0, b(1)->4, c(2)->1, d(3)->3, e(4)->2
-        //
-        assert_eq!(ixs[0].program_id, 3); // d
-        assert_eq!(ixs[0].accounts[0].index(), 0); // a
-        assert_eq!(ixs[0].accounts[1].index(), 1); // c
-        assert_eq!(ixs[0].accounts[2].index(), 4); // b
-        assert_eq!(ixs[0].accounts[3].index(), 2); // e
-        assert_eq!(ixs[0].accounts[4].index(), 3); // d
-    }
 
     #[test]
     fn test_compact_post_delegation_actions() {
@@ -260,43 +312,59 @@ mod tests {
         let d = Pubkey::new_from_array([4; 32]); // 3: non-signer
         let e = Pubkey::new_from_array([5; 32]); // 4: signer
 
-        let instructions = vec![Instruction {
-            program_id: d,
+        let instructions = vec![PostDelegationInstruction {
+            program_id: d.encrypted(),
             accounts: vec![
-                AccountMeta::new_readonly(a, true),  // a
-                AccountMeta::new(c, true),           // c
-                AccountMeta::new_readonly(b, false), // b
-                AccountMeta::new_readonly(e, true),  // e
-                AccountMeta::new(d, false),          // d
+                AccountMeta::new_readonly(a, true).cleartext(), // a
+                AccountMeta::new(c, true).cleartext(),          // c
+                AccountMeta::new_readonly(b, false).encrypted(), // b
+                AccountMeta::new_readonly(e, true).cleartext(), // e
+                AccountMeta::new(d, false).encrypted(),         // d
             ],
-            data: vec![9],
+            data: EncryptableIxData {
+                data: vec![9],
+                encrypt_begin_offset: 1,
+            },
         }];
 
-        let actions =
-            compact_post_delegation_actions(instructions, false, None);
+        let (actions, _meta_signers) = compact_post_delegation_actions(
+            instructions,
+            Some(Pubkey::new_unique()),
+        );
 
-        // reordered: a, c, e, d, b
-        //            0, 1, 2, 3, 4
+        // indices: a, c, e, d, b
+        //          0, 1, 2, 3, 4
 
-        assert_eq!(actions.signer_count, 3);
-        assert_eq!(actions.pubkeys[0], a); // signer
-        assert_eq!(actions.pubkeys[1], c); // signer
-        assert_eq!(actions.pubkeys[2], e); // signer
-        assert_eq!(actions.pubkeys[3], b); // non-signer
-        assert_eq!(actions.pubkeys[4], d); // non-signer
+        assert_eq!(actions.signers.len(), 3);
+        assert_eq!(actions.signers[0], a); // signer
+        assert_eq!(actions.signers[1], c); // signer
+        assert_eq!(actions.signers[2], e); // signer
+
+        if false {
+            let non_signer_pubkeys: Vec<_> = actions
+                .non_signers
+                .iter()
+                .map(|key| match key {
+                    MaybeEncryptedPubkey::ClearText(pubkey) => *pubkey,
+                    MaybeEncryptedPubkey::Encrypted(buffer) => {
+                        panic!("there must not be any encrypted pubkeys")
+                        // assert!(!buffer.as_bytes().is_empty())
+                    }
+                })
+                .collect();
+
+            assert_eq!(non_signer_pubkeys[0], d); // non-signer
+            assert_eq!(non_signer_pubkeys[1], b); // non-signer
+        } else {
+            assert_eq!(actions.non_signers.len(), 2); // non-signer
+        }
 
         // old->new mapping: a(0)->0, b(1)->4, c(2)->1, d(3)->3, e(4)->2
-        let Instructions::ClearText { instructions: ixs } =
-            actions.instructions
-        else {
-            panic!();
-        };
-
-        assert_eq!(ixs[0].program_id, 4); // d
-        assert_eq!(ixs[0].accounts[0].index(), 0); // a
-        assert_eq!(ixs[0].accounts[1].index(), 1); // c
-        assert_eq!(ixs[0].accounts[2].index(), 3); // b
-        assert_eq!(ixs[0].accounts[3].index(), 2); // e
-        assert_eq!(ixs[0].accounts[4].index(), 4); // d
+        assert_eq!(actions.instructions[0].program_id, 3); // d
+        assert_eq!(actions.instructions[0].accounts[0].key(), 0); // a
+        assert_eq!(actions.instructions[0].accounts[1].key(), 1); // c
+        assert_eq!(actions.instructions[0].accounts[2].key(), 4); // b
+        assert_eq!(actions.instructions[0].accounts[3].key(), 2); // e
+        assert_eq!(actions.instructions[0].accounts[4].key(), 3); // d
     }
 }

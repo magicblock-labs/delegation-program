@@ -1,9 +1,13 @@
+#[cfg(feature = "sdk")]
 use curve25519_dalek::{
     edwards::CompressedEdwardsY, montgomery::MontgomeryPoint,
 };
 use serde::{Deserialize, Serialize};
-use sha2::{Digest, Sha512};
 use solana_program::hash::hashv;
+
+#[cfg(feature = "sdk")]
+use sha2::{Digest, Sha512};
+#[cfg(feature = "sdk")]
 use x25519_dalek::{PublicKey as X25519Public, StaticSecret as X25519Secret};
 
 pub const KEY_LEN: usize = 32;
@@ -24,6 +28,7 @@ pub struct EncryptedPayloadV1 {
 }
 
 /// Convert an Ed25519 public key into an X25519 public key.
+#[cfg(feature = "sdk")]
 pub fn ed25519_pubkey_to_x25519(
     ed25519_pubkey: &[u8; KEY_LEN],
 ) -> Option<[u8; KEY_LEN]> {
@@ -36,6 +41,7 @@ pub fn ed25519_pubkey_to_x25519(
 ///
 /// This follows the libsodium-style conversion:
 /// SHA-512(seed) then clamp the first 32 bytes.
+#[cfg(feature = "sdk")]
 pub fn ed25519_secret_to_x25519(
     ed25519_secret_seed: &[u8; KEY_LEN],
 ) -> [u8; KEY_LEN] {
@@ -89,6 +95,14 @@ pub fn encrypt_ed25519_recipient(
     Ok(encrypt(plaintext, &recipient_x25519_pubkey))
 }
 
+#[cfg(not(feature = "sdk"))]
+pub fn encrypt_ed25519_recipient(
+    plaintext: &[u8],
+    recipient_ed25519_pubkey: &[u8; KEY_LEN],
+) -> Result<Vec<u8>, EncryptionError> {
+    panic!("encrypt_ed25519_recipient requires `sdk` feature");
+}
+
 /// Encrypt any plaintext bytes for a recipient X25519 public key.
 ///
 /// The caller supplies an ephemeral secret key (random per message).
@@ -96,6 +110,7 @@ pub fn encrypt_ed25519_recipient(
 ///
 /// Example:
 /// `let encrypted = encrypt_with_ephemeral(b"hello", &recipient_pubkey, &ephemeral_secret);`
+#[cfg(feature = "sdk")]
 pub fn encrypt_with_ephemeral(
     plaintext: &[u8],
     recipient_x25519_pubkey: &[u8; KEY_LEN],
@@ -120,6 +135,7 @@ pub fn encrypt_with_ephemeral(
 ///
 /// Example:
 /// `let plaintext = decrypt(&encrypted, &recipient_x25519_secret)?;`
+#[cfg(feature = "sdk")]
 pub fn decrypt(
     encrypted_payload: &[u8],
     recipient_x25519_secret: &[u8; KEY_LEN],

@@ -9,7 +9,7 @@ use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
 use crate::{
-    args::{DelegateWithActionsArgs, Instructions},
+    args::DelegateWithActionsArgs,
     consts::{DEFAULT_VALIDATOR_IDENTITY, RENT_EXCEPTION_ZERO_BYTES_LAMPORTS},
     error::DlpError,
     pda,
@@ -27,7 +27,7 @@ use crate::{
         },
         utils::curve::is_on_curve_fast,
     },
-    require_n_accounts_with_optionals,
+    require, require_n_accounts_with_optionals,
     state::{DelegationMetadata, DelegationRecord},
 };
 
@@ -96,44 +96,40 @@ pub fn process_delegate_with_actions(
         DelegationMetadataCtx,
     )?;
 
-    // Validate instruction payload shape up-front. This confirms delegate args
-    // and actions envelope format, while encrypted bytes remain opaque.
     let args: DelegateWithActionsArgs = bincode::deserialize(data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-    if args.actions.signer_count as usize > args.actions.pubkeys.len() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    // Validate compact indices for cleartext payload.
-    if let Instructions::ClearText { instructions } = &args.actions.instructions
+    // Validate instruction payload shape up-front. This confirms delegate args
+    // and actions envelope format, while encrypted bytes remain opaque.
     {
-        for compact_ix in instructions {
-            if compact_ix.program_id as usize >= args.actions.pubkeys.len() {
-                return Err(ProgramError::InvalidInstructionData);
-            }
-            for compact_meta in &compact_ix.accounts {
-                let pubkey_index = compact_meta.index();
-                if pubkey_index as usize >= args.actions.pubkeys.len() {
-                    return Err(ProgramError::InvalidInstructionData);
-                }
-                if compact_meta.is_signer()
-                    && pubkey_index >= args.actions.signer_count
-                {
-                    return Err(ProgramError::InvalidInstructionData);
-                }
+        let signers_count = args.actions.signers.len() as u8;
+        let keys_count = signers_count + args.actions.non_signers.len() as u8;
+
+        for ix in args.actions.instructions.iter() {
+            require!(
+                ix.program_id < keys_count,
+                ProgramError::InvalidInstructionData
+            );
+            for account in &ix.accounts {
+                require!(
+                    (account.is_signer() && account.key() < signers_count)
+                        || account.key() < keys_count,
+                    ProgramError::InvalidInstructionData
+                );
             }
         }
-    }
 
-    // Enforce required signers from the pubkey-table prefix.
-    for signer in &args.actions.pubkeys[..args.actions.signer_count as usize] {
-        let account = remaining_accounts
-            .iter()
-            .find(|account| account.address().to_bytes() == signer.to_bytes())
-            .ok_or(ProgramError::NotEnoughAccountKeys)?;
-        if !account.is_signer() {
-            return Err(ProgramError::MissingRequiredSignature);
+        // Enforce required signers from the pubkey-table prefix.
+        for signer in &args.actions.signers {
+            let account = remaining_accounts
+                .iter()
+                .find(|account| {
+                    account.address().to_bytes() == signer.to_bytes()
+                })
+                .ok_or(ProgramError::NotEnoughAccountKeys)?;
+            if !account.is_signer() {
+                return Err(ProgramError::MissingRequiredSignature);
+            }
         }
     }
 

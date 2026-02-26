@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use solana_program::{instruction::Instruction, pubkey::Pubkey};
+use solana_program::pubkey::Pubkey;
 
 use super::DelegateArgs;
 use crate::compact;
@@ -15,34 +15,47 @@ pub struct DelegateWithActionsArgs {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PostDelegationActions {
-    /// Number of signer pubkeys in the `pubkeys` prefix.
-    /// First `signer_count` entries of `pubkeys` are required signers.
-    pub signer_count: u8,
+    pub signers: Vec<Pubkey>,
 
-    /// Shared pubkey table. Account metas and program IDs reference this table by index.
-    pub pubkeys: Vec<Pubkey>,
+    pub non_signers: Vec<MaybeEncryptedPubkey>,
 
-    /// Instruction payload in compact cleartext or encrypted bytes.
-    pub instructions: Instructions,
+    pub instructions: Vec<MaybeEncryptedInstruction>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum Instructions {
-    /// Compact cleartext instructions.
-    ClearText {
-        instructions: Vec<compact::Instruction>,
-    },
+pub struct MaybeEncryptedInstruction {
+    pub program_id: u8,
 
-    /// Encrypted compact instruction bytes.
-    Encrypted { instructions: Vec<u8> },
+    pub accounts: Vec<compact::AccountMeta>,
+
+    pub data: MaybeEncryptedIxData,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
-pub struct DecryptedInstructions {
-    /// Sender-provided nonce/salt to randomize ciphertext so identical
-    /// plaintext does not always map to identical encrypted bytes.
-    pub random_salt: u64,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum MaybeEncryptedPubkey {
+    ClearText(Pubkey),
+    Encrypted(EncryptedBuffer),
+}
 
-    /// Decrypted instructions ready for execution.
-    pub instructions: Vec<Instruction>,
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct MaybeEncryptedIxData {
+    pub prefix: Vec<u8>,
+    pub suffix: EncryptedBuffer,
+}
+
+#[derive(Clone, Debug, Default, Serialize, Deserialize)]
+pub struct EncryptedBuffer(Vec<u8>);
+
+impl EncryptedBuffer {
+    pub fn new(bytes: Vec<u8>) -> Self {
+        Self(bytes)
+    }
+
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.0
+    }
+
+    pub fn into_inner(self) -> Vec<u8> {
+        self.0
+    }
 }
