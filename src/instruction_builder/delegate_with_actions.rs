@@ -29,95 +29,6 @@ pub trait Encryptable: Sized {
     fn with_encryption(self, encrypt: bool) -> Self::Output;
 }
 
-pub struct PostDelegationInstruction {
-    pub program_id: EncryptablePubkey,
-    pub accounts: Vec<EncryptableAccountMeta>,
-    pub data: EncryptableIxData,
-}
-
-#[derive(Clone, Debug)]
-pub struct EncryptableIxData {
-    pub data: Vec<u8>,
-
-    /// [0, encrypt_offset) is cleartext and [encrypt_offset, len) is encrypted
-    pub encrypt_begin_offset: usize,
-}
-
-impl EncryptableIxData {
-    fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedIxData {
-        if self.encrypt_begin_offset >= self.data.len() {
-            MaybeEncryptedIxData {
-                prefix: self.data,
-                suffix: EncryptedBuffer::default(),
-            }
-        } else {
-            let validator = validator.expect("");
-            MaybeEncryptedIxData {
-                prefix: self.data[0..self.encrypt_begin_offset].into(),
-                // TODO (snawaz): finish it
-                suffix: {
-                    EncryptedBuffer::new(
-                        crate::encryption::encrypt_ed25519_recipient(
-                            &self.data[self.encrypt_begin_offset..],
-                            validator.as_array(),
-                        )
-                        .expect(""),
-                    )
-                },
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct EncryptablePubkey {
-    pub pubkey: Pubkey,
-    pub is_encryptable: bool,
-}
-
-impl Encryptable for Pubkey {
-    type Output = EncryptablePubkey;
-    fn with_encryption(self, encrypt: bool) -> Self::Output {
-        EncryptablePubkey {
-            pubkey: self,
-            is_encryptable: encrypt,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct EncryptableAccountMeta {
-    pub account_meta: AccountMeta,
-    pub is_encryptable: bool,
-}
-
-impl EncryptableAccountMeta {
-    fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedPubkey {
-        if self.is_encryptable {
-            let validator = validator.expect("");
-            MaybeEncryptedPubkey::Encrypted(EncryptedBuffer::new(
-                crate::encryption::encrypt_ed25519_recipient(
-                    self.account_meta.pubkey.as_array(),
-                    validator.as_array(),
-                )
-                .expect(""),
-            ))
-        } else {
-            MaybeEncryptedPubkey::ClearText(self.account_meta.pubkey)
-        }
-    }
-}
-
-impl Encryptable for AccountMeta {
-    type Output = EncryptableAccountMeta;
-    fn with_encryption(self, encrypt: bool) -> Self::Output {
-        EncryptableAccountMeta {
-            account_meta: self,
-            is_encryptable: encrypt,
-        }
-    }
-}
-
 /// See [crate::processor::process_delegate_with_actions] for docs.
 pub fn delegate_with_actions(
     payer: Pubkey,
@@ -127,7 +38,7 @@ pub fn delegate_with_actions(
     actions: Vec<PostDelegationInstruction>,
 ) -> Instruction {
     let (actions, signers) =
-        compact_post_delegation_actions(actions, delegate.validator);
+        create_post_delegation_actions(actions, delegate.validator);
 
     Instruction {
         program_id: crate::id(),
@@ -172,7 +83,7 @@ pub fn delegate_with_actions(
     }
 }
 
-fn compact_post_delegation_actions(
+fn create_post_delegation_actions(
     instructions: Vec<PostDelegationInstruction>,
     validator: Option<Pubkey>,
 ) -> (PostDelegationActions, Vec<AccountMeta>) {
@@ -300,11 +211,102 @@ fn compact_post_delegation_actions(
     )
 }
 
+pub struct PostDelegationInstruction {
+    pub program_id: EncryptablePubkey,
+    pub accounts: Vec<EncryptableAccountMeta>,
+    pub data: EncryptableIxData,
+}
+
+#[derive(Clone, Debug)]
+pub struct EncryptableIxData {
+    pub data: Vec<u8>,
+
+    /// [0, encrypt_offset) is cleartext and [encrypt_offset, len) is encrypted
+    pub encrypt_begin_offset: usize,
+}
+
+impl EncryptableIxData {
+    fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedIxData {
+        if self.encrypt_begin_offset >= self.data.len() {
+            MaybeEncryptedIxData {
+                prefix: self.data,
+                suffix: EncryptedBuffer::default(),
+            }
+        } else {
+            let validator = validator.expect("");
+            MaybeEncryptedIxData {
+                prefix: self.data[0..self.encrypt_begin_offset].into(),
+                // TODO (snawaz): finish it
+                suffix: {
+                    EncryptedBuffer::new(
+                        crate::encryption::encrypt_ed25519_recipient(
+                            &self.data[self.encrypt_begin_offset..],
+                            validator.as_array(),
+                        )
+                        .expect(""),
+                    )
+                },
+            }
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct EncryptablePubkey {
+    pub pubkey: Pubkey,
+    pub is_encryptable: bool,
+}
+
+impl Encryptable for Pubkey {
+    type Output = EncryptablePubkey;
+    fn with_encryption(self, encrypt: bool) -> Self::Output {
+        EncryptablePubkey {
+            pubkey: self,
+            is_encryptable: encrypt,
+        }
+    }
+}
+
+#[derive(Clone, Debug)]
+pub struct EncryptableAccountMeta {
+    pub account_meta: AccountMeta,
+    pub is_encryptable: bool,
+}
+
+impl EncryptableAccountMeta {
+    fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedPubkey {
+        if self.is_encryptable {
+            let validator = validator.expect("");
+            MaybeEncryptedPubkey::Encrypted(EncryptedBuffer::new(
+                crate::encryption::encrypt_ed25519_recipient(
+                    self.account_meta.pubkey.as_array(),
+                    validator.as_array(),
+                )
+                .expect(""),
+            ))
+        } else {
+            MaybeEncryptedPubkey::ClearText(self.account_meta.pubkey)
+        }
+    }
+}
+
+impl Encryptable for AccountMeta {
+    type Output = EncryptableAccountMeta;
+    fn with_encryption(self, encrypt: bool) -> Self::Output {
+        EncryptableAccountMeta {
+            account_meta: self,
+            is_encryptable: encrypt,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use solana_sdk::{signature::Keypair, signer::Signer};
 
     #[test]
+    #[cfg(feature = "sdk")]
     fn test_compact_post_delegation_actions() {
         let a = Pubkey::new_from_array([1; 32]); // 0: signer
         let b = Pubkey::new_from_array([2; 32]); // 1: non-signer
@@ -327,9 +329,10 @@ mod tests {
             },
         }];
 
-        let (actions, _meta_signers) = compact_post_delegation_actions(
+        let validator = Keypair::new();
+        let (actions, _meta_signers) = create_post_delegation_actions(
             instructions,
-            Some(Pubkey::new_unique()),
+            Some(validator.pubkey()),
         );
 
         // indices: a, c, e, d, b

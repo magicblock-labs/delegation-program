@@ -3,7 +3,7 @@ use dlp::{
     compact,
     instruction_builder::{
         delegate_with_actions, Encryptable, EncryptableIxData,
-        EncryptablePubkey, PostDelegationInstruction,
+        PostDelegationInstruction,
     },
 };
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
@@ -12,12 +12,12 @@ use solana_sdk::signer::Signer;
 #[test]
 fn test_compact_account_meta_bit_packing() {
     let packed = compact::AccountMeta::new_readonly(42, true);
-    assert_eq!(packed.index(), 42);
+    assert_eq!(packed.key(), 42);
     assert!(packed.is_signer());
     assert!(!packed.is_writable());
 
     let packed = compact::AccountMeta::new(63, false);
-    assert_eq!(packed.index(), 63);
+    assert_eq!(packed.key(), 63);
     assert!(!packed.is_signer());
     assert!(packed.is_writable());
 
@@ -38,7 +38,7 @@ fn test_delegate_with_actions_bincode_roundtrip_compact_payload() {
             ],
             data: EncryptableIxData {
                 data: vec![1, 2, 3],
-                encrypt_offset: 3,
+                encrypt_begin_offset: 3,
             },
         },
         PostDelegationInstruction {
@@ -46,7 +46,7 @@ fn test_delegate_with_actions_bincode_roundtrip_compact_payload() {
             accounts: vec![AccountMeta::new_readonly(signer, true).cleartext()],
             data: EncryptableIxData {
                 data: vec![9, 9],
-                encrypt_offset: 2,
+                encrypt_begin_offset: 2,
             },
         },
     ];
@@ -92,7 +92,7 @@ fn test_delegate_with_actions_builder_adds_compact_signers_to_remaining_accounts
             ],
             data: EncryptableIxData {
                 data: vec![7, 7],
-                encrypt_offset: 2,
+                encrypt_begin_offset: 2,
             },
         },
         PostDelegationInstruction {
@@ -103,7 +103,7 @@ fn test_delegate_with_actions_builder_adds_compact_signers_to_remaining_accounts
             ],
             data: EncryptableIxData {
                 data: vec![8, 8],
-                encrypt_offset: 2,
+                encrypt_begin_offset: 2,
             },
         },
     ];
@@ -125,13 +125,18 @@ fn test_delegate_with_actions_builder_adds_compact_signers_to_remaining_accounts
 }
 
 #[test]
-//#[cfg(feature = "sdk")]
+#[cfg(feature = "sdk")]
 fn test_delegate_with_actions_builder_private_sets_encrypted_payload() {
     use dlp::encryption;
     use solana_sdk::signature::Keypair;
 
     let validator = Keypair::new();
-    let validator_secret = encryption::keypair_to_x25519_secret(&validator);
+    let validator_x25519_secret =
+        encryption::keypair_to_x25519_secret(&validator).unwrap();
+    let validator_x25519_pubkey = encryption::ed25519_pubkey_to_x25519(
+        validator.pubkey().as_array(),
+    )
+    .unwrap();
 
     let payer = Pubkey::new_unique();
     let signer = Pubkey::new_unique();
@@ -140,7 +145,7 @@ fn test_delegate_with_actions_builder_private_sets_encrypted_payload() {
         accounts: vec![AccountMeta::new_readonly(signer, true).cleartext()],
         data: EncryptableIxData {
             data: vec![4, 2],
-            encrypt_offset: 1,
+            encrypt_begin_offset: 1,
         },
     }];
 
@@ -160,8 +165,11 @@ fn test_delegate_with_actions_builder_private_sets_encrypted_payload() {
     assert_eq!(args.actions.signers.len(), 1);
     let ix = &args.actions.instructions[0];
     assert_eq!(ix.data.prefix, vec![4]);
-    let decrypted =
-        encryption::decrypt(ix.data.suffix.as_bytes(), &validator_secret)
-            .unwrap();
+    let decrypted = encryption::decrypt(
+        ix.data.suffix.as_bytes(),
+        &validator_x25519_pubkey,
+        &validator_x25519_secret,
+    )
+    .unwrap();
     assert_eq!(decrypted, vec![2]);
 }

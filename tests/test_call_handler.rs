@@ -15,7 +15,7 @@ use solana_program::{
     hash::Hash, instruction::AccountMeta, native_token::LAMPORTS_PER_SOL,
     rent::Rent, system_program,
 };
-use solana_program_test::{read_file, BanksClient, ProgramTest};
+use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     pubkey::Pubkey,
@@ -253,7 +253,11 @@ async fn setup_ephemeral_balance(
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new(
+        "dlp",
+        dlp::ID,
+        processor!(dlp::slow_process_instruction),
+    );
     program_test.prefer_bpf(true);
 
     let payer = Keypair::new();
