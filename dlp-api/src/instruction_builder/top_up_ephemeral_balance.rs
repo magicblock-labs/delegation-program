@@ -1,17 +1,16 @@
 use borsh::to_vec;
+use dlp::{
+    args::TopUpEphemeralBalanceArgs, discriminator::DlpDiscriminator,
+    pda::ephemeral_balance_pda_from_payer,
+};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,
 };
 
-use crate::{
-    args::TopUpEphemeralBalanceArgs, discriminator::DlpDiscriminator,
-    pda::ephemeral_balance_pda_from_payer,
-};
-
 /// Builds a top-up ephemeral balance instruction.
-/// See [crate::processor::process_top_up_ephemeral_balance] for docs.
+/// See [dlp::processor::process_top_up_ephemeral_balance] for docs.
 pub fn top_up_ephemeral_balance(
     payer: Pubkey,
     pubkey: Pubkey,
@@ -25,7 +24,7 @@ pub fn top_up_ephemeral_balance(
     let ephemeral_balance_pda =
         ephemeral_balance_pda_from_payer(&pubkey, args.index);
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new_readonly(pubkey, false),

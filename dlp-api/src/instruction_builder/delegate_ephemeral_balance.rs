@@ -1,11 +1,5 @@
 use borsh::to_vec;
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
-
-use crate::{
+use dlp::{
     args::DelegateEphemeralBalanceArgs,
     discriminator::DlpDiscriminator,
     pda::{
@@ -15,9 +9,14 @@ use crate::{
         ephemeral_balance_pda_from_payer,
     },
 };
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
 /// Delegate ephemeral balance
-/// See [crate::processor::process_delegate_ephemeral_balance] for docs.
+/// See [dlp::processor::process_delegate_ephemeral_balance] for docs.
 pub fn delegate_ephemeral_balance(
     payer: Pubkey,
     pubkey: Pubkey,
@@ -38,7 +37,7 @@ pub fn delegate_ephemeral_balance(
     data.extend_from_slice(&to_vec(&args).unwrap());
 
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new_readonly(pubkey, true),
@@ -47,7 +46,7 @@ pub fn delegate_ephemeral_balance(
             AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
-            AccountMeta::new_readonly(crate::id(), false),
+            AccountMeta::new_readonly(dlp::id(), false),
         ],
         data,
     }

@@ -40,13 +40,13 @@ async fn test_finalize_and_undelegate() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Create the finalize tx
-    let ix_finalize = dlp::instruction_builder::finalize(
+    let ix_finalize = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
 
     // Create the undelegate tx
-    let ix_undelegate = dlp::instruction_builder::undelegate(
+    let ix_undelegate = dlp_api::instruction_builder::undelegate(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

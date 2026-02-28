@@ -1,10 +1,4 @@
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
-
-use crate::{
+use dlp::{
     discriminator::DlpDiscriminator,
     pda::{
         commit_record_pda_from_delegated_account,
@@ -16,9 +10,14 @@ use crate::{
     },
     total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
 /// Builds an undelegate instruction.
-/// See [crate::processor::process_undelegate] for docs.
+/// See [dlp::processor::process_undelegate] for docs.
 #[allow(clippy::too_many_arguments)]
 pub fn undelegate(
     validator: Pubkey,
@@ -40,7 +39,7 @@ pub fn undelegate(
     let validator_fees_vault_pda =
         validator_fees_vault_pda_from_validator(&validator);
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new(validator, true),
             AccountMeta::new(delegated_account, false),

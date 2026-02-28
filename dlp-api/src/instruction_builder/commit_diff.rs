@@ -1,12 +1,6 @@
 use borsh::to_vec;
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
-
-use crate::{
-    args::CommitStateFromBufferArgs,
+use dlp::{
+    args::CommitDiffArgs,
     discriminator::DlpDiscriminator,
     pda::{
         commit_record_pda_from_delegated_account,
@@ -18,15 +12,19 @@ use crate::{
     },
     total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
-/// Builds a commit state from buffer instruction.
-/// See [crate::processor::process_commit_diff_from_buffer] for docs.
-pub fn commit_diff_from_buffer(
+/// Builds a commit state instruction.
+/// See [dlp::processor::fast::process_commit_diff] for docs.
+pub fn commit_diff(
     validator: Pubkey,
     delegated_account: Pubkey,
     delegated_account_owner: Pubkey,
-    commit_state_buffer: Pubkey,
-    commit_args: CommitStateFromBufferArgs,
+    commit_args: CommitDiffArgs,
 ) -> Instruction {
     let commit_args = to_vec(&commit_args).unwrap();
     let delegation_record_pda =
@@ -42,7 +40,7 @@ pub fn commit_diff_from_buffer(
     let program_config_pda =
         program_config_from_program_id(&delegated_account_owner);
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new_readonly(validator, true),
             AccountMeta::new_readonly(delegated_account, false),
@@ -50,24 +48,20 @@ pub fn commit_diff_from_buffer(
             AccountMeta::new(commit_record_pda, false),
             AccountMeta::new_readonly(delegation_record_pda, false),
             AccountMeta::new(delegation_metadata_pda, false),
-            AccountMeta::new_readonly(commit_state_buffer, false),
             AccountMeta::new_readonly(validator_fees_vault_pda, false),
             AccountMeta::new_readonly(program_config_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: [DlpDiscriminator::CommitDiffFromBuffer.to_vec(), commit_args]
-            .concat(),
+        data: [DlpDiscriminator::CommitDiff.to_vec(), commit_args].concat(),
     }
 }
 
 ///
-/// Returns accounts-data-size budget for commit_diff_from_buffer instruction.
+/// Returns accounts-data-size budget for commit_diff instruction.
 ///
 /// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
 ///
-pub fn commit_diff_from_buffer_size_budget(
-    delegated_account: AccountSizeClass,
-) -> u32 {
+pub fn commit_diff_size_budget(delegated_account: AccountSizeClass) -> u32 {
     total_size_budget(&[
         DLP_PROGRAM_DATA_SIZE_CLASS,
         AccountSizeClass::Tiny, // validator
@@ -76,7 +70,6 @@ pub fn commit_diff_from_buffer_size_budget(
         AccountSizeClass::Tiny, // commit_record_pda
         AccountSizeClass::Tiny, // delegation_record_pda
         AccountSizeClass::Tiny, // delegation_metadata_pda
-        delegated_account,      // commit_state_buffer
         AccountSizeClass::Tiny, // validator_fees_vault_pda
         AccountSizeClass::Tiny, // program_config_pda
         AccountSizeClass::Tiny, // system_program

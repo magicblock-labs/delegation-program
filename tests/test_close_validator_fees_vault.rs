@@ -22,7 +22,7 @@ async fn test_close_validator_fees_vault() {
         validator_fees_vault_pda_from_validator(&validator.pubkey());
 
     // Submit the close vault tx
-    let ix = dlp::instruction_builder::close_validator_fees_vault(
+    let ix = dlp_api::instruction_builder::close_validator_fees_vault(
         admin.pubkey(),
         admin.pubkey(),
         validator.pubkey(),

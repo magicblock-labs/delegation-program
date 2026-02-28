@@ -1,15 +1,5 @@
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
-
-use crate::{
-    args::{
-        DelegateArgs, DelegateWithActionsArgs, EncryptedBuffer,
-        MaybeEncryptedIxData, MaybeEncryptedPubkey, PostDelegationActions,
-    },
-    compact,
+use dlp::{
+    args::{DelegateArgs, DelegateWithActionsArgs},
     discriminator::DlpDiscriminator,
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
@@ -17,19 +7,15 @@ use crate::{
         delegation_record_pda_from_delegated_account,
     },
 };
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
-pub trait Encryptable: Sized {
-    type Output;
-    fn encrypted(self) -> Self::Output {
-        self.with_encryption(true)
-    }
-    fn cleartext(self) -> Self::Output {
-        self.with_encryption(false)
-    }
-    fn with_encryption(self, encrypt: bool) -> Self::Output;
-}
+use super::types::{EncryptableAccountMeta, PostDelegationInstruction};
 
-/// See [crate::processor::process_delegate_with_actions] for docs.
+/// See [dlp::processor::process_delegate_with_actions] for docs.
 pub fn delegate_with_actions(
     payer: Pubkey,
     delegated_account: Pubkey,
@@ -41,8 +27,7 @@ pub fn delegate_with_actions(
         create_post_delegation_actions(actions, delegate.validator);
 
     Instruction {
-        program_id: crate::id(),
-
+        program_id: dlp::id(),
         accounts: {
             let owner = owner.unwrap_or(system_program::id());
             let delegate_buffer_pda =
@@ -73,7 +58,6 @@ pub fn delegate_with_actions(
             ]
             .concat()
         },
-
         data: {
             let args = DelegateWithActionsArgs { delegate, actions };
             let mut data = DlpDiscriminator::DelegateWithActions.to_vec();
@@ -83,13 +67,13 @@ pub fn delegate_with_actions(
     }
 }
 
-fn create_post_delegation_actions(
+pub fn create_post_delegation_actions(
     instructions: Vec<PostDelegationInstruction>,
     validator: Option<Pubkey>,
-) -> (PostDelegationActions, Vec<AccountMeta>) {
-    use crate::args::MaybeEncryptedInstruction;
-    let mut signers: Vec<AccountMeta> = Vec::new();
+) -> (dlp::args::PostDelegationActions, Vec<AccountMeta>) {
+    use dlp::args::MaybeEncryptedInstruction;
 
+    let mut signers: Vec<AccountMeta> = Vec::new();
     let mut add_to_signers = |meta: &EncryptableAccountMeta| {
         assert!(meta.account_meta.is_signer, "AccountMeta must be a signer");
         assert!(!meta.is_encryptable, "signer must not be encryptable");
@@ -156,10 +140,10 @@ fn create_post_delegation_actions(
         }
     }
 
-    if signers.len() + non_signers.len() > compact::MAX_PUBKEYS as usize {
+    if signers.len() + non_signers.len() > dlp::compact::MAX_PUBKEYS as usize {
         panic!(
             "delegate_with_actions supports at most {} unique pubkeys",
-            compact::MAX_PUBKEYS
+            dlp::compact::MAX_PUBKEYS
         );
     }
 
@@ -183,7 +167,7 @@ fn create_post_delegation_actions(
                 .accounts
                 .into_iter()
                 .map(|meta| {
-                    compact::AccountMeta::try_new(
+                    dlp::compact::AccountMeta::try_new(
                         index_of(&meta.account_meta.pubkey),
                         meta.account_meta.is_signer,
                         meta.account_meta.is_writable,
@@ -197,7 +181,7 @@ fn create_post_delegation_actions(
         .collect();
 
     (
-        PostDelegationActions {
+        dlp::args::PostDelegationActions {
             signers: signers.iter().map(|s| s.pubkey).collect(),
 
             non_signers: non_signers
@@ -211,102 +195,15 @@ fn create_post_delegation_actions(
     )
 }
 
-pub struct PostDelegationInstruction {
-    pub program_id: EncryptablePubkey,
-    pub accounts: Vec<EncryptableAccountMeta>,
-    pub data: EncryptableIxData,
-}
-
-#[derive(Clone, Debug)]
-pub struct EncryptableIxData {
-    pub data: Vec<u8>,
-
-    /// [0, encrypt_offset) is cleartext and [encrypt_offset, len) is encrypted
-    pub encrypt_begin_offset: usize,
-}
-
-impl EncryptableIxData {
-    fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedIxData {
-        if self.encrypt_begin_offset >= self.data.len() {
-            MaybeEncryptedIxData {
-                prefix: self.data,
-                suffix: EncryptedBuffer::default(),
-            }
-        } else {
-            let validator = validator.expect("");
-            MaybeEncryptedIxData {
-                prefix: self.data[0..self.encrypt_begin_offset].into(),
-                // TODO (snawaz): finish it
-                suffix: {
-                    EncryptedBuffer::new(
-                        crate::encryption::encrypt_ed25519_recipient(
-                            &self.data[self.encrypt_begin_offset..],
-                            validator.as_array(),
-                        )
-                        .expect(""),
-                    )
-                },
-            }
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct EncryptablePubkey {
-    pub pubkey: Pubkey,
-    pub is_encryptable: bool,
-}
-
-impl Encryptable for Pubkey {
-    type Output = EncryptablePubkey;
-    fn with_encryption(self, encrypt: bool) -> Self::Output {
-        EncryptablePubkey {
-            pubkey: self,
-            is_encryptable: encrypt,
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub struct EncryptableAccountMeta {
-    pub account_meta: AccountMeta,
-    pub is_encryptable: bool,
-}
-
-impl EncryptableAccountMeta {
-    fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedPubkey {
-        if self.is_encryptable {
-            let validator = validator.expect("");
-            MaybeEncryptedPubkey::Encrypted(EncryptedBuffer::new(
-                crate::encryption::encrypt_ed25519_recipient(
-                    self.account_meta.pubkey.as_array(),
-                    validator.as_array(),
-                )
-                .expect(""),
-            ))
-        } else {
-            MaybeEncryptedPubkey::ClearText(self.account_meta.pubkey)
-        }
-    }
-}
-
-impl Encryptable for AccountMeta {
-    type Output = EncryptableAccountMeta;
-    fn with_encryption(self, encrypt: bool) -> Self::Output {
-        EncryptableAccountMeta {
-            account_meta: self,
-            is_encryptable: encrypt,
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use dlp::args::MaybeEncryptedPubkey;
     use solana_sdk::{signature::Keypair, signer::Signer};
 
+    use super::*;
+    use crate::instruction_builder::types::{Encryptable, EncryptableFrom};
+
     #[test]
-    #[cfg(feature = "sdk")]
     fn test_compact_post_delegation_actions() {
         let a = Pubkey::new_from_array([1; 32]); // 0: signer
         let b = Pubkey::new_from_array([2; 32]); // 1: non-signer
@@ -323,10 +220,7 @@ mod tests {
                 AccountMeta::new_readonly(e, true).cleartext(), // e
                 AccountMeta::new(d, false).encrypted(),         // d
             ],
-            data: EncryptableIxData {
-                data: vec![9],
-                encrypt_begin_offset: 1,
-            },
+            data: vec![9].encrypted_from(1),
         }];
 
         let validator = Keypair::new();
@@ -349,9 +243,8 @@ mod tests {
                 .iter()
                 .map(|key| match key {
                     MaybeEncryptedPubkey::ClearText(pubkey) => *pubkey,
-                    MaybeEncryptedPubkey::Encrypted(buffer) => {
+                    MaybeEncryptedPubkey::Encrypted(_) => {
                         panic!("there must not be any encrypted pubkeys")
-                        // assert!(!buffer.as_bytes().is_empty())
                     }
                 })
                 .collect();
@@ -369,5 +262,53 @@ mod tests {
         assert_eq!(actions.instructions[0].accounts[2].key(), 4); // b
         assert_eq!(actions.instructions[0].accounts[3].key(), 2); // e
         assert_eq!(actions.instructions[0].accounts[4].key(), 3); // d
+    }
+
+    #[test]
+    fn test_instruction_encrypted() {
+        let signer = Pubkey::new_unique();
+        let nonsigner = Pubkey::new_unique();
+        let program_id = Pubkey::new_unique();
+
+        let enc = Instruction {
+            program_id,
+            accounts: vec![
+                AccountMeta::new_readonly(signer, true),
+                AccountMeta::new(nonsigner, false),
+            ],
+            data: vec![1, 2, 3],
+        }
+        .encrypted();
+
+        assert_eq!(enc.program_id.pubkey, program_id);
+        assert!(enc.program_id.is_encryptable);
+        assert!(enc.accounts[0].is_encryptable);
+        assert!(enc.accounts[1].is_encryptable);
+        assert_eq!(enc.data.encrypt_begin_offset, 0);
+        assert_eq!(enc.data.data, vec![1, 2, 3]);
+    }
+
+    #[test]
+    fn test_instruction_encrypted_from() {
+        let signer = Pubkey::new_unique();
+        let nonsigner = Pubkey::new_unique();
+        let program_id = Pubkey::new_unique();
+
+        let enc = Instruction {
+            program_id,
+            accounts: vec![
+                AccountMeta::new_readonly(signer, true),
+                AccountMeta::new(nonsigner, false),
+            ],
+            data: vec![9, 9, 9, 9, 9, 9],
+        }
+        .encrypted_from(4);
+
+        assert_eq!(enc.program_id.pubkey, program_id);
+        assert!(enc.program_id.is_encryptable);
+        assert!(enc.accounts[0].is_encryptable);
+        assert!(enc.accounts[1].is_encryptable);
+        assert_eq!(enc.data.encrypt_begin_offset, 4);
+        assert_eq!(enc.data.data, vec![9, 9, 9, 9, 9, 9]);
     }
 }

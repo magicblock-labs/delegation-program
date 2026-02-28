@@ -421,7 +421,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
         delegation_record_pda_from_delegated_account(&args.delegated_account);
 
     // Submit the undelegate tx
-    let ix = dlp::instruction_builder::undelegate(
+    let ix = dlp_api::instruction_builder::undelegate(
         args.authority.pubkey(),
         args.delegated_account,
         args.owner_program,
@@ -470,7 +470,7 @@ struct FinalizeNewStateArgs<'a> {
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = dlp::instruction_builder::finalize(
+    let ix = dlp_api::instruction_builder::finalize(
         args.authority.pubkey(),
         args.delegated_account,
     );
@@ -516,7 +516,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction_builder::commit_state(
+    let ix = dlp_api::instruction_builder::commit_state(
         args.authority.pubkey(),
         args.delegated_account,
         args.delegated_account_owner,

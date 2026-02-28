@@ -53,7 +53,7 @@ async fn test_commit_fees_on_undelegation() {
         .min(record_rent + metadata_rent);
     let expected_fees_vault_fee = expected_total_fees / 10;
 
-    let ix = dlp::instruction_builder::undelegate(
+    let ix = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

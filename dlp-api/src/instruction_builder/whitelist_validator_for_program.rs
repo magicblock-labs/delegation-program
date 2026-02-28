@@ -1,4 +1,8 @@
 use borsh::to_vec;
+use dlp::{
+    args::WhitelistValidatorForProgramArgs, consts::DELEGATION_PROGRAM_DATA_ID,
+    discriminator::DlpDiscriminator, pda::program_config_from_program_id,
+};
 use solana_program::{
     bpf_loader_upgradeable,
     instruction::{AccountMeta, Instruction},
@@ -6,14 +10,9 @@ use solana_program::{
     system_program,
 };
 
-use crate::{
-    args::WhitelistValidatorForProgramArgs, consts::DELEGATION_PROGRAM_DATA_ID,
-    discriminator::DlpDiscriminator, pda::program_config_from_program_id,
-};
-
 /// Whitelist validator for program
 ///
-/// See [crate::processor::process_whitelist_validator_for_program] for docs.
+/// See [dlp::processor::process_whitelist_validator_for_program] for docs.
 pub fn whitelist_validator_for_program(
     authority: Pubkey,
     validator_identity: Pubkey,
@@ -29,7 +28,7 @@ pub fn whitelist_validator_for_program(
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     let program_config_pda = program_config_from_program_id(&program);
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new(authority, true),
             AccountMeta::new_readonly(validator_identity, false),

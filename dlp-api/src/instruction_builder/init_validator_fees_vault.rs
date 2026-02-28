@@ -1,16 +1,15 @@
+use dlp::{
+    consts::DELEGATION_PROGRAM_DATA_ID, discriminator::DlpDiscriminator,
+    pda::validator_fees_vault_pda_from_validator,
+};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,
 };
 
-use crate::{
-    consts::DELEGATION_PROGRAM_DATA_ID, discriminator::DlpDiscriminator,
-    pda::validator_fees_vault_pda_from_validator,
-};
-
 /// Initialize a validator fees vault PDA.
-/// See [crate::processor::process_init_validator_fees_vault] for docs.
+/// See [dlp::processor::process_init_validator_fees_vault] for docs.
 pub fn init_validator_fees_vault(
     payer: Pubkey,
     admin: Pubkey,
@@ -20,7 +19,7 @@ pub fn init_validator_fees_vault(
         validator_fees_vault_pda_from_validator(&validator_identity);
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(admin, true),

@@ -1,10 +1,4 @@
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
-
-use crate::{
+use dlp::{
     args::{CommitBumps, CommitFinalizeArgs},
     delegation_metadata_seeds_from_delegated_account,
     delegation_record_seeds_from_delegated_account,
@@ -12,6 +6,11 @@ use crate::{
     pod_view::PodView,
     total_size_budget, validator_fees_vault_seeds_from_validator,
     AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
+};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
 };
 
 pub struct CommitPDAs {
@@ -21,7 +20,7 @@ pub struct CommitPDAs {
 }
 
 /// Builds a commit finalize instruction.
-/// See [crate::processor::process_commit_finalize] for docs.
+/// See [dlp::processor::process_commit_finalize] for docs.
 pub fn commit_finalize(
     validator: Pubkey,
     delegated_account: Pubkey,
@@ -30,17 +29,17 @@ pub fn commit_finalize(
 ) -> (Instruction, CommitPDAs) {
     let delegation_record = Pubkey::find_program_address(
         delegation_record_seeds_from_delegated_account!(delegated_account),
-        &crate::id(),
+        &dlp::id(),
     );
 
     let delegation_metadata = Pubkey::find_program_address(
         delegation_metadata_seeds_from_delegated_account!(delegated_account),
-        &crate::id(),
+        &dlp::id(),
     );
 
     let validator_fees_vault = Pubkey::find_program_address(
         validator_fees_vault_seeds_from_validator!(validator),
-        &crate::id(),
+        &dlp::id(),
     );
 
     // save the bumps in the args
@@ -52,7 +51,7 @@ pub fn commit_finalize(
 
     (
         Instruction {
-            program_id: crate::id(),
+            program_id: dlp::id(),
             accounts: vec![
                 AccountMeta::new_readonly(validator, true),
                 AccountMeta::new(delegated_account, false),

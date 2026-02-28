@@ -1,17 +1,16 @@
 use borsh::to_vec;
+use dlp::{
+    args::ValidatorClaimFeesArgs,
+    discriminator::DlpDiscriminator,
+    pda::{fees_vault_pda, validator_fees_vault_pda_from_validator},
+};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
 
-use crate::{
-    args::ValidatorClaimFeesArgs,
-    discriminator::DlpDiscriminator,
-    pda::{fees_vault_pda, validator_fees_vault_pda_from_validator},
-};
-
 /// Claim the accrued fees from the fees vault.
-/// See [crate::processor::process_validator_claim_fees] for docs.
+/// See [dlp::processor::process_validator_claim_fees] for docs.
 pub fn validator_claim_fees(
     validator: Pubkey,
     amount: Option<u64>,
@@ -21,7 +20,7 @@ pub fn validator_claim_fees(
     let validator_fees_vault_pda =
         validator_fees_vault_pda_from_validator(&validator);
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new(validator, true),
             AccountMeta::new(fees_vault_pda, false),

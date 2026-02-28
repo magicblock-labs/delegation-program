@@ -1,4 +1,3 @@
-#[cfg(all(feature = "sdk", not(target_os = "solana")))]
 use libsodium_rs::{crypto_box, crypto_sign, ensure_init};
 
 pub const KEY_LEN: usize = 32;
@@ -7,8 +6,6 @@ pub const KEY_LEN: usize = 32;
 pub enum EncryptionError {
     #[error("libsodium init failed")]
     SodiumInitFailed,
-    #[error("encryption is not available on this target")]
-    UnsupportedTarget,
     #[error("invalid ed25519 public key for x25519 conversion")]
     InvalidEd25519PublicKey,
     #[error("invalid ed25519 secret key for x25519 conversion")]
@@ -23,14 +20,12 @@ pub enum EncryptionError {
     OpenFailed,
 }
 
-#[cfg(all(feature = "sdk", not(target_os = "solana")))]
 fn init_sodium() -> Result<(), EncryptionError> {
     ensure_init().map_err(|_| EncryptionError::SodiumInitFailed)?;
     Ok(())
 }
 
 /// Convert an Ed25519 public key into an X25519 public key.
-#[cfg(all(feature = "sdk", not(target_os = "solana")))]
 pub fn ed25519_pubkey_to_x25519(
     ed25519_pubkey: &[u8; KEY_LEN],
 ) -> Result<[u8; KEY_LEN], EncryptionError> {
@@ -44,15 +39,7 @@ pub fn ed25519_pubkey_to_x25519(
     Ok(out)
 }
 
-#[cfg(all(feature = "sdk", target_os = "solana"))]
-pub fn ed25519_pubkey_to_x25519(
-    _ed25519_pubkey: &[u8; KEY_LEN],
-) -> Result<[u8; KEY_LEN], EncryptionError> {
-    Err(EncryptionError::UnsupportedTarget)
-}
-
 /// Convert an Ed25519 secret key into an X25519 secret key.
-#[cfg(all(feature = "sdk", not(target_os = "solana")))]
 pub fn ed25519_secret_to_x25519(
     ed25519_secret_key: &[u8],
 ) -> Result<[u8; KEY_LEN], EncryptionError> {
@@ -66,15 +53,7 @@ pub fn ed25519_secret_to_x25519(
     Ok(out)
 }
 
-#[cfg(all(feature = "sdk", target_os = "solana"))]
-pub fn ed25519_secret_to_x25519(
-    _ed25519_secret_key: &[u8],
-) -> Result<[u8; KEY_LEN], EncryptionError> {
-    Err(EncryptionError::UnsupportedTarget)
-}
-
 /// Convenience helper for SDK usage: derive X25519 secret key bytes from a Solana Keypair.
-#[cfg(all(feature = "sdk", not(target_os = "solana")))]
 pub fn keypair_to_x25519_secret(
     keypair: &solana_sdk::signature::Keypair,
 ) -> Result<[u8; KEY_LEN], EncryptionError> {
@@ -82,15 +61,7 @@ pub fn keypair_to_x25519_secret(
     ed25519_secret_to_x25519(&keypair_bytes)
 }
 
-#[cfg(all(feature = "sdk", target_os = "solana"))]
-pub fn keypair_to_x25519_secret(
-    _keypair: &solana_sdk::signature::Keypair,
-) -> Result<[u8; KEY_LEN], EncryptionError> {
-    Err(EncryptionError::UnsupportedTarget)
-}
-
 /// High-level API: encrypt for validator using sealed boxes.
-#[cfg(all(feature = "sdk", not(target_os = "solana")))]
 pub fn encrypt_ed25519_recipient(
     plaintext: &[u8],
     recipient_ed25519_pubkey: &[u8; KEY_LEN],
@@ -105,24 +76,7 @@ pub fn encrypt_ed25519_recipient(
         .map_err(|_| EncryptionError::SealFailed)
 }
 
-#[cfg(not(feature = "sdk"))]
-pub fn encrypt_ed25519_recipient(
-    _plaintext: &[u8],
-    _recipient_ed25519_pubkey: &[u8; KEY_LEN],
-) -> Result<Vec<u8>, EncryptionError> {
-    panic!("encrypt_ed25519_recipient requires `sdk` feature");
-}
-
-#[cfg(all(feature = "sdk", target_os = "solana"))]
-pub fn encrypt_ed25519_recipient(
-    _plaintext: &[u8],
-    _recipient_ed25519_pubkey: &[u8; KEY_LEN],
-) -> Result<Vec<u8>, EncryptionError> {
-    Err(EncryptionError::UnsupportedTarget)
-}
-
 /// Decrypt sealed box bytes back to plaintext bytes.
-#[cfg(all(feature = "sdk", not(target_os = "solana")))]
 pub fn decrypt(
     encrypted_payload: &[u8],
     recipient_x25519_pubkey: &[u8; KEY_LEN],
@@ -135,17 +89,7 @@ pub fn decrypt(
         .map_err(|_| EncryptionError::OpenFailed)
 }
 
-#[cfg(all(feature = "sdk", target_os = "solana"))]
-pub fn decrypt(
-    _encrypted_payload: &[u8],
-    _recipient_x25519_pubkey: &[u8; KEY_LEN],
-    _recipient_x25519_secret: &[u8; KEY_LEN],
-) -> Result<Vec<u8>, EncryptionError> {
-    Err(EncryptionError::UnsupportedTarget)
-}
-
 #[cfg(test)]
-#[cfg(all(feature = "sdk", not(target_os = "solana")))]
 mod tests {
     use solana_sdk::signer::Signer;
 
@@ -156,10 +100,8 @@ mod tests {
         let validator = solana_sdk::signature::Keypair::new();
         let validator_x25519_secret =
             keypair_to_x25519_secret(&validator).unwrap();
-        let validator_x25519_pubkey = ed25519_pubkey_to_x25519(
-            validator.pubkey().as_array(),
-        )
-        .unwrap();
+        let validator_x25519_pubkey =
+            ed25519_pubkey_to_x25519(validator.pubkey().as_array()).unwrap();
         let plaintext = b"hello compact actions";
 
         let encrypted =

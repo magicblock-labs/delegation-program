@@ -1,11 +1,5 @@
 use borsh::to_vec;
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
-
-use crate::{
+use dlp::{
     args::CommitStateFromBufferArgs,
     discriminator::DlpDiscriminator,
     pda::{
@@ -18,9 +12,14 @@ use crate::{
     },
     total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
 /// Builds a commit state from buffer instruction.
-/// See [crate::processor::process_commit_state_from_buffer] for docs.
+/// See [dlp::processor::process_commit_state_from_buffer] for docs.
 pub fn commit_state_from_buffer(
     validator: Pubkey,
     delegated_account: Pubkey,
@@ -42,7 +41,7 @@ pub fn commit_state_from_buffer(
     let program_config_pda =
         program_config_from_program_id(&delegated_account_owner);
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new_readonly(validator, true),
             AccountMeta::new_readonly(delegated_account, false),

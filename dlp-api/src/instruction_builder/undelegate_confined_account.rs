@@ -1,10 +1,4 @@
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
-
-use crate::{
+use dlp::{
     consts::DELEGATION_PROGRAM_DATA_ID,
     discriminator::DlpDiscriminator,
     pda::{
@@ -13,9 +7,14 @@ use crate::{
         undelegate_buffer_pda_from_delegated_account,
     },
 };
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
 /// Builds an admin-only undelegate instruction for confined accounts.
-/// See [crate::processor::process_undelegate_confined_account] for docs.
+/// See [dlp::processor::process_undelegate_confined_account] for docs.
 pub fn undelegate_confined_account(
     admin: Pubkey,
     delegated_account: Pubkey,
@@ -30,7 +29,7 @@ pub fn undelegate_confined_account(
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
 
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new(admin, true),
             AccountMeta::new(delegated_account, false),

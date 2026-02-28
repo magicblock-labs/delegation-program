@@ -30,7 +30,7 @@ async fn test_undelegate_confined_account() {
     let data_before = delegated_before.data.clone();
 
     // Submit the admin-only undelegate (confined) tx
-    let ix = dlp::instruction_builder::undelegate_confined_account(
+    let ix = dlp_api::instruction_builder::undelegate_confined_account(
         admin.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

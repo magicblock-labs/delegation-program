@@ -11,6 +11,9 @@ repository = "https://github.com/magicblock-labs/delegation-program"
 readme = "./README.md"
 keywords = ["solana", "crypto", "delegation", "ephemeral-rollups", "magicblock"]
 
+[workspace]
+members = [".", "dlp-api"]
+
 [lib]
 crate-type = ["cdylib", "lib"]
 name = "dlp"
@@ -21,7 +24,6 @@ sdk = [
     "no-entrypoint",
     "dep:solana-sdk",
     "dep:rand",
-    "dep:libsodium-rs",
     "dep:pinocchio",
     "dep:pinocchio-log",
     "dep:pinocchio-pubkey",
@@ -76,12 +78,11 @@ serde = { version = "1.0.228", features = ["derive"] }
 solana-sdk = { version = ">=1.16", optional = true }
 rand = { version = "=0.8.5", features = ["small_rng"], optional = true }
 
-[target.'cfg(not(target_os = "solana"))'.dependencies]
-libsodium-rs = { version = "0.2.0", optional = true }
 
 [dev-dependencies]
 assertables = "9.8.2"
 magicblock-delegation-program = { path = ".", features = ["unit_test_config"] }
+dlp-api = { path = "dlp-api" }
 rand = { version = "=0.8.5", features = ["small_rng"] }
 solana-program-test = ">=1.16"
 solana-sdk = ">=1.16"

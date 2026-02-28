@@ -1,11 +1,5 @@
 use borsh::to_vec;
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
-
-use crate::{
+use dlp::{
     args::DelegateArgs,
     discriminator::DlpDiscriminator,
     pda::{
@@ -15,9 +9,14 @@ use crate::{
     },
     total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+    system_program,
+};
 
 /// Builds a delegate instruction
-/// See [crate::processor::process_delegate] for docs.
+/// See [dlp::processor::process_delegate] for docs.
 pub fn delegate(
     payer: Pubkey,
     delegated_account: Pubkey,
@@ -34,7 +33,7 @@ pub fn delegate(
 }
 
 /// Builds a delegate instruction that allows any validator identity.
-/// See [crate::processor::process_delegate_with_any_validator] for docs.
+/// See [dlp::processor::process_delegate_with_any_validator] for docs.
 pub fn delegate_with_any_validator(
     payer: Pubkey,
     delegated_account: Pubkey,
@@ -71,7 +70,7 @@ fn build_delegate_instruction(
     data.extend_from_slice(&to_vec(&args).unwrap());
 
     Instruction {
-        program_id: crate::id(),
+        program_id: dlp::id(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegated_account, true),

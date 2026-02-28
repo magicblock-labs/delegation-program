@@ -18,7 +18,7 @@ async fn test_whitelist_validator_for_program() {
     // Setup
     let (banks, _, validator, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction_builder::whitelist_validator_for_program(
+    let ix = dlp_api::instruction_builder::whitelist_validator_for_program(
         validator.pubkey(),
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID,
@@ -52,7 +52,7 @@ async fn test_remove_validator_for_program() {
     // Setup
     let (banks, _, validator, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction_builder::whitelist_validator_for_program(
+    let ix = dlp_api::instruction_builder::whitelist_validator_for_program(
         validator.pubkey(),
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID,
@@ -69,7 +69,7 @@ async fn test_remove_validator_for_program() {
     assert!(res.is_ok());
 
     // Remove the validator
-    let ix = dlp::instruction_builder::whitelist_validator_for_program(
+    let ix = dlp_api::instruction_builder::whitelist_validator_for_program(
         validator.pubkey(),
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID,
