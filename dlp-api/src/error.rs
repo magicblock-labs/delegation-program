@@ -149,6 +149,11 @@ pub enum DlpError {
     #[error("Account cannot be delegated to the system program")]
     DelegationToSystemProgramNotAllowed = 42,
 
+    #[error(
+        "The account lamports is too small to make the account rent-exempt"
+    )]
+    InsufficientRent = 43,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }

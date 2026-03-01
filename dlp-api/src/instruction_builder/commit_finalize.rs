@@ -55,9 +55,9 @@ pub fn commit_finalize(
             accounts: vec![
                 AccountMeta::new(validator, true),
                 AccountMeta::new(delegated_account, false),
-                AccountMeta::new_readonly(delegation_record.0, false),
+                AccountMeta::new(delegation_record.0, false),
                 AccountMeta::new(delegation_metadata.0, false),
-                AccountMeta::new_readonly(validator_fees_vault.0, false),
+                AccountMeta::new(validator_fees_vault.0, false),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
             data: [
