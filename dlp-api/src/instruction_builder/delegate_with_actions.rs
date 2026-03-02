@@ -14,7 +14,8 @@ use solana_program::{
 };
 
 use super::types::{
-    Encrypt, EncryptableAccountMeta, PostDelegationInstruction,
+    Encrypt, EncryptableAccountMeta, EncryptablePubkey,
+    PostDelegationInstruction,
 };
 
 /// See [dlp::processor::process_delegate_with_actions] for docs.
@@ -203,11 +204,13 @@ pub fn create_post_delegation_actions(
 
             non_signers: non_signers
                 .into_iter()
-                .enumerate()
-                .map(|(index, ns)| {
-                    ns.to_compact(signers.len() as u8 + index as u8)
-                        .encrypt(&encrypt_key)
-                        .expect("account metadata encryption failed")
+                .map(|ns| {
+                    EncryptablePubkey {
+                        pubkey: ns.account_meta.pubkey,
+                        is_encryptable: ns.is_encryptable,
+                    }
+                    .encrypt(&encrypt_key)
+                    .expect("pubkey encryption failed")
                 })
                 .collect(),
 

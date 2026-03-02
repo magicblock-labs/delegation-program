@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use solana_program::pubkey::Pubkey;
 use super::DelegateArgs;
 use crate::compact;
+use serde::{Deserialize, Serialize};
+use solana_program::pubkey::Pubkey;
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct DelegateWithActionsArgs {
@@ -16,7 +16,7 @@ pub struct DelegateWithActionsArgs {
 pub struct PostDelegationActions {
     pub signers: Vec<Pubkey>,
 
-    pub non_signers: Vec<MaybeEncryptedAccountMeta>,
+    pub non_signers: Vec<MaybeEncryptedPubkey>,
 
     pub instructions: Vec<MaybeEncryptedInstruction>,
 }

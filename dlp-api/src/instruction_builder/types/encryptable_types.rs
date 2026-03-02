@@ -1,16 +1,9 @@
-use dlp::args::{
-    EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
-    MaybeEncryptedPubkey,
-};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
 
-use crate::{
-    encryption::EncryptionError,
-    instruction_builder::{Encrypt, Encryptable, EncryptableFrom},
-};
+use crate::instruction_builder::{Encryptable, EncryptableFrom};
 
 /// PostDelegationInstruction + Encryptable
 pub struct PostDelegationInstruction {
@@ -84,23 +77,6 @@ impl Encryptable for Pubkey {
     }
 }
 
-impl Encrypt for EncryptablePubkey {
-    type Output = MaybeEncryptedPubkey;
-    type Error = EncryptionError;
-
-    fn encrypt(self, validator: &Pubkey) -> Result<Self::Output, Self::Error> {
-        if self.is_encryptable {
-            Ok(MaybeEncryptedPubkey::Encrypted(EncryptedBuffer::new(
-                crate::encryption::encrypt_ed25519_recipient(
-                    self.pubkey.as_array(),
-                    validator.as_array(),
-                )?,
-            )))
-        } else {
-            Ok(MaybeEncryptedPubkey::ClearText(self.pubkey))
-        }
-    }
-}
 
 /// EncryptableAccountMeta + Encryptable
 // NOTE: This type is not encrypted directly. We first convert it to its
@@ -150,48 +126,6 @@ impl EncryptableFrom for Vec<u8> {
         EncryptableIxData {
             data: self,
             encrypt_begin_offset: offset,
-        }
-    }
-}
-
-impl Encrypt for EncryptableIxData {
-    type Output = MaybeEncryptedIxData;
-    type Error = EncryptionError;
-
-    fn encrypt(self, validator: &Pubkey) -> Result<Self::Output, Self::Error> {
-        if self.encrypt_begin_offset >= self.data.len() {
-            Ok(MaybeEncryptedIxData {
-                prefix: self.data,
-                suffix: EncryptedBuffer::default(),
-            })
-        } else {
-            Ok(MaybeEncryptedIxData {
-                prefix: self.data[0..self.encrypt_begin_offset].into(),
-                suffix: EncryptedBuffer::new(
-                    crate::encryption::encrypt_ed25519_recipient(
-                        &self.data[self.encrypt_begin_offset..],
-                        validator.as_array(),
-                    )?,
-                ),
-            })
-        }
-    }
-}
-
-impl Encrypt for dlp::compact::EncryptableAccountMeta {
-    type Output = MaybeEncryptedAccountMeta;
-    type Error = EncryptionError;
-
-    fn encrypt(self, validator: &Pubkey) -> Result<Self::Output, Self::Error> {
-        if self.is_encryptable {
-            Ok(MaybeEncryptedAccountMeta::Encrypted(EncryptedBuffer::new(
-                crate::encryption::encrypt_ed25519_recipient(
-                    &[self.account_meta.to_byte()],
-                    validator.as_array(),
-                )?,
-            )))
-        } else {
-            Ok(MaybeEncryptedAccountMeta::ClearText(self.account_meta))
         }
     }
 }
