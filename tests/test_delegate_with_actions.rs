@@ -2,9 +2,12 @@ use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     compact,
 };
-use dlp_api::instruction_builder::{
+use dlp_api::{
+    Decrypt,
+    instruction_builder::{
     delegate_with_actions, Encryptable, EncryptableFrom,
     PostDelegationInstruction,
+    },
 };
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 use solana_sdk::signer::Signer;
@@ -71,6 +74,9 @@ fn test_delegate_with_actions_bincode_roundtrip_compact_payload() {
 #[test]
 fn test_delegate_with_actions_builder_adds_compact_signers_to_remaining_accounts(
 ) {
+    use solana_sdk::signature::Keypair;
+
+    let validator = Keypair::new();
     let payer = Pubkey::new_unique();
     let delegated_account = Pubkey::new_unique();
     let owner = Pubkey::new_unique();
@@ -100,7 +106,10 @@ fn test_delegate_with_actions_builder_adds_compact_signers_to_remaining_accounts
         payer,
         delegated_account,
         Some(owner),
-        DelegateArgs::default(),
+        DelegateArgs {
+            validator: Some(validator.pubkey()),
+            ..Default::default()
+        },
         instructions,
     );
 
@@ -155,4 +164,62 @@ fn test_delegate_with_actions_builder_private_sets_encrypted_payload() {
     )
     .unwrap();
     assert_eq!(decrypted, vec![2]);
+}
+
+#[test]
+fn test_delegate_with_actions_builder_encrypts_and_decrypts_accounts_and_data() {
+    use solana_sdk::signature::Keypair;
+
+    let validator = Keypair::new();
+    let payer = Pubkey::new_unique();
+    let signer = Pubkey::new_unique();
+    let nonsigner = Pubkey::new_unique();
+    let program_id = Pubkey::new_unique();
+
+    let instructions = vec![PostDelegationInstruction {
+        program_id: program_id.cleartext(),
+        accounts: vec![
+            AccountMeta::new_readonly(signer, true).cleartext(),
+            AccountMeta::new_readonly(nonsigner, false).encrypted(),
+        ],
+        data: vec![7, 8, 9].encrypted_from(1),
+    }];
+
+    let ix = delegate_with_actions(
+        payer,
+        Pubkey::new_unique(),
+        Some(Pubkey::new_unique()),
+        DelegateArgs {
+            validator: Some(validator.pubkey()),
+            ..Default::default()
+        },
+        instructions,
+    );
+
+    let args: DelegateWithActionsArgs =
+        bincode::deserialize(&ix.data[8..]).unwrap();
+    let ix = &args.actions.instructions[0];
+
+    let clear_meta = match ix.accounts[0] {
+        dlp::args::MaybeEncryptedAccountMeta::ClearText(meta) => meta,
+        _ => panic!("expected cleartext account meta for signer"),
+    };
+    assert_eq!(clear_meta.key(), 0);
+    assert!(clear_meta.is_signer());
+    assert!(!clear_meta.is_writable());
+
+    let decrypted_meta = ix.accounts[1]
+        .clone()
+        .decrypt_with_keypair(&validator)
+        .unwrap();
+    assert_eq!(decrypted_meta.key(), 2);
+    assert!(!decrypted_meta.is_signer());
+    assert!(!decrypted_meta.is_writable());
+
+    let decrypted_data = ix
+        .data
+        .clone()
+        .decrypt_with_keypair(&validator)
+        .unwrap();
+    assert_eq!(decrypted_data, vec![7, 8, 9]);
 }

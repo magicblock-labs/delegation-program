@@ -57,4 +57,22 @@ impl AccountMeta {
         *self = Self::try_new(new_index, self.is_signer(), self.is_writable())
             .expect("index is out of range");
     }
+
+    pub fn to_byte(self) -> u8 {
+        self.0
+    }
+
+    pub fn from_byte(value: u8) -> Option<Self> {
+        Self::try_new(
+            value & ACCOUNT_INDEX_MASK,
+            (value & SIGNER_MASK) != 0,
+            (value & WRITABLE_MASK) != 0,
+        )
+    }
+}
+
+#[derive(Clone, Copy, Debug, Serialize, Deserialize)]
+pub struct EncryptableAccountMeta {
+    pub account_meta: AccountMeta,
+    pub is_encryptable: bool,
 }

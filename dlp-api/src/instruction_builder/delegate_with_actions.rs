@@ -13,7 +13,9 @@ use solana_program::{
     system_program,
 };
 
-use super::types::{EncryptableAccountMeta, PostDelegationInstruction};
+use super::types::{
+    Encrypt, EncryptableAccountMeta, PostDelegationInstruction,
+};
 
 /// See [dlp::processor::process_delegate_with_actions] for docs.
 pub fn delegate_with_actions(
@@ -147,6 +149,20 @@ pub fn create_post_delegation_actions(
         );
     }
 
+    let encryption_required = instructions.iter().any(|ix| {
+        ix.program_id.is_encryptable
+            || ix.accounts.iter().any(|meta| meta.is_encryptable)
+            || ix.data.encrypt_begin_offset < ix.data.data.len()
+    });
+    if encryption_required {
+        assert!(
+            validator.is_some(),
+            "validator pubkey required when any post-delegation field is encryptable"
+        );
+    }
+    let encrypt_key =
+        validator.expect("validator must be provided for encryption");
+
     let index_of = |pk: &Pubkey| -> u8 {
         if let Some(index) = signers.iter().position(|s| &s.pubkey == pk) {
             return index as u8;
@@ -167,16 +183,17 @@ pub fn create_post_delegation_actions(
                 .accounts
                 .into_iter()
                 .map(|meta| {
-                    dlp::compact::AccountMeta::try_new(
-                        index_of(&meta.account_meta.pubkey),
-                        meta.account_meta.is_signer,
-                        meta.account_meta.is_writable,
-                    )
-                    .expect("compact account index must fit in 6 bits")
+                    let index = index_of(&meta.account_meta.pubkey);
+                    meta.to_compact(index)
+                        .encrypt(&encrypt_key)
+                        .expect("account metadata encryption failed")
                 })
                 .collect(),
 
-            data: ix.data.encrypt(&validator),
+            data: ix
+                .data
+                .encrypt(&encrypt_key)
+                .expect("instruction data encryption failed"),
         })
         .collect();
 
@@ -188,10 +205,9 @@ pub fn create_post_delegation_actions(
                 .into_iter()
                 .enumerate()
                 .map(|(index, ns)| {
-                    ns.encrypt_with_index(
-                        &validator,
-                        signers.len() as u8 + index as u8,
-                    )
+                    ns.to_compact(signers.len() as u8 + index as u8)
+                        .encrypt(&encrypt_key)
+                        .expect("account metadata encryption failed")
                 })
                 .collect(),
 
@@ -246,11 +262,35 @@ mod tests {
 
         // old->new mapping: a(0)->0, b(1)->4, c(2)->1, d(3)->3, e(4)->2
         assert_eq!(actions.instructions[0].program_id, 3); // d
-        assert_eq!(actions.instructions[0].accounts[0].key(), 0); // a
-        assert_eq!(actions.instructions[0].accounts[1].key(), 1); // c
-        assert_eq!(actions.instructions[0].accounts[2].key(), 4); // b
-        assert_eq!(actions.instructions[0].accounts[3].key(), 2); // e
-        assert_eq!(actions.instructions[0].accounts[4].key(), 3); // d
+        let accounts = &actions.instructions[0].accounts;
+        assert!(matches!(
+            accounts[2],
+            dlp::args::MaybeEncryptedAccountMeta::Encrypted(_)
+        ));
+        assert!(matches!(
+            accounts[4],
+            dlp::args::MaybeEncryptedAccountMeta::Encrypted(_)
+        ));
+
+        let dlp::args::MaybeEncryptedAccountMeta::ClearText(a_meta) =
+            accounts[0]
+        else {
+            panic!("expected cleartext account meta for a");
+        };
+        let dlp::args::MaybeEncryptedAccountMeta::ClearText(c_meta) =
+            accounts[1]
+        else {
+            panic!("expected cleartext account meta for c");
+        };
+        let dlp::args::MaybeEncryptedAccountMeta::ClearText(e_meta) =
+            accounts[3]
+        else {
+            panic!("expected cleartext account meta for e");
+        };
+
+        assert_eq!(a_meta.key(), 0); // a
+        assert_eq!(c_meta.key(), 1); // c
+        assert_eq!(e_meta.key(), 2); // e
     }
 
     #[test]

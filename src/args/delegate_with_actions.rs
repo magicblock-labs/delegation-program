@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
-
 use super::DelegateArgs;
 use crate::compact;
 
@@ -26,7 +25,7 @@ pub struct PostDelegationActions {
 pub struct MaybeEncryptedInstruction {
     pub program_id: u8,
 
-    pub accounts: Vec<compact::AccountMeta>,
+    pub accounts: Vec<MaybeEncryptedAccountMeta>,
 
     pub data: MaybeEncryptedIxData,
 }

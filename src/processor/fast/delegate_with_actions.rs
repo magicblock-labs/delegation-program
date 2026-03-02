@@ -111,9 +111,14 @@ pub fn process_delegate_with_actions(
                 ProgramError::InvalidInstructionData
             );
             for account in &ix.accounts {
+                let crate::args::MaybeEncryptedAccountMeta::ClearText(meta) =
+                    account
+                else {
+                    continue;
+                };
                 require!(
-                    (account.is_signer() && account.key() < signers_count)
-                        || account.key() < keys_count,
+                    (meta.is_signer() && meta.key() < signers_count)
+                        || meta.key() < keys_count,
                     ProgramError::InvalidInstructionData
                 );
             }

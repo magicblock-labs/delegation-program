@@ -1,6 +1,7 @@
 mod encryptable_types;
 
 pub use encryptable_types::*;
+use solana_program::pubkey::Pubkey;
 
 pub trait Encryptable: Sized {
     type Output;
@@ -16,4 +17,11 @@ pub trait Encryptable: Sized {
 pub trait EncryptableFrom: Sized {
     type Output;
     fn encrypted_from(self, offset: usize) -> Self::Output;
+}
+
+pub trait Encrypt: Sized {
+    type Output;
+    type Error;
+
+    fn encrypt(self, validator: &Pubkey) -> Result<Self::Output, Self::Error>;
 }
