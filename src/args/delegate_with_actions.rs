@@ -17,7 +17,7 @@ pub struct DelegateWithActionsArgs {
 pub struct PostDelegationActions {
     pub signers: Vec<Pubkey>,
 
-    pub non_signers: Vec<MaybeEncryptedPubkey>,
+    pub non_signers: Vec<MaybeEncryptedAccountMeta>,
 
     pub instructions: Vec<MaybeEncryptedInstruction>,
 }
@@ -34,6 +34,12 @@ pub struct MaybeEncryptedInstruction {
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub enum MaybeEncryptedPubkey {
     ClearText(Pubkey),
+    Encrypted(EncryptedBuffer),
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum MaybeEncryptedAccountMeta {
+    ClearText(compact::AccountMeta),
     Encrypted(EncryptedBuffer),
 }
 

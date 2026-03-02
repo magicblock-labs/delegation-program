@@ -1,4 +1,6 @@
-use dlp::args::{EncryptedBuffer, MaybeEncryptedIxData, MaybeEncryptedPubkey};
+use dlp::args::{
+    EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
+};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -80,10 +82,14 @@ pub struct EncryptableAccountMeta {
 }
 
 impl EncryptableAccountMeta {
-    pub fn encrypt(self, validator: &Option<Pubkey>) -> MaybeEncryptedPubkey {
+    pub fn encrypt_with_index(
+        self,
+        validator: &Option<Pubkey>,
+        index: u8,
+    ) -> MaybeEncryptedAccountMeta {
         if self.is_encryptable {
             let validator = validator.expect("");
-            MaybeEncryptedPubkey::Encrypted(EncryptedBuffer::new(
+            MaybeEncryptedAccountMeta::Encrypted(EncryptedBuffer::new(
                 crate::encryption::encrypt_ed25519_recipient(
                     self.account_meta.pubkey.as_array(),
                     validator.as_array(),
@@ -91,7 +97,14 @@ impl EncryptableAccountMeta {
                 .expect(""),
             ))
         } else {
-            MaybeEncryptedPubkey::ClearText(self.account_meta.pubkey)
+            MaybeEncryptedAccountMeta::ClearText(
+                dlp::compact::AccountMeta::try_new(
+                    index,
+                    false,
+                    self.account_meta.is_writable,
+                )
+                .expect("compact account index must fit in 6 bits"),
+            )
         }
     }
 }

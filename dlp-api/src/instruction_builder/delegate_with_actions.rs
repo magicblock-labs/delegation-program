@@ -186,7 +186,13 @@ pub fn create_post_delegation_actions(
 
             non_signers: non_signers
                 .into_iter()
-                .map(|ns| ns.encrypt(&validator))
+                .enumerate()
+                .map(|(index, ns)| {
+                    ns.encrypt_with_index(
+                        &validator,
+                        signers.len() as u8 + index as u8,
+                    )
+                })
                 .collect(),
 
             instructions: compact_instructions,
@@ -197,7 +203,6 @@ pub fn create_post_delegation_actions(
 
 #[cfg(test)]
 mod tests {
-    use dlp::args::MaybeEncryptedPubkey;
     use solana_sdk::{signature::Keypair, signer::Signer};
 
     use super::*;
@@ -237,23 +242,7 @@ mod tests {
         assert_eq!(actions.signers[1], c); // signer
         assert_eq!(actions.signers[2], e); // signer
 
-        if false {
-            let non_signer_pubkeys: Vec<_> = actions
-                .non_signers
-                .iter()
-                .map(|key| match key {
-                    MaybeEncryptedPubkey::ClearText(pubkey) => *pubkey,
-                    MaybeEncryptedPubkey::Encrypted(_) => {
-                        panic!("there must not be any encrypted pubkeys")
-                    }
-                })
-                .collect();
-
-            assert_eq!(non_signer_pubkeys[0], d); // non-signer
-            assert_eq!(non_signer_pubkeys[1], b); // non-signer
-        } else {
-            assert_eq!(actions.non_signers.len(), 2); // non-signer
-        }
+        assert_eq!(actions.non_signers.len(), 2); // non-signer
 
         // old->new mapping: a(0)->0, b(1)->4, c(2)->1, d(3)->3, e(4)->2
         assert_eq!(actions.instructions[0].program_id, 3); // d
