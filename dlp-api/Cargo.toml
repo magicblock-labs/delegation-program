@@ -24,3 +24,4 @@ thiserror = { version = ">=1" }
 
 [dev-dependencies]
 dlp = { package = "magicblock-delegation-program", path = "..", features = ["unit_test_config"] }
+spl-token = "4.0.0"

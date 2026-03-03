@@ -77,7 +77,6 @@ impl Encryptable for Pubkey {
     }
 }
 
-
 /// EncryptableAccountMeta + Encryptable
 // NOTE: This type is not encrypted directly. We first convert it to its
 // compact::EncryptableAccountMeta which gets encrypted.
@@ -128,4 +127,57 @@ impl EncryptableFrom for Vec<u8> {
             encrypt_begin_offset: offset,
         }
     }
+}
+
+///
+/// PostDelegationInstruction {
+///   program_id: pubkey
+///   accounts: Vec<AccountMetaCompact>,
+///   encrypted_accounts: EncryptedVec<AccountMetaCompact>,
+///   data: Vec<u8>
+///   encryptedData: Vec<u8>
+/// }
+///
+#[test]
+fn dev_experience() {
+    const USDC_SCALE: u64 = 1000_000;
+
+    use solana_program::instruction::AccountMeta;
+    use solana_program::pubkey::Pubkey;
+    use spl_token::instruction::TokenInstruction;
+
+    let sender = Pubkey::new_unique();
+    let recipient = Pubkey::new_unique();
+    let authority = Pubkey::new_unique();
+    let amount: u64 = 100 * USDC_SCALE; // 100 USDC with 6 decimals
+
+    let regular_transfer_ix = Instruction {
+        program_id: spl_token::id(),
+        accounts: vec![
+            AccountMeta::new(sender, false),
+            AccountMeta::new(recipient, false),
+            AccountMeta::new_readonly(authority, true),
+        ],
+        data: TokenInstruction::Transfer { amount }.pack(),
+    };
+
+    // Use:
+    //  - encrypted() and encrypted_from() to make parts private
+    //  - cleartext() for public
+    let private_transfer_ix = PostDelegationInstruction {
+        program_id: spl_token::id().cleartext(),
+        accounts: vec![
+            AccountMeta::new(sender, false).cleartext(),
+            AccountMeta::new(recipient, false).encrypted(),
+            AccountMeta::new_readonly(authority, true).cleartext(),
+        ],
+        data: TokenInstruction::Transfer { amount }
+            .pack()
+            .encrypted_from(1),
+    };
+
+    assert_eq!(regular_transfer_ix.program_id, spl_token::id());
+    assert_eq!(private_transfer_ix.program_id.pubkey, spl_token::id());
+    assert!(private_transfer_ix.accounts[1].is_encryptable);
+    assert_eq!(private_transfer_ix.data.encrypt_begin_offset, 1);
 }
