@@ -1239,22 +1239,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "dlp-api"
-version = "0.1.0"
-dependencies = [
- "bincode",
- "borsh 1.5.7",
- "libsodium-rs",
- "magicblock-delegation-program",
- "rand 0.8.5",
- "serde",
- "solana-program",
- "solana-sdk",
- "spl-token",
- "thiserror 2.0.11",
-]
-
-[[package]]
 name = "downcast"
 version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2509,8 +2493,8 @@ dependencies = [
  "borsh 1.5.7",
  "bytemuck",
  "const-crypto",
- "dlp-api",
  "magicblock-delegation-program",
+ "magicblock-delegation-program-api",
  "num_enum",
  "pinocchio 0.10.1",
  "pinocchio-associated-token-account",
@@ -2532,6 +2516,22 @@ dependencies = [
  "strum 0.27.2",
  "thiserror 2.0.11",
  "tokio",
+]
+
+[[package]]
+name = "magicblock-delegation-program-api"
+version = "0.1.0"
+dependencies = [
+ "bincode",
+ "borsh 1.5.7",
+ "libsodium-rs",
+ "magicblock-delegation-program",
+ "rand 0.8.5",
+ "serde",
+ "solana-program",
+ "solana-sdk",
+ "spl-token",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
