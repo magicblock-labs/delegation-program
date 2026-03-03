@@ -13,10 +13,7 @@ use solana_program::{
     system_program,
 };
 
-use super::types::{
-    Encrypt, EncryptableAccountMeta, EncryptablePubkey,
-    PostDelegationInstruction,
-};
+use super::types::{Encrypt, PostDelegationInstruction};
 
 /// See [dlp::processor::process_delegate_with_actions] for docs.
 pub fn delegate_with_actions(
@@ -26,8 +23,11 @@ pub fn delegate_with_actions(
     delegate: DelegateArgs,
     actions: Vec<PostDelegationInstruction>,
 ) -> Instruction {
-    let (actions, signers) =
-        create_post_delegation_actions(actions, delegate.validator);
+    let encrypt_key =
+        delegate.validator.expect("validator must be provided for encryption");
+    let (actions, signers) = actions
+        .encrypt(&encrypt_key)
+        .expect("post-delegation actions encryption failed");
 
     Instruction {
         program_id: dlp::id(),
@@ -70,156 +70,6 @@ pub fn delegate_with_actions(
     }
 }
 
-pub fn create_post_delegation_actions(
-    instructions: Vec<PostDelegationInstruction>,
-    validator: Option<Pubkey>,
-) -> (dlp::args::PostDelegationActions, Vec<AccountMeta>) {
-    use dlp::args::MaybeEncryptedInstruction;
-
-    let mut signers: Vec<AccountMeta> = Vec::new();
-    let mut add_to_signers = |meta: &EncryptableAccountMeta| {
-        assert!(meta.account_meta.is_signer, "AccountMeta must be a signer");
-        assert!(!meta.is_encryptable, "signer must not be encryptable");
-        let Some(found) = signers
-            .iter_mut()
-            .find(|m| m.pubkey == meta.account_meta.pubkey)
-        else {
-            signers.push(meta.account_meta.clone());
-            return;
-        };
-
-        found.is_signer |= meta.account_meta.is_signer;
-        found.is_writable |= meta.account_meta.is_writable;
-    };
-
-    let mut non_signers: Vec<EncryptableAccountMeta> = Vec::new();
-    let mut add_to_non_signers = |meta: &EncryptableAccountMeta| {
-        assert!(
-            !meta.account_meta.is_signer,
-            "AccountMeta must not be a signer"
-        );
-        let Some(found) = non_signers
-            .iter_mut()
-            .find(|m| m.account_meta.pubkey == meta.account_meta.pubkey)
-        else {
-            non_signers.push(meta.clone());
-            return;
-        };
-
-        found.is_encryptable |= meta.is_encryptable;
-        found.account_meta.is_writable |= meta.account_meta.is_writable;
-    };
-
-    for meta in instructions
-        .iter()
-        .flat_map(|ix| ix.accounts.iter())
-        .filter(|meta| meta.account_meta.is_signer)
-    {
-        add_to_signers(meta);
-    }
-
-    for ix in instructions.iter() {
-        add_to_non_signers(&EncryptableAccountMeta {
-            account_meta: AccountMeta::new_readonly(
-                ix.program_id.pubkey,
-                false,
-            ),
-            is_encryptable: ix.program_id.is_encryptable,
-        });
-        for meta in ix
-            .accounts
-            .iter()
-            .filter(|meta| !meta.account_meta.is_signer)
-        {
-            let Some(found) = signers
-                .iter_mut()
-                .find(|m| m.pubkey == meta.account_meta.pubkey)
-            else {
-                add_to_non_signers(meta);
-                continue;
-            };
-
-            found.is_writable |= meta.account_meta.is_writable;
-        }
-    }
-
-    if signers.len() + non_signers.len() > dlp::compact::MAX_PUBKEYS as usize {
-        panic!(
-            "delegate_with_actions supports at most {} unique pubkeys",
-            dlp::compact::MAX_PUBKEYS
-        );
-    }
-
-    let encryption_required = instructions.iter().any(|ix| {
-        ix.program_id.is_encryptable
-            || ix.accounts.iter().any(|meta| meta.is_encryptable)
-            || ix.data.encrypt_begin_offset < ix.data.data.len()
-    });
-    if encryption_required {
-        assert!(
-            validator.is_some(),
-            "validator pubkey required when any post-delegation field is encryptable"
-        );
-    }
-    let encrypt_key =
-        validator.expect("validator must be provided for encryption");
-
-    let index_of = |pk: &Pubkey| -> u8 {
-        if let Some(index) = signers.iter().position(|s| &s.pubkey == pk) {
-            return index as u8;
-        }
-        signers.len() as u8
-            + non_signers
-                .iter()
-                .position(|ns| &ns.account_meta.pubkey == pk)
-                .unwrap() as u8
-    };
-
-    let compact_instructions: Vec<MaybeEncryptedInstruction> = instructions
-        .into_iter()
-        .map(|ix| MaybeEncryptedInstruction {
-            program_id: index_of(&ix.program_id.pubkey),
-
-            accounts: ix
-                .accounts
-                .into_iter()
-                .map(|meta| {
-                    let index = index_of(&meta.account_meta.pubkey);
-                    meta.to_compact(index)
-                        .encrypt(&encrypt_key)
-                        .expect("account metadata encryption failed")
-                })
-                .collect(),
-
-            data: ix
-                .data
-                .encrypt(&encrypt_key)
-                .expect("instruction data encryption failed"),
-        })
-        .collect();
-
-    (
-        dlp::args::PostDelegationActions {
-            signers: signers.iter().map(|s| s.pubkey).collect(),
-
-            non_signers: non_signers
-                .into_iter()
-                .map(|ns| {
-                    EncryptablePubkey {
-                        pubkey: ns.account_meta.pubkey,
-                        is_encryptable: ns.is_encryptable,
-                    }
-                    .encrypt(&encrypt_key)
-                    .expect("pubkey encryption failed")
-                })
-                .collect(),
-
-            instructions: compact_instructions,
-        },
-        signers,
-    )
-}
-
 #[cfg(test)]
 mod tests {
     use solana_sdk::{signature::Keypair, signer::Signer};
@@ -248,10 +98,9 @@ mod tests {
         }];
 
         let validator = Keypair::new();
-        let (actions, _meta_signers) = create_post_delegation_actions(
-            instructions,
-            Some(validator.pubkey()),
-        );
+        let (actions, _meta_signers) = instructions
+            .encrypt(&validator.pubkey())
+            .expect("post-delegation actions encryption failed");
 
         // indices: a, c, e, d, b
         //          0, 1, 2, 3, 4

@@ -201,8 +201,7 @@ impl Decrypt for PostDelegationActions {
 mod tests {
     use super::*;
     use crate::instruction_builder::{
-        create_post_delegation_actions, Encryptable, EncryptableFrom,
-        PostDelegationInstruction,
+        Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
     };
     use solana_program::instruction::AccountMeta;
     use solana_sdk::{signature::Keypair, signer::Signer};
@@ -223,10 +222,9 @@ mod tests {
             data: vec![1, 2, 3, 4].encrypted_from(2),
         }];
 
-        let (actions, signers) = create_post_delegation_actions(
-            instructions,
-            Some(validator.pubkey()),
-        );
+        let (actions, signers) = instructions
+            .encrypt(&validator.pubkey())
+            .expect("post-delegation actions encryption failed");
 
         assert_eq!(signers, vec![AccountMeta::new_readonly(signer, true)]);
 
