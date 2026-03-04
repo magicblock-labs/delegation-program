@@ -1,10 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
 
-#[derive(
-    Default, Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize,
-)]
+#[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateArgs {
     /// The frequency at which the validator should commit the account data
     /// if no commit is triggered by the owning program

@@ -1,10 +1,9 @@
 use super::DelegateArgs;
 use crate::compact;
 use borsh::{BorshDeserialize, BorshSerialize};
-use serde::{Deserialize, Serialize};
 use solana_program::pubkey::Pubkey;
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateWithActionsArgs {
     /// Standard delegation parameters.
     pub delegate: DelegateArgs,
@@ -13,7 +12,7 @@ pub struct DelegateWithActionsArgs {
     pub actions: PostDelegationActions,
 }
 
-#[derive(Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct PostDelegationActions {
     pub signers: Vec<Pubkey>,
 
@@ -22,7 +21,7 @@ pub struct PostDelegationActions {
     pub instructions: Vec<MaybeEncryptedInstruction>,
 }
 
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MaybeEncryptedInstruction {
     pub program_id: u8,
 
@@ -31,25 +30,25 @@ pub struct MaybeEncryptedInstruction {
     pub data: MaybeEncryptedIxData,
 }
 
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum MaybeEncryptedPubkey {
     ClearText(Pubkey),
     Encrypted(EncryptedBuffer),
 }
 
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum MaybeEncryptedAccountMeta {
     ClearText(compact::AccountMeta),
     Encrypted(EncryptedBuffer),
 }
 
-#[derive(Clone, Debug, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub struct MaybeEncryptedIxData {
     pub prefix: Vec<u8>,
     pub suffix: EncryptedBuffer,
 }
 
-#[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize, Serialize, Deserialize)]
+#[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
 pub struct EncryptedBuffer(Vec<u8>);
 
 impl EncryptedBuffer {
