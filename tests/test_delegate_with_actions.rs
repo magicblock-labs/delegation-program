@@ -2,6 +2,7 @@ use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     compact,
 };
+use borsh::BorshDeserialize;
 use dlp_api::{
     Decrypt,
     instruction_builder::{
@@ -28,7 +29,7 @@ fn test_compact_account_meta_bit_packing() {
 }
 
 #[test]
-fn test_delegate_with_actions_bincode_roundtrip_compact_payload() {
+fn test_delegate_with_actions_borsh_roundtrip_compact_payload() {
     let payer = Pubkey::new_unique();
     let signer = Pubkey::new_unique();
 
@@ -61,7 +62,7 @@ fn test_delegate_with_actions_bincode_roundtrip_compact_payload() {
     );
 
     let args: DelegateWithActionsArgs =
-        bincode::deserialize(&ix.data[8..]).unwrap();
+        DelegateWithActionsArgs::try_from_slice(&ix.data[8..]).unwrap();
     assert_eq!(args.delegate.commit_frequency_ms, 500);
     assert_eq!(args.actions.signers.len(), 2);
     assert_eq!(args.actions.instructions.len(), 2);
@@ -153,7 +154,7 @@ fn test_delegate_with_actions_builder_private_sets_encrypted_payload() {
     );
 
     let args: DelegateWithActionsArgs =
-        bincode::deserialize(&ix.data[8..]).unwrap();
+        DelegateWithActionsArgs::try_from_slice(&ix.data[8..]).unwrap();
     assert_eq!(args.actions.signers.len(), 1);
     let ix = &args.actions.instructions[0];
     assert_eq!(ix.data.prefix, vec![4]);
@@ -197,7 +198,7 @@ fn test_delegate_with_actions_builder_encrypts_and_decrypts_accounts_and_data() 
     );
 
     let args: DelegateWithActionsArgs =
-        bincode::deserialize(&ix.data[8..]).unwrap();
+        DelegateWithActionsArgs::try_from_slice(&ix.data[8..]).unwrap();
     let ix = &args.actions.instructions[0];
 
     let clear_meta = match ix.accounts[0] {

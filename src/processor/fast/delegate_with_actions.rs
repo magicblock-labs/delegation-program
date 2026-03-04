@@ -1,3 +1,4 @@
+use borsh::BorshDeserialize;
 use pinocchio::{
     address::address_eq,
     cpi::{Seed, Signer},
@@ -96,7 +97,7 @@ pub fn process_delegate_with_actions(
         DelegationMetadataCtx,
     )?;
 
-    let args: DelegateWithActionsArgs = bincode::deserialize(data)
+    let args: DelegateWithActionsArgs = DelegateWithActionsArgs::try_from_slice(data)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     // Validate instruction payload shape up-front. This confirms delegate args
@@ -216,7 +217,7 @@ pub fn process_delegate_with_actions(
         }
     }
 
-    let action_data = bincode::serialize(&args.actions)
+    let action_data = borsh::to_vec(&args.actions)
         .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     create_pda(

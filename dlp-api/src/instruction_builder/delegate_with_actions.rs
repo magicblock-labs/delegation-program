@@ -1,3 +1,4 @@
+use borsh::to_vec;
 use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     discriminator::DlpDiscriminator,
@@ -64,7 +65,7 @@ pub fn delegate_with_actions(
         data: {
             let args = DelegateWithActionsArgs { delegate, actions };
             let mut data = DlpDiscriminator::DelegateWithActions.to_vec();
-            data.extend_from_slice(&bincode::serialize(&args).unwrap());
+            data.extend_from_slice(&to_vec(&args).unwrap());
             data
         },
     }

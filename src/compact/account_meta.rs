@@ -1,3 +1,5 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::io::{Read, Write};
 use serde::{Deserialize, Serialize};
 
 const ACCOUNT_INDEX_MASK: u8 = 0b0011_1111;
@@ -14,6 +16,19 @@ pub const MAX_PUBKEYS: u8 = ACCOUNT_INDEX_MASK + 1;
 /// Bit `6` is `is_signer`, and bit `7` is `is_writable`.
 #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
 pub struct AccountMeta(u8);
+
+impl BorshSerialize for AccountMeta {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), borsh::io::Error> {
+        BorshSerialize::serialize(&self.0, writer)
+    }
+}
+
+impl BorshDeserialize for AccountMeta {
+    fn deserialize_reader<R: Read>(reader: &mut R) -> Result<Self, borsh::io::Error> {
+        let value = u8::deserialize_reader(reader)?;
+        Ok(Self(value))
+    }
+}
 
 impl AccountMeta {
     pub fn new(index: u8, is_signer: bool) -> Self {
