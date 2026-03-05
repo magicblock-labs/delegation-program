@@ -36,10 +36,34 @@ pub enum MaybeEncryptedPubkey {
     Encrypted(EncryptedBuffer),
 }
 
+impl From<Pubkey> for MaybeEncryptedPubkey {
+    fn from(pubkey: Pubkey) -> Self {
+        Self::ClearText(pubkey)
+    }
+}
+
+impl From<Vec<u8>> for MaybeEncryptedPubkey {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self::Encrypted(bytes.into())
+    }
+}
+
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum MaybeEncryptedAccountMeta {
     ClearText(compact::AccountMeta),
     Encrypted(EncryptedBuffer),
+}
+
+impl From<compact::AccountMeta> for MaybeEncryptedAccountMeta {
+    fn from(account_meta: compact::AccountMeta) -> Self {
+        Self::ClearText(account_meta)
+    }
+}
+
+impl From<Vec<u8>> for MaybeEncryptedAccountMeta {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self::Encrypted(bytes.into())
+    }
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
@@ -62,5 +86,11 @@ impl EncryptedBuffer {
 
     pub fn into_inner(self) -> Vec<u8> {
         self.0
+    }
+}
+
+impl From<Vec<u8>> for EncryptedBuffer {
+    fn from(bytes: Vec<u8>) -> Self {
+        Self(bytes)
     }
 }
