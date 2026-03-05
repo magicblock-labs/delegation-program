@@ -28,7 +28,7 @@ pub fn delegate_with_actions(
         .signers
         .iter()
         .copied()
-        .map(|pk| AccountMeta::new_readonly(pk, true))
+        .map(|pk| AccountMeta::new_readonly(pk.into(), true))
         .collect();
 
     Instruction {

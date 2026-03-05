@@ -3,7 +3,6 @@ use dlp::args::{
     PostDelegationActions,
 };
 use dlp::compact;
-use solana_program::pubkey::Pubkey;
 use solana_sdk::instruction::{AccountMeta, Instruction};
 use solana_sdk::signer::Signer;
 use thiserror::Error;
@@ -52,7 +51,7 @@ pub trait Decrypt: Sized {
 }
 
 impl Decrypt for MaybeEncryptedPubkey {
-    type Output = Pubkey;
+    type Output = [u8; 32];
 
     fn decrypt(
         self,
@@ -68,7 +67,7 @@ impl Decrypt for MaybeEncryptedPubkey {
                     recipient_x25519_secret,
                 )
                 .map_err(DecryptError::DecryptFailed)?;
-                Pubkey::try_from(plaintext.as_slice()).map_err(|_| {
+                Self::Output::try_from(plaintext.as_slice()).map_err(|_| {
                     DecryptError::InvalidPubkeyLength(plaintext.len())
                 })
             }
@@ -159,7 +158,8 @@ impl Decrypt for PostDelegationActions {
                         .ok_or(DecryptError::InvalidProgramIdIndex {
                             index: ix.program_id,
                             len: pubkeys.len(),
-                        })?,
+                        })?
+                        .into(),
 
                     accounts: ix
                         .accounts
@@ -178,7 +178,7 @@ impl Decrypt for PostDelegationActions {
                                 })?;
 
                             Ok(AccountMeta {
-                                pubkey: account_pubkey,
+                                pubkey: account_pubkey.into(),
                                 is_signer: compact_meta.is_signer(),
                                 is_writable: compact_meta.is_writable(),
                             })
@@ -204,7 +204,7 @@ mod tests {
         Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
     };
     use solana_program::instruction::AccountMeta;
-    use solana_sdk::{signature::Keypair, signer::Signer};
+    use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
     #[test]
     fn test_post_delegation_actions_decrypt_roundtrip() {

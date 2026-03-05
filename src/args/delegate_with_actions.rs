@@ -1,7 +1,6 @@
 use super::DelegateArgs;
 use crate::compact;
 use borsh::{BorshDeserialize, BorshSerialize};
-use solana_program::pubkey::Pubkey;
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateWithActionsArgs {
@@ -14,7 +13,7 @@ pub struct DelegateWithActionsArgs {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct PostDelegationActions {
-    pub signers: Vec<Pubkey>,
+    pub signers: Vec<[u8; 32]>,
 
     pub non_signers: Vec<MaybeEncryptedPubkey>,
 
@@ -32,12 +31,12 @@ pub struct MaybeEncryptedInstruction {
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 pub enum MaybeEncryptedPubkey {
-    ClearText(Pubkey),
+    ClearText([u8; 32]),
     Encrypted(EncryptedBuffer),
 }
 
-impl From<Pubkey> for MaybeEncryptedPubkey {
-    fn from(pubkey: Pubkey) -> Self {
+impl From<[u8; 32]> for MaybeEncryptedPubkey {
+    fn from(pubkey: [u8; 32]) -> Self {
         Self::ClearText(pubkey)
     }
 }

@@ -24,8 +24,9 @@ pub fn delegate_with_actions(
     delegate: DelegateArgs,
     actions: Vec<PostDelegationInstruction>,
 ) -> Instruction {
-    let encrypt_key =
-        delegate.validator.expect("validator must be provided for encryption");
+    let encrypt_key = delegate
+        .validator
+        .expect("validator must be provided for encryption");
     let (actions, signers) = actions
         .encrypt(&encrypt_key)
         .expect("post-delegation actions encryption failed");
@@ -107,9 +108,9 @@ mod tests {
         //          0, 1, 2, 3, 4
 
         assert_eq!(actions.signers.len(), 3);
-        assert_eq!(actions.signers[0], a); // signer
-        assert_eq!(actions.signers[1], c); // signer
-        assert_eq!(actions.signers[2], e); // signer
+        assert_eq!(actions.signers[0], a.to_bytes()); // signer
+        assert_eq!(actions.signers[1], c.to_bytes()); // signer
+        assert_eq!(actions.signers[2], e.to_bytes()); // signer
 
         assert_eq!(actions.non_signers.len(), 2); // non-signer
 

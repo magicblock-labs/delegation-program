@@ -1,10 +1,16 @@
-use dlp::args::{EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData, MaybeEncryptedPubkey};
-use solana_program::pubkey::Pubkey;
+use dlp::args::{
+    EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
+    MaybeEncryptedPubkey,
+};
 use solana_program::instruction::AccountMeta;
+use solana_program::pubkey::Pubkey;
 
 use crate::{
     encryption::EncryptionError,
-    instruction_builder::{Encrypt, EncryptableIxData, EncryptablePubkey, PostDelegationInstruction, EncryptableAccountMeta},
+    instruction_builder::{
+        Encrypt, EncryptableAccountMeta, EncryptableIxData, EncryptablePubkey,
+        PostDelegationInstruction,
+    },
 };
 
 impl Encrypt for EncryptablePubkey {
@@ -20,7 +26,7 @@ impl Encrypt for EncryptablePubkey {
                 )?,
             )))
         } else {
-            Ok(MaybeEncryptedPubkey::ClearText(self.pubkey))
+            Ok(MaybeEncryptedPubkey::ClearText(self.pubkey.to_bytes()))
         }
     }
 }
@@ -77,7 +83,10 @@ impl Encrypt for Vec<PostDelegationInstruction> {
         let mut signers: Vec<AccountMeta> = Vec::new();
 
         let mut add_to_signers = |meta: &EncryptableAccountMeta| {
-            assert!(meta.account_meta.is_signer, "AccountMeta must be a signer");
+            assert!(
+                meta.account_meta.is_signer,
+                "AccountMeta must be a signer"
+            );
             assert!(!meta.is_encryptable, "signer must not be encryptable");
             let Some(found) = signers
                 .iter_mut()
@@ -142,7 +151,9 @@ impl Encrypt for Vec<PostDelegationInstruction> {
             }
         }
 
-        if signers.len() + non_signers.len() > dlp::compact::MAX_PUBKEYS as usize {
+        if signers.len() + non_signers.len()
+            > dlp::compact::MAX_PUBKEYS as usize
+        {
             panic!(
                 "delegate_with_actions supports at most {} unique pubkeys",
                 dlp::compact::MAX_PUBKEYS
@@ -185,7 +196,7 @@ impl Encrypt for Vec<PostDelegationInstruction> {
 
         Ok((
             dlp::args::PostDelegationActions {
-                signers: signers.iter().map(|s| s.pubkey).collect(),
+                signers: signers.iter().map(|s| s.pubkey.to_bytes()).collect(),
 
                 non_signers: non_signers
                     .into_iter()

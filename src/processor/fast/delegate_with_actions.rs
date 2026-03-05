@@ -97,8 +97,9 @@ pub fn process_delegate_with_actions(
         DelegationMetadataCtx,
     )?;
 
-    let args: DelegateWithActionsArgs = DelegateWithActionsArgs::try_from_slice(data)
-        .map_err(|_| ProgramError::InvalidInstructionData)?;
+    let args: DelegateWithActionsArgs =
+        DelegateWithActionsArgs::try_from_slice(data)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
 
     // Validate instruction payload shape up-front. This confirms delegate args
     // and actions envelope format, while encrypted bytes remain opaque.
@@ -129,9 +130,7 @@ pub fn process_delegate_with_actions(
         for signer in &args.actions.signers {
             let account = remaining_accounts
                 .iter()
-                .find(|account| {
-                    account.address().to_bytes() == signer.to_bytes()
-                })
+                .find(|account| &account.address().to_bytes() == signer)
                 .ok_or(ProgramError::NotEnoughAccountKeys)?;
             if !account.is_signer() {
                 return Err(ProgramError::MissingRequiredSignature);
