@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 
+use crate::args::MaybeEncryptedInstruction;
 use crate::compact;
+use crate::compact::ClearText;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Instruction {
@@ -34,6 +36,22 @@ impl Instruction {
                 .collect(),
 
             data: ix.data,
+        }
+    }
+}
+
+impl ClearText for Instruction {
+    type Output = MaybeEncryptedInstruction;
+
+    fn cleartext(self) -> Self::Output {
+        MaybeEncryptedInstruction {
+            program_id: self.program_id,
+            accounts: self
+                .accounts
+                .into_iter()
+                .map(|meta| meta.cleartext())
+                .collect(),
+            data: self.data.cleartext(),
         }
     }
 }
