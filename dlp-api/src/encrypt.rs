@@ -196,6 +196,8 @@ impl Encrypt for Vec<PostDelegationInstruction> {
 
         Ok((
             dlp::args::PostDelegationActions {
+                inserted_signers: 0,
+                inserted_non_signers: 0,
                 signers: signers.iter().map(|s| s.pubkey.to_bytes()).collect(),
 
                 non_signers: non_signers

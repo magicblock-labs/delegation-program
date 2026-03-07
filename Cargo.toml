@@ -85,6 +85,7 @@ assertables = "9.8.2"
 magicblock-delegation-program = { path = ".", features = ["unit_test_config"] }
 dlp-api = { package = "magicblock-delegation-program-api", path = "dlp-api" }
 rand = { version = "=0.8.5", features = ["small_rng"] }
+solana-pubkey = "3.0.0"
 solana-program-test = ">=1.16"
 solana-sdk = ">=1.16"
 tokio = { version = "^1.0", features = ["full"] }

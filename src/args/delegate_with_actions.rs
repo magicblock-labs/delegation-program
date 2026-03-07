@@ -13,6 +13,10 @@ pub struct DelegateWithActionsArgs {
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct PostDelegationActions {
+    pub inserted_signers: u8,
+
+    pub inserted_non_signers: u8,
+
     pub signers: Vec<[u8; 32]>,
 
     pub non_signers: Vec<MaybeEncryptedPubkey>,
@@ -30,6 +34,7 @@ pub struct MaybeEncryptedInstruction {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+#[cfg_attr(test, derive(PartialEq))]
 pub enum MaybeEncryptedPubkey {
     ClearText([u8; 32]),
     Encrypted(EncryptedBuffer),
@@ -72,6 +77,7 @@ pub struct MaybeEncryptedIxData {
 }
 
 #[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
+#[cfg_attr(test, derive(PartialEq))]
 pub struct EncryptedBuffer(Vec<u8>);
 
 impl EncryptedBuffer {
