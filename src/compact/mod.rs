@@ -6,8 +6,8 @@ pub use instruction::*;
 use pinocchio::Address;
 
 use crate::args::{
-    EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedInstruction,
-    MaybeEncryptedIxData, MaybeEncryptedPubkey, PostDelegationActions,
+    EncryptedBuffer, MaybeEncryptedInstruction, MaybeEncryptedIxData,
+    MaybeEncryptedPubkey, PostDelegationActions,
 };
 
 pub trait ClearText: Sized {
@@ -160,6 +160,15 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
         insertable: PostDelegationActions,
         insert_before_index: usize,
     ) -> Self::Output {
+        assert!(
+            insertable.inserted_signers == 0,
+            "PostDelegationActions does not support multiple merge/insert"
+        );
+        assert!(
+            insertable.inserted_non_signers == 0,
+            "PostDelegationActions does not support multiple merge/insert"
+        );
+
         // add keys from actions (pre-encrypted instructions)
         let mut skipable_pubkeys: Vec<Option<Address>> = vec![];
         {
@@ -329,13 +338,13 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
                 .collect::<Vec<_>>(),
         );
 
-        if insert_before_index > compact_instructions.len() {
-            compact_instructions.extend_from_slice(&rv.instructions);
-        } else {
+        if insert_before_index <= compact_instructions.len() {
             compact_instructions.splice(
                 insert_before_index..insert_before_index,
                 rv.instructions,
             );
+        } else {
+            compact_instructions.extend_from_slice(&rv.instructions);
         }
 
         rv.instructions = compact_instructions;
@@ -346,6 +355,8 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
 
 #[cfg(test)]
 mod tests {
+    use crate::args::MaybeEncryptedAccountMeta;
+
     use super::*;
     use solana_instruction::{AccountMeta, Instruction};
     use solana_pubkey::Pubkey;
