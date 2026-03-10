@@ -1,23 +1,26 @@
+use assertables::assert_gt;
 use dlp_api::{
     args::CommitFinalizeArgs,
     diff::compute_diff,
+    error::DlpError,
     pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account,
         validator_fees_vault_pda_from_validator,
     },
-    state::{DelegationMetadata, DelegationRecord},
 };
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
 };
 use solana_program_test::{
-    BanksClient, BanksTransactionResultWithMetadata, ProgramTest,
+    BanksClient, BanksClientError, BanksTransactionResultWithMetadata,
+    ProgramTest,
 };
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 
 use crate::fixtures::{
@@ -94,8 +97,6 @@ async fn run_test_commit_finalize(
             "CommitFinalize must not log anything in OK scenario"
         );
     }
-
-    //tokio::time::sleep(Duration::from_secs(10)).await;
 
     let delegated_account =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
@@ -234,7 +235,6 @@ async fn setup_program_test_env_with_record_lamports(
     // Setup the delegated record PDA
     let delegation_record_data = get_delegation_record_data(
         validator_keypair.pubkey(),
-        //None,
         Some(record_lamports),
     );
     program_test.add_account(
@@ -291,6 +291,13 @@ async fn test_commit_finalize_lamports_increase() {
         &vec![1; 8],
     );
 
+    let before_validator_lamports = banks
+        .get_account(authority.pubkey())
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&authority.pubkey()),
@@ -302,6 +309,23 @@ async fn test_commit_finalize_lamports_increase() {
     let delegated_account =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
     assert_eq!(delegated_account.lamports, commit_lamports);
+
+    let after_validator_lamports = banks
+        .get_account(authority.pubkey())
+        .await
+        .unwrap()
+        .unwrap()
+        .lamports;
+
+    // use: gt! instead eq! .. because validator is transaction fee payer as well.
+    assert_gt!(before_validator_lamports - after_validator_lamports, 1_000);
+
+    let fees_vault = banks
+        .get_account(pdas.validator_fees_vault)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(fees_vault.lamports, LAMPORTS_PER_SOL);
 
     let delegation_record_account = banks
         .get_account(pdas.delegation_record)
@@ -375,4 +399,68 @@ async fn test_commit_finalize_lamports_decrease() {
         fees_vault.lamports,
         LAMPORTS_PER_SOL + (initial_lamports - commit_lamports)
     );
+}
+
+#[tokio::test]
+async fn test_commit_finalize_rejects_underfunded_account() {
+    let data_len = 8usize;
+    let rent_min = Rent::default().minimum_balance(data_len);
+    let initial_lamports = rent_min + 1_000;
+    let commit_lamports = rent_min - 1;
+
+    let (banks, _, authority, blockhash, _record_lamports) =
+        setup_program_test_env_with_record_lamports(
+            vec![0; data_len],
+            initial_lamports,
+        )
+        .await;
+
+    let (ix, pdas) = dlp::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: false.into(),
+            data_is_diff: false.into(),
+            lamports: commit_lamports,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+        &vec![3; data_len],
+    );
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    match err {
+        BanksClientError::TransactionError(
+            TransactionError::InstructionError(
+                _,
+                InstructionError::Custom(code),
+            ),
+        ) => {
+            assert_eq!(code, DlpError::InsufficientRent as u32);
+        }
+        _ => panic!("unexpected error: {err:?}"),
+    }
+
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert_eq!(delegated_account.lamports, initial_lamports);
+
+    let delegation_record_account = banks
+        .get_account(pdas.delegation_record)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminator(
+            &delegation_record_account.data,
+        )
+        .unwrap();
+    assert_eq!(delegation_record.lamports, initial_lamports);
 }

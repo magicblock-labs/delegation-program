@@ -117,6 +117,7 @@ pub(crate) fn process_commit_finalize_internal(
 
     match args.commit_lamports.cmp(&delegation_record.lamports) {
         std::cmp::Ordering::Greater => {
+            require!(args.validator.is_writable(), ProgramError::Immutable);
             system::Transfer {
                 from: args.validator,
                 to: args.delegated_account,
