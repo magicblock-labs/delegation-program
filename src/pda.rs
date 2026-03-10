@@ -83,6 +83,22 @@ macro_rules! program_config_seeds_from_program_id {
     };
 }
 
+pub const MAGIC_FEE_VAULT_TAG: &[u8] = b"magic-fee-vault";
+#[macro_export]
+macro_rules! magic_fee_vault_seeds_from_validator {
+    ($validator: expr) => {
+        &[$crate::pda::MAGIC_FEE_VAULT_TAG, &$validator.as_ref()]
+    };
+}
+
+pub fn magic_fee_vault_pda_from_validator(validator: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        magic_fee_vault_seeds_from_validator!(validator),
+        &crate::id(),
+    )
+    .0
+}
+
 pub const EPHEMERAL_BALANCE_TAG: &[u8] = b"balance";
 #[macro_export]
 macro_rules! ephemeral_balance_seeds_from_payer {

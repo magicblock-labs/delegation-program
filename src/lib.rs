@@ -166,6 +166,9 @@ pub fn slow_process_instruction(
         .or(Err(ProgramError::InvalidInstructionData))?;
 
     match ix {
+        DlpDiscriminator::InitMagicFeeVault => {
+            processor::process_init_magic_fee_vault(program_id, accounts, data)?
+        }
         DlpDiscriminator::InitValidatorFeesVault => {
             processor::process_init_validator_fees_vault(
                 program_id, accounts, data,
