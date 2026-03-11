@@ -197,6 +197,11 @@ pub fn slow_process_instruction(
                 program_id, accounts, data,
             )?
         }
+        DlpDiscriminator::DelegateMagicFeeVault => {
+            processor::process_delegate_magic_fee_vault(
+                program_id, accounts, data,
+            )?
+        }
         DlpDiscriminator::CloseEphemeralBalance => {
             processor::process_close_ephemeral_balance(
                 program_id, accounts, data,
