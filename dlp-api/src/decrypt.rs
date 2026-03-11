@@ -1,10 +1,14 @@
-use dlp::args::{
-    MaybeEncryptedAccountMeta, MaybeEncryptedIxData, MaybeEncryptedPubkey,
-    PostDelegationActions,
+use dlp::{
+    args::{
+        MaybeEncryptedAccountMeta, MaybeEncryptedIxData, MaybeEncryptedPubkey,
+        PostDelegationActions,
+    },
+    compact,
 };
-use dlp::compact;
-use solana_sdk::instruction::{AccountMeta, Instruction};
-use solana_sdk::signer::Signer;
+use solana_sdk::{
+    instruction::{AccountMeta, Instruction},
+    signer::Signer,
+};
 use thiserror::Error;
 
 use crate::encryption::{self, EncryptionError, KEY_LEN};
@@ -199,12 +203,13 @@ impl Decrypt for PostDelegationActions {
 
 #[cfg(test)]
 mod tests {
+    use solana_program::instruction::AccountMeta;
+    use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+
     use super::*;
     use crate::instruction_builder::{
         Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
     };
-    use solana_program::instruction::AccountMeta;
-    use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
     #[test]
     fn test_post_delegation_actions_decrypt_roundtrip() {

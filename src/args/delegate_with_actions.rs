@@ -1,6 +1,7 @@
+use borsh::{BorshDeserialize, BorshSerialize};
+
 use super::DelegateArgs;
 use crate::compact;
-use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateWithActionsArgs {

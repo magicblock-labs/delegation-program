@@ -355,11 +355,11 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
 
 #[cfg(test)]
 mod tests {
-    use crate::args::MaybeEncryptedAccountMeta;
-
-    use super::*;
     use solana_instruction::{AccountMeta, Instruction};
     use solana_pubkey::Pubkey;
+
+    use super::*;
+    use crate::args::MaybeEncryptedAccountMeta;
 
     fn pk(byte: u8) -> Pubkey {
         Pubkey::new_from_array([byte; 32])

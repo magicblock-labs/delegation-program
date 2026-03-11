@@ -1,8 +1,10 @@
-use crate::args::MaybeEncryptedAccountMeta;
-use crate::compact::ClearText;
-use borsh::io::{Read, Write};
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh::{
+    io::{Read, Write},
+    BorshDeserialize, BorshSerialize,
+};
 use serde::{Deserialize, Serialize};
+
+use crate::{args::MaybeEncryptedAccountMeta, compact::ClearText};
 
 const ACCOUNT_INDEX_MASK: u8 = 0b0011_1111;
 const SIGNER_MASK: u8 = 0b0100_0000;

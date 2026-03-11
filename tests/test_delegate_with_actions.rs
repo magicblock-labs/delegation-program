@@ -1,14 +1,14 @@
+use borsh::BorshDeserialize;
 use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     compact,
 };
-use borsh::BorshDeserialize;
 use dlp_api::{
-    Decrypt,
     instruction_builder::{
-    delegate_with_actions, Encryptable, EncryptableFrom,
-    PostDelegationInstruction,
+        delegate_with_actions, Encryptable, EncryptableFrom,
+        PostDelegationInstruction,
     },
+    Decrypt,
 };
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 use solana_sdk::signer::Signer;
@@ -168,7 +168,8 @@ fn test_delegate_with_actions_builder_private_sets_encrypted_payload() {
 }
 
 #[test]
-fn test_delegate_with_actions_builder_encrypts_and_decrypts_accounts_and_data() {
+fn test_delegate_with_actions_builder_encrypts_and_decrypts_accounts_and_data()
+{
     use solana_sdk::signature::Keypair;
 
     let validator = Keypair::new();
@@ -217,10 +218,7 @@ fn test_delegate_with_actions_builder_encrypts_and_decrypts_accounts_and_data() 
     assert!(!decrypted_meta.is_signer());
     assert!(!decrypted_meta.is_writable());
 
-    let decrypted_data = ix
-        .data
-        .clone()
-        .decrypt_with_keypair(&validator)
-        .unwrap();
+    let decrypted_data =
+        ix.data.clone().decrypt_with_keypair(&validator).unwrap();
     assert_eq!(decrypted_data, vec![7, 8, 9]);
 }

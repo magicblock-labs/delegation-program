@@ -1,8 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-use crate::args::MaybeEncryptedInstruction;
-use crate::compact;
-use crate::compact::ClearText;
+use crate::{args::MaybeEncryptedInstruction, compact, compact::ClearText};
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct Instruction {

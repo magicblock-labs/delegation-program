@@ -3,8 +3,10 @@ use dlp_api::instruction_builder::{
     Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
 };
 use solana_instruction::{AccountMeta as IxAccountMeta, Instruction};
-use solana_program::instruction::AccountMeta as ProgramAccountMeta;
-use solana_program::pubkey::Pubkey as ProgramPubkey;
+use solana_program::{
+    instruction::AccountMeta as ProgramAccountMeta,
+    pubkey::Pubkey as ProgramPubkey,
+};
 use solana_pubkey::Pubkey as IxPubkey;
 use solana_sdk::signature::{Keypair, Signer};
 
