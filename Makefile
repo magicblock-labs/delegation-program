@@ -5,7 +5,7 @@ test:
 	RUST_LOG=off cargo test-sbf --features unit_test_config
 
 lint:
-	cargo clippy -- --deny=warnings
+	cargo clippy --features sdk,program -- -D warnings
 
 fmt:
 	cargo +nightly fmt

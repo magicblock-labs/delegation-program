@@ -109,7 +109,10 @@ impl ClearText for Vec<solana_instruction::Instruction> {
                 return index as u8;
             }
             signers.len() as u8
-                + non_signers.iter().position(|ns| &ns.pubkey == pk).unwrap()
+                + non_signers
+                    .iter()
+                    .position(|ns| &ns.pubkey == pk)
+                    .expect("pubkey must exist in signers or non_signers")
                     as u8
         };
 

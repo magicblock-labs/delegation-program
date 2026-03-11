@@ -20,7 +20,7 @@ name = "dlp"
 
 [features]
 # Leaf features (used directly in code)
-pinocchio-runtime = [
+pinocchio-rt = [
     "dep:pinocchio",
     "dep:pinocchio-log",
     "dep:pinocchio-pubkey",
@@ -28,7 +28,7 @@ pinocchio-runtime = [
     "dep:const-crypto",
     "dep:solana-curve25519",
 ]
-diff = ["pinocchio-runtime", "dep:rkyv"]
+diff = ["pinocchio-rt", "dep:rkyv"]
 processor = ["diff"]
 entrypoint = []
 

@@ -57,7 +57,7 @@ mod entrypoint;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
-#[cfg(feature = "processor")]
+#[cfg(any(feature = "processor", feature = "pinocchio-rt"))]
 pub mod fast {
     pinocchio::address::declare_id!(
         "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"

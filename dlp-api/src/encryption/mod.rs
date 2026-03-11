@@ -43,6 +43,8 @@ pub fn ed25519_pubkey_to_x25519(
 pub fn ed25519_secret_to_x25519(
     ed25519_secret_key: &[u8],
 ) -> Result<[u8; KEY_LEN], EncryptionError> {
+    assert_eq!(ed25519_secret_key.len(), 64);
+
     init_sodium()?;
     let ed_sk = crypto_sign::SecretKey::from_bytes(ed25519_secret_key)
         .map_err(|_| EncryptionError::InvalidEd25519SecretKey)?;

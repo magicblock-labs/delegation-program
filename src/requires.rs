@@ -816,7 +816,7 @@ pub(crate) fn require_authorization(
             admin.address(),
             ProgramError::IncorrectAuthority
         );
-        return Ok(());
+        Ok(())
     }
 
     #[cfg(all(not(feature = "unit_test_config"), feature = "processor"))]

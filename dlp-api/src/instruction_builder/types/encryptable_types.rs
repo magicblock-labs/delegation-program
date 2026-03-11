@@ -123,8 +123,8 @@ impl EncryptableFrom for Vec<u8> {
     type Output = EncryptableIxData;
     fn encrypted_from(self, offset: usize) -> Self::Output {
         EncryptableIxData {
+            encrypt_begin_offset: offset.min(self.len()),
             data: self,
-            encrypt_begin_offset: offset,
         }
     }
 }

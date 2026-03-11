@@ -11,6 +11,7 @@ use pinocchio_system::instructions as system;
 
 use crate::{
     args::DelegateWithActionsArgs,
+    compact,
     consts::{DEFAULT_VALIDATOR_IDENTITY, RENT_EXCEPTION_ZERO_BYTES_LAMPORTS},
     error::DlpError,
     pda,
@@ -98,6 +99,12 @@ pub fn process_delegate_with_actions(
     // Validate instruction payload shape up-front. This confirms delegate args
     // and actions envelope format, while encrypted bytes remain opaque.
     {
+        if (args.actions.signers.len() + args.actions.non_signers.len())
+            > compact::MAX_PUBKEYS as usize
+        {
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
         let signers_count = args.actions.signers.len() as u8;
         let keys_count = signers_count + args.actions.non_signers.len() as u8;
 

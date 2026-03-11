@@ -9,12 +9,12 @@ name = "dlp_api"
 
 [dependencies]
 # core program crate
-dlp = { package = "magicblock-delegation-program", path = ".." }
+dlp = { package = "magicblock-delegation-program", path = "..", default-features = false, features = ["sdk"] }
 
 # sdk deps
 solana-program = { version = ">=1.16, <3.0.0" }
-solana-sdk = { version = ">=1.16" }
-rand = { version = "=0.8.5", features = ["small_rng"] }
+solana-sdk = { version = ">=1.16, <3.0.0" }
+rand = { version = "^0.8.5", features = ["small_rng"] }
 libsodium-rs = { version = "0.2.0" }
 
 borsh = { version = "1.5.3", features = ["derive"] }
@@ -23,7 +23,7 @@ serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 thiserror = { version = ">=1" }
 
 [dev-dependencies]
-dlp = { package = "magicblock-delegation-program", path = "..", features = [
-    "unit_test_config",
+dlp = { package = "magicblock-delegation-program", path = "..", default-features = false, features = [
+    "unit_test_config" 
 ] }
 spl-token = "4.0.0"

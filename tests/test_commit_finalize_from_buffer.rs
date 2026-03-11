@@ -93,7 +93,7 @@ async fn test_commit_finalize_from_buffer_perf() {
         )
         .unwrap();
 
-    assert_eq!(delegation_metadata.is_undelegatable, true);
+    assert!(delegation_metadata.is_undelegatable);
 }
 
 #[tokio::test]

@@ -167,7 +167,8 @@ impl Encrypt for Vec<PostDelegationInstruction> {
                 + non_signers
                     .iter()
                     .position(|ns| &ns.account_meta.pubkey == pk)
-                    .unwrap() as u8
+                    .expect("pubkey must exist in signers or non_signers")
+                    as u8
         };
 
         let compact_instructions: Vec<MaybeEncryptedInstruction> = self
