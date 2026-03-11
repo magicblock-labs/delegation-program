@@ -1,0 +1,140 @@
+language: en-US
+tone_instructions: ''
+early_access: true
+enable_free_tier: true
+reviews:
+  # Review style + summary placement
+  profile: assertive
+  high_level_summary_placeholder: "<!-- coderabbit-summary -->"
+  review_status: true
+  collapse_walkthrough: true
+
+  # Noise reduction (these default to true; we explicitly turn them off)
+  changed_files_summary: false
+  sequence_diagrams: false
+  estimate_code_review_effort: false
+  related_issues: false
+  related_prs: false
+  suggested_labels: false
+  labeling_instructions: []
+  auto_apply_labels: false
+  suggested_reviewers: true
+  auto_assign_reviewers: false
+  in_progress_fortune: false
+  poem: false
+  enable_prompt_for_ai_agents: true
+
+  # Auto-review behavior
+  auto_review:
+    enabled: true
+    drafts: true
+    auto_incremental_review: true
+    base_branches: [".*"]
+
+  # Don’t auto-generate docstrings/tests (reduce chatter)
+  finishing_touches:
+    docstrings:
+      enabled: false
+    unit_tests:
+      enabled: true
+  pre_merge_checks:
+    docstrings:
+      mode: off
+    title:
+      mode: off
+    description:
+      mode: off
+    issue_assessment:
+      mode: off
+
+  # Lightweight, high-signal tools for this repo
+  tools:
+    # Audited languages: Rust, Shell, TypeScript/JavaScript, Protobuf, Markdown, YAML, TOML, Makefile.
+    ast-grep:
+      rule_dirs: []
+      util_dirs: []
+      essential_rules: true
+      packages: []
+    shellcheck:
+      enabled: true
+    markdownlint:
+      enabled: true
+    github-checks:
+      enabled: false
+      timeout_ms: 90000
+    languagetool:
+      enabled: true
+      enabled_rules: []
+      disabled_rules: []
+      enabled_categories: []
+      disabled_categories: []
+      enabled_only: false
+      level: default
+    biome:
+      enabled: true
+    yamllint:
+      enabled: true
+    gitleaks:
+      enabled: true
+    eslint:
+      enabled: true
+    buf:
+      enabled: true
+    actionlint:
+      enabled: true
+    semgrep:
+      enabled: true
+    clippy:
+      enabled: true
+    oxc:
+      enabled: true
+    dotenvLint:
+      enabled: true
+    checkmake:
+      enabled: true
+    osvScanner:
+      enabled: true
+  path_instructions:
+    - path: "{dlp-api,src}/**"
+      instructions: |
+        Treat any usage of `.unwrap()` or `.expect()` in production Rust code as a MAJOR issue.
+        These should not be categorized as trivial or nit-level concerns.
+        Request proper error handling or explicit justification with invariants.
+    - path: "{tests}/**"
+      instructions: Usage of `.unwrap()` or `.expect()` in test code is acceptable and may be treated as trivial.
+chat:
+  # We leave emoji/ASCII art, but no auto-replies
+  art: true
+  auto_reply: false
+
+knowledge_base:
+  # Avoid web-search commentary in reviews
+  web_search:
+    enabled: false
+  code_guidelines:
+    enabled: true
+    filePatterns: []
+  learnings:
+    scope: auto
+  issues:
+    scope: auto
+  jira:
+    usage: auto
+    project_keys: []
+  linear:
+    usage: auto
+    team_keys: []
+  pull_requests:
+    scope: auto
+  mcp:
+    usage: auto
+    disabled_servers: []
+code_generation:
+  docstrings:
+    language: en-US
+    path_instructions: []
+  unit_tests:
+    path_instructions: []
+issue_enrichment:
+  planning:
+    enabled: true
