@@ -15,18 +15,12 @@ use crate::{
     error::DlpError,
     pda,
     processor::{
-        fast::{
-            to_pinocchio_program_error,
-            utils::{
-                pda::create_pda,
-                requires::{
-                    require_owned_pda, require_pda, require_signer,
-                    require_uninitialized_pda, DelegationMetadataCtx,
-                    DelegationRecordCtx,
-                },
-            },
-        },
+        fast::{to_pinocchio_program_error, utils::pda::create_pda},
         utils::curve::is_on_curve_fast,
+    },
+    requires::{
+        require_owned_pda, require_pda, require_signer,
+        require_uninitialized_pda, DelegationMetadataCtx, DelegationRecordCtx,
     },
     state::{DelegationMetadata, DelegationRecord},
 };

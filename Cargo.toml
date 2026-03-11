@@ -19,28 +19,25 @@ crate-type = ["cdylib", "lib"]
 name = "dlp"
 
 [features]
+# Leaf features (used directly in code)
+pinocchio-runtime = [
+    "dep:pinocchio",
+    "dep:pinocchio-log",
+    "dep:pinocchio-pubkey",
+    "dep:pinocchio-system",
+    "dep:const-crypto",
+    "dep:solana-curve25519",
+]
+diff = ["pinocchio-runtime", "dep:rkyv"]
+processor = ["diff"]
+entrypoint = []
+
+# Back-compat: keep name but make it opt-out of entrypoint.
 no-entrypoint = []
-sdk = [
-    "no-entrypoint",
-    "dep:solana-sdk",
-    "dep:rand",
-    "dep:pinocchio",
-    "dep:pinocchio-log",
-    "dep:pinocchio-pubkey",
-    "dep:pinocchio-system",
-    "dep:const-crypto",
-    "dep:rkyv",
-    "dep:solana-curve25519",
-]
-program = [
-    "dep:pinocchio",
-    "dep:pinocchio-log",
-    "dep:pinocchio-pubkey",
-    "dep:pinocchio-system",
-    "dep:const-crypto",
-    "dep:rkyv",
-    "dep:solana-curve25519",
-]
+
+# Use-case features (composed of leaf features)
+program = ["processor", "entrypoint"]
+sdk = ["diff"]
 
 # Default build = program path + security txt
 default = ["program", "solana-security-txt"]

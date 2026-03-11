@@ -6,7 +6,7 @@ reviews:
   # Review style + summary placement
   profile: assertive
   high_level_summary_placeholder: "<!-- coderabbit-summary -->"
-  review_status: true
+  review_status: false
   collapse_walkthrough: true
 
   # Noise reduction (these default to true; we explicitly turn them off)

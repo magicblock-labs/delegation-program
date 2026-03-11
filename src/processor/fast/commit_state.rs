@@ -11,15 +11,13 @@ use crate::{
     args::CommitStateArgs,
     error::DlpError,
     merge_diff_copy, pda,
-    processor::fast::utils::{
-        pda::create_pda,
-        requires::{
-            require_initialized_delegation_metadata,
-            require_initialized_delegation_record,
-            require_initialized_validator_fees_vault, require_owned_pda,
-            require_program_config, require_signer, require_uninitialized_pda,
-            CommitRecordCtx, CommitStateAccountCtx,
-        },
+    processor::fast::utils::pda::create_pda,
+    requires::{
+        require_initialized_delegation_metadata,
+        require_initialized_delegation_record,
+        require_initialized_validator_fees_vault, require_owned_pda,
+        require_program_config, require_signer, require_uninitialized_pda,
+        CommitRecordCtx, CommitStateAccountCtx,
     },
     state::{
         CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,

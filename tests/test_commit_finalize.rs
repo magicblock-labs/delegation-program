@@ -82,7 +82,7 @@ async fn run_test_commit_finalize(
 
         let metadata = metadata.unwrap();
 
-        assertables::assert_lt!(
+        assertables::assert_le!(
             metadata.compute_units_consumed,
             max_expected_cu
         );

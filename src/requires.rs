@@ -358,7 +358,8 @@ macro_rules! require_pda {
 /// Errors if:
 /// - Account is not owned by expected program.
 #[inline(always)]
-pub fn require_owned_pda(
+#[cfg(feature = "processor")]
+pub(crate) fn require_owned_pda(
     info: &AccountView,
     owner: &Address,
     label: &str,
@@ -376,7 +377,8 @@ pub fn require_owned_pda(
 /// Errors if:
 /// - Account is not a signer.
 #[inline(always)]
-pub fn require_signer(
+#[cfg(feature = "processor")]
+pub(crate) fn require_signer(
     info: &AccountView,
     label: &str,
 ) -> Result<(), ProgramError> {
@@ -392,7 +394,8 @@ pub fn require_signer(
 /// Errors if:
 /// - Address does not match PDA derived from provided seeds.
 #[inline(always)]
-pub fn require_pda(
+#[cfg(feature = "processor")]
+pub(crate) fn require_pda(
     info: &AccountView,
     seeds: &[&[u8]],
     program_id: &Address,
@@ -429,7 +432,8 @@ pub fn is_uninitialized_account(info: &AccountView) -> bool {
 /// - Data is not empty.
 /// - Account is not writable.
 #[inline(always)]
-pub fn require_uninitialized_account(
+#[cfg(feature = "processor")]
+pub(crate) fn require_uninitialized_account(
     info: &AccountView,
     is_writable: bool,
     ctx: impl RequireUninitializedAccountCtx,
@@ -469,7 +473,8 @@ pub fn require_uninitialized_account(
 /// - Address does not match PDA derived from provided seeds.
 /// - Cannot load as an uninitialized account.
 #[inline(always)]
-pub fn require_uninitialized_pda(
+#[cfg(feature = "processor")]
+pub(crate) fn require_uninitialized_pda(
     info: &AccountView,
     seeds: &[&[u8]],
     program_id: &Address,
@@ -492,7 +497,8 @@ pub fn require_uninitialized_pda(
 /// - Address does not match PDA derived from provided seeds.
 /// - Owner is not the expected program.
 /// - Account is not writable if set to writable.
-pub fn require_initialized_pda(
+#[cfg(feature = "processor")]
+pub(crate) fn require_initialized_pda(
     info: &AccountView,
     seeds: &[&[u8]],
     program_id: &Address,
@@ -522,7 +528,8 @@ pub fn require_initialized_pda(
 /// - Account is not executable.
 #[inline(always)]
 #[allow(dead_code)]
-pub fn require_program(
+#[cfg(feature = "processor")]
+pub(crate) fn require_program(
     info: &AccountView,
     key: &Address,
     label: &str,
@@ -544,7 +551,8 @@ pub fn require_program(
 
 /// Load fee vault PDA
 /// - Protocol fees vault PDA
-pub fn require_initialized_protocol_fees_vault(
+#[cfg(feature = "processor")]
+pub(crate) fn require_initialized_protocol_fees_vault(
     fees_vault: &AccountView,
     is_writable: bool,
 ) -> Result<(), ProgramError> {
@@ -561,7 +569,8 @@ pub fn require_initialized_protocol_fees_vault(
 /// Load validator fee vault PDA
 /// - Validator fees vault PDA must be derived from the validator pubkey
 /// - Validator fees vault PDA must be initialized with the expected seeds and owner
-pub fn require_initialized_validator_fees_vault(
+#[cfg(feature = "processor")]
+pub(crate) fn require_initialized_validator_fees_vault(
     validator: &AccountView,
     validator_fees_vault: &AccountView,
     is_writable: bool,
@@ -590,7 +599,8 @@ pub fn require_initialized_validator_fees_vault(
 
 /// Load program config PDA
 /// - Program config PDA must be initialized with the expected seeds and owner, or not exists
-pub fn require_program_config(
+#[cfg(feature = "processor")]
+pub(crate) fn require_program_config(
     program_config: &AccountView,
     program: &Address,
     is_writable: bool,
@@ -618,7 +628,8 @@ pub fn require_program_config(
 
 /// Load initialized delegation record
 /// - Delegation record must be derived from the delegated account
-pub fn require_initialized_delegation_record(
+#[cfg(feature = "processor")]
+pub(crate) fn require_initialized_delegation_record(
     delegated_account: &AccountView,
     delegation_record: &AccountView,
     is_writable: bool,
@@ -638,7 +649,8 @@ pub fn require_initialized_delegation_record(
 
 /// Load initialized delegation metadata
 /// - Delegation metadata must be derived from the delegated account
-pub fn require_initialized_delegation_metadata(
+#[cfg(feature = "processor")]
+pub(crate) fn require_initialized_delegation_metadata(
     delegated_account: &AccountView,
     delegation_metadata: &AccountView,
     is_writable: bool,
@@ -658,7 +670,8 @@ pub fn require_initialized_delegation_metadata(
 
 /// Load initialized commit state account
 /// - Commit state account must be derived from the delegated account pubkey
-pub fn require_initialized_commit_state(
+#[cfg(feature = "processor")]
+pub(crate) fn require_initialized_commit_state(
     delegated_account: &AccountView,
     commit_state: &AccountView,
     is_writable: bool,
@@ -675,7 +688,8 @@ pub fn require_initialized_commit_state(
 
 /// Load initialized commit state record
 /// - Commit record account must be derived from the delegated account pubkey
-pub fn require_initialized_commit_record(
+#[cfg(feature = "processor")]
+pub(crate) fn require_initialized_commit_record(
     delegated_account: &AccountView,
     commit_record: &AccountView,
     is_writable: bool,
@@ -714,7 +728,7 @@ macro_rules! define_uninitialized_ctx {
     ) => {
         pub(crate) struct $name;
 
-        impl $crate::processor::fast::utils::requires::RequireUninitializedAccountCtx for $name {
+        impl $crate::requires::RequireUninitializedAccountCtx for $name {
             fn label(&self) -> &str {
                 $label
             }
@@ -727,7 +741,9 @@ macro_rules! define_uninitialized_ctx {
                 $owner.into()
             }
 
-            fn account_already_initialized(&self) -> pinocchio::error::ProgramError {
+            fn account_already_initialized(
+                &self,
+            ) -> pinocchio::error::ProgramError {
                 $already_init.into()
             }
 
@@ -784,7 +800,8 @@ define_uninitialized_ctx!(
     immutable = DlpError::UndelegateBufferImmutable
 );
 
-pub fn require_authorization(
+#[cfg(feature = "processor")]
+pub(crate) fn require_authorization(
     program_data: &AccountView,
     admin: &AccountView,
 ) -> Result<(), ProgramError> {
@@ -802,7 +819,7 @@ pub fn require_authorization(
         return Ok(());
     }
 
-    #[cfg(not(feature = "unit_test_config"))]
+    #[cfg(all(not(feature = "unit_test_config"), feature = "processor"))]
     {
         // Derive and validate program data address
         require_eq_keys!(
