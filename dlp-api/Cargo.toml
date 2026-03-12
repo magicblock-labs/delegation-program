@@ -7,15 +7,21 @@ license = "MIT"
 [lib]
 name = "dlp_api"
 
+[features]
+# Offchain encryption/decryption helpers (libsodium + solana-sdk)
+encryption = ["dep:libsodium-rs", "dep:solana-sdk"]
+
+# Default to offchain-friendly build
+default = ["encryption"]
+
 [dependencies]
 # core program crate
 dlp = { package = "magicblock-delegation-program", path = "..", default-features = false, features = ["sdk"] }
 
 # sdk deps
 solana-program = { version = ">=1.16, <3.0.0" }
-solana-sdk = { version = ">=1.16, <3.0.0" }
-rand = { version = "^0.8.5", features = ["small_rng"] }
-libsodium-rs = { version = "0.2.0" }
+solana-sdk = { version = ">=1.16, <3.0.0", optional = true }
+libsodium-rs = { version = "0.2.0", optional = true }
 
 borsh = { version = "1.5.3", features = ["derive"] }
 bincode = { version = "^1.3" }

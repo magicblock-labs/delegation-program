@@ -2528,7 +2528,6 @@ dependencies = [
  "borsh 1.5.7",
  "libsodium-rs",
  "magicblock-delegation-program",
- "rand 0.8.5",
  "serde",
  "solana-program",
  "solana-sdk",

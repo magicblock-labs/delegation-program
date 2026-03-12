@@ -17,6 +17,7 @@ use solana_program::{
 use super::types::{Encrypt, PostDelegationInstruction};
 
 /// See [dlp::processor::process_delegate_with_actions] for docs.
+#[cfg(feature = "encryption")]
 pub fn delegate_with_actions(
     payer: Pubkey,
     delegated_account: Pubkey,
@@ -73,6 +74,7 @@ pub fn delegate_with_actions(
 }
 
 #[cfg(test)]
+#[cfg(feature = "encryption")]
 mod tests {
     use solana_sdk::{signature::Keypair, signer::Signer};
 
