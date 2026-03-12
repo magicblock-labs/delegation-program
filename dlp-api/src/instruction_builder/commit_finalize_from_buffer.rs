@@ -47,7 +47,7 @@ pub fn commit_finalize_from_buffer(
         Instruction {
             program_id: dlp::id(),
             accounts: vec![
-                AccountMeta::new_readonly(validator, true),
+                AccountMeta::new(validator, true),
                 AccountMeta::new(delegated_account, false),
                 AccountMeta::new_readonly(delegation_record.0, false),
                 AccountMeta::new(delegation_metadata.0, false),

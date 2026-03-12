@@ -42,7 +42,7 @@ pub fn commit_state(
     Instruction {
         program_id: dlp::id(),
         accounts: vec![
-            AccountMeta::new_readonly(validator, true),
+            AccountMeta::new(validator, true),
             AccountMeta::new_readonly(delegated_account, false),
             AccountMeta::new(commit_state_pda, false),
             AccountMeta::new(commit_record_pda, false),
