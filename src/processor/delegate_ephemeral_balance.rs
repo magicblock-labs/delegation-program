@@ -1,13 +1,23 @@
 use borsh::BorshDeserialize;
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult,
-    program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
+    program::invoke_signed,
+    program_error::ProgramError,
+    pubkey::Pubkey,
     system_instruction, system_program,
 };
 
 use crate::{
     args::DelegateEphemeralBalanceArgs,
+    discriminator::DlpDiscriminator,
     ephemeral_balance_seeds_from_payer,
+    pda::{
+        delegate_buffer_pda_from_delegated_account_and_owner_program,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+    },
     processor::utils::loaders::{load_program, load_signer},
 };
 
@@ -78,13 +88,35 @@ pub fn process_delegate_ephemeral_balance(
         &[&ephemeral_balance_signer_seeds],
     )?;
 
-    // Create the delegation ix
-    let ix = crate::instruction_builder::delegate(
-        *payer.key,
-        *ephemeral_balance_account.key,
-        Some(system_program::id()),
-        args.delegate_args,
+    let delegate_buffer_pda =
+        delegate_buffer_pda_from_delegated_account_and_owner_program(
+            ephemeral_balance_account.key,
+            &system_program::id(),
+        );
+    let delegation_record_pda = delegation_record_pda_from_delegated_account(
+        ephemeral_balance_account.key,
     );
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(
+            ephemeral_balance_account.key,
+        );
+    let mut data = DlpDiscriminator::Delegate.to_vec();
+    data.extend_from_slice(&borsh::to_vec(&args.delegate_args).unwrap());
+
+    // Create the delegation ix
+    let ix = Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(*payer.key, true),
+            AccountMeta::new(*ephemeral_balance_account.key, true),
+            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new(delegate_buffer_pda, false),
+            AccountMeta::new(delegation_record_pda, false),
+            AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data,
+    };
 
     // Invoke signed delegation instruction
     invoke_signed(

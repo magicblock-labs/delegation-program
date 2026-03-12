@@ -32,7 +32,7 @@ async fn test_undelegate_on_curve() {
     );
 
     // Submit the undelegate tx
-    let ix = dlp::instruction_builder::undelegate(
+    let ix = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
         delegated_on_curve.pubkey(),
         system_program::id(),

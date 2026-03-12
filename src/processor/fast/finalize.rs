@@ -8,16 +8,14 @@ use pinocchio_log::log;
 use super::to_pinocchio_program_error;
 use crate::{
     error::DlpError,
-    processor::fast::utils::{
-        pda::close_pda,
-        requires::{
-            is_uninitialized_account, require_initialized_commit_record,
-            require_initialized_commit_state,
-            require_initialized_delegation_metadata,
-            require_initialized_delegation_record,
-            require_initialized_validator_fees_vault, require_owned_pda,
-            require_signer,
-        },
+    processor::fast::utils::pda::close_pda,
+    requires::{
+        is_uninitialized_account, require_initialized_commit_record,
+        require_initialized_commit_state,
+        require_initialized_delegation_metadata,
+        require_initialized_delegation_record,
+        require_initialized_validator_fees_vault, require_owned_pda,
+        require_signer,
     },
     state::{CommitRecord, DelegationMetadata, DelegationRecord},
 };

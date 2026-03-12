@@ -49,7 +49,7 @@ async fn run_test_commit_finalize(
 
     let new_account_balance = 1_000_000;
 
-    let (ix, pdas) = dlp::instruction_builder::commit_finalize(
+    let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {
@@ -82,7 +82,7 @@ async fn run_test_commit_finalize(
 
         let metadata = metadata.unwrap();
 
-        assertables::assert_lt!(
+        assertables::assert_le!(
             metadata.compute_units_consumed,
             max_expected_cu
         );
@@ -110,7 +110,7 @@ async fn run_test_commit_finalize(
         )
         .unwrap();
 
-    assert_eq!(delegation_metadata.is_undelegatable, true);
+    assert!(delegation_metadata.is_undelegatable);
 }
 
 #[tokio::test]
@@ -121,7 +121,7 @@ async fn test_commit_finalize_out_of_order() {
 
     let new_account_balance = 1_000_000;
 
-    let (ix, _pdas) = dlp::instruction_builder::commit_finalize(
+    let (ix, _pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {

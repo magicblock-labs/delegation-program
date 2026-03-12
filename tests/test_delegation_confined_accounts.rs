@@ -34,7 +34,7 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
     let assign_res = banks.process_transaction(assign_tx).await;
     assert!(assign_res.is_ok());
 
-    let ix = dlp::instruction_builder::delegate(
+    let ix = dlp_api::instruction_builder::delegate(
         payer.pubkey(),
         delegated.pubkey(),
         None,
@@ -85,7 +85,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
     let assign_res = banks.process_transaction(assign_tx).await;
     assert!(assign_res.is_ok());
 
-    let ix = dlp::instruction_builder::delegate_with_any_validator(
+    let ix = dlp_api::instruction_builder::delegate_with_any_validator(
         payer.pubkey(),
         delegated.pubkey(),
         None,

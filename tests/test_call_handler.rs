@@ -15,7 +15,7 @@ use solana_program::{
     hash::Hash, instruction::AccountMeta, native_token::LAMPORTS_PER_SOL,
     rent::Rent, system_program,
 };
-use solana_program_test::{read_file, BanksClient, ProgramTest};
+use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     pubkey::Pubkey,
@@ -253,7 +253,11 @@ async fn setup_ephemeral_balance(
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new(
+        "dlp",
+        dlp::ID,
+        processor!(dlp::slow_process_instruction),
+    );
     program_test.prefer_bpf(true);
 
     let payer = Keypair::new();
@@ -327,11 +331,11 @@ async fn test_finalize_call_handler() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
+    let finalize_ix = dlp_api::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let call_handler_ix = dlp::instruction_builder::call_handler(
+    let call_handler_ix = dlp_api::instruction_builder::call_handler(
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         payer.pubkey(),         // escrow authority
@@ -375,17 +379,17 @@ async fn test_undelegate_call_handler() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
+    let finalize_ix = dlp_api::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let undelegate_ix = dlp::instruction_builder::undelegate(
+    let undelegate_ix = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         validator.pubkey(),
     );
-    let call_handler_ix = dlp::instruction_builder::call_handler(
+    let call_handler_ix = dlp_api::instruction_builder::call_handler(
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         payer.pubkey(),         // escrow authority
@@ -442,11 +446,11 @@ async fn test_finalize_invalid_escrow_call_handler() {
 
     // Submit the finalize with handler tx
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
+    let finalize_ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let call_handler_ix = dlp::instruction_builder::call_handler(
+    let call_handler_ix = dlp_api::instruction_builder::call_handler(
         authority.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         DELEGATED_PDA_ID,
@@ -477,11 +481,11 @@ async fn test_undelegate_invalid_escow_call_handler() {
 
     // Submit the finalize with handler tx
     let destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
+    let finalize_ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let finalize_call_handler_ix = dlp::instruction_builder::call_handler(
+    let finalize_call_handler_ix = dlp_api::instruction_builder::call_handler(
         authority.pubkey(),
         DELEGATED_PDA_OWNER_ID, // handler program
         DELEGATED_PDA_ID,
@@ -492,13 +496,13 @@ async fn test_undelegate_invalid_escow_call_handler() {
         },
     );
 
-    let undelegate_ix = dlp::instruction_builder::undelegate(
+    let undelegate_ix = dlp_api::instruction_builder::undelegate(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         authority.pubkey(),
     );
-    let undelegate_call_handler_ix = dlp::instruction_builder::call_handler(
+    let undelegate_call_handler_ix = dlp_api::instruction_builder::call_handler(
         authority.pubkey(),
         DELEGATED_PDA_OWNER_ID, // handler program
         DELEGATED_PDA_ID,

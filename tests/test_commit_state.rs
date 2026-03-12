@@ -41,7 +41,7 @@ async fn test_commit_new_state() {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction_builder::commit_state(
+    let ix = dlp_api::instruction_builder::commit_state(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -118,7 +118,7 @@ async fn test_commit_out_of_order() {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction_builder::commit_state(
+    let ix = dlp_api::instruction_builder::commit_state(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

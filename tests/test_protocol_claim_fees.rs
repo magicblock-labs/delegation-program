@@ -21,7 +21,7 @@ async fn test_protocol_claim_fees() {
     let fees_vault_pda = fees_vault_pda();
 
     // Submit the claim fees tx
-    let ix = dlp::instruction_builder::protocol_claim_fees(admin.pubkey());
+    let ix = dlp_api::instruction_builder::protocol_claim_fees(admin.pubkey());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),

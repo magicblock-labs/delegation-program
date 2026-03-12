@@ -39,7 +39,7 @@ async fn test_undelegate_without_commit() {
         delegated_pda_state_before_undelegation.data.clone();
 
     // Submit the undelegate tx
-    let ix = dlp::instruction_builder::undelegate(
+    let ix = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

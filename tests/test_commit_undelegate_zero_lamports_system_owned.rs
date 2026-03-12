@@ -44,7 +44,7 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
         lamports: 0,
     };
 
-    let ix_commit = dlp::instruction_builder::commit_state(
+    let ix_commit = dlp_api::instruction_builder::commit_state(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -59,11 +59,11 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
     let res_commit = banks.process_transaction(tx_commit).await;
     assert!(res_commit.is_ok());
 
-    let ix_finalize = dlp::instruction_builder::finalize(
+    let ix_finalize = dlp_api::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let ix_undelegate = dlp::instruction_builder::undelegate(
+    let ix_undelegate = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

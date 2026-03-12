@@ -16,7 +16,8 @@ async fn test_init_fees_vault() {
     // Setup
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction_builder::init_protocol_fees_vault(payer.pubkey());
+    let ix =
+        dlp_api::instruction_builder::init_protocol_fees_vault(payer.pubkey());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
