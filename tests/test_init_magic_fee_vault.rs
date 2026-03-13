@@ -2,11 +2,12 @@ use dlp::pda::magic_fee_vault_pda_from_validator;
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
 };
-use solana_program_test::{BanksClient, ProgramTest};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 
 use crate::fixtures::TEST_AUTHORITY;
@@ -71,7 +72,18 @@ async fn test_init_magic_fee_vault_fails_without_validator_fees_vault() {
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
-    assert!(res.is_err());
+    assert!(
+        matches!(
+            res.unwrap_err(),
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidAccountOwner,
+                )
+            )
+        ),
+        "expected InvalidAccountOwner (validator fees vault not initialized)"
+    );
 }
 
 async fn setup_program_test_env(
