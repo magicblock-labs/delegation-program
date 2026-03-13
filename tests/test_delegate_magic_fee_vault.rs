@@ -5,11 +5,12 @@ use dlp::pda::{
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
 };
-use solana_program_test::{BanksClient, ProgramTest};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 
 use crate::fixtures::TEST_AUTHORITY;
@@ -97,7 +98,18 @@ async fn test_delegate_magic_fee_vault_fails_without_fees_vault() {
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
-    assert!(res.is_err());
+    assert!(
+        matches!(
+            res.unwrap_err(),
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidAccountOwner,
+                )
+            )
+        ),
+        "expected InvalidAccountOwner (validator fees vault not initialized)"
+    );
 }
 
 #[tokio::test]
@@ -130,7 +142,18 @@ async fn test_delegate_magic_fee_vault_fails_without_magic_fee_vault() {
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
-    assert!(res.is_err());
+    assert!(
+        matches!(
+            res.unwrap_err(),
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidAccountOwner,
+                )
+            )
+        ),
+        "expected InvalidAccountOwner (magic fee vault not initialized)"
+    );
 }
 
 #[tokio::test]
@@ -153,7 +176,20 @@ async fn test_delegate_magic_fee_vault_fails_with_wrong_validator() {
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
-    assert!(res.is_err());
+    // wrong_validator has no fees vault → load_initialized_validator_fees_vault
+    // hits load_owned_pda on a system-owned account → InvalidAccountOwner
+    assert!(
+        matches!(
+            res.unwrap_err(),
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidAccountOwner,
+                )
+            )
+        ),
+        "expected InvalidAccountOwner (wrong validator has no fees vault)"
+    );
 }
 
 async fn setup_program_test_env(
