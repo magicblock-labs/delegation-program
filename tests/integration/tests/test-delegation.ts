@@ -208,9 +208,11 @@ describe("TestDelegation", () => {
   });
 
   it("Commit a new state to the PDA", async () => {
-    let account = await provider.connection.getAccountInfo(pda);
-    let new_data = account.data;
-    new_data[-1] = (new_data[-1] + 1) % 256;
+    const account = await provider.connection.getAccountInfo(pda);
+    const new_data = account.data;
+
+    const lastIndex = new_data.length - 1;
+    new_data[lastIndex] = (new_data[lastIndex] + 1) % 256;
 
     const args: CommitAccountInstructionArgs = {
       slot: new anchor.BN(1),
@@ -316,9 +318,11 @@ describe("TestDelegation", () => {
   });
 
   it("Commit a new state to the PDA", async () => {
-    let account = await provider.connection.getAccountInfo(pda);
-    let new_data = account.data;
-    new_data[-1] = (new_data[-1] + 1) % 256;
+    const account = await provider.connection.getAccountInfo(pda);
+    const new_data = account.data;
+
+    const lastIndex = new_data.length - 1;
+    new_data[lastIndex] = (new_data[lastIndex] + 1) % 256;
 
     const args: CommitAccountInstructionArgs = {
       slot: new anchor.BN(2),
