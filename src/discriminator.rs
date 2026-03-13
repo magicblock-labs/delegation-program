@@ -54,11 +54,14 @@ pub enum DlpDiscriminator {
     /// See [crate::processor::process_commit_finalize_from_buffer] for docs.
     CommitFinalizeFromBuffer = 22,
 
+    /// See [crate::processor::process_delegate_with_actions] for docs.
+    DelegateWithActions = 23,
+
     /// See [crate::processor::process_init_magic_fee_vault] for docs.
-    InitMagicFeeVault = 23,
+    InitMagicFeeVault = 24,
 
     /// See [crate::processor::process_delegate_magic_fee_vault] for docs.
-    DelegateMagicFeeVault = 24,
+    DelegateMagicFeeVault = 25,
 }
 
 impl DlpDiscriminator {

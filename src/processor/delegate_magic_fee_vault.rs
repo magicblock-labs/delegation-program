@@ -1,11 +1,17 @@
 use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg,
-    program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    instruction::{AccountMeta, Instruction},
+    msg,
+    program::invoke_signed,
+    program_error::ProgramError,
+    pubkey::Pubkey,
     system_program,
 };
 
 use crate::{
     args::DelegateArgs,
+    discriminator::DlpDiscriminator,
     magic_fee_vault_seeds_from_validator,
     pda::magic_fee_vault_pda_from_validator,
     processor::utils::loaders::{
@@ -86,12 +92,23 @@ pub fn process_delegate_magic_fee_vault(
         validator: Some(*validator.key),
     };
 
-    let ix = crate::instruction_builder::delegate(
-        *payer.key,
-        *magic_fee_vault.key,
-        Some(crate::id()),
-        delegate_args,
-    );
+    let mut data = DlpDiscriminator::Delegate.to_vec();
+    data.extend(borsh::to_vec(&delegate_args)?);
+
+    // Create delegation ix
+    let ix = Instruction {
+        program_id: crate::id(),
+        accounts: vec![
+            AccountMeta::new(*payer.key, true),
+            AccountMeta::new(*magic_fee_vault.key, true),
+            AccountMeta::new_readonly(crate::id(), false),
+            AccountMeta::new(*delegate_buffer.key, false),
+            AccountMeta::new(*delegation_record.key, false),
+            AccountMeta::new(*delegation_metadata.key, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data,
+    };
 
     let magic_fee_vault_bump_slice = &[magic_fee_vault_bump];
     let magic_fee_vault_signer_seeds =

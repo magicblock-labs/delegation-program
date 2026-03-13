@@ -9,16 +9,7 @@ use pinocchio::{
 use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
-use super::{
-    to_pinocchio_program_error,
-    utils::requires::{
-        require_initialized_delegation_metadata,
-        require_initialized_delegation_record,
-        require_initialized_protocol_fees_vault,
-        require_initialized_validator_fees_vault, require_owned_pda,
-        require_signer,
-    },
-};
+use super::to_pinocchio_program_error;
 #[cfg(feature = "log-cost")]
 use crate::compute;
 use crate::{
@@ -28,12 +19,14 @@ use crate::{
     },
     error::DlpError,
     pda,
-    processor::fast::utils::{
-        pda::{close_pda, close_pda_with_fees, create_pda},
-        requires::{
-            require_uninitialized_pda, CommitRecordCtx, CommitStateAccountCtx,
-            UndelegateBufferCtx,
-        },
+    processor::fast::utils::pda::{close_pda, close_pda_with_fees, create_pda},
+    requires::{
+        require_initialized_delegation_metadata,
+        require_initialized_delegation_record,
+        require_initialized_protocol_fees_vault,
+        require_initialized_validator_fees_vault, require_owned_pda,
+        require_signer, require_uninitialized_pda, CommitRecordCtx,
+        CommitStateAccountCtx, UndelegateBufferCtx,
     },
     state::{DelegationMetadata, DelegationRecord},
 };

@@ -327,11 +327,11 @@ async fn test_finalize_call_handler_v2() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
+    let finalize_ix = dlp_api::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let call_handler_v2_ix = dlp::instruction_builder::call_handler_v2(
+    let call_handler_v2_ix = dlp_api::instruction_builder::call_handler_v2(
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         DELEGATED_PDA_OWNER_ID, // source program
@@ -376,17 +376,17 @@ async fn test_undelegate_call_handler_v2() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
+    let finalize_ix = dlp_api::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let undelegate_ix = dlp::instruction_builder::undelegate(
+    let undelegate_ix = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         validator.pubkey(),
     );
-    let call_handler_v2_ix = dlp::instruction_builder::call_handler_v2(
+    let call_handler_v2_ix = dlp_api::instruction_builder::call_handler_v2(
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         DELEGATED_PDA_OWNER_ID, // source program
@@ -442,11 +442,11 @@ async fn test_finalize_invalid_escrow_call_handler_v2() {
 
     // Submit the finalize with handler tx
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
+    let finalize_ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let call_handler_v2_ix = dlp::instruction_builder::call_handler_v2(
+    let call_handler_v2_ix = dlp_api::instruction_builder::call_handler_v2(
         authority.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         DELEGATED_PDA_OWNER_ID, // source program
@@ -478,30 +478,31 @@ async fn test_undelegate_invalid_escrow_call_handler_v2() {
 
     // Submit the finalize with handler tx
     let destination = Keypair::new();
-    let finalize_ix = dlp::instruction_builder::finalize(
+    let finalize_ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let finalize_call_handler_v2_ix = dlp::instruction_builder::call_handler_v2(
-        authority.pubkey(),
-        DELEGATED_PDA_OWNER_ID, // handler program
-        DELEGATED_PDA_OWNER_ID, // source program
-        DELEGATED_PDA_ID,
-        vec![AccountMeta::new(destination.pubkey(), false)],
-        CallHandlerArgs {
-            escrow_index: 0,
-            data: UNDELEGATE_HANDLER_V2_DISCRIMINATOR.to_vec(),
-        },
-    );
+    let finalize_call_handler_v2_ix =
+        dlp_api::instruction_builder::call_handler_v2(
+            authority.pubkey(),
+            DELEGATED_PDA_OWNER_ID, // handler program
+            DELEGATED_PDA_OWNER_ID, // source program
+            DELEGATED_PDA_ID,
+            vec![AccountMeta::new(destination.pubkey(), false)],
+            CallHandlerArgs {
+                escrow_index: 0,
+                data: UNDELEGATE_HANDLER_V2_DISCRIMINATOR.to_vec(),
+            },
+        );
 
-    let undelegate_ix = dlp::instruction_builder::undelegate(
+    let undelegate_ix = dlp_api::instruction_builder::undelegate(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         authority.pubkey(),
     );
     let undelegate_call_handler_v2_ix =
-        dlp::instruction_builder::call_handler_v2(
+        dlp_api::instruction_builder::call_handler_v2(
             authority.pubkey(),
             DELEGATED_PDA_OWNER_ID, // handler program
             DELEGATED_PDA_OWNER_ID, // source program

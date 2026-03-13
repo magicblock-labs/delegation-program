@@ -39,7 +39,7 @@ async fn test_commit_finalize_from_buffer_perf() {
     let state_buffer_pda =
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
 
-    let (ix, pdas) = dlp::instruction_builder::commit_finalize_from_buffer(
+    let (ix, pdas) = dlp_api::instruction_builder::commit_finalize_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         state_buffer_pda,
@@ -93,7 +93,7 @@ async fn test_commit_finalize_from_buffer_perf() {
         )
         .unwrap();
 
-    assert_eq!(delegation_metadata.is_undelegatable, true);
+    assert!(delegation_metadata.is_undelegatable);
 }
 
 #[tokio::test]
@@ -107,7 +107,7 @@ async fn test_commit_finalize_from_buffer_out_of_order() {
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
     let new_account_balance = 1_000_000;
 
-    let (ix, _pdas) = dlp::instruction_builder::commit_finalize_from_buffer(
+    let (ix, _pdas) = dlp_api::instruction_builder::commit_finalize_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         state_buffer_pda,

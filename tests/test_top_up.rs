@@ -31,7 +31,7 @@ async fn test_top_up_ephemeral_balance() {
     // Setup
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = dlp::instruction_builder::top_up_ephemeral_balance(
+    let ix = dlp_api::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         payer.pubkey(),
         None,
@@ -66,7 +66,7 @@ async fn test_top_up_ephemeral_balance_for_pubkey() {
 
     let pubkey = Keypair::new().pubkey();
 
-    let ix = dlp::instruction_builder::top_up_ephemeral_balance(
+    let ix = dlp_api::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         pubkey,
         None,
@@ -99,14 +99,14 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Top-up Ix
-    let ix = dlp::instruction_builder::top_up_ephemeral_balance(
+    let ix = dlp_api::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         payer.pubkey(),
         None,
         None,
     );
     // Delegate ephemeral balance Ix
-    let delegate_ix = dlp::instruction_builder::delegate_ephemeral_balance(
+    let delegate_ix = dlp_api::instruction_builder::delegate_ephemeral_balance(
         payer.pubkey(),
         payer.pubkey(),
         DelegateEphemeralBalanceArgs::default(),
@@ -158,14 +158,14 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
     let pubkey = key.pubkey();
 
     // Top-up Ix
-    let ix = dlp::instruction_builder::top_up_ephemeral_balance(
+    let ix = dlp_api::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         pubkey,
         None,
         None,
     );
     // Delegate ephemeral balance Ix
-    let delegate_ix = dlp::instruction_builder::delegate_ephemeral_balance(
+    let delegate_ix = dlp_api::instruction_builder::delegate_ephemeral_balance(
         payer.pubkey(),
         pubkey,
         DelegateEphemeralBalanceArgs::default(),
@@ -210,7 +210,7 @@ async fn test_undelegate() {
     assert_eq!(ephemeral_balance_owner, dlp::id());
 
     // Undelegate ephemeral balance Ix
-    let ix = dlp::instruction_builder::undelegate(
+    let ix = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance_pda,
         system_program::id(),
@@ -260,14 +260,14 @@ async fn test_undelegate_and_close() {
         .lamports;
 
     // Undelegate ephemeral balance Ix
-    let ix = dlp::instruction_builder::undelegate(
+    let ix = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance_pda,
         system_program::id(),
         validator.pubkey(),
     );
 
-    let ix_close = dlp::instruction_builder::close_ephemeral_balance(
+    let ix_close = dlp_api::instruction_builder::close_ephemeral_balance(
         payer_alt.pubkey(),
         0,
     );

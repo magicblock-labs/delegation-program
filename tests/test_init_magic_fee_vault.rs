@@ -19,7 +19,7 @@ async fn test_init_magic_fee_vault() {
         setup_program_test_env().await;
 
     // Initialize the validator fees vault first (prerequisite)
-    let ix = dlp::instruction_builder::init_validator_fees_vault(
+    let ix = dlp_api::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         admin.pubkey(),
         validator.pubkey(),
@@ -33,7 +33,7 @@ async fn test_init_magic_fee_vault() {
     banks.process_transaction(tx).await.unwrap();
 
     // Initialize the magic fee vault
-    let ix = dlp::instruction_builder::init_magic_fee_vault(
+    let ix = dlp_api::instruction_builder::init_magic_fee_vault(
         payer.pubkey(),
         validator.pubkey(),
     );
@@ -60,7 +60,7 @@ async fn test_init_magic_fee_vault_fails_without_validator_fees_vault() {
         setup_program_test_env().await;
 
     // Skip initializing the validator fees vault — should fail
-    let ix = dlp::instruction_builder::init_magic_fee_vault(
+    let ix = dlp_api::instruction_builder::init_magic_fee_vault(
         payer.pubkey(),
         validator.pubkey(),
     );

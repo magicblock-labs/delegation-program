@@ -52,7 +52,7 @@ async fn test_finalize() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the finalize tx
-    let ix = dlp::instruction_builder::finalize(
+    let ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );

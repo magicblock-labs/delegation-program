@@ -1,20 +1,20 @@
 #![allow(unexpected_cfgs)]
 
 // Exactly one of `sdk` or `program` must be enabled
-#[cfg(all(feature = "sdk", feature = "program"))]
-compile_error!(
-    "Features `sdk` and `program` are mutually exclusive. Enable exactly one."
-);
-
-#[cfg(all(not(feature = "sdk"), not(feature = "program")))]
-compile_error!(
-    "Enable either `program` (default) or `sdk`. Building with neither is not supported."
-);
+//#[cfg(all(feature = "sdk", feature = "program"))]
+//compile_error!(
+//    "Features `sdk` and `program` are mutually exclusive. Enable exactly one."
+//);
+//
+//#[cfg(all(not(feature = "sdk"), not(feature = "program")))]
+//compile_error!(
+//    "Enable either `program` (default) or `sdk`. Building with neither is not supported."
+//);
 
 use solana_program::declare_id;
 #[cfg(feature = "logging")]
 use solana_program::msg;
-#[cfg(not(feature = "sdk"))]
+#[cfg(feature = "processor")]
 use {
     crate::discriminator::DlpDiscriminator,
     solana_program::{
@@ -24,39 +24,40 @@ use {
 };
 
 pub mod args;
+pub mod compact;
 pub mod consts;
-mod discriminator;
+pub mod discriminator;
 pub mod error;
-pub mod instruction_builder;
 pub mod pda;
 pub mod pod_view;
+pub mod requires;
 pub mod state;
 
 mod account_size_class;
 
 pub use account_size_class::*;
 
-#[cfg(not(feature = "sdk"))]
+#[cfg(feature = "diff")]
 mod diff;
 
-#[cfg(not(feature = "sdk"))]
+#[cfg(feature = "processor")]
 mod processor;
 
-#[cfg(not(feature = "sdk"))]
+#[cfg(feature = "diff")]
 pub use diff::*;
 // re-export
-#[cfg(not(feature = "sdk"))]
+#[cfg(feature = "diff")]
 pub use rkyv;
 
 #[cfg(feature = "log-cost")]
 mod cu;
 
-#[cfg(not(feature = "no-entrypoint"))]
+#[cfg(all(feature = "entrypoint", not(feature = "no-entrypoint")))]
 mod entrypoint;
 
 declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
-#[cfg(not(feature = "sdk"))]
+#[cfg(any(feature = "processor", feature = "pinocchio-rt"))]
 pub mod fast {
     pinocchio::address::declare_id!(
         "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
@@ -73,7 +74,7 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/magicblock-labs/delegation-program"
 }
 
-#[cfg(not(feature = "sdk"))]
+#[cfg(feature = "processor")]
 pub fn fast_process_instruction(
     program_id: &pinocchio::Address,
     accounts: &[pinocchio::AccountView],
@@ -107,6 +108,11 @@ pub fn fast_process_instruction(
         )),
         DlpDiscriminator::DelegateWithAnyValidator => {
             Some(processor::fast::process_delegate_with_any_validator(
+                program_id, accounts, data,
+            ))
+        }
+        DlpDiscriminator::DelegateWithActions => {
+            Some(processor::fast::process_delegate_with_actions(
                 program_id, accounts, data,
             ))
         }
@@ -151,7 +157,7 @@ pub fn fast_process_instruction(
     }
 }
 
-#[cfg(not(feature = "sdk"))]
+#[cfg(feature = "processor")]
 pub fn slow_process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],

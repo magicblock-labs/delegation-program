@@ -35,11 +35,13 @@ pub const DEFAULT_VALIDATOR_IDENTITY: Pubkey =
 pub const BROADCAST_IDENTITY: Pubkey =
     pubkey!("Broadcast1111111111111111111111111111111111");
 
+#[cfg(any(feature = "processor", feature = "pinocchio-rt"))]
 pub const BPF_LOADER_UPGRADEABLE_ID: Address =
     Address::new_from_array(const_crypto::bs58::decode_pubkey(
         "BPFLoaderUpgradeab1e11111111111111111111111",
     ));
 
+#[cfg(any(feature = "processor", feature = "pinocchio-rt"))]
 pub const DELEGATION_PROGRAM_DATA_ID: Address = Address::new_from_array(
     const_crypto::ed25519::derive_program_address(
         &[crate::fast::ID.as_array()],

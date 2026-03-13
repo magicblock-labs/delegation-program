@@ -558,7 +558,7 @@ mod tests {
 
             // TODO (snawaz): unwritten == &mut [], is because currently the expanded bytes are part of the diff.
             // Once compute_diff is optimized further, written must be &mut [0; 20].
-            assert_eq!(unwritten, &mut []);
+            assert_eq!(unwritten, &mut [] as &mut [u8]);
 
             destination
         };

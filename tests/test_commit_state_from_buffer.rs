@@ -44,7 +44,7 @@ async fn test_commit_new_state_from_buffer() {
     };
 
     // Commit the state for the delegated account
-    let ix = dlp::instruction_builder::commit_state_from_buffer(
+    let ix = dlp_api::instruction_builder::commit_state_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

@@ -7,15 +7,13 @@ use super::{process_undelegation_with_cpi, to_pinocchio_program_error};
 use crate::{
     error::DlpError,
     pda,
-    processor::fast::utils::{
-        pda::{close_pda, create_pda},
-        requires::{
-            require_authorization, require_initialized_delegation_metadata,
-            require_initialized_delegation_record, require_owned_pda,
-            require_signer, require_uninitialized_pda, UndelegateBufferCtx,
-        },
-    },
+    processor::fast::utils::pda::{close_pda, create_pda},
     require_eq_keys,
+    requires::{
+        require_authorization, require_initialized_delegation_metadata,
+        require_initialized_delegation_record, require_owned_pda,
+        require_signer, require_uninitialized_pda, UndelegateBufferCtx,
+    },
     state::{DelegationMetadata, DelegationRecord},
 };
 
