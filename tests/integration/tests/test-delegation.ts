@@ -853,10 +853,7 @@ function programConfigPdaFromProgramId(programId: web3.PublicKey) {
   )[0];
 }
 
-function ephemeralBalancePdaFromPayer(
-  payer: web3.PublicKey,
-  index: number
-) {
+function ephemeralBalancePdaFromPayer(payer: web3.PublicKey, index: number) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("balance"), payer.toBuffer(), Buffer.from([index])],
     new web3.PublicKey(DELEGATION_PROGRAM_ID)
