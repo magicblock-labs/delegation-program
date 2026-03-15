@@ -431,10 +431,10 @@ describe("TestDelegation", () => {
     ownerProgramId: web3.PublicKey,
     args: CommitAccountInstructionArgs
   ) {
-    const commitState = commitStatePdaFromDelegatedAccount(pda);
-    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
-    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
-    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
+    const commitState = commitStatePdaFromDelegatedAccount(delegatedAccount);
+    const commitRecord = commitRecordPdaFromDelegatedAccount(delegatedAccount);
+    const delegationRecord = delegationRecordPdaFromDelegatedAccount(delegatedAccount);
+    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(delegatedAccount);
     const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
     const programConfig = programConfigPdaFromProgramId(ownerProgramId);
     const keys = [
@@ -468,10 +468,10 @@ describe("TestDelegation", () => {
     validator: web3.PublicKey,
     delegatedAccount: web3.PublicKey
   ) {
-    const commitState = commitStatePdaFromDelegatedAccount(pda);
-    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
-    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
-    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
+    const commitState = commitStatePdaFromDelegatedAccount(delegatedAccount);
+    const commitRecord = commitRecordPdaFromDelegatedAccount(delegatedAccount);
+    const delegationRecord = delegationRecordPdaFromDelegatedAccount(delegatedAccount);
+    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(delegatedAccount);
     const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
     const keys = [
       { pubkey: validator, isSigner: true, isWritable: false },
@@ -503,13 +503,13 @@ describe("TestDelegation", () => {
     reimbursement: web3.PublicKey
   ) {
     const buffer = web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("undelegate-buffer"), pda.toBytes()],
+      [Buffer.from("undelegate-buffer"), delegatedAccount.toBytes()],
       new web3.PublicKey(DELEGATION_PROGRAM_ID)
     )[0];
-    const commitState = commitStatePdaFromDelegatedAccount(pda);
-    const commitRecord = commitRecordPdaFromDelegatedAccount(pda);
-    const delegationRecord = delegationRecordPdaFromDelegatedAccount(pda);
-    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(pda);
+    const commitState = commitStatePdaFromDelegatedAccount(delegatedAccount);
+    const commitRecord = commitRecordPdaFromDelegatedAccount(delegatedAccount);
+    const delegationRecord = delegationRecordPdaFromDelegatedAccount(delegatedAccount);
+    const delegationMetadata = delegationMetadataPdaFromDelegatedAccount(delegatedAccount);
     const feesVault = feesVaultPda();
     const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
     const keys = [
