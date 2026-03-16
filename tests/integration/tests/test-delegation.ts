@@ -417,10 +417,8 @@ describe("TestDelegation", () => {
     )[0];
     const delegationRecord =
       delegationRecordPdaFromDelegatedAccount(magicFeeVault);
-    const delegationMetadata = web3.PublicKey.findProgramAddressSync(
-      [Buffer.from("delegation-metadata"), magicFeeVault.toBuffer()],
-      new web3.PublicKey(DELEGATION_PROGRAM_ID)
-    )[0];
+    const delegationMetadata =
+      delegationMetadataPdaFromDelegatedAccount(magicFeeVault);
     const keys = [
       { pubkey: payer, isSigner: true, isWritable: true },
       { pubkey: validator, isSigner: true, isWritable: false },
