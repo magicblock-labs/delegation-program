@@ -172,6 +172,9 @@ pub fn slow_process_instruction(
         .or(Err(ProgramError::InvalidInstructionData))?;
 
     match ix {
+        DlpDiscriminator::InitMagicFeeVault => {
+            processor::process_init_magic_fee_vault(program_id, accounts, data)?
+        }
         DlpDiscriminator::InitValidatorFeesVault => {
             processor::process_init_validator_fees_vault(
                 program_id, accounts, data,
@@ -197,6 +200,11 @@ pub fn slow_process_instruction(
         }
         DlpDiscriminator::DelegateEphemeralBalance => {
             processor::process_delegate_ephemeral_balance(
+                program_id, accounts, data,
+            )?
+        }
+        DlpDiscriminator::DelegateMagicFeeVault => {
+            processor::process_delegate_magic_fee_vault(
                 program_id, accounts, data,
             )?
         }

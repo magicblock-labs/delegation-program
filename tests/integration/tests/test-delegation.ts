@@ -381,6 +381,82 @@ describe("TestDelegation", () => {
     console.log("Whitelist a validator for a program:", txId);
   });
 
+  it("Initialize magic fee vault", async () => {
+    const magicFeeVault = magicFeeVaultPda(validator);
+    const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
+    const keys = [
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: validator, isSigner: true, isWritable: false },
+      { pubkey: validatorFeesVault, isSigner: false, isWritable: false },
+      { pubkey: magicFeeVault, isSigner: false, isWritable: true },
+      {
+        pubkey: web3.SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
+      },
+    ];
+    const ix = new web3.TransactionInstruction({
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
+      keys,
+      data: Buffer.from([24, 0, 0, 0, 0, 0, 0, 0]),
+    });
+    const txId = await processInstruction(ix);
+    console.log("Initialize magic fee vault tx:", txId);
+
+    const account = await provider.connection.getAccountInfo(magicFeeVault);
+    assert.isNotNull(account, "magic fee vault should exist");
+    assert.strictEqual(
+      account.owner.toBase58(),
+      DELEGATION_PROGRAM_ID.toString(),
+      "magic fee vault should be owned by the delegation program"
+    );
+  });
+
+  it("Delegate magic fee vault", async () => {
+    const magicFeeVault = magicFeeVaultPda(validator);
+    const validatorFeesVault = validatorFeesVaultPdaFromValidator(validator);
+    const delegateBuffer = web3.PublicKey.findProgramAddressSync(
+      [Buffer.from("buffer"), magicFeeVault.toBuffer()],
+      new web3.PublicKey(DELEGATION_PROGRAM_ID)
+    )[0];
+    const delegationRecord =
+      delegationRecordPdaFromDelegatedAccount(magicFeeVault);
+    const delegationMetadata =
+      delegationMetadataPdaFromDelegatedAccount(magicFeeVault);
+    const keys = [
+      { pubkey: payer, isSigner: true, isWritable: true },
+      { pubkey: validator, isSigner: true, isWritable: false },
+      { pubkey: validatorFeesVault, isSigner: false, isWritable: false },
+      { pubkey: magicFeeVault, isSigner: false, isWritable: true },
+      { pubkey: delegateBuffer, isSigner: false, isWritable: true },
+      { pubkey: delegationRecord, isSigner: false, isWritable: true },
+      { pubkey: delegationMetadata, isSigner: false, isWritable: true },
+      {
+        pubkey: web3.SystemProgram.programId,
+        isSigner: false,
+        isWritable: false,
+      },
+      {
+        pubkey: new web3.PublicKey(DELEGATION_PROGRAM_ID),
+        isSigner: false,
+        isWritable: false,
+      },
+    ];
+    const ix = new web3.TransactionInstruction({
+      programId: new web3.PublicKey(DELEGATION_PROGRAM_ID),
+      keys,
+      data: Buffer.from([25, 0, 0, 0, 0, 0, 0, 0]),
+    });
+    const txId = await processInstruction(ix);
+    console.log("Delegate magic fee vault tx:", txId);
+
+    const account = await provider.connection.getAccountInfo(delegationRecord);
+    assert.isNotNull(
+      account,
+      "delegation record should exist after delegating the magic fee vault"
+    );
+  });
+
   async function processInstruction(ix: web3.TransactionInstruction) {
     const tx = new web3.Transaction().add(ix);
     tx.recentBlockhash = (
@@ -765,6 +841,13 @@ function validatorFeesVaultPdaFromValidator(validator: web3.PublicKey) {
   )[0];
 }
 
+function magicFeeVaultPda(validator: web3.PublicKey) {
+  return web3.PublicKey.findProgramAddressSync(
+    [Buffer.from("magic-fee-vault"), validator.toBuffer()],
+    new web3.PublicKey(DELEGATION_PROGRAM_ID)
+  )[0];
+}
+
 function programConfigPdaFromProgramId(programId: web3.PublicKey) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("p-conf"), programId.toBuffer()],
@@ -772,10 +855,7 @@ function programConfigPdaFromProgramId(programId: web3.PublicKey) {
   )[0];
 }
 
-function ephemeralBalancePdaFromPayer(
-  payer: web3.PublicKey,
-  index: number
-) {
+function ephemeralBalancePdaFromPayer(payer: web3.PublicKey, index: number) {
   return web3.PublicKey.findProgramAddressSync(
     [Buffer.from("balance"), payer.toBuffer(), Buffer.from([index])],
     new web3.PublicKey(DELEGATION_PROGRAM_ID)
