@@ -1,4 +1,4 @@
-use dlp::{pda::program_config_from_program_id, state::ProgramConfig};
+use dlp_api::{pda::program_config_from_program_id, state::ProgramConfig};
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
 };
@@ -99,7 +99,7 @@ async fn test_remove_validator_for_program() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
     let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 

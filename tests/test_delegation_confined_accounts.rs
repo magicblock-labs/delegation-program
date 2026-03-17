@@ -1,4 +1,4 @@
-use dlp::{
+use dlp_api::{
     args::DelegateArgs, error::DlpError,
     pda::delegation_record_pda_from_delegated_account, state::DelegationRecord,
 };
@@ -23,7 +23,7 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
 
     let assign_ix = solana_program::system_instruction::assign(
         &delegated.pubkey(),
-        &dlp::id(),
+        &dlp_api::id(),
     );
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
@@ -74,7 +74,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
 
     let assign_ix = solana_program::system_instruction::assign(
         &delegated.pubkey(),
-        &dlp::id(),
+        &dlp_api::id(),
     );
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
@@ -120,7 +120,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
     let delegated = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
 

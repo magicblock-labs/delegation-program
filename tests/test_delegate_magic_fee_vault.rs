@@ -1,4 +1,4 @@
-use dlp::pda::{
+use dlp_api::pda::{
     delegation_record_pda_from_delegated_account,
     magic_fee_vault_pda_from_validator,
 };
@@ -194,7 +194,7 @@ async fn test_delegate_magic_fee_vault_fails_with_wrong_validator() {
 
 async fn setup_program_test_env(
 ) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
     let admin_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();

@@ -1,5 +1,7 @@
+#![allow(deprecated)]
+
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
-use dlp::{
+use dlp_api::{
     args::CallHandlerArgs,
     ephemeral_balance_seeds_from_payer,
     pda::{
@@ -52,7 +54,7 @@ async fn setup_delegated_pda(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: state,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -67,7 +69,7 @@ async fn setup_delegated_pda(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data.clone(),
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -82,7 +84,7 @@ async fn setup_delegated_pda(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -100,7 +102,7 @@ async fn setup_commit_state(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: commit_state,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -112,7 +114,7 @@ async fn setup_commit_state(
         Account {
             lamports: Rent::default().minimum_balance(commit_record_data.len()),
             data: commit_record_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -132,7 +134,7 @@ async fn setup_invalid_escrow_account(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -141,7 +143,7 @@ async fn setup_invalid_escrow_account(
     // Setup the delegated record PDA
     let delegation_record_data = create_delegation_record_data(
         *authority_pubkey,
-        dlp::id(),
+        dlp_api::id(),
         Some(LAMPORTS_PER_SOL),
     );
     program_test.add_account(
@@ -150,7 +152,7 @@ async fn setup_invalid_escrow_account(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -168,7 +170,7 @@ async fn setup_invalid_escrow_account(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -189,7 +191,7 @@ async fn setup_delegated_ephemeral_balance(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -207,7 +209,7 @@ async fn setup_delegated_ephemeral_balance(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -225,7 +227,7 @@ async fn setup_delegated_ephemeral_balance(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -255,7 +257,7 @@ async fn setup_ephemeral_balance(
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "dlp",
-        dlp::ID,
+        dlp_api::ID,
         processor!(dlp::slow_process_instruction),
     );
     program_test.prefer_bpf(true);
@@ -289,7 +291,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -300,7 +302,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },

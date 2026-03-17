@@ -1,4 +1,4 @@
-use dlp::pda::magic_fee_vault_pda_from_validator;
+use dlp_api::pda::magic_fee_vault_pda_from_validator;
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
 };
@@ -88,7 +88,7 @@ async fn test_init_magic_fee_vault_fails_without_validator_fees_vault() {
 
 async fn setup_program_test_env(
 ) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
     let admin_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();

@@ -1,4 +1,4 @@
-use dlp::{
+use dlp_api::{
     args::DelegateArgs,
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
@@ -32,7 +32,7 @@ async fn test_delegate_on_curve() {
     // Create transaction to change the owner of alt_payer
     let change_owner_ix = solana_program::system_instruction::assign(
         &alt_payer.pubkey(),
-        &dlp::id(),
+        &dlp_api::id(),
     );
 
     let change_owner_tx = Transaction::new_signed_with_payer(
@@ -52,7 +52,7 @@ async fn test_delegate_on_curve() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(updated_alt_payer_account.owner, dlp::id());
+    assert_eq!(updated_alt_payer_account.owner, dlp_api::id());
 
     // Submit the delegate tx
     let ix = dlp_api::instruction_builder::delegate(
@@ -89,7 +89,7 @@ async fn test_delegate_on_curve() {
     // Assert the PDA was delegated => owner is set to the delegation program
     let pda_account =
         banks.get_account(delegated_account).await.unwrap().unwrap();
-    assert!(pda_account.owner.eq(&dlp::id()));
+    assert!(pda_account.owner.eq(&dlp_api::id()));
 
     // Assert that the PDA seeds account exists
     let delegation_metadata_pda =
@@ -99,7 +99,7 @@ async fn test_delegate_on_curve() {
         .await
         .unwrap()
         .unwrap();
-    assert!(delegation_metadata_account.owner.eq(&dlp::id()));
+    assert!(delegation_metadata_account.owner.eq(&dlp_api::id()));
 
     // Assert that the delegation record exists and can be parsed
     let delegation_record_account = banks
@@ -125,7 +125,7 @@ async fn test_delegate_on_curve() {
         .await
         .unwrap()
         .unwrap();
-    assert!(delegation_metadata.owner.eq(&dlp::id()));
+    assert!(delegation_metadata.owner.eq(&dlp_api::id()));
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(
             &delegation_metadata.data,
@@ -135,7 +135,7 @@ async fn test_delegate_on_curve() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
     let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
 

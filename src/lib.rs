@@ -1,53 +1,50 @@
 #![allow(unexpected_cfgs)]
 
-// Exactly one of `sdk` or `program` must be enabled
-//#[cfg(all(feature = "sdk", feature = "program"))]
-//compile_error!(
-//    "Features `sdk` and `program` are mutually exclusive. Enable exactly one."
-//);
-//
-//#[cfg(all(not(feature = "sdk"), not(feature = "program")))]
-//compile_error!(
-//    "Enable either `program` (default) or `sdk`. Building with neither is not supported."
-//);
-
-use solana_program::declare_id;
+extern crate dlp_api;
+#[allow(unused_imports)]
+pub(crate) use dlp_api::diff;
+#[allow(unused_imports)]
+pub(crate) use dlp_api::{
+    account_size_class, args, compact, consts, discriminator, error, pda,
+    pod_view, requires, state,
+};
+#[allow(unused_imports)]
+pub(crate) use dlp_api::{
+    commit_record_seeds_from_delegated_account,
+    commit_state_seeds_from_delegated_account,
+    delegate_buffer_seeds_from_delegated_account,
+    delegation_metadata_seeds_from_delegated_account,
+    delegation_record_seeds_from_delegated_account,
+    ephemeral_balance_seeds_from_payer, fees_vault_seeds,
+    magic_fee_vault_seeds_from_validator, program_config_seeds_from_program_id,
+    undelegate_buffer_seeds_from_delegated_account,
+    validator_fees_vault_seeds_from_validator,
+};
+#[allow(unused_imports)]
+pub(crate) use dlp_api::{id, ID};
+#[allow(unused_imports)]
+pub(crate) use dlp_api::{
+    require, require_eq, require_eq_keys, require_ge, require_gt,
+    require_initialized_pda, require_initialized_pda_fast, require_le,
+    require_lt, require_n_accounts, require_n_accounts_with_optionals,
+    require_owned_by, require_pda, require_signer, require_some,
+};
 #[cfg(feature = "logging")]
 use solana_program::msg;
 #[cfg(feature = "processor")]
 use {
-    crate::discriminator::DlpDiscriminator,
+    dlp_api::discriminator::DlpDiscriminator,
     solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult,
         program_error::ProgramError, pubkey::Pubkey,
     },
 };
 
-pub mod args;
-pub mod compact;
-pub mod consts;
-pub mod discriminator;
-pub mod error;
-pub mod pda;
-pub mod pod_view;
-pub mod requires;
-pub mod state;
-
-mod account_size_class;
-
-pub use account_size_class::*;
-
-#[cfg(feature = "diff")]
-mod diff;
-
 #[cfg(feature = "processor")]
 mod processor;
 
-#[cfg(feature = "diff")]
-pub use diff::*;
-// re-export
-#[cfg(feature = "diff")]
-pub use rkyv;
+#[allow(unused_imports)]
+pub(crate) use diff::*;
 
 #[cfg(feature = "log-cost")]
 mod cu;
@@ -55,10 +52,8 @@ mod cu;
 #[cfg(all(feature = "entrypoint", not(feature = "no-entrypoint")))]
 mod entrypoint;
 
-declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
-
 #[cfg(any(feature = "processor", feature = "pinocchio-rt"))]
-pub mod fast {
+pub(crate) mod fast {
     pinocchio::address::declare_id!(
         "DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh"
     );

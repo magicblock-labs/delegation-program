@@ -1,4 +1,4 @@
-use dlp::{
+use dlp_api::{
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
         delegation_metadata_pda_from_delegated_account,
@@ -61,7 +61,7 @@ async fn test_delegate() {
     // Assert the PDA was delegated => owner is set to the delegation program
     let pda_account =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert!(pda_account.owner.eq(&dlp::id()));
+    assert!(pda_account.owner.eq(&dlp_api::id()));
 
     // Assert the PDA data was not changed
     assert_eq!(pda_data_before_delegation, pda_account.data);
@@ -74,7 +74,7 @@ async fn test_delegate() {
         .await
         .unwrap()
         .unwrap();
-    assert!(delegation_metadata_account.owner.eq(&dlp::id()));
+    assert!(delegation_metadata_account.owner.eq(&dlp_api::id()));
 
     // Assert that the delegation record exists and can be parsed
     let delegation_record = banks
@@ -93,7 +93,7 @@ async fn test_delegate() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
 
     program_test.prefer_bpf(true);
     let payer_alt = Keypair::new();
@@ -161,7 +161,7 @@ fn delegate_from_wrapper_program(
             AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new(delegated_account, false),
             AccountMeta::new_readonly(DELEGATED_PDA_OWNER_ID, false),
-            AccountMeta::new_readonly(dlp::id(), false),
+            AccountMeta::new_readonly(dlp_api::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR.to_vec(),

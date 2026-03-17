@@ -1,9 +1,7 @@
 use borsh::BorshDeserialize;
-use dlp::{
+use dlp_api::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     compact,
-};
-use dlp_api::{
     instruction_builder::{
         delegate_with_actions, Encryptable, EncryptableFrom,
         PostDelegationInstruction,
@@ -203,7 +201,7 @@ fn test_delegate_with_actions_builder_encrypts_and_decrypts_accounts_and_data()
     let ix = &args.actions.instructions[0];
 
     let clear_meta = match ix.accounts[0] {
-        dlp::args::MaybeEncryptedAccountMeta::ClearText(meta) => meta,
+        dlp_api::args::MaybeEncryptedAccountMeta::ClearText(meta) => meta,
         _ => panic!("expected cleartext account meta for signer"),
     };
     assert_eq!(clear_meta.key(), 0);

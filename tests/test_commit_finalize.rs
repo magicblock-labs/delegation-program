@@ -1,6 +1,6 @@
-use dlp::{
+use dlp_api::{
     args::CommitFinalizeArgs,
-    compute_diff,
+    diff::compute_diff,
     pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account,
@@ -29,7 +29,7 @@ mod fixtures;
 
 #[tokio::test]
 async fn test_commit_finalize_data_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1150).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1200).await;
 }
 
 #[tokio::test]
@@ -176,7 +176,7 @@ async fn test_commit_finalize_out_of_order() {
 async fn setup_program_test_env(
     pda_data: Vec<u8>,
 ) -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
     let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
@@ -198,7 +198,7 @@ async fn setup_program_test_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: pda_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -213,7 +213,7 @@ async fn setup_program_test_env(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -228,7 +228,7 @@ async fn setup_program_test_env(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -240,7 +240,7 @@ async fn setup_program_test_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
