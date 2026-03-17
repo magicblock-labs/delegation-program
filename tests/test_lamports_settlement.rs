@@ -1,4 +1,4 @@
-use dlp::{
+use dlp_api::{
     args::CommitStateArgs,
     pda::{
         commit_record_pda_from_delegated_account,
@@ -490,7 +490,7 @@ async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
         .await
         .unwrap()
         .unwrap();
-    assert!(pda_account.owner.eq(&dlp::id()));
+    assert!(pda_account.owner.eq(&dlp_api::id()));
 }
 
 struct CommitNewStateArgs<'a> {
@@ -600,7 +600,7 @@ struct SetupProgramCommitTestEnvArgs {
 async fn setup_program_for_commit_test_env(
     args: SetupProgramCommitTestEnvArgs,
 ) -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
     let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
@@ -622,7 +622,7 @@ async fn setup_program_for_commit_test_env(
         Account {
             lamports: args.delegated_account_current_lamports,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -639,7 +639,7 @@ async fn setup_program_for_commit_test_env(
         Account {
             lamports: Rent::default().minimum_balance(data.len()),
             data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -657,7 +657,7 @@ async fn setup_program_for_commit_test_env(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -669,7 +669,7 @@ async fn setup_program_for_commit_test_env(
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -681,7 +681,7 @@ async fn setup_program_for_commit_test_env(
         Account {
             lamports: args.validator_vault_init_lamports,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },

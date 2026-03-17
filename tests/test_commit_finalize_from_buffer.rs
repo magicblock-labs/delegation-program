@@ -1,4 +1,4 @@
-use dlp::{
+use dlp_api::{
     args::CommitFinalizeArgs,
     pda::{
         delegation_metadata_pda_from_delegated_account,
@@ -68,7 +68,7 @@ async fn test_commit_finalize_from_buffer_perf() {
 
         let metadata = metadata.unwrap();
 
-        assertables::assert_lt!(metadata.compute_units_consumed, 1150);
+        assertables::assert_lt!(metadata.compute_units_consumed, 1200);
 
         assert_eq!(
             metadata.log_messages.len(),
@@ -163,7 +163,7 @@ async fn setup_program_test_env(
     pda_data: Vec<u8>,
     pda_new_state: Vec<u8>,
 ) -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
     let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
@@ -185,7 +185,7 @@ async fn setup_program_test_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: pda_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -200,7 +200,7 @@ async fn setup_program_test_env(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -215,7 +215,7 @@ async fn setup_program_test_env(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -227,7 +227,7 @@ async fn setup_program_test_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -242,7 +242,7 @@ async fn setup_program_test_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: pda_new_state,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },

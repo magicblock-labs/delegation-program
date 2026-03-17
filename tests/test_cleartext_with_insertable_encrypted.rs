@@ -1,6 +1,8 @@
-use dlp::compact::ClearTextWithInsertable;
-use dlp_api::instruction_builder::{
-    Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
+use dlp_api::{
+    compact::ClearTextWithInsertable,
+    instruction_builder::{
+        Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
+    },
 };
 use solana_instruction::{AccountMeta as IxAccountMeta, Instruction};
 use solana_program::{
@@ -75,7 +77,7 @@ fn test_cleartext_with_insertable_encrypted_actions() {
     assert_eq!(actions.inserted_non_signers, 4);
     assert_eq!(actions.instructions.len(), 3);
 
-    let is_encrypted = |ix: &dlp::args::MaybeEncryptedInstruction| {
+    let is_encrypted = |ix: &dlp_api::args::MaybeEncryptedInstruction| {
         !ix.data.suffix.as_bytes().is_empty()
     };
 

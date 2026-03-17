@@ -1,4 +1,4 @@
-use dlp::{
+use dlp_api::{
     args::CommitStateArgs,
     pda::{
         commit_record_pda_from_delegated_account,
@@ -35,7 +35,7 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
 
     // Assert that the account is delegated, with some lamports and owned by dlp
     assert!(delegated_account_before.lamports > 0);
-    assert_eq!(delegated_account_before.owner, dlp::id());
+    assert_eq!(delegated_account_before.owner, dlp_api::id());
 
     let commit_args = CommitStateArgs {
         data: vec![],
@@ -109,7 +109,7 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
     let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
 
@@ -134,7 +134,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: Rent::default().minimum_balance(rent_data_size),
             data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -151,7 +151,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -165,7 +165,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -188,7 +188,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -199,7 +199,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },

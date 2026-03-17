@@ -373,7 +373,7 @@ mod tests {
         Rng, RngCore, SeedableRng,
     };
 
-    use crate::{
+    use crate::diff::{
         apply_diff_copy, apply_diff_in_place, compute_diff, merge_diff_copy,
         DiffSet,
     };

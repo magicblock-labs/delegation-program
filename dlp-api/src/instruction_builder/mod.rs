@@ -11,6 +11,7 @@ mod commit_state_from_buffer;
 mod delegate;
 mod delegate_ephemeral_balance;
 mod delegate_magic_fee_vault;
+#[cfg(feature = "encryption")]
 mod delegate_with_actions;
 mod finalize;
 mod init_magic_fee_vault;
@@ -37,6 +38,7 @@ pub use commit_state_from_buffer::*;
 pub use delegate::*;
 pub use delegate_ephemeral_balance::*;
 pub use delegate_magic_fee_vault::*;
+#[cfg(feature = "encryption")]
 pub use delegate_with_actions::*;
 pub use finalize::*;
 pub use init_magic_fee_vault::*;

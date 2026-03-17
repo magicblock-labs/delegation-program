@@ -1,4 +1,4 @@
-use dlp::state::{
+use dlp_api::state::{
     CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
 };
 use solana_program::{

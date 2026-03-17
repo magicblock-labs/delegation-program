@@ -80,6 +80,11 @@ jobs:
         run: |
           cargo build
 
+      - name: run tests (dlp-api cargo test)
+        run: |
+          cd dlp-api
+          cargo test
+
       - name: run tests (cargo test-sbf)
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"

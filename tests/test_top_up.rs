@@ -1,4 +1,4 @@
-use dlp::{
+use dlp_api::{
     args::DelegateEphemeralBalanceArgs,
     ephemeral_balance_seeds_from_payer,
     pda::{
@@ -130,7 +130,7 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(balance_account.owner, dlp::id());
+    assert_eq!(balance_account.owner, dlp_api::id());
     assert!(balance_account.lamports > 0);
 
     // Check the delegation record PDA has system program as owner
@@ -188,7 +188,7 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(balance_account.owner, dlp::id());
+    assert_eq!(balance_account.owner, dlp_api::id());
     assert!(balance_account.lamports > 0);
 }
 
@@ -207,7 +207,7 @@ async fn test_undelegate() {
         .unwrap()
         .owner;
 
-    assert_eq!(ephemeral_balance_owner, dlp::id());
+    assert_eq!(ephemeral_balance_owner, dlp_api::id());
 
     // Undelegate ephemeral balance Ix
     let ix = dlp_api::instruction_builder::undelegate(
@@ -299,7 +299,7 @@ async fn test_undelegate_and_close() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
     let payer_alt = Keypair::new();
@@ -336,7 +336,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -348,7 +348,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -372,7 +372,7 @@ async fn setup_ephemeral_balance(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -390,7 +390,7 @@ async fn setup_ephemeral_balance(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -408,7 +408,7 @@ async fn setup_ephemeral_balance(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: dlp::id(),
+            owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
         },
