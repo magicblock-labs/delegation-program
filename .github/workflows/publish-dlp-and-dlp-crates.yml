@@ -1,0 +1,99 @@
+name: Publish dlp and dlp-crates
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+      - "release/v*"
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  rust_version: 1.84.1
+
+jobs:
+  install:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install essentials
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y pkg-config build-essential libudev-dev
+
+      - name: install rust
+        shell: bash
+        run: rustup toolchain install ${{ env.rust_version }} --profile minimal --component rustfmt --component clippy
+
+      - name: Cache rust
+        uses: Swatinem/rust-cache@v2
+
+  lint:
+    needs: install
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust
+        shell: bash
+        run: rustup toolchain install ${{ env.rust_version }} --profile minimal --component rustfmt --component clippy
+
+      - name: Run fmt
+        run: cargo +${{ env.rust_version }} fmt -- --check
+
+      - name: Run clippy
+        run: cargo +${{ env.rust_version }} clippy -- --deny=warnings
+
+  publish:
+    needs: [install, lint]
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: install rust
+        shell: bash
+        run: rustup toolchain install ${{ env.rust_version }} --profile minimal
+
+      - name: run build
+        run: cargo +${{ env.rust_version }} build
+
+      - name: run tests (dlp-api cargo test)
+        run: cargo +${{ env.rust_version }} test --manifest-path dlp-api/Cargo.toml
+
+      - name: Set DRY_RUN based on trigger
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/v')
+        run: echo "DRY_RUN=true" >> $GITHUB_ENV
+
+      - name: cargo publish
+        run: |
+          DRY_RUN_FLAG=""
+          NO_VERIFY_FLAG=""
+          if [ "${DRY_RUN}" = "true" ]; then
+            DRY_RUN_FLAG="--dry-run"
+            NO_VERIFY_FLAG="--no-verify"
+          fi
+
+          cargo +${{ env.rust_version }} publish $DRY_RUN_FLAG --manifest-path dlp-api/Cargo.toml --token "$CRATES_TOKEN" $NO_VERIFY_FLAG
+
+          if [ "${DRY_RUN}" != "true" ]; then
+            for attempt in 1 2 3 4 5; do
+              if cargo +${{ env.rust_version }} publish --manifest-path Cargo.toml --token "$CRATES_TOKEN"; then
+                break
+              fi
+
+              if [ "$attempt" -eq 5 ]; then
+                exit 1
+              fi
+
+              sleep 30
+            done
+          fi
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+          DRY_RUN: ${{ env.DRY_RUN }}
