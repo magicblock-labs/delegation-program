@@ -1,8 +1,14 @@
 [package]
 name = "magicblock-delegation-program-api"
+description = "Public API for the Magicblock delegation program"
 version = "0.1.0"
+authors = ["Magicblock Labs <dev@magicblock.gg>"]
 edition = "2021"
 license = "MIT"
+homepage = "https://www.magicblock.gg/"
+documentation = "https://docs.magicblock.gg/"
+repository = "https://github.com/magicblock-labs/delegation-program"
+keywords = ["solana", "crypto", "delegation", "ephemeral-rollups", "magicblock"]
 
 [lib]
 name = "dlp_api"
