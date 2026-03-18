@@ -6,6 +6,15 @@ on:
     branches:
       - "release/v*"
   workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run cargo publish in dry-run mode
+        required: true
+        default: "true"
+        type: choice
+        options:
+          - "true"
+          - "false"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -13,6 +22,7 @@ concurrency:
 
 env:
   rust_version: 1.84.1
+  DRY_RUN: "false"
 
 jobs:
   install:
@@ -70,6 +80,10 @@ jobs:
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/heads/release/v')
         run: echo "DRY_RUN=true" >> $GITHUB_ENV
 
+      - name: Set DRY_RUN for manual runs
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "DRY_RUN=${{ inputs.dry_run }}" >> $GITHUB_ENV
+
       - name: cargo publish
         run: |
           DRY_RUN_FLAG=""
@@ -81,7 +95,7 @@ jobs:
 
           cargo +${{ env.rust_version }} publish $DRY_RUN_FLAG --manifest-path dlp-api/Cargo.toml --token "$CRATES_TOKEN" $NO_VERIFY_FLAG
 
-          if [ "${DRY_RUN}" != "true" ]; then
+          if [ "${DRY_RUN}" = "false" ]; then
             for attempt in 1 2 3 4 5; do
               if cargo +${{ env.rust_version }} publish --manifest-path Cargo.toml --token "$CRATES_TOKEN"; then
                 break
