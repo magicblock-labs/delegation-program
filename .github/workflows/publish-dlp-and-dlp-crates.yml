@@ -49,6 +49,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: check release manifest alignment
+        run: bash ./.github/version_align.sh --check
+
       - name: install rust
         shell: bash
         run: rustup toolchain install ${{ env.rust_version }} --profile minimal --component rustfmt --component clippy
@@ -96,10 +99,8 @@ jobs:
           cargo +${{ env.rust_version }} publish $DRY_RUN_FLAG --manifest-path dlp-api/Cargo.toml --token "$CRATES_TOKEN" $NO_VERIFY_FLAG
 
           if [ "${DRY_RUN}" = "false" ]; then
-            ./prepare_publish.sh
-
             for attempt in 1 2 3 4 5; do
-              if cargo +${{ env.rust_version }} publish --allow-dirty --manifest-path Cargo.toml --token "$CRATES_TOKEN"; then
+              if cargo +${{ env.rust_version }} publish --manifest-path Cargo.toml --token "$CRATES_TOKEN"; then
                 break
               fi
 
