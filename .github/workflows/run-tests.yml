@@ -27,7 +27,6 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y pkg-config build-essential libudev-dev
-          npm install --global yarn
 
       - name: install rust
         uses: dtolnay/rust-toolchain@stable
@@ -108,6 +107,7 @@ jobs:
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
           cd tests/integration 
+          npm install --global yarn
           cargo install --locked --version ${{ env.anchor_version }} anchor-cli
           npm install
           anchor test
