@@ -3,6 +3,7 @@ use dlp::{
     delegation_metadata_seeds_from_delegated_account,
     delegation_record_seeds_from_delegated_account,
     discriminator::DlpDiscriminator,
+    pda::program_config_from_program_id,
     pod_view::PodView,
     total_size_budget, validator_fees_vault_seeds_from_validator,
     AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
@@ -13,11 +14,12 @@ use solana_program::{
     system_program,
 };
 
-/// Builds a commit state from buffer instruction.
-/// See [dlp::processor::process_commit_diff_from_buffer] for docs.
+/// Builds a commit finalize from buffer instruction.
+/// See [dlp::processor::process_commit_finalize_from_buffer] for docs.
 pub fn commit_finalize_from_buffer(
     validator: Pubkey,
     delegated_account: Pubkey,
+    delegated_account_owner: Pubkey,
     data_buffer: Pubkey,
     commit_args: &mut CommitFinalizeArgs,
 ) -> (Instruction, super::CommitPDAs) {
@@ -36,6 +38,8 @@ pub fn commit_finalize_from_buffer(
         &dlp::id(),
     );
 
+    let program_config_pda = program_config_from_program_id(&delegated_account_owner);
+
     // save the bumps in the args
     commit_args.bumps = CommitBumps {
         delegation_record: delegation_record.1,
@@ -53,6 +57,7 @@ pub fn commit_finalize_from_buffer(
                 AccountMeta::new(delegation_metadata.0, false),
                 AccountMeta::new_readonly(data_buffer, false),
                 AccountMeta::new_readonly(validator_fees_vault.0, false),
+                AccountMeta::new_readonly(program_config_pda, false),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
             data: [
@@ -70,7 +75,7 @@ pub fn commit_finalize_from_buffer(
 }
 
 ///
-/// Returns accounts-data-size budget for commit_diff_from_buffer instruction.
+/// Returns accounts-data-size budget for commit_finalize_from_buffer instruction.
 ///
 /// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
 ///
