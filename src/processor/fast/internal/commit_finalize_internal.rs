@@ -1,8 +1,4 @@
-use pinocchio::{
-    address::{address_eq, PDA_MARKER},
-    error::ProgramError,
-    AccountView, Address,
-};
+use pinocchio::{address::PDA_MARKER, error::ProgramError, AccountView, Address};
 use pinocchio_log::log;
 
 use crate::{
@@ -11,10 +7,11 @@ use crate::{
     error::DlpError,
     pda,
     pod_view::PodView,
-    processor::fast::NewState,
+    processor::fast::{to_pinocchio_program_error, NewState},
     require, require_eq, require_eq_keys, require_ge,
     require_initialized_pda_fast, require_owned_by, require_signer,
-    state::{DelegationMetadataFast, DelegationRecord},
+    requires::require_program_config,
+    state::{DelegationMetadataFast, DelegationRecord, ProgramConfig},
 };
 
 /// Arguments for the commit state internal function
@@ -28,6 +25,7 @@ pub(crate) struct CommitFinalizeInternalArgs<'a> {
     pub(crate) delegation_record_account: &'a AccountView,
     pub(crate) delegation_metadata_account: &'a AccountView,
     pub(crate) validator_fees_vault: &'a AccountView,
+    pub(crate) program_config_account: &'a AccountView,
 }
 
 /// Commit a new state of a delegated Pda
@@ -108,6 +106,28 @@ pub(crate) fn process_commit_finalize_internal(
         delegation_record.lamports,
         DlpError::InvalidDelegatedState
     );
+
+    let has_program_config = require_program_config(
+        args.program_config_account,
+        &Address::from(delegation_record.owner.to_bytes()),
+        false,
+    )?;
+    if has_program_config {
+        let program_config_data = args.program_config_account.try_borrow()?;
+
+        let program_config = ProgramConfig::try_from_bytes_with_discriminator(
+            &program_config_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
+        if !program_config
+            .approved_validators
+            .contains(&args.validator.address().to_bytes().into())
+        {
+            log!("validator is not whitelisted in the program config: ");
+            args.validator.address().log();
+            return Err(DlpError::InvalidWhitelistProgramConfig.into());
+        }
+    }
 
     // if args.commit_record_lamports > delegation_record.lamports {
     //     system::Transfer {
