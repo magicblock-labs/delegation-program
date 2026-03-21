@@ -23,7 +23,8 @@ use crate::{
 /// 2: `[]`         the delegation record
 /// 3: `[writable]` the delegation metadata
 /// 4: `[]`         the validator fees vault
-/// 5: `[]`         system program
+/// 5: `[]`         the program config account
+/// 6: `[]`         system program
 ///
 /// Instruction Data: CommitFinalizeArgsWithBuffer
 ///
@@ -38,8 +39,9 @@ pub fn process_commit_finalize(
         delegation_record_account,
         delegation_metadata_account,
         validator_fees_vault,
+        program_config_account,
         _system_program,
-    ] = require_n_accounts!(accounts, 6);
+    ] = require_n_accounts!(accounts, 7);
 
     let args = CommitFinalizeArgsWithBuffer::from_bytes(data)?;
 
@@ -61,7 +63,9 @@ pub fn process_commit_finalize(
         delegation_record_account,
         delegation_metadata_account,
         validator_fees_vault,
+        program_config_account,
     };
 
     process_commit_finalize_internal(commit_args)
 }
+
