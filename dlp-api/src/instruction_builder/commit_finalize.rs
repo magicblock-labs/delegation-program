@@ -3,6 +3,7 @@ use dlp::{
     delegation_metadata_seeds_from_delegated_account,
     delegation_record_seeds_from_delegated_account,
     discriminator::DlpDiscriminator,
+    pda::program_config_from_program_id,
     pod_view::PodView,
     total_size_budget, validator_fees_vault_seeds_from_validator,
     AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
@@ -24,6 +25,7 @@ pub struct CommitPDAs {
 pub fn commit_finalize(
     validator: Pubkey,
     delegated_account: Pubkey,
+    delegated_account_owner: Pubkey,
     args: &mut CommitFinalizeArgs,
     state_or_diff: &[u8],
 ) -> (Instruction, CommitPDAs) {
@@ -42,6 +44,8 @@ pub fn commit_finalize(
         &dlp::id(),
     );
 
+    let program_config_pda = program_config_from_program_id(&delegated_account_owner);
+
     // save the bumps in the args
     args.bumps = CommitBumps {
         delegation_record: delegation_record.1,
@@ -58,6 +62,7 @@ pub fn commit_finalize(
                 AccountMeta::new_readonly(delegation_record.0, false),
                 AccountMeta::new(delegation_metadata.0, false),
                 AccountMeta::new_readonly(validator_fees_vault.0, false),
+                AccountMeta::new_readonly(program_config_pda, false),
                 AccountMeta::new_readonly(system_program::id(), false),
             ],
             data: [
@@ -88,6 +93,7 @@ pub fn commit_finalize_size_budget(delegated_account: AccountSizeClass) -> u32 {
         AccountSizeClass::Tiny, // delegation_record_pda
         AccountSizeClass::Tiny, // delegation_metadata_pda
         AccountSizeClass::Tiny, // validator_fees_vault_pda
+        AccountSizeClass::Tiny, // program_config_pda
         AccountSizeClass::Tiny, // system_program
     ])
 }
