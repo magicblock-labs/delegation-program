@@ -13,17 +13,18 @@ use crate::{
     require_n_accounts, DiffSet,
 };
 
-/// Commit a new state of a delegated PDA
+/// Commit a new state, or a diff, from a buffer account directly to the delegated account.
 ///
 /// Accounts:
 ///
 /// 0: `[signer]`   the validator requesting the commit
 /// 1: `[]`         the delegated account
-/// 2: `[writable]` the PDA storing the new state
-/// 3: `[writable]` the PDA storing the commit record
-/// 4: `[]`         the delegation record
-/// 5: `[writable]` the delegation metadata
-/// 6: `[]`         the validator fees vault
+/// 2: `[]`         the delegation record
+/// 3: `[writable]` the delegation metadata
+/// 4: `[]`         the buffer account holding full state or diff bytes
+/// 5: `[]`         the validator fees vault
+/// 6: `[]`         the program config account
+/// 7: `[]`         system program
 ///
 /// Instruction Data: CommitFinalizeArgs
 ///
@@ -32,17 +33,10 @@ use crate::{
 /// - delegation record is initialized
 /// - delegation metadata is initialized
 /// - validator fees vault is initialized
-/// - program config is initialized
-/// - commit state is uninitialized
-/// - commit record is uninitialized
+/// - if a program config PDA exists for the delegated account's owner program, the validator
+///   must be whitelisted in that config (same rules as [`super::process_commit_state`])
 /// - delegated account holds at least the lamports indicated in the delegation record
-/// - account was not committed at a later slot
-///
-/// Steps:
-/// 1. Check that the pda is delegated
-/// 2. Init a new PDA to store the new state
-/// 3. Copy the new state to the new PDA
-/// 4. Init a new PDA to store the record of the new state commitment
+
 pub fn process_commit_finalize_from_buffer(
     _program_id: &Address,
     accounts: &[AccountView],
@@ -55,8 +49,9 @@ pub fn process_commit_finalize_from_buffer(
         delegation_metadata_account,
         data_account, // full bytes or diff 
         validator_fees_vault,
+        program_config_account,
         _system_program,
-    ] = require_n_accounts!(accounts, 7);
+    ] = require_n_accounts!(accounts, 8);
 
     let args = CommitFinalizeArgs::try_view_from(data)?;
 
@@ -79,6 +74,7 @@ pub fn process_commit_finalize_from_buffer(
         delegation_record_account,
         delegation_metadata_account,
         validator_fees_vault,
+        program_config_account,
     };
 
     process_commit_finalize_internal(commit_args)
