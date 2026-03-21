@@ -22,7 +22,7 @@ use solana_sdk::{
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
-    TEST_AUTHORITY,
+    DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -52,6 +52,7 @@ async fn run_test_commit_finalize(
     let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
         &mut CommitFinalizeArgs {
             commit_id: 1,
             allow_undelegation: true.into(),
@@ -124,6 +125,7 @@ async fn test_commit_finalize_out_of_order() {
     let (ix, _pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
         &mut CommitFinalizeArgs {
             commit_id: 2, // this is the min value which will cause NonceOutOfOrder
             allow_undelegation: true.into(),
