@@ -113,11 +113,15 @@ pub(crate) fn process_commit_finalize_internal(
         DlpError::InvalidDelegatedState
     );
 
+    let mut check_minimum_balance =
+        args.new_state.data_len() > args.delegated_account.data_len();
+
     args.delegated_account.resize(args.new_state.data_len())?;
 
     match args.commit_lamports.cmp(&delegation_record.lamports) {
         std::cmp::Ordering::Greater => {
             require!(args.validator.is_writable(), ProgramError::Immutable);
+
             system::Transfer {
                 from: args.validator,
                 to: args.delegated_account,
@@ -131,19 +135,23 @@ pub(crate) fn process_commit_finalize_internal(
             args.delegated_account.lamports_decrement_by(amount)?;
             args.validator_fees_vault.lamports_increment_by(amount)?;
 
-            // require the account is still rent-exempted even after decrementing lamports
-            require_ge!(
-                args.delegated_account.lamports(),
-                Rent::get()?
-                    .try_minimum_balance(args.delegated_account.data_len())?,
-                DlpError::InsufficientRent
-            );
+            check_minimum_balance = true;
         }
         std::cmp::Ordering::Equal => {}
     }
 
     // Update the delegation record lamports after settling.
     delegation_record.lamports = args.delegated_account.lamports();
+
+    // require the account is still rent-exempted even after decrementing lamports
+    if check_minimum_balance {
+        require_ge!(
+            args.delegated_account.lamports(),
+            Rent::get()?
+                .try_minimum_balance(args.delegated_account.data_len())?,
+            DlpError::InsufficientRent
+        );
+    }
 
     // copy the new state to the delegated account
     let mut delegated_account_data = args.delegated_account.try_borrow_mut()?;
