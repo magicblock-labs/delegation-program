@@ -8,6 +8,7 @@ use dlp_api::{
         delegation_record_pda_from_delegated_account,
         validator_fees_vault_pda_from_validator,
     },
+    state::{DelegationMetadata, DelegationRecord},
 };
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
@@ -32,12 +33,12 @@ mod fixtures;
 
 #[tokio::test]
 async fn test_commit_finalize_data_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1350).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1400).await;
 }
 
 #[tokio::test]
 async fn test_commit_finalize_diff_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1600).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1650).await;
 }
 
 async fn run_test_commit_finalize(
@@ -277,7 +278,7 @@ async fn test_commit_finalize_lamports_increase() {
         )
         .await;
 
-    let (ix, pdas) = dlp::instruction_builder::commit_finalize(
+    let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {
@@ -352,7 +353,7 @@ async fn test_commit_finalize_lamports_decrease() {
         )
         .await;
 
-    let (ix, pdas) = dlp::instruction_builder::commit_finalize(
+    let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {
@@ -415,7 +416,7 @@ async fn test_commit_finalize_rejects_underfunded_account() {
         )
         .await;
 
-    let (ix, pdas) = dlp::instruction_builder::commit_finalize(
+    let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {

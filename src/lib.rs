@@ -20,8 +20,7 @@ pub(crate) use dlp_api::{
     undelegate_buffer_seeds_from_delegated_account,
     validator_fees_vault_seeds_from_validator,
 };
-#[allow(unused_imports)]
-pub(crate) use dlp_api::{id, ID};
+pub use dlp_api::{id, ID};
 #[allow(unused_imports)]
 pub(crate) use dlp_api::{
     require, require_eq, require_eq_keys, require_ge, require_gt,
