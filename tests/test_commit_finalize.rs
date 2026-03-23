@@ -1,4 +1,4 @@
-use assertables::assert_gt;
+use assertables::assert_ge;
 use dlp_api::{
     args::CommitFinalizeArgs,
     diff::compute_diff,
@@ -318,8 +318,11 @@ async fn test_commit_finalize_lamports_increase() {
         .unwrap()
         .lamports;
 
-    // use: gt! instead eq! .. because validator is transaction fee payer as well.
-    assert_gt!(before_validator_lamports - after_validator_lamports, 1_000);
+    assert_ne!(before_validator_lamports - after_validator_lamports, 0);
+    assert_ge!(
+        before_validator_lamports - after_validator_lamports,
+        commit_lamports - initial_lamports
+    );
 
     let fees_vault = banks
         .get_account(pdas.validator_fees_vault)

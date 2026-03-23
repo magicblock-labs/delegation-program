@@ -1,5 +1,5 @@
 use dlp_api::{
-    args::CommitStateArgs,
+    args::{CommitFinalizeArgs, CommitStateArgs, DelegateArgs},
     pda::{
         commit_record_pda_from_delegated_account,
         commit_state_pda_from_delegated_account,
@@ -7,11 +7,11 @@ use dlp_api::{
         delegation_record_pda_from_delegated_account, fees_vault_pda,
         validator_fees_vault_pda_from_validator,
     },
-    state::{CommitRecord, DelegationMetadata},
+    state::{CommitRecord, DelegationMetadata, DelegationRecord},
 };
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
-    system_program,
+    system_instruction, system_program,
 };
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -66,6 +66,312 @@ async fn test_commit_finalize_pda_after_balance_increase() {
 #[tokio::test]
 async fn test_commit_undelegate_pda_after_balance_increase() {
     test_commit_system_account_after_balance_increase(true, true).await;
+}
+
+async fn get_delegation_record(
+    banks: &BanksClient,
+    delegated_account: Pubkey,
+) -> DelegationRecord {
+    let acc = banks
+        .get_account(delegation_record_pda_from_delegated_account(
+            &delegated_account,
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    *DelegationRecord::try_from_bytes_with_discriminator(&acc.data).unwrap()
+}
+
+async fn validator_fees_vault_balance(
+    banks: &BanksClient,
+    validator: Pubkey,
+) -> u64 {
+    banks
+        .get_balance(validator_fees_vault_pda_from_validator(&validator))
+        .await
+        .unwrap()
+}
+
+#[tokio::test]
+async fn test_commit_finalize_lamports_settlement() {
+    let initial_lamports = 1_000_000;
+    let (base_banks, payer, delegated, validator, blockhash) =
+        setup_program_for_delegate_base_increase(initial_lamports).await;
+
+    // Assign delegated account to the delegation program.
+    let assign_ix =
+        system_instruction::assign(&delegated.pubkey(), &dlp_api::id());
+    let assign_tx = Transaction::new_signed_with_payer(
+        &[assign_ix],
+        Some(&payer.pubkey()),
+        &[&payer, &delegated],
+        blockhash,
+    );
+    base_banks.process_transaction(assign_tx).await.unwrap();
+
+    assert_eq!(
+        base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+        initial_lamports
+    );
+
+    // let's predent that lamports_on_ephem is the valid that tracks the current lamports
+    // on the ER
+    let mut lamports_on_ephem = initial_lamports;
+
+    // Delegate the account.
+    {
+        let delegate_ix = dlp_api::instruction_builder::delegate(
+            payer.pubkey(),
+            delegated.pubkey(),
+            None,
+            DelegateArgs {
+                commit_frequency_ms: u32::MAX,
+                seeds: vec![],
+                validator: Some(validator.pubkey()),
+            },
+        );
+        let delegate_tx = Transaction::new_signed_with_payer(
+            &[delegate_ix],
+            Some(&payer.pubkey()),
+            &[&payer, &delegated],
+            blockhash,
+        );
+        base_banks.process_transaction(delegate_tx).await.unwrap();
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            initial_lamports,
+            "delegation_record.lamports == delegated_account.lamports() at the time of delegation"
+        );
+    }
+
+    // send 100 lamports to the delegated account on the base
+    {
+        let transfer_ix = system_instruction::transfer(
+            &payer.pubkey(),
+            &delegated.pubkey(),
+            100,
+        );
+        let transfer_tx = Transaction::new_signed_with_payer(
+            &[transfer_ix],
+            Some(&payer.pubkey()),
+            &[&payer],
+            blockhash,
+        );
+        base_banks.process_transaction(transfer_tx).await.unwrap();
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100
+        );
+    }
+
+    // first commit (assume there is no lamports change on ER)
+    {
+        let mut args = CommitFinalizeArgs {
+            commit_id: 1,
+            lamports: lamports_on_ephem,
+            allow_undelegation: false.into(),
+            data_is_diff: false.into(),
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        };
+        let (commit_ix, _) = dlp_api::instruction_builder::commit_finalize(
+            validator.pubkey(),
+            delegated.pubkey(),
+            &mut args,
+            &[],
+        );
+        let commit_tx = Transaction::new_signed_with_payer(
+            &[commit_ix],
+            Some(&payer.pubkey()),
+            &[&validator, &payer],
+            blockhash,
+        );
+        base_banks.process_transaction(commit_tx).await.unwrap();
+
+        assert_eq!(
+            base_banks.get_balance(validator.pubkey()).await.unwrap(),
+            LAMPORTS_PER_SOL,
+            "there must not be any change in validator lamports because there is no tx"
+        );
+        assert_eq!(
+            validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
+            dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            "there must not be any change in fees_vault lamports because there is no tx"
+        );
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            lamports_on_ephem,
+            "delegation_record.lamports must be same as the lamports on ER (commit_lamports)"
+        );
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100,
+            "account's lamports on the base must be unchanged"
+        );
+    }
+
+    // second commit (still no lamports change on ER)
+    {
+        let mut args = CommitFinalizeArgs {
+            commit_id: 2,
+            lamports: lamports_on_ephem,
+            allow_undelegation: false.into(),
+            data_is_diff: false.into(),
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        };
+        let (commit_ix, _) = dlp_api::instruction_builder::commit_finalize(
+            validator.pubkey(),
+            delegated.pubkey(),
+            &mut args,
+            &[],
+        );
+        let commit_tx = Transaction::new_signed_with_payer(
+            &[commit_ix],
+            Some(&payer.pubkey()),
+            &[&validator, &payer],
+            blockhash,
+        );
+        base_banks.process_transaction(commit_tx).await.unwrap();
+
+        assert_eq!(
+            base_banks.get_balance(validator.pubkey()).await.unwrap(),
+            LAMPORTS_PER_SOL,
+            "there must not be any change in validator lamports because there is no tx"
+        );
+        assert_eq!(
+            validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
+            dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            "there must not be any change in fees_vault lamports because there is no tx"
+        );
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            lamports_on_ephem,
+            "delegation_record.lamports must be same as the lamports on ER (commit_lamports)"
+        );
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100,
+            "account's lamports on the base must be unchanged"
+        );
+    }
+
+    // third commit (lamports on ER has increased by 959)
+    {
+        // pretend lamports has increased on the ER
+        lamports_on_ephem += 959;
+
+        let mut args = CommitFinalizeArgs {
+            commit_id: 3,
+            lamports: lamports_on_ephem, // it has increased 959
+            allow_undelegation: false.into(),
+            data_is_diff: false.into(),
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        };
+        let (commit_ix, _) = dlp_api::instruction_builder::commit_finalize(
+            validator.pubkey(),
+            delegated.pubkey(),
+            &mut args,
+            &[],
+        );
+        let commit_tx = Transaction::new_signed_with_payer(
+            &[commit_ix],
+            Some(&payer.pubkey()),
+            &[&validator, &payer],
+            blockhash,
+        );
+        base_banks.process_transaction(commit_tx).await.unwrap();
+
+        assert_eq!(
+            base_banks.get_balance(validator.pubkey()).await.unwrap(),
+            LAMPORTS_PER_SOL - 959,
+            "validator's lamports must decrease by 959 because 959 must be transferred to delegated_account"
+        );
+        assert_eq!(
+            validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
+            dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            "there must not be any change in fees_vault lamports because tx deals with increased lamports value"
+        );
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            lamports_on_ephem,
+            "delegation_record.lamports must have increased by 100, but still same as lamports_on_ephem"
+        );
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100 + 959,
+            "account's lamports on the base must be increased by the same amount as the change on the ER"
+        );
+    }
+
+    // fourth commit (lamports on ER has decreased by 9590)
+    {
+        // pretend lamports has decreased on the ER
+        lamports_on_ephem -= 9590;
+
+        let mut args = CommitFinalizeArgs {
+            commit_id: 4,
+            lamports: lamports_on_ephem, // it has increased 959
+            allow_undelegation: false.into(),
+            data_is_diff: false.into(),
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        };
+        let (commit_ix, _) = dlp_api::instruction_builder::commit_finalize(
+            validator.pubkey(),
+            delegated.pubkey(),
+            &mut args,
+            &[],
+        );
+        let commit_tx = Transaction::new_signed_with_payer(
+            &[commit_ix],
+            Some(&payer.pubkey()),
+            &[&validator, &payer],
+            blockhash,
+        );
+        base_banks.process_transaction(commit_tx).await.unwrap();
+
+        assert_eq!(
+            base_banks.get_balance(validator.pubkey()).await.unwrap(),
+            LAMPORTS_PER_SOL - 959,
+            "validator's lamports must not changhe now"
+        );
+        assert_eq!(
+            validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
+            dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
+            "validator_fees_vault_balance must have increased by 9590 now"
+        );
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            lamports_on_ephem,
+        );
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100 + 959 - 9590,
+            "account's lamports on the base must be decreased by the same amount as the change on the ER"
+        );
+    }
 }
 
 #[tokio::test]
@@ -500,6 +806,60 @@ struct CommitNewStateArgs<'a> {
     new_delegated_account_lamports: u64,
     delegated_account: Pubkey,
     delegated_account_owner: Pubkey,
+}
+
+async fn setup_program_for_delegate_base_increase(
+    initial_lamports: u64,
+) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
+    assert!(
+        initial_lamports >= dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+        "Please pass lamports >= {}, but passed: {}",
+        dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+        initial_lamports
+    );
+
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
+    program_test.prefer_bpf(true);
+
+    let delegated = Keypair::new();
+    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+
+    program_test.add_account(
+        delegated.pubkey(),
+        Account {
+            lamports: initial_lamports,
+            data: vec![],
+            owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    program_test.add_account(
+        validator.pubkey(),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    program_test.add_account(
+        validator_fees_vault_pda_from_validator(&validator.pubkey()),
+        Account {
+            lamports: Rent::default().minimum_balance(0),
+            data: vec![],
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    let (banks, payer, blockhash) = program_test.start().await;
+
+    (banks, payer, delegated, validator, blockhash)
 }
 
 async fn commit_new_state(args: CommitNewStateArgs<'_>) {
