@@ -375,6 +375,272 @@ async fn test_commit_finalize_lamports_settlement() {
 }
 
 #[tokio::test]
+async fn test_commit_and_finalize_lamports_settlement() {
+    let initial_lamports = 1_000_000;
+    let (mut base_banks, payer, delegated, validator, blockhash) =
+        setup_program_for_delegate_base_increase(initial_lamports).await;
+
+    // Assign delegated account to the delegation program.
+    let assign_ix =
+        system_instruction::assign(&delegated.pubkey(), &dlp_api::id());
+    let assign_tx = Transaction::new_signed_with_payer(
+        &[assign_ix],
+        Some(&payer.pubkey()),
+        &[&payer, &delegated],
+        blockhash,
+    );
+    base_banks.process_transaction(assign_tx).await.unwrap();
+
+    assert_eq!(
+        base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+        initial_lamports
+    );
+
+    let mut lamports_on_ephem = initial_lamports;
+
+    // Delegate the account.
+    {
+        let delegate_ix = dlp_api::instruction_builder::delegate(
+            payer.pubkey(),
+            delegated.pubkey(),
+            None,
+            DelegateArgs {
+                commit_frequency_ms: u32::MAX,
+                seeds: vec![],
+                validator: Some(validator.pubkey()),
+            },
+        );
+        let delegate_tx = Transaction::new_signed_with_payer(
+            &[delegate_ix],
+            Some(&payer.pubkey()),
+            &[&payer, &delegated],
+            blockhash,
+        );
+        base_banks.process_transaction(delegate_tx).await.unwrap();
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            initial_lamports,
+            "delegation_record.lamports == delegated_account.lamports() at the time of delegation"
+        );
+    }
+
+    // send 100 lamports to the delegated account on the base
+    {
+        let transfer_ix = system_instruction::transfer(
+            &payer.pubkey(),
+            &delegated.pubkey(),
+            100,
+        );
+        let transfer_tx = Transaction::new_signed_with_payer(
+            &[transfer_ix],
+            Some(&payer.pubkey()),
+            &[&payer],
+            blockhash,
+        );
+        base_banks.process_transaction(transfer_tx).await.unwrap();
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100
+        );
+    }
+
+    // first commit+finalize (assume there is no lamports change on ER)
+    {
+        commit_state_with_nonce(CommitStateWithNonceArgs {
+            banks: &mut base_banks,
+            authority: &validator,
+            fee_payer: &payer,
+            blockhash,
+            new_delegated_account_lamports: lamports_on_ephem,
+            nonce: 1,
+            allow_undelegation: false,
+            label: "first commit",
+            delegated_account: delegated.pubkey(),
+            delegated_account_owner: system_program::id(),
+        })
+        .await;
+
+        finalize_with_fee_payer(FinalizeWithFeePayerArgs {
+            banks: &mut base_banks,
+            authority: &validator,
+            fee_payer: &payer,
+            blockhash,
+            label: "first finalize",
+            delegated_account: delegated.pubkey(),
+        })
+        .await;
+
+        assert_eq!(
+            validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
+            dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            "there must not be any change in fees_vault lamports because there is no tx"
+        );
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            lamports_on_ephem,
+            "delegation_record.lamports must be same as the lamports on ER (commit_lamports)"
+        );
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100,
+            "account's lamports on the base must be unchanged"
+        );
+    }
+
+    // second commit+finalize (still no lamports change on ER)
+    {
+        commit_state_with_nonce(CommitStateWithNonceArgs {
+            banks: &mut base_banks,
+            authority: &validator,
+            fee_payer: &payer,
+            blockhash,
+            new_delegated_account_lamports: lamports_on_ephem,
+            nonce: 2,
+            allow_undelegation: false,
+            label: "second commit",
+            delegated_account: delegated.pubkey(),
+            delegated_account_owner: system_program::id(),
+        })
+        .await;
+
+        finalize_with_fee_payer(FinalizeWithFeePayerArgs {
+            banks: &mut base_banks,
+            authority: &validator,
+            fee_payer: &payer,
+            blockhash,
+            label: "second finalize",
+            delegated_account: delegated.pubkey(),
+        })
+        .await;
+
+        assert_eq!(
+            validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
+            dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            "there must not be any change in fees_vault lamports because there is no tx"
+        );
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            lamports_on_ephem,
+            "delegation_record.lamports must be same as the lamports on ER (commit_lamports)"
+        );
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100,
+            "account's lamports on the base must be unchanged"
+        );
+    }
+
+    // third commit+finalize (lamports on ER has increased by 959)
+    {
+        lamports_on_ephem += 959;
+
+        commit_state_with_nonce(CommitStateWithNonceArgs {
+            banks: &mut base_banks,
+            authority: &validator,
+            fee_payer: &payer,
+            blockhash,
+            new_delegated_account_lamports: lamports_on_ephem,
+            nonce: 3,
+            allow_undelegation: false,
+            label: "third commit",
+            delegated_account: delegated.pubkey(),
+            delegated_account_owner: system_program::id(),
+        })
+        .await;
+
+        finalize_with_fee_payer(FinalizeWithFeePayerArgs {
+            banks: &mut base_banks,
+            authority: &validator,
+            fee_payer: &payer,
+            blockhash,
+            label: "third finalize",
+            delegated_account: delegated.pubkey(),
+        })
+        .await;
+
+        assert_eq!(
+            validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
+            dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            "there must not be any change in fees_vault lamports because tx deals with increased lamports value"
+        );
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            lamports_on_ephem,
+            "delegation_record.lamports must have increased by 100, but still same as lamports_on_ephem"
+        );
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100 + 959,
+            "account's lamports on the base must be increased by the same amount as the change on the ER"
+        );
+    }
+
+    // fourth commit+finalize (lamports on ER has decreased by 9590)
+    {
+        lamports_on_ephem -= 9590;
+
+        commit_state_with_nonce(CommitStateWithNonceArgs {
+            banks: &mut base_banks,
+            authority: &validator,
+            fee_payer: &payer,
+            blockhash,
+            new_delegated_account_lamports: lamports_on_ephem,
+            nonce: 4,
+            allow_undelegation: false,
+            label: "fourth commit",
+            delegated_account: delegated.pubkey(),
+            delegated_account_owner: system_program::id(),
+        })
+        .await;
+
+        finalize_with_fee_payer(FinalizeWithFeePayerArgs {
+            banks: &mut base_banks,
+            authority: &validator,
+            fee_payer: &payer,
+            blockhash,
+            label: "fourth finalize",
+            delegated_account: delegated.pubkey(),
+        })
+        .await;
+
+        assert_eq!(
+            validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
+            dlp_api::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
+            "validator_fees_vault_balance must have increased by 9590 now"
+        );
+
+        assert_eq!(
+            get_delegation_record(&base_banks, delegated.pubkey())
+                .await
+                .lamports,
+            lamports_on_ephem,
+        );
+
+        assert_eq!(
+            base_banks.get_balance(delegated.pubkey()).await.unwrap(),
+            initial_lamports + 100 + 959 - 9590,
+            "account's lamports on the base must be decreased by the same amount as the change on the ER"
+        );
+    }
+}
+
+#[tokio::test]
 async fn test_commit_finalise_system_account_after_balance_decrease_and_increase_mainchain(
 ) {
     test_commit_system_account_after_balance_decrease_and_increase_mainchain(
@@ -740,8 +1006,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
         args.blockhash,
     );
     let res = args.banks.process_transaction(tx).await;
-    println!("{:?}", res);
-    assert!(res.is_ok());
+    assert!(res.is_ok(), "{:?}", res);
 
     // Assert the delegation_record_pda was closed
     let delegation_record_account =
@@ -804,6 +1069,19 @@ struct CommitNewStateArgs<'a> {
     authority: &'a Keypair,
     blockhash: Hash,
     new_delegated_account_lamports: u64,
+    delegated_account: Pubkey,
+    delegated_account_owner: Pubkey,
+}
+
+struct CommitStateWithNonceArgs<'a> {
+    banks: &'a mut BanksClient,
+    authority: &'a Keypair,
+    fee_payer: &'a Keypair,
+    blockhash: Hash,
+    new_delegated_account_lamports: u64,
+    nonce: u64,
+    allow_undelegation: bool,
+    label: &'a str,
     delegated_account: Pubkey,
     delegated_account_owner: Pubkey,
 }
@@ -889,8 +1167,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         args.blockhash,
     );
     let res = args.banks.process_transaction(tx).await;
-    println!("{:?}", res);
-    assert!(res.is_ok());
+    assert!(res.is_ok(), "{:?}", res);
 
     // Assert the state commitment was created and contains the new state
     let commit_state_pda =
@@ -946,6 +1223,61 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         )
         .unwrap();
     assert!(delegation_metadata.is_undelegatable);
+}
+
+async fn commit_state_with_nonce(args: CommitStateWithNonceArgs<'_>) {
+    let data = if args.delegated_account.eq(&DELEGATED_PDA_ID) {
+        COMMIT_NEW_STATE_ACCOUNT_DATA.to_vec()
+    } else {
+        vec![]
+    };
+    let commit_args = CommitStateArgs {
+        data,
+        nonce: args.nonce,
+        allow_undelegation: args.allow_undelegation,
+        lamports: args.new_delegated_account_lamports,
+    };
+
+    let ix = dlp_api::instruction_builder::commit_state(
+        args.authority.pubkey(),
+        args.delegated_account,
+        args.delegated_account_owner,
+        commit_args,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&args.fee_payer.pubkey()),
+        &[&args.authority, &args.fee_payer],
+        args.banks.get_latest_blockhash().await.unwrap(),
+    );
+    let res = args.banks.process_transaction(tx).await;
+
+    assert!(res.is_ok(), "{} failed: {:?}", args.label, res);
+}
+
+struct FinalizeWithFeePayerArgs<'a> {
+    banks: &'a mut BanksClient,
+    authority: &'a Keypair,
+    fee_payer: &'a Keypair,
+    blockhash: Hash,
+    label: &'a str,
+    delegated_account: Pubkey,
+}
+
+async fn finalize_with_fee_payer(args: FinalizeWithFeePayerArgs<'_>) {
+    let ix = dlp_api::instruction_builder::finalize(
+        args.authority.pubkey(),
+        args.delegated_account,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&args.fee_payer.pubkey()),
+        &[&args.authority, &args.fee_payer],
+        args.banks.get_latest_blockhash().await.unwrap(),
+    );
+    let res = args.banks.process_transaction(tx).await;
+
+    assert!(res.is_ok(), "{} failed: {:?}", args.label, res);
 }
 
 #[derive(Debug)]
