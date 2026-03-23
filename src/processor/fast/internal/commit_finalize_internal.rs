@@ -141,7 +141,7 @@ pub(crate) fn process_commit_finalize_internal(
     }
 
     // Update the delegation record lamports after settling.
-    delegation_record.lamports = args.delegated_account.lamports();
+    delegation_record.lamports = args.commit_lamports;
 
     // require the account is still rent-exempted even after decrementing lamports
     if check_minimum_balance {
