@@ -12,6 +12,7 @@ import { ON_CURVE_ACCOUNT } from "./fixtures/consts";
 import { assert } from "chai";
 
 const SEED_TEST_PDA = "test-pda";
+const SEED_TEST_PDA_OTHER = "test-pda-other";
 const BPF_LOADER = new web3.PublicKey(
   "BPFLoaderUpgradeab1e11111111111111111111111"
 );
@@ -26,6 +27,10 @@ describe("TestDelegation", () => {
 
   const [pda] = anchor.web3.PublicKey.findProgramAddressSync(
     [Buffer.from(SEED_TEST_PDA)],
+    testDelegation.programId
+  );
+  const [pdaOther] = anchor.web3.PublicKey.findProgramAddressSync(
+    [Buffer.from(SEED_TEST_PDA_OTHER)],
     testDelegation.programId
   );
   const payer = provider.wallet.publicKey;
@@ -88,7 +93,7 @@ describe("TestDelegation", () => {
 
   it("Initializes another counter", async () => {
     // Check if the counter is initialized
-    const counterAccountInfo = await provider.connection.getAccountInfo(pda);
+    const counterAccountInfo = await provider.connection.getAccountInfo(pdaOther);
     if (counterAccountInfo === null) {
       const tx = await testDelegation.methods
         .initializeOther()
@@ -96,10 +101,10 @@ describe("TestDelegation", () => {
           user: provider.wallet.publicKey,
         })
         .rpc({ skipPreflight: true });
-      console.log("Init Pda Tx: ", tx);
+      console.log("Init Other Pda Tx: ", tx);
     }
-    const counterAccount = await testDelegation.account.counter.fetch(pda);
-    console.log("Counter: ", counterAccount.count.toString());
+    const counterAccount = await testDelegation.account.counter.fetch(pdaOther);
+    console.log("Counter (other): ", counterAccount.count.toString());
   });
 
   it("Increase the counter", async () => {
