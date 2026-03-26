@@ -1,4 +1,4 @@
-name: Publish dlp and dlp-crates
+name: Publish magicblock-delegation-program-api (dlp-api) Crate
 on:
   release:
     types: [published]
@@ -97,20 +97,6 @@ jobs:
           fi
 
           cargo +${{ env.rust_version }} publish $DRY_RUN_FLAG --manifest-path dlp-api/Cargo.toml --token "$CRATES_TOKEN" $NO_VERIFY_FLAG
-
-          if [ "${DRY_RUN}" = "false" ]; then
-            for attempt in 1 2 3 4 5; do
-              if cargo +${{ env.rust_version }} publish --manifest-path Cargo.toml --token "$CRATES_TOKEN"; then
-                break
-              fi
-
-              if [ "$attempt" -eq 5 ]; then
-                exit 1
-              fi
-
-              sleep 30
-            done
-          fi
         env:
           CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
           DRY_RUN: ${{ env.DRY_RUN }}
