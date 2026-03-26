@@ -7,7 +7,7 @@ use std::{cmp::Ordering, ops::Range};
 use pinocchio::error::ProgramError;
 use static_assertions::const_assert;
 
-use crate::error::DlpError;
+use crate::{error::DlpError, require_eq, require_ge, require_le, require_lt};
 
 #[derive(Debug, Clone, Copy)]
 pub enum SizeChanged {
@@ -47,11 +47,16 @@ impl<'a> DiffSet<'a> {
         // | ChangeLen | # Offset Pairs  | Offset Pair 0 | Offset Pair 1 | ... | Concat Diff |
         // |= 4 bytes =|==== 4 bytes ====|=== 8 bytes ===|=== 8 bytes ===| ... |== M bytes ==|
 
-        if diff.len() < (SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS) {
-            return Err(DlpError::InvalidDiff.into());
-        } else if diff.as_ptr().align_offset(align_of::<u32>()) != 0 {
-            return Err(DlpError::InvalidDiffAlignment.into());
-        }
+        require_ge!(
+            diff.len(),
+            SIZE_OF_CHANGED_LEN + SIZE_OF_NUM_OFFSET_PAIRS,
+            DlpError::InvalidDiff
+        );
+        require_eq!(
+            diff.as_ptr().align_offset(align_of::<u32>()),
+            0,
+            DlpError::InvalidDiffAlignment
+        );
 
         // SAFETY: if we are here, that means, diff is good and headers exist:
         //  - buf aligned to 4-byte
@@ -78,12 +83,14 @@ impl<'a> DiffSet<'a> {
             Ordering::Equal => {
                 // it means diff contains the header only. and concat_diff is actually empty.
                 // nothing to do in this case, except the following validation check.
-                if this.segments_count() != 0 {
-                    return Err(DlpError::InvalidDiff.into());
-                }
+                require_eq!(this.segments_count(), 0, DlpError::InvalidDiff);
             }
             Ordering::Less => {
-                // diff cannot be smaller than the header size.
+                pinocchio_log::log!(
+                    "segments_count {} is invalid, or diff {} is truncated",
+                    this.segments_count(),
+                    diff.len()
+                );
                 return Err(DlpError::InvalidDiff.into());
             }
             Ordering::Greater => {
@@ -160,21 +167,24 @@ impl<'a> DiffSet<'a> {
         };
 
         // Note: segment is the half-open interval [segment_begin, segment_end)
-        if segment_end > self.concat_diff.len() as u32
-            || segment_begin >= segment_end
-            || offset_in_data >= self.changed_len() as u32
-        {
-            return Err(DlpError::InvalidDiff.into());
-        }
+        require_lt!(segment_begin, segment_end, DlpError::InvalidDiff);
+        require_le!(
+            segment_end as usize,
+            self.concat_diff.len(),
+            DlpError::InvalidDiff
+        );
+        require_lt!(
+            offset_in_data as usize,
+            self.changed_len(),
+            DlpError::InvalidDiff
+        );
 
         let segment =
             &self.concat_diff[segment_begin as usize..segment_end as usize];
         let range = offset_in_data as usize
             ..(offset_in_data + segment_end - segment_begin) as usize;
 
-        if range.end > self.changed_len() {
-            return Err(DlpError::InvalidDiff.into());
-        }
+        require_le!(range.end, self.changed_len(), DlpError::InvalidDiff);
 
         Ok(Some((segment, range)))
     }
@@ -185,8 +195,14 @@ impl<'a> DiffSet<'a> {
     ) -> impl Iterator<Item = Result<(&'a [u8], OffsetInData), ProgramError>> + '_
     {
         (0..self.segments_count).map(|index| {
-            self.diff_segment_at(index)
-                .map(|val| val.expect("impossible: index can never be greater than segments_count"))
+            self.diff_segment_at(index).and_then(|maybe_value| {
+                maybe_value.ok_or_else(|| {
+                    pinocchio_log::log!(
+                        "index can never be greater than segments_count"
+                    );
+                    DlpError::InfallibleError.into()
+                })
+            })
         })
     }
 }

@@ -26,12 +26,12 @@ awk -v api_version="$api_version" '
         section = $0
     }
     {
-        if (section == "[dependencies]" && $0 ~ /^dlp-api = \{ package = "magicblock-delegation-program-api"/) {
-            $0 = "dlp-api = { package = \"magicblock-delegation-program-api\", version = \"" api_version "\", path = \"dlp-api\", default-features = false }"
-        } else if (section == "[dev-dependencies]" && $0 ~ /^magicblock-delegation-program = \{/) {
+        if (section == "[dependencies]" && $0 ~ /^[[:space:]]*magicblock-delegation-program-api[[:space:]]*=[[:space:]]*\{/) {
+            $0 = "magicblock-delegation-program-api = { version = \"" api_version "\", path = \"dlp-api\", default-features = false }"
+        } else if (section == "[dev-dependencies]" && $0 ~ /^[[:space:]]*magicblock-delegation-program[[:space:]]*=[[:space:]]*\{/) {
             $0 = "magicblock-delegation-program = { path = \".\", features = [\"unit_test_config\"] }"
-        } else if (section == "[dev-dependencies]" && $0 ~ /^dlp-api = \{ package = "magicblock-delegation-program-api"/) {
-            $0 = "dlp-api = { package = \"magicblock-delegation-program-api\", version = \"" api_version "\", path = \"dlp-api\" }"
+        } else if (section == "[dev-dependencies]" && $0 ~ /^[[:space:]]*magicblock-delegation-program-api[[:space:]]*=[[:space:]]*\{/) {
+            $0 = "magicblock-delegation-program-api = { version = \"" api_version "\", path = \"dlp-api\" }"
         }
         print
     }
