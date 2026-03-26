@@ -46,7 +46,7 @@ log-cost = []
 logging = []
 
 [dependencies]
-magicblock-delegation-program-api = { version = "0.1.1", path = "dlp-api", default-features = false }
+magicblock-delegation-program-api = { version = "0.2.0", path = "dlp-api", default-features = false }
 bincode = { version = "^1.3" }
 borsh = { version = "1.5.3", features = [ "derive" ] }
 bytemuck = { version = ">=1", features = [ "derive" ] }
@@ -80,7 +80,7 @@ rand = { version = "=0.8.5", features = ["small_rng"], optional = true }
 [dev-dependencies]
 assertables = "9.8.2"
 magicblock-delegation-program = { path = ".", features = ["unit_test_config"] }
-magicblock-delegation-program-api = { version = "0.1.1", path = "dlp-api" }
+magicblock-delegation-program-api = { version = "0.2.0", path = "dlp-api" }
 rand = { version = "=0.8.5", features = ["small_rng"] }
 solana-pubkey = "3.0.0"
 solana-program-test = ">=1.16"
