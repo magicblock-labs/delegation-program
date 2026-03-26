@@ -30,7 +30,7 @@ macro_rules! require {
 macro_rules! require_signer {
     ($info: expr) => {{
         if !$info.is_signer() {
-            log!("require_signer!({}): ", stringify!($info));
+            pinocchio_log::log!("require_signer!({}): ", stringify!($info));
             $info.address().log();
             return Err(ProgramError::MissingRequiredSignature);
         }
@@ -243,7 +243,7 @@ macro_rules! require_initialized_pda {
         let pda = match pinocchio::Address::create_program_address($seeds, $program_id) {
             Ok(pda) => pda,
             Err(_) => {
-                log!(
+                pinocchio_log::log!(
                     "require_initialized_pda!({}, {}, {}, {}); create_program_address failed",
                     stringify!($info),
                     stringify!($seeds),
@@ -254,7 +254,7 @@ macro_rules! require_initialized_pda {
             }
         };
         if !address_eq($info.address(), &pda) {
-            log!(
+            pinocchio_log::log!(
                 "require_initialized_pda!({}, {}, {}, {}); address_eq failed",
                 stringify!($info),
                 stringify!($seeds),
@@ -269,7 +269,7 @@ macro_rules! require_initialized_pda {
         require_owned_by!($info, $program_id);
 
         if $is_writable && !$info.is_writable() {
-            log!(
+            pinocchio_log::log!(
                 "require_initialized_pda!({}, {}, {}, {}); is_writable expectation failed",
                 stringify!($info),
                 stringify!($seeds),
@@ -287,7 +287,7 @@ macro_rules! require_initialized_pda_fast {
     ($info:expr, $seeds: expr, $is_writable: expr) => {{
         let pda = solana_sha256_hasher::hashv($seeds).to_bytes();
         if !address_eq($info.address(), &pda.into()) {
-            log!(
+            pinocchio_log::log!(
                 "require_initialized_pda!({}, {}, {}); address_eq failed",
                 stringify!($info),
                 stringify!($seeds),
@@ -300,7 +300,7 @@ macro_rules! require_initialized_pda_fast {
         require_owned_by!($info, &$crate::fast::ID);
 
         if $is_writable && !$info.is_writable() {
-            log!(
+            pinocchio_log::log!(
                 "require_initialized_pda!({}, {}, {}); is_writable expectation failed",
                 stringify!($info),
                 stringify!($seeds),
@@ -318,7 +318,7 @@ macro_rules! require_pda {
         let pda = match pinocchio::Address::create_program_address($seeds, $program_id) {
             Ok(pda) => pda,
             Err(_) => {
-                log!(
+                pinocchio_log::log!(
                     "require_pda!({}, {}, {}, {}); create_program_address failed",
                     stringify!($info),
                     stringify!($seeds),
@@ -329,7 +329,7 @@ macro_rules! require_pda {
             }
         };
         if !address_eq($info.address(), &pda) {
-            log!(
+            pinocchio_log::log!(
                 "require_pda!({}, {}, {}, {}); address_eq failed",
                 stringify!($info),
                 stringify!($seeds),
@@ -342,7 +342,7 @@ macro_rules! require_pda {
         }
 
         if $is_writable && !$info.is_writable() {
-            log!(
+            pinocchio_log::log!(
                 "require_pda!({}, {}, {}, {}); is_writable expectation failed",
                 stringify!($info),
                 stringify!($seeds),

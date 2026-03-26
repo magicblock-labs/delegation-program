@@ -167,7 +167,7 @@ pub fn process_finalize(
         .map_err(to_pinocchio_program_error)?;
 
     // Update the delegation record
-    delegation_record.lamports = delegated_account.lamports();
+    delegation_record.lamports = commit_record.lamports;
 
     // Load commit state
     let commit_state_data = commit_state_account.try_borrow()?;

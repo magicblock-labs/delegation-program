@@ -18,12 +18,12 @@ use crate::{
 /// Accounts:
 ///
 /// 0: `[signer]`   the validator requesting the commit
-/// 1: `[]`         the delegated account
-/// 2: `[writable]` the PDA storing the new state
-/// 3: `[writable]` the PDA storing the commit record
-/// 4: `[]`         the delegation record
-/// 5: `[writable]` the delegation metadata
-/// 6: `[]`         the validator fees vault
+/// 1: `[writable]` the delegated account
+/// 2: `[writable]` the delegation record
+/// 3: `[writable]` the delegation metadata
+/// 4: `[]`         the data buffer
+/// 5: `[writable]` the validator fees vault
+/// 6: `[]`         system program
 ///
 /// Instruction Data: CommitFinalizeArgs
 ///
@@ -72,6 +72,7 @@ pub fn process_commit_finalize_from_buffer(
         } else {
             NewState::FullBytes(&data)
         },
+        commit_lamports: args.lamports,
         commit_id: args.commit_id,
         allow_undelegation: args.allow_undelegation.is_true(),
         validator,
