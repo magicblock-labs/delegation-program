@@ -49,18 +49,20 @@ pub fn process_validator_claim_fees(
         true,
     )?;
 
-    // Calculate the amount to transfer
+    // Lamports that can be claimed without dropping the vault below rent-exempt minimum
     let min_rent = Rent::default().minimum_balance(8);
-    let amount = args
-        .amount
-        .unwrap_or(validator_fees_vault.lamports() - min_rent);
+    let available = validator_fees_vault
+        .lamports()
+        .checked_sub(min_rent)
+        .ok_or(ProgramError::InsufficientFunds)?;
 
-    // Ensure vault has enough lamports
-    if validator_fees_vault.lamports() - min_rent < amount {
+    let amount = args.amount.unwrap_or(available);
+
+    if amount > available {
         msg!(
             "Vault ({}) has insufficient funds: {} < {}",
             validator_fees_vault.key,
-            validator_fees_vault.lamports() - min_rent,
+            available,
             amount
         );
         return Err(ProgramError::InsufficientFunds);
