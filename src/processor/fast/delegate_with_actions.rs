@@ -108,6 +108,9 @@ pub fn process_delegate_with_actions(
         let signers_count = args.actions.signers.len() as u8;
         let keys_count = signers_count + args.actions.non_signers.len() as u8;
 
+        // Validate clear-text indices early when possible. Encrypted
+        // AccountMetas are skipped here because they can only be validated
+        // after decryption by the ER validator.
         for ix in args.actions.instructions.iter() {
             require!(
                 ix.program_id < keys_count,
@@ -121,7 +124,7 @@ pub fn process_delegate_with_actions(
                 };
                 require!(
                     (meta.is_signer() && meta.key() < signers_count)
-                        || meta.key() < keys_count,
+                        || (!meta.is_signer() && meta.key() < keys_count),
                     ProgramError::InvalidInstructionData
                 );
             }
