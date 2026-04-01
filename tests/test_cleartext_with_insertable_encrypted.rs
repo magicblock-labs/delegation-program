@@ -1,9 +1,13 @@
 use dlp_api::{
-    compact::ClearTextWithInsertable,
+    args::{
+        EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedInstruction,
+        MaybeEncryptedIxData, MaybeEncryptedPubkey, PostDelegationActions,
+    },
+    compact::{AccountMeta as CompactAccountMeta, ClearTextWithInsertable},
     instruction_builder::{
         Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
     },
-    Decrypt,
+    Decrypt, DecryptError,
 };
 use solana_instruction::{AccountMeta as IxAccountMeta, Instruction};
 use solana_program::{
@@ -140,4 +144,88 @@ fn test_cleartext_with_insertable_encrypted_actions() {
     ];
 
     assert_eq!(decrypted, expected);
+}
+
+#[test]
+fn test_decrypt_rejects_invalid_inserted_signer_count() {
+    let validator = Keypair::new();
+    let actions = PostDelegationActions {
+        inserted_signers: 2,
+        inserted_non_signers: 0,
+        signers: vec![pk(1)],
+        non_signers: vec![],
+        instructions: vec![],
+    };
+
+    let err = actions.decrypt_with_keypair(&validator).unwrap_err();
+    match err {
+        DecryptError::InvalidInsertedSignerCount { inserted, len } => {
+            assert_eq!(inserted, 2);
+            assert_eq!(len, 1);
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn test_decrypt_rejects_invalid_inserted_non_signer_count() {
+    let validator = Keypair::new();
+    let actions = PostDelegationActions {
+        inserted_signers: 0,
+        inserted_non_signers: 1,
+        signers: vec![],
+        non_signers: vec![],
+        instructions: vec![],
+    };
+
+    let err = actions.decrypt_with_keypair(&validator).unwrap_err();
+    match err {
+        DecryptError::InvalidInsertedNonSignerCount { inserted, len } => {
+            assert_eq!(inserted, 1);
+            assert_eq!(len, 0);
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
+}
+
+#[test]
+fn test_decrypt_rejects_non_signer_marked_as_signer() {
+    let validator = Keypair::new();
+    let actions = PostDelegationActions {
+        inserted_signers: 1,
+        inserted_non_signers: 1,
+        // Final stored layout is [old_signers, new_signers].
+        signers: vec![pk(1), pk(2)],
+        // Final stored layout is [old_non_signers, new_non_signers].
+        non_signers: vec![
+            MaybeEncryptedPubkey::ClearText(pk(3)),
+            MaybeEncryptedPubkey::ClearText(pk(4)),
+        ],
+        instructions: vec![MaybeEncryptedInstruction {
+            program_id: 3,
+            accounts: vec![MaybeEncryptedAccountMeta::ClearText(
+                // Index 1 is an old non-signer in the imagined compact order:
+                // [old_signers, old_non_signers, new_signers, new_non_signers].
+                CompactAccountMeta::new_readonly(1, true),
+            )],
+            data: MaybeEncryptedIxData {
+                prefix: vec![],
+                suffix: EncryptedBuffer::default(),
+            },
+        }],
+    };
+
+    let err = actions.decrypt_with_keypair(&validator).unwrap_err();
+    match err {
+        DecryptError::NonSignerCannotBeSigner {
+            index,
+            old_signer_range,
+            new_signer_range,
+        } => {
+            assert_eq!(index, 1);
+            assert_eq!(old_signer_range, (0, 1));
+            assert_eq!(new_signer_range, (2, 3));
+        }
+        other => panic!("unexpected error: {other:?}"),
+    }
 }

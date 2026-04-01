@@ -39,10 +39,11 @@ pub enum DecryptError {
     #[error("invalid inserted non-signer count {inserted} for non-signers len {len}")]
     InvalidInsertedNonSignerCount { inserted: u8, len: usize },
 
-    #[error("non-signer (index {index}) cannot be used as signer (max_index is {max_signer_index})")]
+    #[error("non-signer (index {index}) cannot be used as signer (valid signer index ranges are {old_signer_range:?} and {new_signer_range:?}, start inclusive and end exclusive)")]
     NonSignerCannotBeSigner {
         index: usize,
-        max_signer_index: usize,
+        old_signer_range: (usize, usize),
+        new_signer_range: (usize, usize),
     },
 }
 
@@ -202,10 +203,14 @@ impl Decrypt for PostDelegationActions {
         };
         let inserted_total = inserted_signers + inserted_non_signers;
         let new_signers_count = signers_count - inserted_signers;
+
+        let old_signer_range = (0, inserted_signers);
+        let new_signer_range =
+            (inserted_total, inserted_total + new_signers_count);
+
         let is_signer_idx = |idx: usize| {
-            idx < inserted_signers
-                || (idx >= inserted_total
-                    && idx < (inserted_total + new_signers_count))
+            (old_signer_range.0..old_signer_range.1).contains(&idx)
+                || (new_signer_range.0..new_signer_range.1).contains(&idx)
         };
 
         let instructions = actions
@@ -236,8 +241,8 @@ impl Decrypt for PostDelegationActions {
                                 return Err(
                                     DecryptError::NonSignerCannotBeSigner {
                                         index: idx,
-                                        max_signer_index: signers_count
-                                            .saturating_sub(1),
+                                        old_signer_range,
+                                        new_signer_range,
                                     },
                                 );
                             }
