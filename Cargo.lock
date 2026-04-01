@@ -2486,7 +2486,7 @@ dependencies = [
 
 [[package]]
 name = "magicblock-delegation-program"
-version = "1.2.0"
+version = "1.2.1"
 dependencies = [
  "assertables",
  "bincode",
@@ -2521,7 +2521,7 @@ dependencies = [
 
 [[package]]
 name = "magicblock-delegation-program-api"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "bincode",
  "borsh 1.5.7",
