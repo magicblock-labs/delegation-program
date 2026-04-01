@@ -1,7 +1,7 @@
 ### Release Process
 
 1. **Create a Release Branch**  
-   Create a new branch named `release/v*.*.*` from `main`.
+   Create a new branch named `release/v*.*.*` from `main. Use dlp-api version as the branch name, not the dlp version.
 
 2. **Update the Crate Versions**  
    Increment the version in `dlp-api/Cargo.toml` for the release you are preparing.
