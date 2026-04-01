@@ -17,16 +17,34 @@ use crate::encryption::{self, EncryptionError, KEY_LEN};
 pub enum DecryptError {
     #[error(transparent)]
     DecryptFailed(#[from] EncryptionError),
+
     #[error("invalid decrypted pubkey length: {0}")]
     InvalidPubkeyLength(usize),
+
     #[error("invalid decrypted compact account meta length: {0}")]
     InvalidAccountMetaLength(usize),
+
     #[error("invalid decrypted compact account meta value: {0}")]
     InvalidAccountMetaValue(u8),
+
     #[error("invalid program_id index {index} for pubkey table len {len}")]
     InvalidProgramIdIndex { index: u8, len: usize },
+
     #[error("invalid account index {index} for pubkey table len {len}")]
     InvalidAccountIndex { index: u8, len: usize },
+
+    #[error("invalid inserted signer count {inserted} for signers len {len}")]
+    InvalidInsertedSignerCount { inserted: u8, len: usize },
+
+    #[error("invalid inserted non-signer count {inserted} for non-signers len {len}")]
+    InvalidInsertedNonSignerCount { inserted: u8, len: usize },
+
+    #[error("non-signer (index {index}) cannot be used as signer (valid signer index ranges are {old_signer_range:?} and {new_signer_range:?}, start inclusive and end exclusive)")]
+    NonSignerCannotBeSigner {
+        index: usize,
+        old_signer_range: (usize, usize),
+        new_signer_range: (usize, usize),
+    },
 }
 
 pub trait Decrypt: Sized {
@@ -133,22 +151,66 @@ impl Decrypt for MaybeEncryptedIxData {
 impl Decrypt for PostDelegationActions {
     type Output = Vec<Instruction>;
 
+    /// This function decrypts PostDelegationActions as well as
+    /// validates it, matching the expected signers with the AccountMetas.
     fn decrypt(
         self,
         recipient_x25519_pubkey: &[u8; KEY_LEN],
         recipient_x25519_secret: &[u8; KEY_LEN],
     ) -> Result<Self::Output, DecryptError> {
         let actions = self;
+        let inserted_signers = actions.inserted_signers as usize;
+        let inserted_non_signers = actions.inserted_non_signers as usize;
+        let signers_count = actions.signers.len();
+        let non_signers_count = actions.non_signers.len();
 
+        if inserted_signers > signers_count {
+            return Err(DecryptError::InvalidInsertedSignerCount {
+                inserted: actions.inserted_signers,
+                len: signers_count,
+            });
+        }
+        if inserted_non_signers > non_signers_count {
+            return Err(DecryptError::InvalidInsertedNonSignerCount {
+                inserted: actions.inserted_non_signers,
+                len: non_signers_count,
+            });
+        }
+
+        // Rebuild the lookup table in the same order used during compact
+        // index assignment (see compact module):
+        // [old signers][old non-signers][new signers][new non-signers]
         let pubkeys = {
-            let mut pubkeys = actions.signers;
-            for non_signer in actions.non_signers {
-                pubkeys.push(non_signer.decrypt(
-                    recipient_x25519_pubkey,
-                    recipient_x25519_secret,
-                )?);
-            }
-            pubkeys
+            let mut old_signers = actions.signers;
+            let new_signers = old_signers.split_off(inserted_signers);
+
+            let mut old_non_signers = actions
+                .non_signers
+                .iter()
+                .map(|non_signer| {
+                    Ok(non_signer.clone().decrypt(
+                        recipient_x25519_pubkey,
+                        recipient_x25519_secret,
+                    )?)
+                })
+                .collect::<Result<Vec<_>, DecryptError>>()?;
+
+            let new_non_signers =
+                old_non_signers.split_off(inserted_non_signers);
+
+            [old_signers, old_non_signers, new_signers, new_non_signers]
+                .concat()
+        };
+        let inserted_total = inserted_signers + inserted_non_signers;
+        let new_signers_count = signers_count - inserted_signers;
+
+        let old_signer_range = (0, inserted_signers);
+        let new_signer_range =
+            (inserted_total, inserted_total + new_signers_count);
+
+        let is_signer_idx = |idx: usize| {
+            (old_signer_range.0..old_signer_range.1).contains(&idx)
+                || (new_signer_range.0..new_signer_range.1).contains(&idx)
         };
 
         let instructions = actions
@@ -173,14 +235,25 @@ impl Decrypt for PostDelegationActions {
                                 recipient_x25519_pubkey,
                                 recipient_x25519_secret,
                             )?;
+                            let idx = compact_meta.key() as usize;
+
+                            if compact_meta.is_signer() && !is_signer_idx(idx) {
+                                return Err(
+                                    DecryptError::NonSignerCannotBeSigner {
+                                        index: idx,
+                                        old_signer_range,
+                                        new_signer_range,
+                                    },
+                                );
+                            }
+
                             let account_pubkey = pubkeys
-                                .get(compact_meta.key() as usize)
+                                .get(idx)
                                 .copied()
                                 .ok_or(DecryptError::InvalidAccountIndex {
                                     index: compact_meta.key(),
                                     len: pubkeys.len(),
                                 })?;
-
                             Ok(AccountMeta {
                                 pubkey: account_pubkey.into(),
                                 is_signer: compact_meta.is_signer(),
