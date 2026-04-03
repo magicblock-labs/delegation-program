@@ -26,7 +26,7 @@ pub use undelegate::*;
 pub use undelegate_confined_account::*;
 
 pub fn to_pinocchio_program_error(
-    error: solana_program::program_error::ProgramError,
+    error: crate::solana_program::program_error::ProgramError,
 ) -> pinocchio::error::ProgramError {
     u64::from(error).into()
 }

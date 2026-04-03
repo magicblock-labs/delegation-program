@@ -1,5 +1,5 @@
 use pinocchio::Address;
-use solana_program::{pubkey, pubkey::Pubkey};
+use crate::solana_program::{pubkey, pubkey::Pubkey};
 
 /// The delegation session fees (extracted in percentage from the delegation PDAs rent on closure).
 pub const RENT_FEES_PERCENTAGE: u8 = 10;

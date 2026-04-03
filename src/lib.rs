@@ -1,6 +1,7 @@
 #![allow(unexpected_cfgs)]
 
 extern crate dlp_api;
+pub mod solana_program;
 #[allow(unused_imports)]
 pub(crate) use dlp_api::diff;
 #[allow(unused_imports)]
@@ -29,11 +30,11 @@ pub(crate) use dlp_api::{
     require_owned_by, require_pda, require_signer, require_some,
 };
 #[cfg(feature = "logging")]
-use solana_program::msg;
+use crate::solana_program::msg;
 #[cfg(feature = "processor")]
 use {
     dlp_api::discriminator::DlpDiscriminator,
-    solana_program::{
+    crate::solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult,
         program_error::ProgramError, pubkey::Pubkey,
     },

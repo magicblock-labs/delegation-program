@@ -1,7 +1,7 @@
 use dlp::{
     discriminator::DlpDiscriminator, pda::ephemeral_balance_pda_from_payer,
 };
-use solana_program::{
+use crate::solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,

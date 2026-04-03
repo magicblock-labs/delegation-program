@@ -4,7 +4,7 @@ macro_rules! impl_try_from_bytes_with_discriminator_zero_copy {
         impl $struct_name {
             pub fn try_from_bytes_with_discriminator(
                 data: &[u8],
-            ) -> Result<&Self, ::solana_program::program_error::ProgramError> {
+            ) -> Result<&Self, crate::solana_program::program_error::ProgramError> {
                 let expected_len = 8 + ::std::mem::size_of::<Self>();
                 if data.len() < expected_len {
                     return Err($crate::error::DlpError::InvalidDataLength.into());
@@ -18,7 +18,7 @@ macro_rules! impl_try_from_bytes_with_discriminator_zero_copy {
             }
             pub fn try_from_bytes_with_discriminator_mut(
                 data: &mut [u8],
-            ) -> Result<&mut Self, ::solana_program::program_error::ProgramError> {
+            ) -> Result<&mut Self, crate::solana_program::program_error::ProgramError> {
                 let expected_len = 8 + ::std::mem::size_of::<Self>();
                 if data.len() < expected_len {
                     return Err($crate::error::DlpError::InvalidDataLength.into());
@@ -40,7 +40,7 @@ macro_rules! impl_try_from_bytes_with_discriminator_borsh {
         impl $struct_name {
             pub fn try_from_bytes_with_discriminator(
                 data: &[u8],
-            ) -> Result<Self, ::solana_program::program_error::ProgramError>
+            ) -> Result<Self, crate::solana_program::program_error::ProgramError>
             {
                 if data.len() < 8 {
                     return Err(

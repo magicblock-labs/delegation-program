@@ -1,4 +1,4 @@
-use solana_program::entrypoint;
+use crate::solana_program::entrypoint;
 
 use crate::{
     error::DlpError, fast_process_instruction, slow_process_instruction,
@@ -51,7 +51,7 @@ pub unsafe fn slow_entrypoint(input: *mut u8) -> u64 {
     match slow_process_instruction(program_id, &accounts, instruction_data) {
         Ok(()) => entrypoint::SUCCESS,
         Err(error) => {
-            solana_program::msg!("slow_process_instruction: {}", error);
+            crate::solana_program::msg!("slow_process_instruction: {}", error);
             error.into()
         }
     }

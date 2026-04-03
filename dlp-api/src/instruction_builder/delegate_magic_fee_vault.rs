@@ -8,7 +8,7 @@ use dlp::{
         validator_fees_vault_pda_from_validator,
     },
 };
-use solana_program::{
+use crate::solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,
