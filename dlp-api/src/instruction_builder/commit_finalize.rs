@@ -7,7 +7,7 @@ use dlp::{
     total_size_budget, validator_fees_vault_seeds_from_validator,
     AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
-use solana_program::{
+use crate::solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,

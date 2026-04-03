@@ -276,7 +276,7 @@ impl Decrypt for PostDelegationActions {
 
 #[cfg(test)]
 mod tests {
-    use solana_program::instruction::AccountMeta;
+    use crate::solana_program::instruction::AccountMeta;
     use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
 
     use super::*;

@@ -2,7 +2,7 @@ use std::ptr;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::{account::RefMut, error::ProgramError, AccountView};
-use solana_program::pubkey::Pubkey;
+use crate::solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{

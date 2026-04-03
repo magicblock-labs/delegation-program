@@ -1,7 +1,7 @@
 use std::mem::size_of;
 
 use bytemuck::{Pod, Zeroable};
-use solana_program::pubkey::Pubkey;
+use crate::solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{

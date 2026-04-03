@@ -4,7 +4,7 @@ use dlp::{
     discriminator::DlpDiscriminator,
     pda::{fees_vault_pda, validator_fees_vault_pda_from_validator},
 };
-use solana_program::{
+use crate::solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };

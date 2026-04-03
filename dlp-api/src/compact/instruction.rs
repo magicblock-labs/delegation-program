@@ -11,9 +11,9 @@ pub struct Instruction {
 
 impl Instruction {
     pub fn from_instruction(
-        ix: solana_program::instruction::Instruction,
+        ix: crate::solana_program::instruction::Instruction,
         index_of: &mut impl FnMut(
-            /*account_key*/ solana_program::pubkey::Pubkey,
+            /*account_key*/ crate::solana_program::pubkey::Pubkey,
             /*signer*/ bool,
         ) -> u8,
     ) -> Instruction {

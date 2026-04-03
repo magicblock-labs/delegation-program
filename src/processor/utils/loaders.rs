@@ -1,4 +1,4 @@
-use solana_program::{
+use crate::solana_program::{
     account_info::AccountInfo, bpf_loader_upgradeable,
     bpf_loader_upgradeable::UpgradeableLoaderState, msg,
     program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
@@ -290,7 +290,7 @@ pub fn load_initialized_validator_fees_vault(
 
 #[cfg(test)]
 mod tests {
-    use solana_program::{
+    use crate::solana_program::{
         account_info::AccountInfo, pubkey::Pubkey, system_program,
     };
 

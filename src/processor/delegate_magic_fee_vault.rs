@@ -1,4 +1,4 @@
-use solana_program::{
+use crate::solana_program::{
     account_info::AccountInfo,
     entrypoint::ProgramResult,
     instruction::{AccountMeta, Instruction},

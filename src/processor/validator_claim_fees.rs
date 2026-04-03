@@ -1,5 +1,5 @@
 use borsh::BorshDeserialize;
-use solana_program::{
+use crate::solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey, rent::Rent,
 };

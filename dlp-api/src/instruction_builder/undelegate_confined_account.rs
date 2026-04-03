@@ -7,7 +7,7 @@ use dlp::{
         undelegate_buffer_pda_from_delegated_account,
     },
 };
-use solana_program::{
+use crate::solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,

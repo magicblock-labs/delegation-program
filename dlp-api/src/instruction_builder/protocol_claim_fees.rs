@@ -2,7 +2,7 @@ use dlp::{
     consts::DELEGATION_PROGRAM_DATA_ID, discriminator::DlpDiscriminator,
     pda::fees_vault_pda,
 };
-use solana_program::{
+use crate::solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };

@@ -1,5 +1,5 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use solana_program::program_error::ProgramError;
+use crate::solana_program::program_error::ProgramError;
 use strum::IntoStaticStr;
 use thiserror::Error;
 
@@ -161,12 +161,6 @@ pub enum DlpError {
 impl From<DlpError> for ProgramError {
     fn from(e: DlpError) -> Self {
         ProgramError::Custom(e as u32)
-    }
-}
-
-impl From<DlpError> for pinocchio::error::ProgramError {
-    fn from(e: DlpError) -> Self {
-        pinocchio::error::ProgramError::Custom(e as u32)
     }
 }
 
