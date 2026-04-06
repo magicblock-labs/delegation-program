@@ -28,20 +28,20 @@ use crate::{error::DlpError, require_eq, require_le};
 /// - original.len() == changed.len()
 ///     - diff is computed by comparing corresponding indices.
 ///     - bytes comparison
-///         original: o1 o2 o3 o4 ... oN  
-///          changed: c1 c2 c3 c4 ... cN
+///       original: o1 o2 o3 o4 ... oN
+///       changed: c1 c2 c3 c4 ... cN
 ///     - diff consists of the bytes from the "changed" slice.
 /// - original.len() < changed.len()
 ///     - that implies the account has been reallocated and expanded
 ///     - bytes comparison
-///         original: o1 o2 o3 o4 ... oN  
-///          changed: c1 c2 c3 c4 ... cN cN+1 cN+2 ... cN+M
+///       original: o1 o2 o3 o4 ... oN
+///       changed: c1 c2 c3 c4 ... cN cN+1 cN+2 ... cN+M
 /// - original.len() > changed.len()
 ///     - that implies the account has been reallocated and shrunk
 ///     - bytes comparison
-///         original: o1 o2 o3 o4 ... oN oN+1 oN+2 ... oN+M
-///          changed: c1 c2 c3 c4 ... cN
-///    
+///       original: o1 o2 o3 o4 ... oN oN+1 oN+2 ... oN+M
+///       changed: c1 c2 c3 c4 ... cN
+///
 /// ---
 ///
 /// Diff Format:
@@ -187,7 +187,7 @@ pub fn compute_diff(original: &[u8], changed: &[u8]) -> AlignedVec {
 /// Detects if there is size change in the changed data.
 ///  - None               means NO change
 ///  - Some(size_changed) means the data size has changed and size_changed indicates
-///                       whether it has expanded or shrunk.
+///    whether it has expanded or shrunk.
 pub fn detect_size_change(
     original: &[u8],
     diffset: &DiffSet<'_>,
