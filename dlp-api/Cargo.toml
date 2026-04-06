@@ -36,20 +36,20 @@ pinocchio-log = { version = "0.5.1" }
 pinocchio-pubkey = { version = "0.3.0" }
 pinocchio-system = { version = "0.5.0" }
 rkyv = "0.7.45"
-solana-loader-v3-interface = { version = "=6.1.0", features = ["serde"] }
-solana-sdk-ids = "=3.1.0"
-solana-system-interface = { version = "=2.0.0", features = ["bincode"] }
-solana-address = { version = "=2.0.0", features = ["bytemuck", "decode", "syscalls", "curve25519", "std"] }
-solana-instruction = "=3.1.0"
-solana-program = { version = "=3.0.0" }
-solana-sdk = { version = "=3.0.0", optional = true }
-solana-sha256-hasher = "=3.1.0"
+solana-loader-v3-interface = { version = "6.1.0", features = ["serde"] }
+solana-sdk-ids = "3.1.0"
+solana-system-interface = { version = "2.0.0", features = ["bincode"] }
+solana-address = { version = "2.0.0", features = ["bytemuck", "decode", "syscalls", "curve25519", "std"] }
+solana-instruction = "3.1.0"
+solana-program = { version = "3.0.0" }
+solana-sdk = { version = "3.0.0", optional = true }
+solana-sha256-hasher = "3.1.0"
 static_assertions = "1.1.0"
 strum = { version = ">=0.27", features = ["derive"] }
 thiserror = { version = ">=1" }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 
 [dev-dependencies]
-rand = { version = "=0.8.5", features = ["small_rng"] }
-solana-pubkey = "=3.0.0"
+rand = { version = "0.8.5", features = ["small_rng"] }
+solana-pubkey = "3.0.0"
 spl-token = "4.0.0"
