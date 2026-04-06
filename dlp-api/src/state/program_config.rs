@@ -1,12 +1,12 @@
 use std::collections::BTreeSet;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use crate::solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{
     impl_to_bytes_with_discriminator_borsh,
     impl_try_from_bytes_with_discriminator_borsh,
+    solana_program::pubkey::Pubkey,
 };
 
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]

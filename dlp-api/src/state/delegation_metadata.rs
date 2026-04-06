@@ -2,12 +2,12 @@ use std::ptr;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::{account::RefMut, error::ProgramError, AccountView};
-use crate::solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{
     impl_to_bytes_with_discriminator_borsh,
     impl_try_from_bytes_with_discriminator_borsh, require_ge,
+    solana_program::pubkey::Pubkey,
 };
 
 /// The Delegated Metadata includes Account Seeds, max delegation time, seeds

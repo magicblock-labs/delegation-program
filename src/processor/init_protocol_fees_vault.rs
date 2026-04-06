@@ -1,13 +1,12 @@
-use crate::solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult,
-    program_error::ProgramError, pubkey::Pubkey, system_program,
-};
-
 use crate::{
     fees_vault_seeds,
     processor::utils::{
         loaders::{load_program, load_signer, load_uninitialized_pda},
         pda::create_pda,
+    },
+    solana_program::{
+        account_info::AccountInfo, entrypoint::ProgramResult,
+        program_error::ProgramError, pubkey::Pubkey, system_program,
     },
 };
 

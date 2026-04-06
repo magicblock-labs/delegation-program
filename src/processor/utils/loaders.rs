@@ -1,12 +1,12 @@
-use crate::solana_program::{
-    account_info::AccountInfo, bpf_loader_upgradeable,
-    bpf_loader_upgradeable::UpgradeableLoaderState, msg,
-    program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
-};
-
 use crate::{
-    error::DlpError::InvalidAuthority, fees_vault_seeds,
+    error::DlpError::InvalidAuthority,
+    fees_vault_seeds,
     pda::validator_fees_vault_pda_from_validator,
+    solana_program::{
+        account_info::AccountInfo, bpf_loader_upgradeable,
+        bpf_loader_upgradeable::UpgradeableLoaderState, msg,
+        program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
+    },
     validator_fees_vault_seeds_from_validator,
 };
 
@@ -290,13 +290,14 @@ pub fn load_initialized_validator_fees_vault(
 
 #[cfg(test)]
 mod tests {
-    use crate::solana_program::{
-        account_info::AccountInfo, pubkey::Pubkey, system_program,
-    };
-
     use super::load_program;
-    use crate::processor::utils::loaders::{
-        load_account, load_signer, load_sysvar, load_uninitialized_account,
+    use crate::{
+        processor::utils::loaders::{
+            load_account, load_signer, load_sysvar, load_uninitialized_account,
+        },
+        solana_program::{
+            account_info::AccountInfo, pubkey::Pubkey, system_program,
+        },
     };
 
     #[test]

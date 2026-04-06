@@ -1,9 +1,10 @@
-use crate::solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
+use crate::{
+    instruction_builder::{Encryptable, EncryptableFrom},
+    solana_program::{
+        instruction::{AccountMeta, Instruction},
+        pubkey::Pubkey,
+    },
 };
-
-use crate::instruction_builder::{Encryptable, EncryptableFrom};
 
 /// PostDelegationInstruction + Encryptable
 pub struct PostDelegationInstruction {
@@ -142,8 +143,9 @@ impl EncryptableFrom for Vec<u8> {
 fn dev_experience() {
     const USDC_SCALE: u64 = 1000_000;
 
-    use crate::solana_program::{instruction::AccountMeta, pubkey::Pubkey};
     use spl_token::instruction::TokenInstruction;
+
+    use crate::solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
     let sender = Pubkey::new_unique();
     let recipient = Pubkey::new_unique();

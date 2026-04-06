@@ -1,14 +1,3 @@
-use crate::solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    instruction::{AccountMeta, Instruction},
-    msg,
-    program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    system_program,
-};
-
 use crate::{
     args::DelegateArgs,
     discriminator::DlpDiscriminator,
@@ -17,6 +6,16 @@ use crate::{
     processor::utils::loaders::{
         load_initialized_pda, load_initialized_validator_fees_vault,
         load_program, load_signer,
+    },
+    solana_program::{
+        account_info::AccountInfo,
+        entrypoint::ProgramResult,
+        instruction::{AccountMeta, Instruction},
+        msg,
+        program::invoke_signed,
+        program_error::ProgramError,
+        pubkey::Pubkey,
+        system_program,
     },
 };
 
