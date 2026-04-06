@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::pda::{
     delegation_metadata_pda_from_delegated_account,
     delegation_record_pda_from_delegated_account, fees_vault_pda,
@@ -74,8 +75,8 @@ async fn test_undelegate_on_curve() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
-    let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
+    let payer_alt = crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR);
 
     // Setup a delegated on curve account
     program_test.add_account(

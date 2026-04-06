@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     args::{CommitFinalizeArgs, CommitStateArgs, DelegateArgs},
     pda::{
@@ -945,7 +946,7 @@ fn get_delegated_account_and_owner(is_pda: bool) -> (Pubkey, Pubkey) {
         (DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID)
     } else {
         (
-            Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap().pubkey(),
+            crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR).pubkey(),
             system_program::id(),
         )
     };
@@ -1100,7 +1101,7 @@ async fn setup_program_for_delegate_base_increase(
     program_test.prefer_bpf(true);
 
     let delegated = Keypair::new();
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         delegated.pubkey(),
@@ -1295,7 +1296,8 @@ async fn setup_program_for_commit_test_env(
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
-    let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator_keypair =
+        crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         validator_keypair.pubkey(),

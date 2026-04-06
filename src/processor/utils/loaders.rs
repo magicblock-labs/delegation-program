@@ -314,7 +314,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_signer(&info, "not signer").is_err());
     }
@@ -333,7 +332,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_uninitialized_account(&info, true, "bad owner").is_err());
     }
@@ -352,7 +350,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(
             load_uninitialized_account(&info, true, "data not empty").is_err()
@@ -373,7 +370,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(
             load_uninitialized_account(&info, true, "not writeable").is_err()
@@ -394,7 +390,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(
             load_uninitialized_account(&info, false, "not writable").is_ok()
@@ -415,7 +410,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_sysvar(&info, key).is_err());
     }
@@ -434,7 +428,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_account(&info, Pubkey::new_unique(), false, "bad key")
             .is_err());
@@ -454,7 +447,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_account(&info, key, true, "not writeable").is_err());
     }
@@ -473,7 +465,6 @@ mod tests {
             &mut data,
             &owner,
             true,
-            0,
         );
         assert!(load_program(&info, Pubkey::new_unique(), "bad key").is_err());
     }
@@ -492,7 +483,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_program(&info, key, "not executable").is_err());
     }

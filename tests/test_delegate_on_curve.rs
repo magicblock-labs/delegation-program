@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     args::DelegateArgs,
     pda::{
@@ -137,7 +138,7 @@ async fn test_delegate_on_curve() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
+    let payer_alt = crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR);
 
     program_test.add_account(
         payer_alt.pubkey(),

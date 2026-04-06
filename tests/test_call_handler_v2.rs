@@ -1,4 +1,5 @@
 use borsh::{to_vec, BorshDeserialize, BorshSerialize};
+use dlp::solana_program;
 use dlp_api::{
     args::CallHandlerArgs,
     ephemeral_balance_seeds_from_payer,
@@ -257,7 +258,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.prefer_bpf(true);
 
     let payer = Keypair::new();
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     // Setup authority
     program_test.add_account(

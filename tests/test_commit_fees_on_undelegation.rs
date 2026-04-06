@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     consts::{COMMIT_FEE_LAMPORTS, SESSION_FEE_LAMPORTS},
     pda::{
@@ -83,7 +84,7 @@ async fn test_commit_fees_on_undelegation() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         validator.pubkey(),

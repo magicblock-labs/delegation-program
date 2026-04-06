@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::pda::{
     delegation_record_pda_from_delegated_account,
     magic_fee_vault_pda_from_validator,
@@ -197,7 +198,7 @@ async fn setup_program_test_env(
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
-    let admin_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let admin_keypair = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
     program_test.add_account(
         admin_keypair.pubkey(),
         Account {

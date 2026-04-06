@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     args::CommitFinalizeArgs,
     pda::{
@@ -166,7 +167,8 @@ async fn setup_program_test_env(
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
-    let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator_keypair =
+        crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         validator_keypair.pubkey(),
