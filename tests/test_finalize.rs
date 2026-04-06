@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     pda::{
         commit_record_pda_from_delegated_account,
@@ -109,7 +110,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
-    let authority = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let authority = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         authority.pubkey(),

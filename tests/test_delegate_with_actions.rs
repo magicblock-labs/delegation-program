@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use dlp::solana_program;
 use dlp_api::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     compact,

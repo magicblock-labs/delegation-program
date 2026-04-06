@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::pda::{
     commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account,
@@ -89,7 +90,7 @@ async fn test_undelegate_without_commit() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         validator.pubkey(),

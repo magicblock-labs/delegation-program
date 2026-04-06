@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     args::{
         EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedInstruction,

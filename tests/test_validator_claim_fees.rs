@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     consts::PROTOCOL_FEES_PERCENTAGE,
     pda::{fees_vault_pda, validator_fees_vault_pda_from_validator},
@@ -91,7 +92,7 @@ async fn test_validator_claim_fees() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         validator.pubkey(),

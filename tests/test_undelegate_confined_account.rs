@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::pda::{
     delegation_metadata_pda_from_delegated_account,
     delegation_record_pda_from_delegated_account,
@@ -71,7 +72,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.prefer_bpf(true);
 
     // Admin is the DEFAULT_VALIDATOR_IDENTITY when unit_test_config feature is enabled
-    let admin = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let admin = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     // Admin account
     program_test.add_account(

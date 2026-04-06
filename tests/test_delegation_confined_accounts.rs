@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     args::DelegateArgs, error::DlpError,
     pda::delegation_record_pda_from_delegated_account, state::DelegationRecord,
@@ -122,7 +123,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let delegated = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
+    let delegated = crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR);
 
     program_test.add_account(
         delegated.pubkey(),

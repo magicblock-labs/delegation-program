@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::pda::fees_vault_pda;
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,

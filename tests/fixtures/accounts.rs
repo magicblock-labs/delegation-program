@@ -1,10 +1,11 @@
+use dlp::solana_program;
 use dlp_api::state::{
     CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
 };
 use solana_program::{
     native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent, system_program,
 };
-use solana_sdk::pubkey;
+use solana_sdk::{pubkey, signature::Keypair};
 
 // Constants for default values
 const DEFAULT_DELEGATION_SLOT: u64 = 0;
@@ -56,6 +57,14 @@ pub const TEST_AUTHORITY: [u8; 64] = [
     13, 32, 77, 204, 244, 56, 166, 172, 66, 113, 150, 218, 112, 42, 110, 181,
     98, 158, 222, 194, 130, 93, 175, 100, 190, 106, 9, 69, 156, 80, 96, 72,
 ];
+
+#[allow(dead_code)]
+pub fn keypair_from_bytes(bytes: &[u8; 64]) -> Keypair {
+    let secret_key: [u8; 32] = bytes[..32]
+        .try_into()
+        .expect("test keypair bytes must contain a 32-byte secret key");
+    Keypair::new_from_array(secret_key)
+}
 
 #[allow(dead_code)]
 pub fn get_delegation_record_data(

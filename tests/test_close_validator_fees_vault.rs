@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::pda::validator_fees_vault_pda_from_validator;
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
@@ -46,7 +47,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
-    let admin_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let admin_keypair = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
     let validator = Keypair::new();
 
     program_test.add_account(

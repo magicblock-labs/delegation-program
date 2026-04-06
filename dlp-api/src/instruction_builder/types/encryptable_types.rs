@@ -150,10 +150,11 @@ fn dev_experience() {
     let sender = Pubkey::new_unique();
     let recipient = Pubkey::new_unique();
     let authority = Pubkey::new_unique();
+    let token_program_id: Pubkey = spl_token::id().to_bytes().into();
     let amount: u64 = 100 * USDC_SCALE; // 100 USDC with 6 decimals
 
     let regular_transfer_ix = Instruction {
-        program_id: spl_token::id(),
+        program_id: token_program_id,
         accounts: vec![
             AccountMeta::new(sender, false),
             AccountMeta::new(recipient, false),
@@ -166,7 +167,7 @@ fn dev_experience() {
     //  - encrypted() and encrypted_from() to make parts private
     //  - cleartext() for public
     let private_transfer_ix = PostDelegationInstruction {
-        program_id: spl_token::id().cleartext(),
+        program_id: token_program_id.cleartext(),
         accounts: vec![
             AccountMeta::new(sender, false).cleartext(),
             AccountMeta::new(recipient, false).encrypted(),
@@ -177,8 +178,8 @@ fn dev_experience() {
             .encrypted_from(1),
     };
 
-    assert_eq!(regular_transfer_ix.program_id, spl_token::id());
-    assert_eq!(private_transfer_ix.program_id.pubkey, spl_token::id());
+    assert_eq!(regular_transfer_ix.program_id, token_program_id);
+    assert_eq!(private_transfer_ix.program_id.pubkey, token_program_id);
     assert!(private_transfer_ix.accounts[1].is_encryptable);
     assert_eq!(private_transfer_ix.data.encrypt_begin_offset, 1);
 }
