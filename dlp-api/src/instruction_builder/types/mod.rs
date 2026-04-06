@@ -1,6 +1,7 @@
 mod encryptable_types;
 
 pub use encryptable_types::*;
+
 use crate::solana_program::pubkey::Pubkey;
 
 pub trait Encryptable: Sized {

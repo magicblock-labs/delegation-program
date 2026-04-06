@@ -1,12 +1,11 @@
-use crate::solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg,
-    program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
-    system_instruction::transfer, system_program,
-};
-
 use crate::{
     ephemeral_balance_seeds_from_payer,
     processor::utils::loaders::{load_pda, load_signer},
+    solana_program::{
+        account_info::AccountInfo, entrypoint::ProgramResult, msg,
+        program::invoke_signed, program_error::ProgramError, pubkey::Pubkey,
+        system_instruction::transfer, system_program,
+    },
 };
 
 /// Process the closing of an ephemeral balance account

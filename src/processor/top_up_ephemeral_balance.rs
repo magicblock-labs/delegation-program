@@ -1,9 +1,4 @@
 use borsh::BorshDeserialize;
-use crate::solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
-    program_error::ProgramError, pubkey::Pubkey, system_instruction::transfer,
-    system_program,
-};
 
 use crate::{
     args::TopUpEphemeralBalanceArgs,
@@ -11,6 +6,11 @@ use crate::{
     processor::utils::{
         loaders::{load_pda, load_program, load_signer},
         pda::create_pda,
+    },
+    solana_program::{
+        account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
+        program_error::ProgramError, pubkey::Pubkey,
+        system_instruction::transfer, system_program,
     },
 };
 

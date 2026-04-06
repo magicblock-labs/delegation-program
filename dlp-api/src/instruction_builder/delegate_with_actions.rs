@@ -10,13 +10,13 @@ use dlp::{
         delegation_record_pda_from_delegated_account,
     },
 };
+
+use super::types::{Encrypt, PostDelegationInstruction};
 use crate::solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
     system_program,
 };
-
-use super::types::{Encrypt, PostDelegationInstruction};
 
 /// See [dlp::processor::process_delegate_with_actions] for docs.
 pub fn delegate_with_actions(

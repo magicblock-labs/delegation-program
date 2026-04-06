@@ -1,7 +1,6 @@
-use crate::solana_program::entrypoint;
-
 use crate::{
     error::DlpError, fast_process_instruction, slow_process_instruction,
+    solana_program::entrypoint,
 };
 
 entrypoint::custom_heap_default!();

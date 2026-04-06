@@ -1,12 +1,12 @@
 use std::mem::size_of;
 
 use bytemuck::{Pod, Zeroable};
-use crate::solana_program::pubkey::Pubkey;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{
     impl_to_bytes_with_discriminator_zero_copy,
     impl_try_from_bytes_with_discriminator_zero_copy,
+    solana_program::pubkey::Pubkey,
 };
 
 /// The Commit State Record

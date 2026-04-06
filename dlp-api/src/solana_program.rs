@@ -1,6 +1,4 @@
-pub use ::solana_program::*;
-
-pub use ::solana_program::declare_id;
+pub use ::solana_program::{declare_id, *};
 
 pub mod system_instruction {
     pub use solana_system_interface::instruction::*;

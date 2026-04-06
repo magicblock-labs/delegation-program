@@ -1,13 +1,12 @@
-use crate::solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg,
-    program_error::ProgramError, pubkey::Pubkey, rent::Rent,
-};
-
 use crate::{
     error::DlpError::Unauthorized,
     processor::utils::loaders::{
         load_initialized_protocol_fees_vault, load_program_upgrade_authority,
         load_signer,
+    },
+    solana_program::{
+        account_info::AccountInfo, entrypoint::ProgramResult, msg,
+        program_error::ProgramError, pubkey::Pubkey, rent::Rent,
     },
 };
 
