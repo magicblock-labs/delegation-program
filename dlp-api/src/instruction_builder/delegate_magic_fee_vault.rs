@@ -8,12 +8,11 @@ use dlp::{
         validator_fees_vault_pda_from_validator,
     },
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 /// Delegates the magic fee vault PDA for a validator.
 /// See [crate::processor::process_delegate_magic_fee_vault] for docs.

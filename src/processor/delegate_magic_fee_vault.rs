@@ -1,3 +1,5 @@
+use solana_sdk_ids::system_program;
+
 use crate::{
     args::DelegateArgs,
     discriminator::DlpDiscriminator,
@@ -15,7 +17,6 @@ use crate::{
         program::invoke_signed,
         program_error::ProgramError,
         pubkey::Pubkey,
-        system_program,
     },
 };
 

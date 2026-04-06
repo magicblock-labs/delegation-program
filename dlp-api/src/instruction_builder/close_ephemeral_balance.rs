@@ -1,12 +1,11 @@
 use dlp::{
     discriminator::DlpDiscriminator, pda::ephemeral_balance_pda_from_payer,
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 /// Creates instruction to close an ephemeral balance account
 /// See [dlp::processor::process_close_ephemeral_balance] for docs.

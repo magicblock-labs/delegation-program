@@ -7,12 +7,11 @@ use dlp::{
     total_size_budget, validator_fees_vault_seeds_from_validator,
     AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 pub struct CommitPDAs {
     pub delegation_record: Pubkey,

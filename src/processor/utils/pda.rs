@@ -1,8 +1,14 @@
-use crate::solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, program::invoke,
-    program_error::ProgramError, pubkey::Pubkey, rent::Rent,
-    system_instruction, sysvar::Sysvar,
+use solana_program::{
+    account_info::AccountInfo,
+    entrypoint::ProgramResult,
+    program::{invoke, invoke_signed},
+    program_error::ProgramError,
+    pubkey::Pubkey,
+    rent::Rent,
+    sysvar::Sysvar,
 };
+use solana_sdk_ids::system_program;
+use solana_system_interface::instruction as system_instruction;
 
 /// Creates a new pda
 #[inline(always)]
@@ -22,8 +28,8 @@ pub(crate) fn create_pda<'a, 'info>(
     let rent = Rent::get()?;
     if target_account.lamports().eq(&0) {
         // If balance is zero, create account
-        crate::solana_program::program::invoke_signed(
-            &crate::solana_program::system_instruction::create_account(
+        invoke_signed(
+            &system_instruction::create_account(
                 payer.key,
                 target_account.key,
                 rent.minimum_balance(space),
@@ -44,8 +50,8 @@ pub(crate) fn create_pda<'a, 'info>(
             .minimum_balance(space)
             .saturating_sub(target_account.lamports());
         if rent_exempt_balance.gt(&0) {
-            crate::solana_program::program::invoke(
-                &crate::solana_program::system_instruction::transfer(
+            invoke(
+                &system_instruction::transfer(
                     payer.key,
                     target_account.key,
                     rent_exempt_balance,
@@ -58,11 +64,8 @@ pub(crate) fn create_pda<'a, 'info>(
             )?;
         }
         // 2) allocate space for the account
-        crate::solana_program::program::invoke_signed(
-            &crate::solana_program::system_instruction::allocate(
-                target_account.key,
-                space as u64,
-            ),
+        invoke_signed(
+            &system_instruction::allocate(target_account.key, space as u64),
             &[
                 target_account.as_ref().clone(),
                 system_program.as_ref().clone(),
@@ -70,11 +73,8 @@ pub(crate) fn create_pda<'a, 'info>(
             &[&pda_signer_seeds],
         )?;
         // 3) assign our program as the owner
-        crate::solana_program::program::invoke_signed(
-            &crate::solana_program::system_instruction::assign(
-                target_account.key,
-                owner,
-            ),
+        invoke_signed(
+            &system_instruction::assign(target_account.key, owner),
             &[
                 target_account.as_ref().clone(),
                 system_program.as_ref().clone(),
@@ -117,6 +117,6 @@ pub(crate) fn close_pda<'a, 'info>(
         .unwrap();
     **target_account.lamports.borrow_mut() = 0;
 
-    target_account.assign(&crate::solana_program::system_program::ID);
+    target_account.assign(&system_program::ID);
     target_account.resize(0)
 }

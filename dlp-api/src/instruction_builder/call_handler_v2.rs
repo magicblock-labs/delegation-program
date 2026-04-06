@@ -8,8 +8,7 @@ use dlp::{
     },
     total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };

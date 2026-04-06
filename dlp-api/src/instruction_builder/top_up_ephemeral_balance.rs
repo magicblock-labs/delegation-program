@@ -3,12 +3,11 @@ use dlp::{
     args::TopUpEphemeralBalanceArgs, discriminator::DlpDiscriminator,
     pda::ephemeral_balance_pda_from_payer,
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 /// Builds a top-up ephemeral balance instruction.
 /// See [dlp::processor::process_top_up_ephemeral_balance] for docs.

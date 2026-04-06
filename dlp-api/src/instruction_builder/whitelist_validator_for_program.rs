@@ -3,13 +3,11 @@ use dlp::{
     args::WhitelistValidatorForProgramArgs, consts::DELEGATION_PROGRAM_DATA_ID,
     discriminator::DlpDiscriminator, pda::program_config_from_program_id,
 };
-
-use crate::solana_program::{
-    bpf_loader_upgradeable,
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::{bpf_loader_upgradeable, system_program};
 
 /// Whitelist validator for program
 ///

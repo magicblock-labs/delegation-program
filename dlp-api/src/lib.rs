@@ -1,6 +1,6 @@
 extern crate self as dlp;
-pub mod solana_program;
-use crate::solana_program::declare_id;
+pub use ::solana_program;
+use solana_program::declare_id;
 
 pub mod account_size_class;
 pub mod args;

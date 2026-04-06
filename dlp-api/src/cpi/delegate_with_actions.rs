@@ -8,12 +8,11 @@ use dlp::{
         delegation_record_pda_from_delegated_account,
     },
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 pub fn delegate_with_actions(
     payer: Pubkey,

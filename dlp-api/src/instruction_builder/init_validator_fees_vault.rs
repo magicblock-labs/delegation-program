@@ -2,12 +2,11 @@ use dlp::{
     consts::DELEGATION_PROGRAM_DATA_ID, discriminator::DlpDiscriminator,
     pda::validator_fees_vault_pda_from_validator,
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 /// Initialize a validator fees vault PDA.
 /// See [dlp::processor::process_init_validator_fees_vault] for docs.
