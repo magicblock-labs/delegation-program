@@ -7,12 +7,11 @@ use dlp::{
         undelegate_buffer_pda_from_delegated_account,
     },
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 /// Builds an admin-only undelegate instruction for confined accounts.
 /// See [dlp::processor::process_undelegate_confined_account] for docs.

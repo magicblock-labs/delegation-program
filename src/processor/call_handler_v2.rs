@@ -1,4 +1,5 @@
 use borsh::BorshDeserialize;
+use solana_sdk_ids::system_program;
 
 use crate::{
     args::CallHandlerArgs,
@@ -15,7 +16,6 @@ use crate::{
         program::invoke_signed,
         program_error::ProgramError,
         pubkey::Pubkey,
-        system_program,
     },
 };
 

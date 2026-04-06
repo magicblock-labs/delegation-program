@@ -1,11 +1,13 @@
+use solana_loader_v3_interface::state::UpgradeableLoaderState;
+use solana_sdk_ids::{bpf_loader_upgradeable, system_program};
+
 use crate::{
     error::DlpError::InvalidAuthority,
     fees_vault_seeds,
     pda::validator_fees_vault_pda_from_validator,
     solana_program::{
-        account_info::AccountInfo, bpf_loader_upgradeable,
-        bpf_loader_upgradeable::UpgradeableLoaderState, msg,
-        program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
+        account_info::AccountInfo, msg, program_error::ProgramError,
+        pubkey::Pubkey, sysvar,
     },
     validator_fees_vault_seeds_from_validator,
 };
@@ -234,10 +236,12 @@ pub fn load_program_upgrade_authority(
     if let UpgradeableLoaderState::ProgramData {
         upgrade_authority_address,
         ..
-    } = bincode::deserialize(&program_account_data).map_err(|_| {
-        msg!("Unable to deserialize ProgramData {}", program);
-        ProgramError::InvalidAccountData
-    })? {
+    } = bincode::deserialize::<UpgradeableLoaderState>(&program_account_data)
+        .map_err(|_| {
+            msg!("Unable to deserialize ProgramData {}", program);
+            ProgramError::InvalidAccountData
+        })?
+    {
         Ok(upgrade_authority_address)
     } else {
         msg!("Expected program account {} to hold ProgramData", program);
@@ -290,14 +294,14 @@ pub fn load_initialized_validator_fees_vault(
 
 #[cfg(test)]
 mod tests {
+    use solana_sdk_ids::system_program;
+
     use super::load_program;
     use crate::{
         processor::utils::loaders::{
             load_account, load_signer, load_sysvar, load_uninitialized_account,
         },
-        solana_program::{
-            account_info::AccountInfo, pubkey::Pubkey, system_program,
-        },
+        solana_program::{account_info::AccountInfo, pubkey::Pubkey},
     };
 
     #[test]

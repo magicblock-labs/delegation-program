@@ -9,12 +9,11 @@ use dlp::{
         ephemeral_balance_pda_from_payer,
     },
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 /// Delegate ephemeral balance
 /// See [dlp::processor::process_delegate_ephemeral_balance] for docs.

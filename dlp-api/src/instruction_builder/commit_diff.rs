@@ -12,12 +12,11 @@ use dlp::{
     },
     total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
 };
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 /// Builds a commit state instruction.
 /// See [dlp::processor::fast::process_commit_diff] for docs.

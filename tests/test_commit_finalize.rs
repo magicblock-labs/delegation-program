@@ -11,9 +11,7 @@ use dlp_api::{
     },
     state::{DelegationMetadata, DelegationRecord},
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{
     BanksClient, BanksClientError, BanksTransactionResultWithMetadata,
     ProgramTest,
@@ -24,6 +22,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::{Transaction, TransactionError},
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,

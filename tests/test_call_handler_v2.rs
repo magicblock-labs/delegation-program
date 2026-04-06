@@ -14,7 +14,7 @@ use dlp_api::{
 };
 use solana_program::{
     hash::Hash, instruction::AccountMeta, native_token::LAMPORTS_PER_SOL,
-    rent::Rent, system_program,
+    rent::Rent,
 };
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -23,6 +23,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,

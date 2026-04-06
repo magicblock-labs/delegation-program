@@ -1,3 +1,5 @@
+use solana_sdk_ids::system_program;
+
 use crate::{
     magic_fee_vault_seeds_from_validator,
     processor::utils::{
@@ -9,7 +11,7 @@ use crate::{
     },
     solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult,
-        program_error::ProgramError, pubkey::Pubkey, system_program,
+        program_error::ProgramError, pubkey::Pubkey,
     },
 };
 

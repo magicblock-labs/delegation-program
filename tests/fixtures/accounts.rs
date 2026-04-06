@@ -3,9 +3,10 @@ use dlp_api::state::{
     CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
 };
 use solana_program::{
-    native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent, system_program,
+    native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
 };
 use solana_sdk::{pubkey, signature::Keypair};
+use solana_sdk_ids::system_program;
 
 // Constants for default values
 const DEFAULT_DELEGATION_SLOT: u64 = 0;

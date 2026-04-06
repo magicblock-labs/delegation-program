@@ -1,10 +1,9 @@
 use dlp::{discriminator::DlpDiscriminator, pda::fees_vault_pda};
-
-use crate::solana_program::{
+use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
 
 /// Initialize the fees vault PDA.
 /// See [dlp::processor::process_init_protocol_fees_vault] for docs.

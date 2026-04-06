@@ -5,15 +5,14 @@ use dlp_api::pda::{
     delegation_record_pda_from_delegated_account, fees_vault_pda,
     validator_fees_vault_pda_from_validator,
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,

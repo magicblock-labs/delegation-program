@@ -1,4 +1,6 @@
 use borsh::BorshDeserialize;
+use solana_sdk_ids::system_program;
+use solana_system_interface::instruction as system_instruction;
 
 use crate::{
     args::DelegateEphemeralBalanceArgs,
@@ -17,7 +19,6 @@ use crate::{
         program::invoke_signed,
         program_error::ProgramError,
         pubkey::Pubkey,
-        system_instruction, system_program,
     },
 };
 

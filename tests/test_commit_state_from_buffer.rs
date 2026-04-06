@@ -10,9 +10,7 @@ use dlp_api::{
     },
     state::{CommitRecord, DelegationMetadata},
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
@@ -20,6 +18,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
