@@ -118,5 +118,5 @@ pub(crate) fn close_pda<'a, 'info>(
     **target_account.lamports.borrow_mut() = 0;
 
     target_account.assign(&crate::solana_program::system_program::ID);
-    target_account.resize(0).map_err(Into::into)
+    target_account.resize(0)
 }

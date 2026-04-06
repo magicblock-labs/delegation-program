@@ -77,7 +77,7 @@ pub(crate) fn close_pda(
         target_account.assign(&pinocchio_system::ID);
     }
 
-    target_account.resize(0).map_err(Into::into)
+    target_account.resize(0)
 }
 
 /// Close PDA with fees, distributing the fees to the specified addresses in sequence
@@ -113,5 +113,5 @@ pub(crate) fn close_pda_with_fees(
         target_account.assign(&pinocchio_system::ID);
     }
 
-    target_account.resize(0).map_err(Into::into)
+    target_account.resize(0)
 }
