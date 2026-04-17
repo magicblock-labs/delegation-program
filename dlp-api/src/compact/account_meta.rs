@@ -1,5 +1,5 @@
 use borsh::{
-    io::{Read, Write},
+    maybestd::io::{Error, Read, Write},
     BorshDeserialize, BorshSerialize,
 };
 use serde::{Deserialize, Serialize};
@@ -22,18 +22,13 @@ pub const MAX_PUBKEYS: u8 = ACCOUNT_INDEX_MASK + 1;
 pub struct AccountMeta(u8);
 
 impl BorshSerialize for AccountMeta {
-    fn serialize<W: Write>(
-        &self,
-        writer: &mut W,
-    ) -> Result<(), borsh::io::Error> {
+    fn serialize<W: Write>(&self, writer: &mut W) -> Result<(), Error> {
         BorshSerialize::serialize(&self.0, writer)
     }
 }
 
 impl BorshDeserialize for AccountMeta {
-    fn deserialize_reader<R: Read>(
-        reader: &mut R,
-    ) -> Result<Self, borsh::io::Error> {
+    fn deserialize_reader<R: Read>(reader: &mut R) -> Result<Self, Error> {
         let value = u8::deserialize_reader(reader)?;
         Ok(Self(value))
     }
