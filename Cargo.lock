@@ -2556,7 +2556,7 @@ dependencies = [
 
 [[package]]
 name = "magicblock-delegation-program-api"
-version = "0.3.0"
+version = "1.0.0"
 dependencies = [
  "bincode",
  "borsh 0.10.4",
@@ -2580,7 +2580,7 @@ dependencies = [
  "spl-token",
  "static_assertions",
  "strum 0.27.2",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
 ]
 
 [[package]]
