@@ -266,6 +266,7 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
         let old_total = old_signers_len + old_non_signers_len;
 
         let index_of = |pk: &solana_address::Address| -> u8 {
+            //
             // The final list will be this as per PostDelegationActions:
             //
             //  [insertable.signers..., new.signers..., insertable.non_signers..., new.non_signers...]

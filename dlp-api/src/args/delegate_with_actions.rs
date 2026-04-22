@@ -1,7 +1,8 @@
 use borsh::{BorshDeserialize, BorshSerialize};
+use pinocchio::error::ProgramError;
 
 use super::DelegateArgs;
-use crate::compact;
+use crate::{compact, require};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateWithActionsArgs {
@@ -10,6 +11,20 @@ pub struct DelegateWithActionsArgs {
 
     /// Compact post-delegation actions.
     pub actions: PostDelegationActions,
+}
+
+impl DelegateWithActionsArgs {
+    pub fn parse(data: &[u8]) -> Result<DelegateWithActionsArgs, ProgramError> {
+        let args = DelegateWithActionsArgs::try_from_slice(data)
+            .map_err(|_| ProgramError::InvalidInstructionData)?;
+
+        require!(
+            args.actions.total_keys() <= compact::MAX_PUBKEYS,
+            ProgramError::InvalidInstructionData
+        );
+
+        Ok(args)
+    }
 }
 
 ///
@@ -28,8 +43,9 @@ pub struct DelegateWithActionsArgs {
 /// In the advanced form, an existing PostDelegationActions value (usually provided by an off-chain
 /// client) is combined with Vec<Instruction> (usually constructed on-chain) to produce a merged
 /// PostDelegationActions via ClearTextWithInsertable::cleartext_with_insertable, which allows the
-/// existing actions to be inserted at a specific instruction index. In this case, both inserted_signers
-/// and inserted_non_signers may be non-zero, and the imagined pubkey list takes this form:
+/// existing actions to be inserted in the provided Vec<_> at a specific index. In this case, both
+/// inserted_signers and inserted_non_signers may be non-zero, and the imagined pubkey list takes
+/// this form (old_signers and old_non_signers are from insertable PostDelegationActions):
 ///
 ///   [old_signers.., old_non_signers.., new_signers.., new_non_signers..]
 ///
@@ -42,6 +58,28 @@ pub struct DelegateWithActionsArgs {
 ///
 ///  [old_non_signers.., new_non_signers..]
 ///
+/// Example,
+///
+/// ```ignore
+///
+/// let instructions: Vec<Instruction> = on_chain_instructions();
+///
+/// let merged_actions = instructions.cleartext_with_insertable(insertable_actions, 1);
+///
+/// ```
+///
+/// Assume insertable_actions has 2 signers and 3 non-signers pubkeys, then we have the
+/// following index ordering and merged_actions.
+///
+/// | ----------------------- index ordering ----------------------------------
+/// | inserted-signers | inserted-non-signers | new-signers | new-non-signers |
+/// |  0 1             |  2 3 4               | 5           | 6 7             |
+/// | ------------------------ merged actions ---------------------------------
+/// | merged_actions.inserted_signers     = 2                                 |
+/// | merged_actions.inserted_non_signers = 3                                 |
+/// | merged_actions.signers              = [pk_0, pk_1, pk_5]                |
+/// | merged_actions.non_signers          = [pk_2, pk_3, pk_4, pk_6, pk_7]    |
+/// ---------------------------------------------------------------------------
 ///
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct PostDelegationActions {
@@ -54,6 +92,40 @@ pub struct PostDelegationActions {
     pub non_signers: Vec<MaybeEncryptedPubkey>,
 
     pub instructions: Vec<MaybeEncryptedInstruction>,
+}
+
+///
+/// AddressIndex is a validated index, returned by validate_index()
+///
+#[derive(Copy, Clone)]
+pub struct AddressIndex(u8);
+
+impl PostDelegationActions {
+    pub fn total_inserted(&self) -> u8 {
+        self.inserted_signers + self.inserted_non_signers
+    }
+
+    pub fn total_keys(&self) -> u8 {
+        self.signers.len() as u8 + self.non_signers.len() as u8
+    }
+
+    pub fn validate_index(
+        &self,
+        index: u8,
+    ) -> Result<AddressIndex, ProgramError> {
+        require!(
+            index < self.total_keys(),
+            ProgramError::InvalidInstructionData
+        );
+        Ok(AddressIndex(index))
+    }
+
+    pub fn is_signer(&self, index: AddressIndex) -> bool {
+        let index = index.0;
+        index < self.inserted_signers
+            || (index >= self.total_inserted()
+                && index < self.inserted_non_signers + self.signers.len() as u8)
+    }
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]

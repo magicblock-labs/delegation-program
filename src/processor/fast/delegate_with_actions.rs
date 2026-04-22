@@ -1,4 +1,3 @@
-use borsh::BorshDeserialize;
 use pinocchio::{
     address::address_eq,
     cpi::{Seed, Signer},
@@ -11,7 +10,6 @@ use pinocchio_system::instructions as system;
 
 use crate::{
     args::DelegateWithActionsArgs,
-    compact,
     consts::{DEFAULT_VALIDATOR_IDENTITY, RENT_EXCEPTION_ZERO_BYTES_LAMPORTS},
     error::DlpError,
     pda,
@@ -92,39 +90,26 @@ pub fn process_delegate_with_actions(
         DelegationMetadataCtx,
     )?;
 
-    let args: DelegateWithActionsArgs =
-        DelegateWithActionsArgs::try_from_slice(data)
-            .map_err(|_| ProgramError::InvalidInstructionData)?;
+    let args: DelegateWithActionsArgs = DelegateWithActionsArgs::parse(data)?;
 
     // Validate instruction payload shape up-front. This confirms delegate args
     // and actions envelope format, while encrypted bytes remain opaque.
     {
-        if (args.actions.signers.len() + args.actions.non_signers.len())
-            > compact::MAX_PUBKEYS as usize
-        {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        let signers_count = args.actions.signers.len() as u8;
-        let keys_count = signers_count + args.actions.non_signers.len() as u8;
-
         // Validate clear-text indices early when possible. Encrypted
         // AccountMetas are skipped here because they can only be validated
         // after decryption by the ER validator.
         for ix in args.actions.instructions.iter() {
-            require!(
-                ix.program_id < keys_count,
-                ProgramError::InvalidInstructionData
-            );
+            args.actions.validate_index(ix.program_id)?;
+
             for account in &ix.accounts {
                 let crate::args::MaybeEncryptedAccountMeta::ClearText(meta) =
                     account
                 else {
                     continue;
                 };
+                let index = args.actions.validate_index(meta.key())?;
                 require!(
-                    (meta.is_signer() && meta.key() < signers_count)
-                        || (!meta.is_signer() && meta.key() < keys_count),
+                    meta.is_signer() == args.actions.is_signer(index),
                     ProgramError::InvalidInstructionData
                 );
             }
