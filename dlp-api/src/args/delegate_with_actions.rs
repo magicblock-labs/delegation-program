@@ -2,7 +2,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::error::ProgramError;
 
 use super::DelegateArgs;
-use crate::{compact, require};
+use crate::{compact, require, require_le};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateWithActionsArgs {
@@ -18,8 +18,21 @@ impl DelegateWithActionsArgs {
         let args = DelegateWithActionsArgs::try_from_slice(data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-        require!(
-            args.actions.total_keys() <= compact::MAX_PUBKEYS,
+        require_le!(
+            args.actions.inserted_signers as usize,
+            args.actions.signers.len(),
+            ProgramError::InvalidInstructionData
+        );
+
+        require_le!(
+            args.actions.inserted_non_signers as usize,
+            args.actions.non_signers.len(),
+            ProgramError::InvalidInstructionData
+        );
+
+        require_le!(
+            args.actions.total_keys(),
+            compact::MAX_PUBKEYS,
             ProgramError::InvalidInstructionData
         );
 

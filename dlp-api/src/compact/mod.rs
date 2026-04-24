@@ -402,6 +402,9 @@ mod tests {
             }],
         };
 
+        assert_eq!(insertable.signers.len(), 2);
+        assert_eq!(insertable.non_signers.len(), 3);
+
         let ns1 = pk(6);
         let nn1 = pk(7);
         let program_id = pk(8);
@@ -452,5 +455,20 @@ mod tests {
         assert_cleartext_meta(&new_ix.accounts[1], 5, true);
         assert_cleartext_meta(&new_ix.accounts[2], 7, false);
         assert_cleartext_meta(&new_ix.accounts[3], 8, false);
+
+        // a similar code is used in process_delegate_with_actions() to early validate actions
+        for ix in actions.instructions.iter() {
+            actions.validate_index(ix.program_id).unwrap();
+
+            for account in &ix.accounts {
+                let crate::args::MaybeEncryptedAccountMeta::ClearText(meta) =
+                    account
+                else {
+                    continue;
+                };
+                let index = actions.validate_index(meta.key()).unwrap();
+                assert_eq!(meta.is_signer(), actions.is_signer(index));
+            }
+        }
     }
 }

@@ -1,3 +1,4 @@
+use dlp_api::require_eq;
 use pinocchio::{
     address::address_eq,
     cpi::{Seed, Signer},
@@ -17,7 +18,7 @@ use crate::{
         fast::{to_pinocchio_program_error, utils::pda::create_pda},
         utils::curve::is_on_curve_fast,
     },
-    require, require_n_accounts_with_optionals,
+    require_n_accounts_with_optionals,
     requires::{
         require_owned_pda, require_pda, require_signer,
         require_uninitialized_pda, DelegationMetadataCtx, DelegationRecordCtx,
@@ -108,8 +109,9 @@ pub fn process_delegate_with_actions(
                     continue;
                 };
                 let index = args.actions.validate_index(meta.key())?;
-                require!(
-                    meta.is_signer() == args.actions.is_signer(index),
+                require_eq!(
+                    meta.is_signer(),
+                    args.actions.is_signer(index),
                     ProgramError::InvalidInstructionData
                 );
             }
@@ -119,7 +121,11 @@ pub fn process_delegate_with_actions(
         for signer in &args.actions.signers {
             let account = remaining_accounts
                 .iter()
-                .find(|account| &account.address().to_bytes() == signer)
+                .find(|account| {
+                    address_eq(account.address(), unsafe {
+                        &*(signer.as_ptr() as *const Address)
+                    })
+                })
                 .ok_or(ProgramError::NotEnoughAccountKeys)?;
             if !account.is_signer() {
                 return Err(ProgramError::MissingRequiredSignature);
