@@ -173,82 +173,74 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
         );
 
         // add keys from actions (pre-encrypted instructions)
-        let mut skipable_pubkeys: Vec<Option<Address>> = vec![];
-        {
+        let skipable_pubkeys: Vec<Option<Address>> = {
+            let mut skipable: Vec<Option<Address>> = vec![];
             for signer in insertable.signers.iter() {
-                skipable_pubkeys.push(Some((*signer).into()));
+                skipable.push(Some((*signer).into()));
             }
             for non_signer in insertable.non_signers.iter() {
                 if let MaybeEncryptedPubkey::ClearText(non_signer) = non_signer
                 {
-                    skipable_pubkeys.push(Some((*non_signer).into()));
+                    skipable.push(Some((*non_signer).into()));
                 } else {
-                    // Note that None is added to the list, to mark that this slot is encrypted but
-                    // the index is already taken so that the index in referred by insertable.instructions
-                    // is maintained/calculatable.
-                    skipable_pubkeys.push(None);
+                    // Important: None is added to the list, to mark that the pubkey (corresponding
+                    // to this index) is encrypted and the index is already taken, that prevents
+                    // other keys from taking this index. It ensures that the index referred
+                    // by insertable.instructions correctly points to this slot.
+                    skipable.push(None);
                 }
             }
-        }
+            skipable
+        };
 
         let mut signers: Vec<solana_instruction::AccountMeta> = Vec::new();
         let mut non_signers: Vec<solana_instruction::AccountMeta> = Vec::new();
 
-        let mut add_to_signers = |meta: &solana_instruction::AccountMeta| {
-            if skipable_pubkeys.contains(&Some(meta.pubkey)) {
-                return;
-            }
-
-            assert!(meta.is_signer, "AccountMeta must be a signer");
-            let Some(found) =
-                signers.iter_mut().find(|m| m.pubkey == meta.pubkey)
-            else {
-                signers.push(meta.clone());
-                return;
-            };
-
-            found.is_writable |= meta.is_writable;
-        };
-
-        let mut add_to_non_signers =
-            |meta: &solana_instruction::AccountMeta| {
+        let add_to =
+            |metas: &mut Vec<solana_instruction::AccountMeta>,
+             meta: &solana_instruction::AccountMeta| {
                 if skipable_pubkeys.contains(&Some(meta.pubkey)) {
                     return;
                 }
 
-                assert!(!meta.is_signer, "AccountMeta must not be a signer");
-                let Some(found) =
-                    non_signers.iter_mut().find(|m| m.pubkey == meta.pubkey)
-                else {
-                    non_signers.push(meta.clone());
-                    return;
-                };
-
-                found.is_writable |= meta.is_writable;
+                if let Some(found) =
+                    metas.iter_mut().find(|m| m.pubkey == meta.pubkey)
+                {
+                    found.is_writable |= meta.is_writable;
+                } else {
+                    metas.push(meta.clone());
+                }
             };
 
-        for meta in self
+        for signer_meta in self
             .iter()
             .flat_map(|ix| ix.accounts.iter())
             .filter(|meta| meta.is_signer)
         {
-            add_to_signers(meta);
+            add_to(&mut signers, signer_meta);
         }
 
         for ix in self.iter() {
-            add_to_non_signers(&solana_instruction::AccountMeta::new_readonly(
-                ix.program_id,
-                false,
-            ));
-            for meta in ix.accounts.iter().filter(|meta| !meta.is_signer) {
-                let Some(found) =
-                    signers.iter_mut().find(|m| m.pubkey == meta.pubkey)
-                else {
-                    add_to_non_signers(meta);
-                    continue;
-                };
-
-                found.is_writable |= meta.is_writable;
+            add_to(
+                &mut non_signers,
+                &solana_instruction::AccountMeta::new_readonly(
+                    ix.program_id,
+                    false,
+                ),
+            );
+            for non_signer_meta in
+                ix.accounts.iter().filter(|meta| !meta.is_signer)
+            {
+                if let Some(signer) = signers
+                    .iter_mut()
+                    .find(|m| m.pubkey == non_signer_meta.pubkey)
+                {
+                    // this non_signer_meta is previously seen as signer, so we need to
+                    // update its is_writable only.
+                    signer.is_writable |= non_signer_meta.is_writable;
+                } else {
+                    add_to(&mut non_signers, non_signer_meta);
+                }
             }
         }
 
@@ -266,6 +258,7 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
         let old_total = old_signers_len + old_non_signers_len;
 
         let index_of = |pk: &solana_address::Address| -> u8 {
+            //
             // The final list will be this as per PostDelegationActions:
             //
             //  [insertable.signers..., new.signers..., insertable.non_signers..., new.non_signers...]
@@ -409,6 +402,9 @@ mod tests {
             }],
         };
 
+        assert_eq!(insertable.signers.len(), 2);
+        assert_eq!(insertable.non_signers.len(), 3);
+
         let ns1 = pk(6);
         let nn1 = pk(7);
         let program_id = pk(8);
@@ -459,5 +455,20 @@ mod tests {
         assert_cleartext_meta(&new_ix.accounts[1], 5, true);
         assert_cleartext_meta(&new_ix.accounts[2], 7, false);
         assert_cleartext_meta(&new_ix.accounts[3], 8, false);
+
+        // a similar code is used in process_delegate_with_actions() to early validate actions
+        for ix in actions.instructions.iter() {
+            actions.validate_index(ix.program_id).unwrap();
+
+            for account in &ix.accounts {
+                let crate::args::MaybeEncryptedAccountMeta::ClearText(meta) =
+                    account
+                else {
+                    continue;
+                };
+                let index = actions.validate_index(meta.key()).unwrap();
+                assert_eq!(meta.is_signer(), actions.is_signer(index).unwrap());
+            }
+        }
     }
 }

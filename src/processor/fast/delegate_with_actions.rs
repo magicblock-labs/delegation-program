@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use dlp_api::require_eq;
 use pinocchio::{
     address::address_eq,
     cpi::{Seed, Signer},
@@ -11,7 +11,6 @@ use pinocchio_system::instructions as system;
 
 use crate::{
     args::DelegateWithActionsArgs,
-    compact,
     consts::{DEFAULT_VALIDATOR_IDENTITY, RENT_EXCEPTION_ZERO_BYTES_LAMPORTS},
     error::DlpError,
     pda,
@@ -19,7 +18,7 @@ use crate::{
         fast::{to_pinocchio_program_error, utils::pda::create_pda},
         utils::curve::is_on_curve_fast,
     },
-    require, require_n_accounts_with_optionals,
+    require_n_accounts_with_optionals,
     requires::{
         require_owned_pda, require_pda, require_signer,
         require_uninitialized_pda, DelegationMetadataCtx, DelegationRecordCtx,
@@ -92,39 +91,27 @@ pub fn process_delegate_with_actions(
         DelegationMetadataCtx,
     )?;
 
-    let args: DelegateWithActionsArgs =
-        DelegateWithActionsArgs::try_from_slice(data)
-            .map_err(|_| ProgramError::InvalidInstructionData)?;
+    let args: DelegateWithActionsArgs = DelegateWithActionsArgs::parse(data)?;
 
     // Validate instruction payload shape up-front. This confirms delegate args
     // and actions envelope format, while encrypted bytes remain opaque.
     {
-        if (args.actions.signers.len() + args.actions.non_signers.len())
-            > compact::MAX_PUBKEYS as usize
-        {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-
-        let signers_count = args.actions.signers.len() as u8;
-        let keys_count = signers_count + args.actions.non_signers.len() as u8;
-
         // Validate clear-text indices early when possible. Encrypted
         // AccountMetas are skipped here because they can only be validated
         // after decryption by the ER validator.
         for ix in args.actions.instructions.iter() {
-            require!(
-                ix.program_id < keys_count,
-                ProgramError::InvalidInstructionData
-            );
+            args.actions.validate_index(ix.program_id)?;
+
             for account in &ix.accounts {
                 let crate::args::MaybeEncryptedAccountMeta::ClearText(meta) =
                     account
                 else {
                     continue;
                 };
-                require!(
-                    (meta.is_signer() && meta.key() < signers_count)
-                        || (!meta.is_signer() && meta.key() < keys_count),
+                let index = args.actions.validate_index(meta.key())?;
+                require_eq!(
+                    meta.is_signer(),
+                    args.actions.is_signer(index)?,
                     ProgramError::InvalidInstructionData
                 );
             }
@@ -134,7 +121,11 @@ pub fn process_delegate_with_actions(
         for signer in &args.actions.signers {
             let account = remaining_accounts
                 .iter()
-                .find(|account| &account.address().to_bytes() == signer)
+                .find(|account| {
+                    address_eq(account.address(), unsafe {
+                        &*(signer.as_ptr() as *const Address)
+                    })
+                })
                 .ok_or(ProgramError::NotEnoughAccountKeys)?;
             if !account.is_signer() {
                 return Err(ProgramError::MissingRequiredSignature);

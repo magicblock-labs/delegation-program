@@ -1,5 +1,3 @@
-#![cfg(feature = "encryption")]
-
 use borsh::to_vec;
 use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs},
