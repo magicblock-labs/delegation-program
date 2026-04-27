@@ -467,7 +467,7 @@ mod tests {
                     continue;
                 };
                 let index = actions.validate_index(meta.key()).unwrap();
-                assert_eq!(meta.is_signer(), actions.is_signer(index));
+                assert_eq!(meta.is_signer(), actions.is_signer(index).unwrap());
             }
         }
     }

@@ -111,7 +111,7 @@ pub fn process_delegate_with_actions(
                 let index = args.actions.validate_index(meta.key())?;
                 require_eq!(
                     meta.is_signer(),
-                    args.actions.is_signer(index),
+                    args.actions.is_signer(index)?,
                     ProgramError::InvalidInstructionData
                 );
             }

@@ -188,10 +188,10 @@ impl Decrypt for PostDelegationActions {
                 .non_signers
                 .iter()
                 .map(|non_signer| {
-                    Ok(non_signer.clone().decrypt(
+                    non_signer.clone().decrypt(
                         recipient_x25519_pubkey,
                         recipient_x25519_secret,
-                    )?)
+                    )
                 })
                 .collect::<Result<Vec<_>, DecryptError>>()?;
 

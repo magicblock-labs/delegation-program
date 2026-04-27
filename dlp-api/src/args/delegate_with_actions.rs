@@ -2,7 +2,10 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::error::ProgramError;
 
 use super::DelegateArgs;
-use crate::{compact, require, require_le};
+use crate::{
+    compact::{self, MAX_PUBKEYS},
+    require, require_le,
+};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateWithActionsArgs {
@@ -18,23 +21,7 @@ impl DelegateWithActionsArgs {
         let args = DelegateWithActionsArgs::try_from_slice(data)
             .map_err(|_| ProgramError::InvalidInstructionData)?;
 
-        require_le!(
-            args.actions.inserted_signers as usize,
-            args.actions.signers.len(),
-            ProgramError::InvalidInstructionData
-        );
-
-        require_le!(
-            args.actions.inserted_non_signers as usize,
-            args.actions.non_signers.len(),
-            ProgramError::InvalidInstructionData
-        );
-
-        require_le!(
-            args.actions.total_keys(),
-            compact::MAX_PUBKEYS,
-            ProgramError::InvalidInstructionData
-        );
+        PostDelegationActions::validate(&args.actions)?;
 
         Ok(args)
     }
@@ -110,16 +97,41 @@ pub struct PostDelegationActions {
 ///
 /// AddressIndex is a validated index, returned by validate_index()
 ///
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq)]
 pub struct AddressIndex(u8);
 
 impl PostDelegationActions {
-    pub fn total_inserted(&self) -> u8 {
-        self.inserted_signers + self.inserted_non_signers
+    pub fn validate(this: &PostDelegationActions) -> Result<(), ProgramError> {
+        require_le!(
+            this.inserted_signers as usize,
+            this.signers.len(),
+            ProgramError::InvalidInstructionData
+        );
+
+        require_le!(
+            this.inserted_non_signers as usize,
+            this.non_signers.len(),
+            ProgramError::InvalidInstructionData
+        );
+
+        this.total_inserted()?;
+        this.total_keys()?;
+
+        Ok(())
     }
 
-    pub fn total_keys(&self) -> u8 {
-        self.signers.len() as u8 + self.non_signers.len() as u8
+    pub fn total_inserted(&self) -> Result<u8, ProgramError> {
+        self.inserted_signers
+            .checked_add(self.inserted_non_signers)
+            .and_then(|total| (total <= MAX_PUBKEYS).then_some(total))
+            .ok_or(ProgramError::InvalidInstructionData)
+    }
+
+    pub fn total_keys(&self) -> Result<u8, ProgramError> {
+        (self.signers.len() as u8)
+            .checked_add(self.non_signers.len() as u8)
+            .and_then(|total| (total <= MAX_PUBKEYS).then_some(total))
+            .ok_or(ProgramError::InvalidInstructionData)
     }
 
     pub fn validate_index(
@@ -127,17 +139,21 @@ impl PostDelegationActions {
         index: u8,
     ) -> Result<AddressIndex, ProgramError> {
         require!(
-            index < self.total_keys(),
+            index < self.total_keys()?,
             ProgramError::InvalidInstructionData
         );
         Ok(AddressIndex(index))
     }
 
-    pub fn is_signer(&self, index: AddressIndex) -> bool {
+    pub fn is_signer(&self, index: AddressIndex) -> Result<bool, ProgramError> {
         let index = index.0;
-        index < self.inserted_signers
-            || (index >= self.total_inserted()
-                && index < self.inserted_non_signers + self.signers.len() as u8)
+        Ok(index < self.inserted_signers
+            || (index >= self.total_inserted()?
+                && index
+                    < self
+                        .inserted_non_signers
+                        .checked_add(self.signers.len() as u8)
+                        .ok_or(ProgramError::InvalidInstructionData)?))
     }
 }
 
