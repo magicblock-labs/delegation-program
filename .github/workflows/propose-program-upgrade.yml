@@ -191,6 +191,7 @@ jobs:
         env:
           PROPOSAL_NAME: ${{ inputs.proposal_name || format('Upgrade delegation program {0}', github.sha) }}
           MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          VERIFY_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
         run: node .github/scripts/create-squads-upgrade-proposal.mjs
 
       - name: Upload deployment artifacts
