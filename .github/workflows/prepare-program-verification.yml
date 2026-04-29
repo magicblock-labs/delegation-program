@@ -1,0 +1,91 @@
+name: Prepare Program Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_hash:
+        description: "Git commit that was deployed"
+        required: true
+      submit_remote_job:
+        description: "Submit remote verification job after the PDA tx has already been executed"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  SOLANA_VERIFY_VERSION: 0.4.15
+
+  PROGRAM_ID: DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh
+  PROGRAM_LIB_NAME: dlp
+  VERIFY_REPOSITORY_URL: https://github.com/magicblock-labs/delegation-program
+
+  SQUADS_VAULT_PDA: ${{ vars.SQUADS_VAULT_PDA }}
+  VERIFY_PDA_COMPUTE_UNIT_PRICE: "0"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_hash }}
+
+      - name: Validate configuration
+        run: |
+          : "${SQUADS_VAULT_PDA:?Set vars.SQUADS_VAULT_PDA}"
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache Rust
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install solana-verify
+        run: cargo install solana-verify --locked --version "$SOLANA_VERIFY_VERSION"
+
+      - name: Export verification PDA transaction
+        run: |
+          solana-verify export-pda-tx "$VERIFY_REPOSITORY_URL" \
+            --program-id "$PROGRAM_ID" \
+            --uploader "$SQUADS_VAULT_PDA" \
+            --library-name "$PROGRAM_LIB_NAME" \
+            --commit-hash "${{ inputs.commit_hash }}" \
+            --encoding base64 \
+            --compute-unit-price "$VERIFY_PDA_COMPUTE_UNIT_PRICE" \
+            | tee verify-pda.raw
+          awk 'NF {line=$0} END {print line}' verify-pda.raw > verify-pda.tx
+          test -s verify-pda.tx
+
+      - name: Submit remote verification job
+        if: inputs.submit_remote_job
+        run: |
+          solana-verify remote submit-job \
+            --program-id "$PROGRAM_ID" \
+            --uploader "$SQUADS_VAULT_PDA"
+
+      - name: Upload verification transaction
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-pda-${{ inputs.commit_hash }}
+          path: |
+            verify-pda.raw
+            verify-pda.tx
+
+      - name: Write summary
+        run: |
+          {
+            echo "### Program verification"
+            echo
+            echo "- Program: \`$PROGRAM_ID\`"
+            echo "- Repository: \`$VERIFY_REPOSITORY_URL\`"
+            echo "- Commit: \`${{ inputs.commit_hash }}\`"
+            echo "- Uploader / authority: \`$SQUADS_VAULT_PDA\`"
+            echo "- PDA transaction artifact: \`verification-pda-${{ inputs.commit_hash }}\`"
+            echo
+            echo "Execute \`verify-pda.tx\` through Squads after the program upgrade is executed."
+            echo "After that PDA transaction is executed, rerun this workflow with \`submit_remote_job=true\`."
+          } >> "$GITHUB_STEP_SUMMARY"
