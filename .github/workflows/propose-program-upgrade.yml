@@ -55,8 +55,11 @@ jobs:
       - name: Cache Rust
         uses: Swatinem/rust-cache@v2
 
+      - name: Install cargo-binstall
+        uses: cargo-bins/cargo-binstall@main
+
       - name: Install solana-verify
-        run: cargo install solana-verify --locked --version "$SOLANA_VERIFY_VERSION"
+        run: cargo binstall -y "solana-verify@$SOLANA_VERIFY_VERSION"
 
       - name: Derive expected Squads vault
         id: vault
