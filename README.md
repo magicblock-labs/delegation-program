@@ -4,10 +4,10 @@ Delegation module for https://arxiv.org/pdf/2311.02650.pdf
 
 ## Public Api
 
-- [`Instruction Builders`](src/instruction_builder/) – utilities to generate Instructions.
-- [`Args`](src/args/) – Instructions arguments structures.
-- [`Consts`](src/consts.rs) – Program constants.
-- [`Errors`](src/error.rs) – Custom program errors.
+- [`Instruction Builders`](dlp-api/src/instruction_builder/) – utilities to generate Instructions.
+- [`Args`](dlp-api/src/args/) – Instructions arguments structures.
+- [`Consts`](dlp-api/src/consts.rs) – Program constants.
+- [`Errors`](dlp-api/src/error.rs) – Custom program errors.
 
 ## Program
 
