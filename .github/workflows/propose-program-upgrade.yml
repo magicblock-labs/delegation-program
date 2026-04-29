@@ -96,7 +96,7 @@ jobs:
 
       - name: Build verifiable program binary
         run: |
-          solana-verify build --library-name "$PROGRAM_LIB_NAME" --solana-version "${SOLANA_VERSION#v}"
+          solana-verify build --library-name "$PROGRAM_LIB_NAME" --base-image "solanafoundation/solana-verifiable-build:${SOLANA_VERSION#v}"
           test -f "$PROGRAM_SO"
           shasum -a 256 "$PROGRAM_SO" | tee dlp.so.sha256
           solana-verify get-executable-hash "$PROGRAM_SO" | tee dlp.so.executable-hash
