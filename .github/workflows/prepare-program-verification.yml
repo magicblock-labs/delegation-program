@@ -1,0 +1,114 @@
+name: Prepare Program Verification
+
+on:
+  workflow_dispatch:
+    inputs:
+      commit_hash:
+        description: "Git commit that was deployed"
+        required: true
+      submit_remote_job:
+        description: "Submit remote verification job after the PDA tx has already been executed"
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  SOLANA_VERSION: v3.1.5
+  SOLANA_VERIFY_VERSION: 0.4.15
+
+  PROGRAM_ID: DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh
+  PROGRAM_LIB_NAME: dlp
+  VERIFY_REPOSITORY_URL: https://github.com/magicblock-labs/delegation-program
+
+  MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+  VERIFY_PDA_COMPUTE_UNIT_PRICE: "0"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.commit_hash }}
+
+      - name: Validate configuration
+        run: |
+          : "${MAINNET_RPC_URL:?Set secrets.MAINNET_RPC_URL}"
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install solana-verify
+        run: |
+          BASE="https://github.com/solana-foundation/solana-verifiable-build/releases/download/v${SOLANA_VERIFY_VERSION}"
+          curl -sSfL "$BASE/solana-verify-${SOLANA_VERIFY_VERSION}-linux" -o /tmp/solana-verify
+          curl -sSfL "$BASE/solana-verify-${SOLANA_VERIFY_VERSION}-linux.sha256" -o /tmp/solana-verify.sha256
+          (cd /tmp && awk '{print $1"  solana-verify"}' solana-verify.sha256 | sha256sum -c -)
+          chmod +x /tmp/solana-verify
+          sudo mv /tmp/solana-verify /usr/local/bin/solana-verify
+          solana-verify --version
+
+      - name: Fetch upgrade authority
+        run: |
+          # Solana CLI 3.x refuses to run without a configured signer, even for read-only RPC calls.
+          solana-keygen new --no-bip39-passphrase --silent --outfile /tmp/dummy-keypair.json
+          PROGRAM_INFO=$(solana program show "$PROGRAM_ID" --url "$MAINNET_RPC_URL" --keypair /tmp/dummy-keypair.json --no-address-labels)
+          printf '%s\n' "$PROGRAM_INFO" | tee program-info.txt
+
+          SQUADS_VAULT_PDA=$(printf '%s\n' "$PROGRAM_INFO" | awk -F': ' '/^Authority:/ {print $2; exit}')
+          if [ -z "$SQUADS_VAULT_PDA" ]; then
+            echo "Could not parse upgrade authority from solana program show output." >&2
+            exit 1
+          fi
+
+          echo "SQUADS_VAULT_PDA=$SQUADS_VAULT_PDA" >> "$GITHUB_ENV"
+
+      - name: Export verification PDA transaction
+        run: |
+          solana-verify export-pda-tx "$VERIFY_REPOSITORY_URL" \
+            --program-id "$PROGRAM_ID" \
+            --uploader "$SQUADS_VAULT_PDA" \
+            --library-name "$PROGRAM_LIB_NAME" \
+            --commit-hash "${{ inputs.commit_hash }}" \
+            --encoding base64 \
+            --compute-unit-price "$VERIFY_PDA_COMPUTE_UNIT_PRICE" \
+            | tee verify-pda.raw
+          awk 'NF {line=$0} END {print line}' verify-pda.raw > verify-pda.tx
+          test -s verify-pda.tx
+
+      - name: Submit remote verification job
+        if: inputs.submit_remote_job
+        run: |
+          solana-verify remote submit-job \
+            --program-id "$PROGRAM_ID" \
+            --uploader "$SQUADS_VAULT_PDA"
+
+      - name: Upload verification transaction
+        uses: actions/upload-artifact@v4
+        with:
+          name: verification-pda-${{ inputs.commit_hash }}
+          path: |
+            verify-pda.raw
+            verify-pda.tx
+            program-info.txt
+
+      - name: Write summary
+        run: |
+          {
+            echo "### Program verification"
+            echo
+            echo "- Program: \`$PROGRAM_ID\`"
+            echo "- Repository: \`$VERIFY_REPOSITORY_URL\`"
+            echo "- Commit: \`${{ inputs.commit_hash }}\`"
+            echo "- Uploader / authority: \`$SQUADS_VAULT_PDA\`"
+            echo "- PDA transaction artifact: \`verification-pda-${{ inputs.commit_hash }}\`"
+            echo
+            echo "Execute \`verify-pda.tx\` through Squads after the program upgrade is executed."
+            echo "After that PDA transaction is executed, rerun this workflow with \`submit_remote_job=true\`."
+          } >> "$GITHUB_STEP_SUMMARY"

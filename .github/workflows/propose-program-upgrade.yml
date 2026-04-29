@@ -1,0 +1,221 @@
+name: Propose Program Upgrade
+
+on:
+  workflow_dispatch:
+    inputs:
+      proposal_name:
+        description: "Squads proposal"
+        required: true
+        default: "Upgrade delegation program"
+
+permissions:
+  contents: read
+
+env:
+  SOLANA_VERSION: v3.1.5
+  SOLANA_VERIFY_VERSION: 0.4.15
+
+  PROGRAM_ID: DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh
+  PROGRAM_LIB_NAME: dlp
+  PROGRAM_SO: target/deploy/dlp.so
+
+  # MAINNET_RPC_URL and SQUADS_PROPOSER_KEYPAIR are intentionally NOT in the job env.
+  # Why: they are passed only to the steps that need them, so unrelated tooling
+  # (npm install, cargo, docker) cannot read mainnet credentials from process env
+  # if a transitive dependency is compromised.
+  SQUADS_MULTISIG_PDA: ${{ vars.SQUADS_MULTISIG_PDA }}
+  SQUADS_VAULT_INDEX: "0"
+  SPILL_ADDRESS: ${{ vars.SPILL_ADDRESS }}
+
+  BUFFER_UPLOAD_COMPUTE_UNIT_PRICE: "50000"
+  MAX_SIGN_ATTEMPTS: "50"
+  PROPOSER_KEYPAIR_PATH: /tmp/squads-proposer.json
+
+jobs:
+  propose:
+    runs-on: ubuntu-latest
+    environment: mainnet-program-upgrade
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate configuration
+        env:
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+          SQUADS_PROPOSER_KEYPAIR: ${{ secrets.SQUADS_PROPOSER_KEYPAIR }}
+        run: |
+          : "${MAINNET_RPC_URL:?Set secrets.MAINNET_RPC_URL}"
+          : "${SQUADS_PROPOSER_KEYPAIR:?Set secrets.SQUADS_PROPOSER_KEYPAIR}"
+          : "${SQUADS_MULTISIG_PDA:?Set vars.SQUADS_MULTISIG_PDA}"
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
+
+      - name: Install Rust
+        # Pinned to dtolnay/rust-toolchain stable @ 2026-03-27
+        uses: dtolnay/rust-toolchain@29eef336d9b2848a0b548edc03f92a220660cdb8
+
+      - name: Cache Rust
+        # Pinned to Swatinem/rust-cache v2.9.1
+        uses: Swatinem/rust-cache@e18b497796c12c097a38f9edb9d0641fb99eee32
+
+      - name: Install solana-verify
+        run: |
+          BASE="https://github.com/solana-foundation/solana-verifiable-build/releases/download/v${SOLANA_VERIFY_VERSION}"
+          curl -sSfL "$BASE/solana-verify-${SOLANA_VERIFY_VERSION}-linux" -o /tmp/solana-verify
+          curl -sSfL "$BASE/solana-verify-${SOLANA_VERIFY_VERSION}-linux.sha256" -o /tmp/solana-verify.sha256
+          (cd /tmp && awk '{print $1"  solana-verify"}' solana-verify.sha256 | sha256sum -c -)
+          chmod +x /tmp/solana-verify
+          sudo mv /tmp/solana-verify /usr/local/bin/solana-verify
+          solana-verify --version
+
+      - name: Derive expected Squads vault
+        id: vault
+        run: |
+          # --ignore-scripts blocks dependency lifecycle hooks so a compromised package
+          # cannot run arbitrary code during install. Pure-JS deps don't need build steps.
+          npm install --no-save --no-package-lock --ignore-scripts @sqds/multisig@2.1.4 @solana/web3.js@1.98.4
+          node --input-type=module <<'NODE'
+          import fs from "node:fs";
+          import * as multisig from "@sqds/multisig";
+          import { PublicKey } from "@solana/web3.js";
+
+          const [vaultPda] = multisig.getVaultPda({
+            multisigPda: new PublicKey(process.env.SQUADS_MULTISIG_PDA),
+            index: Number(process.env.SQUADS_VAULT_INDEX),
+          });
+
+          fs.appendFileSync(process.env.GITHUB_OUTPUT, `address=${vaultPda.toBase58()}\n`);
+          NODE
+
+      - name: Write proposer keypair
+        id: proposer
+        env:
+          SQUADS_PROPOSER_KEYPAIR: ${{ secrets.SQUADS_PROPOSER_KEYPAIR }}
+        run: |
+          printf '%s' "$SQUADS_PROPOSER_KEYPAIR" > "$PROPOSER_KEYPAIR_PATH"
+          chmod 600 "$PROPOSER_KEYPAIR_PATH"
+          SPILL_ADDRESS_VALUE="$SPILL_ADDRESS"
+          if [ -z "$SPILL_ADDRESS" ]; then
+            SPILL_ADDRESS_VALUE=$(solana-keygen pubkey "$PROPOSER_KEYPAIR_PATH")
+          fi
+          echo "SPILL_ADDRESS=$SPILL_ADDRESS_VALUE" >> "$GITHUB_ENV"
+          echo "spill_address=$SPILL_ADDRESS_VALUE" >> "$GITHUB_OUTPUT"
+
+      - name: Build verifiable program binary
+        run: |
+          solana-verify build --library-name "$PROGRAM_LIB_NAME" --base-image "solanafoundation/solana-verifiable-build:${SOLANA_VERSION#v}"
+          test -f "$PROGRAM_SO"
+          shasum -a 256 "$PROGRAM_SO" | tee dlp.so.sha256
+          solana-verify get-executable-hash "$PROGRAM_SO" | tee dlp.so.executable-hash
+
+      - name: Check upgrade authority and program size
+        id: program_info
+        env:
+          EXPECTED_SQUADS_VAULT_PDA: ${{ steps.vault.outputs.address }}
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+        run: |
+          PROGRAM_INFO=$(solana program show "$PROGRAM_ID" --url "$MAINNET_RPC_URL" --keypair "$PROPOSER_KEYPAIR_PATH" --no-address-labels)
+          printf '%s\n' "$PROGRAM_INFO" | tee program-info.txt
+
+          CURRENT_AUTHORITY=$(printf '%s\n' "$PROGRAM_INFO" | awk -F': ' '/^Authority:/ {print $2; exit}')
+          PROGRAMDATA_ADDRESS=$(printf '%s\n' "$PROGRAM_INFO" | awk -F': ' '/^ProgramData Address:/ {print $2; exit}')
+          CURRENT_DATA_LEN=$(printf '%s\n' "$PROGRAM_INFO" | awk '/^Data Length:/ {print $3; exit}')
+          BINARY_SIZE=$(wc -c < "$PROGRAM_SO" | tr -d ' ')
+
+          if [ -z "$CURRENT_AUTHORITY" ] || [ -z "$PROGRAMDATA_ADDRESS" ] || [ -z "$CURRENT_DATA_LEN" ]; then
+            echo "Could not parse authority, ProgramData address, or allocation from solana program show output." >&2
+            exit 1
+          fi
+
+          if [ "$CURRENT_AUTHORITY" != "$EXPECTED_SQUADS_VAULT_PDA" ]; then
+            echo "Program upgrade authority is $CURRENT_AUTHORITY, expected Squads vault $EXPECTED_SQUADS_VAULT_PDA" >&2
+            exit 1
+          fi
+
+          if [ "$BINARY_SIZE" -gt "$CURRENT_DATA_LEN" ]; then
+            EXTRA_BYTES=$((BINARY_SIZE - CURRENT_DATA_LEN))
+            echo "Built binary is $BINARY_SIZE bytes, but current ProgramData allocation is $CURRENT_DATA_LEN bytes." >&2
+            echo "Create and execute a separate Squads proposal to extend the program by at least $EXTRA_BYTES bytes before proposing this upgrade." >&2
+            exit 1
+          fi
+
+          {
+            echo "SQUADS_VAULT_PDA=$CURRENT_AUTHORITY"
+            echo "PROGRAMDATA_ADDRESS=$PROGRAMDATA_ADDRESS"
+            echo "CURRENT_DATA_LEN=$CURRENT_DATA_LEN"
+            echo "BINARY_SIZE=$BINARY_SIZE"
+          } >> "$GITHUB_ENV"
+          {
+            echo "programdata_address=$PROGRAMDATA_ADDRESS"
+            echo "current_data_len=$CURRENT_DATA_LEN"
+            echo "binary_size=$BINARY_SIZE"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload program buffer
+        id: buffer
+        env:
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+        run: |
+          solana program write-buffer "$PROGRAM_SO" \
+            --url "$MAINNET_RPC_URL" \
+            --keypair "$PROPOSER_KEYPAIR_PATH" \
+            --buffer-authority "$PROPOSER_KEYPAIR_PATH" \
+            --fee-payer "$PROPOSER_KEYPAIR_PATH" \
+            --use-rpc \
+            --with-compute-unit-price "$BUFFER_UPLOAD_COMPUTE_UNIT_PRICE" \
+            --max-sign-attempts "$MAX_SIGN_ATTEMPTS" \
+            | tee buffer.log
+
+          PROGRAM_BUFFER_ADDRESS=$(awk '/^Buffer:/ {print $2; exit}' buffer.log)
+          if [ -z "$PROGRAM_BUFFER_ADDRESS" ]; then
+            echo "Could not parse buffer address from solana program write-buffer output" >&2
+            exit 1
+          fi
+          echo "PROGRAM_BUFFER_ADDRESS=$PROGRAM_BUFFER_ADDRESS" >> "$GITHUB_ENV"
+          echo "address=$PROGRAM_BUFFER_ADDRESS" >> "$GITHUB_OUTPUT"
+
+      - name: Transfer buffer authority to Squads vault
+        env:
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+        run: |
+          solana program set-buffer-authority "$PROGRAM_BUFFER_ADDRESS" \
+            --url "$MAINNET_RPC_URL" \
+            --keypair "$PROPOSER_KEYPAIR_PATH" \
+            --buffer-authority "$PROPOSER_KEYPAIR_PATH" \
+            --new-buffer-authority "$SQUADS_VAULT_PDA"
+
+      - name: Create Squads upgrade proposal
+        env:
+          PROPOSAL_NAME: ${{ inputs.proposal_name || format('Upgrade delegation program {0}', github.sha) }}
+          MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
+        run: node .github/scripts/create-squads-upgrade-proposal.mjs
+
+      - name: Upload deployment artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: program-upgrade-${{ github.sha }}
+          path: |
+            dlp.so.sha256
+            dlp.so.executable-hash
+            program-info.txt
+            buffer.log
+          if-no-files-found: ignore
+
+      - name: Write summary
+        if: success()
+        run: |
+          {
+            echo "### Program upgrade proposal"
+            echo
+            echo "- Program: \`$PROGRAM_ID\`"
+            echo "- Buffer: \`$PROGRAM_BUFFER_ADDRESS\`"
+            echo "- Squads multisig: \`$SQUADS_MULTISIG_PDA\`"
+            echo "- Squads vault: \`$SQUADS_VAULT_PDA\`"
+            echo "- ProgramData: \`$PROGRAMDATA_ADDRESS\`"
+            echo "- Binary size: \`$BINARY_SIZE\` bytes"
+            echo "- Current ProgramData allocation: \`$CURRENT_DATA_LEN\` bytes"
+          } >> "$GITHUB_STEP_SUMMARY"
