@@ -16,13 +16,14 @@ permissions:
   contents: read
 
 env:
+  SOLANA_VERSION: v3.1.5
   SOLANA_VERIFY_VERSION: 0.4.15
 
   PROGRAM_ID: DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh
   PROGRAM_LIB_NAME: dlp
   VERIFY_REPOSITORY_URL: https://github.com/magicblock-labs/delegation-program
 
-  SQUADS_VAULT_PDA: ${{ vars.SQUADS_VAULT_PDA }}
+  MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
   VERIFY_PDA_COMPUTE_UNIT_PRICE: "0"
 
 jobs:
@@ -36,7 +37,12 @@ jobs:
 
       - name: Validate configuration
         run: |
-          : "${SQUADS_VAULT_PDA:?Set vars.SQUADS_VAULT_PDA}"
+          : "${MAINNET_RPC_URL:?Set secrets.MAINNET_RPC_URL}"
+
+      - name: Install Solana CLI
+        run: |
+          sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
+          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
 
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
@@ -46,6 +52,19 @@ jobs:
 
       - name: Install solana-verify
         run: cargo install solana-verify --locked --version "$SOLANA_VERIFY_VERSION"
+
+      - name: Fetch upgrade authority
+        run: |
+          PROGRAM_INFO=$(solana program show "$PROGRAM_ID" --url "$MAINNET_RPC_URL" --no-address-labels)
+          printf '%s\n' "$PROGRAM_INFO" | tee program-info.txt
+
+          SQUADS_VAULT_PDA=$(printf '%s\n' "$PROGRAM_INFO" | awk -F': ' '/^Authority:/ {print $2; exit}')
+          if [ -z "$SQUADS_VAULT_PDA" ]; then
+            echo "Could not parse upgrade authority from solana program show output." >&2
+            exit 1
+          fi
+
+          echo "SQUADS_VAULT_PDA=$SQUADS_VAULT_PDA" >> "$GITHUB_ENV"
 
       - name: Export verification PDA transaction
         run: |
@@ -74,6 +93,7 @@ jobs:
           path: |
             verify-pda.raw
             verify-pda.tx
+            program-info.txt
 
       - name: Write summary
         run: |
