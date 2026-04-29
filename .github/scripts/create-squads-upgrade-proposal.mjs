@@ -1,4 +1,5 @@
 import fs from "node:fs";
+import { execFileSync } from "node:child_process";
 import * as multisig from "@sqds/multisig";
 import {
   Connection,
@@ -6,6 +7,7 @@ import {
   PublicKey,
   SYSVAR_CLOCK_PUBKEY,
   SYSVAR_RENT_PUBKEY,
+  Transaction,
   TransactionInstruction,
   TransactionMessage,
 } from "@solana/web3.js";
@@ -13,6 +15,8 @@ import {
 const BPF_UPGRADEABLE_LOADER_ID = new PublicKey(
   "BPFLoaderUpgradeab1e11111111111111111111111",
 );
+const COMPUTE_BUDGET_PROGRAM_ID =
+  "ComputeBudget111111111111111111111111111111";
 
 function env(name) {
   const value = process.env[name];
@@ -66,6 +70,42 @@ const upgradeInstruction = new TransactionInstruction({
   ],
 });
 
+// Reuse `solana-verify` to construct the otter-verify PDA write so the upgrade
+// and the verify-PDA land in a single multisig execution. Compute budget ixs
+// in the exported tx are dropped — Squads adds its own at execution time.
+const verifyExportRaw = execFileSync(
+  "solana-verify",
+  [
+    "export-pda-tx",
+    env("VERIFY_REPOSITORY_URL"),
+    "--program-id", programId.toBase58(),
+    "--uploader", vaultPda.toBase58(),
+    "--library-name", env("PROGRAM_LIB_NAME"),
+    "--commit-hash", env("GITHUB_SHA"),
+    "--encoding", "base64",
+    "--compute-unit-price", "0",
+  ],
+  { encoding: "utf8" },
+);
+const verifyTxB64 = verifyExportRaw
+  .split(/\r?\n/)
+  .map((l) => l.trim())
+  .filter((l) => l.length > 0)
+  .pop();
+if (!verifyTxB64) {
+  throw new Error("solana-verify export-pda-tx produced no output");
+}
+const verifyInstructions = Transaction.from(
+  Buffer.from(verifyTxB64, "base64"),
+).instructions.filter(
+  (ix) => ix.programId.toBase58() !== COMPUTE_BUDGET_PROGRAM_ID,
+);
+if (verifyInstructions.length === 0) {
+  throw new Error(
+    "solana-verify export-pda-tx returned no non-ComputeBudget instructions",
+  );
+}
+
 const multisigInfo =
   await multisig.accounts.Multisig.fromAccountAddress(
     connection,
@@ -76,8 +116,17 @@ const blockhash = (await connection.getLatestBlockhash()).blockhash;
 const transactionMessage = new TransactionMessage({
   payerKey: vaultPda,
   recentBlockhash: blockhash,
-  instructions: [upgradeInstruction],
+  instructions: [upgradeInstruction, ...verifyInstructions],
 });
+
+// Squads wraps this message; the wrapped tx must still fit in a 1232-byte packet.
+const compiledSize = transactionMessage.compileToV0Message().serialize().length;
+console.log(`Bundled message size: ${compiledSize} bytes`);
+if (compiledSize > 1100) {
+  console.warn(
+    `Warning: bundled message is ${compiledSize} bytes; close to the 1232-byte packet limit after Squads wrapping.`,
+  );
+}
 
 const vaultTransactionSignature = await multisig.rpc.vaultTransactionCreate({
   connection,
