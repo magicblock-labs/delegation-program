@@ -56,7 +56,9 @@ jobs:
 
       - name: Fetch upgrade authority
         run: |
-          PROGRAM_INFO=$(solana program show "$PROGRAM_ID" --url "$MAINNET_RPC_URL" --no-address-labels)
+          # Solana CLI 3.x refuses to run without a configured signer, even for read-only RPC calls.
+          solana-keygen new --no-bip39-passphrase --silent --outfile /tmp/dummy-keypair.json
+          PROGRAM_INFO=$(solana program show "$PROGRAM_ID" --url "$MAINNET_RPC_URL" --keypair /tmp/dummy-keypair.json --no-address-labels)
           printf '%s\n' "$PROGRAM_INFO" | tee program-info.txt
 
           SQUADS_VAULT_PDA=$(printf '%s\n' "$PROGRAM_INFO" | awk -F': ' '/^Authority:/ {print $2; exit}')

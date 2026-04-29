@@ -106,7 +106,7 @@ jobs:
         env:
           EXPECTED_SQUADS_VAULT_PDA: ${{ steps.vault.outputs.address }}
         run: |
-          PROGRAM_INFO=$(solana program show "$PROGRAM_ID" --url "$MAINNET_RPC_URL" --no-address-labels)
+          PROGRAM_INFO=$(solana program show "$PROGRAM_ID" --url "$MAINNET_RPC_URL" --keypair "$PROPOSER_KEYPAIR_PATH" --no-address-labels)
           printf '%s\n' "$PROGRAM_INFO" | tee program-info.txt
 
           CURRENT_AUTHORITY=$(printf '%s\n' "$PROGRAM_INFO" | awk -F': ' '/^Authority:/ {print $2; exit}')
