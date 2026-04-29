@@ -5,7 +5,7 @@ on:
   workflow_dispatch:
     inputs:
       proposal_name:
-        description: "Squads proposal memo"
+        description: "Squads proposal"
         required: true
         default: "Upgrade delegation program"
 
