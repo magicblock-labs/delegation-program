@@ -28,6 +28,15 @@ function keypairFromFile(path) {
   );
 }
 
+async function confirmOrThrow(connection, signature, label) {
+  const result = await connection.confirmTransaction(signature, "confirmed");
+  if (result.value.err) {
+    throw new Error(
+      `${label} failed on-chain (signature ${signature}): ${JSON.stringify(result.value.err)}`,
+    );
+  }
+}
+
 const connection = new Connection(env("MAINNET_RPC_URL"), "confirmed");
 const proposer = keypairFromFile(env("PROPOSER_KEYPAIR_PATH"));
 const multisigPda = new PublicKey(env("SQUADS_MULTISIG_PDA"));
@@ -81,7 +90,7 @@ const vaultTransactionSignature = await multisig.rpc.vaultTransactionCreate({
   transactionMessage,
   memo: proposalName,
 });
-await connection.confirmTransaction(vaultTransactionSignature, "confirmed");
+await confirmOrThrow(connection, vaultTransactionSignature, "vaultTransactionCreate");
 
 const proposalSignature = await multisig.rpc.proposalCreate({
   connection,
@@ -90,7 +99,7 @@ const proposalSignature = await multisig.rpc.proposalCreate({
   transactionIndex,
   creator: proposer,
 });
-await connection.confirmTransaction(proposalSignature, "confirmed");
+await confirmOrThrow(connection, proposalSignature, "proposalCreate");
 
 fs.appendFileSync(
   env("GITHUB_ENV"),
