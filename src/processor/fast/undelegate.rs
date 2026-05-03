@@ -377,7 +377,11 @@ fn process_delegation_cleanup(
     let commit_fee = COMMIT_FEE_LAMPORTS
         .checked_mul(commit_count)
         .ok_or(DlpError::Overflow)?;
-    let total_fee_requested = commit_fee + SESSION_FEE_LAMPORTS;
+    // Guard against overflow when adding the fixed session fee on top of the
+    // per-commit fee, which can be large for long-lived delegations.
+    let total_fee_requested = commit_fee
+        .checked_add(SESSION_FEE_LAMPORTS)
+        .ok_or(DlpError::Overflow)?;
     let total_lamports = delegation_record_account.lamports()
         + delegation_metadata_account.lamports();
     let mut fee_remaining = total_fee_requested.min(total_lamports);
