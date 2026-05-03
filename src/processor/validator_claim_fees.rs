@@ -2,6 +2,7 @@ use borsh::BorshDeserialize;
 use solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, msg,
     program_error::ProgramError, pubkey::Pubkey, rent::Rent,
+    sysvar::Sysvar,
 };
 
 use crate::{
@@ -49,18 +50,26 @@ pub fn process_validator_claim_fees(
         true,
     )?;
 
-    // Calculate the amount to transfer
-    let min_rent = Rent::default().minimum_balance(8);
-    let amount = args
-        .amount
-        .unwrap_or(validator_fees_vault.lamports() - min_rent);
+    // Use the on-chain Rent sysvar (not `Rent::default()`) and the actual
+    // account data length so the minimum-balance threshold is always accurate.
+    let min_rent =
+        Rent::get()?.minimum_balance(validator_fees_vault.data_len());
+
+    // Guard against underflow: if the vault somehow holds fewer lamports than
+    // the rent-exempt minimum, return an error instead of wrapping around.
+    let available = validator_fees_vault
+        .lamports()
+        .checked_sub(min_rent)
+        .ok_or(ProgramError::InsufficientFunds)?;
+
+    let amount = args.amount.unwrap_or(available);
 
     // Ensure vault has enough lamports
-    if validator_fees_vault.lamports() - min_rent < amount {
+    if available < amount {
         msg!(
             "Vault ({}) has insufficient funds: {} < {}",
             validator_fees_vault.key,
-            validator_fees_vault.lamports() - min_rent,
+            available,
             amount
         );
         return Err(ProgramError::InsufficientFunds);
