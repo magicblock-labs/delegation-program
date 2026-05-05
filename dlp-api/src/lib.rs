@@ -21,8 +21,8 @@ pub mod state;
 
 pub use account_size_class::*;
 
-//#[cfg(feature = "cpi")]
-//pub mod cpi;
+#[cfg(feature = "cpi")]
+pub mod cpi;
 
 //#[cfg(feature = "instruction")]
 //pub mod instruction_builder;

@@ -1,4 +1,6 @@
-use borsh_0_10::to_vec;
+use crate::compat::{borsh, Modernize, Pubkey};
+
+use borsh::to_vec;
 use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs, PostDelegationActions},
     discriminator::DlpDiscriminator,
@@ -8,10 +10,7 @@ use dlp::{
         delegation_record_pda_from_delegated_account,
     },
 };
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-};
+use solana_program::instruction::{AccountMeta, Instruction};
 use solana_sdk_ids::system_program;
 
 pub fn delegate_with_actions(
@@ -35,7 +34,10 @@ pub fn delegate_with_actions(
         program_id: dlp::id(),
 
         accounts: {
-            let owner = owner.unwrap_or(system_program::id());
+            let delegated_account = delegated_account.modernize();
+            let owner = owner
+                .map(|pk| pk.modernize())
+                .unwrap_or(system_program::id());
             let delegate_buffer_pda =
                 delegate_buffer_pda_from_delegated_account_and_owner_program(
                     &delegated_account,
@@ -52,7 +54,7 @@ pub fn delegate_with_actions(
 
             [
                 vec![
-                    AccountMeta::new(payer, true),
+                    AccountMeta::new(payer.modernize(), true),
                     AccountMeta::new(delegated_account, true),
                     AccountMeta::new_readonly(owner, false),
                     AccountMeta::new(delegate_buffer_pda, false),
