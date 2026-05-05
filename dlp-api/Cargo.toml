@@ -25,7 +25,8 @@ instruction = []
 default = ["encryption", "diff", "cpi", "instruction"]
 
 [dependencies]
-borsh-0-10 = { package = "borsh", version = "0.10.4" }
+borsh-compat = { package = "borsh", version = "0.10.4" }
+borsh-current = { package = "borsh", version = "1.5" }
 bincode = { version = "^1.3" }
 bytemuck = { version = ">=1", features = ["derive"] }
 const-crypto = "0.3.0"
@@ -48,6 +49,8 @@ static_assertions = "1.1.0"
 strum = { version = ">=0.27", features = ["derive"] }
 thiserror = { version = ">=1" }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+
+solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = ["borsh"] } 
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["small_rng"] }

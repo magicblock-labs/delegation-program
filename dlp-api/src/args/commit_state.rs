@@ -1,7 +1,7 @@
 use crate::compat::borsh;
 use std::mem::size_of;
 
-use borsh_0_10::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
 
 use crate::args::{ArgsWithBuffer, Boolean};

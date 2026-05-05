@@ -1,6 +1,10 @@
-use borsh_0_10::{
+use crate::compat::borsh;
+
+use borsh::{
+    // TODO (snawaz): we might need to use maybestd condtionalluy
     maybestd::io::{Error, Read, Write},
-    BorshDeserialize, BorshSerialize,
+    BorshDeserialize,
+    BorshSerialize,
 };
 use serde::{Deserialize, Serialize};
 

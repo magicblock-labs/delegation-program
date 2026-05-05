@@ -1,9 +1,8 @@
-use borsh_0_10::{BorshDeserialize, BorshSerialize};
+use crate::compat::{borsh, Pubkey};
 
-use crate::solana_program::pubkey::Pubkey;
+use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
-#[borsh(crate = "borsh_0_10")]
 pub struct DelegateArgs {
     /// The frequency at which the validator should commit the account data
     /// if no commit is triggered by the owning program

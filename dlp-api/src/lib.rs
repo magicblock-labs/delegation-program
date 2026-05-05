@@ -6,7 +6,7 @@ pub mod compat;
 
 // pub mod account_size_class;
 pub mod args;
-//pub mod compact;
+pub mod compact;
 pub mod consts;
 
 //#[cfg(feature = "diff")]
