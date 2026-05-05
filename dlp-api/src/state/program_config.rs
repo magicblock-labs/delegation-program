@@ -1,6 +1,6 @@
 use std::collections::BTreeSet;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh_0_10::{BorshDeserialize, BorshSerialize};
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{
@@ -10,6 +10,7 @@ use crate::{
 };
 
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
+#[borsh(crate = "borsh_0_10")]
 pub struct ProgramConfig {
     pub approved_validators: BTreeSet<Pubkey>,
 }

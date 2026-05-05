@@ -1,4 +1,4 @@
-use borsh::to_vec;
+use borsh_0_10::to_vec;
 use dlp::{
     args::CommitDiffArgs,
     discriminator::DlpDiscriminator,

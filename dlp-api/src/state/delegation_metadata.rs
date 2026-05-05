@@ -1,6 +1,6 @@
 use std::ptr;
 
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh_0_10::{BorshDeserialize, BorshSerialize};
 use pinocchio::{account::RefMut, error::ProgramError, AccountView};
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
@@ -14,6 +14,7 @@ use crate::{
 /// and other meta information about the delegated account.
 /// * Everything necessary at cloning time is instead stored in the delegation record.
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
+#[borsh(crate = "borsh_0_10")]
 pub struct DelegationMetadata {
     /// The last nonce account had during delegation update
     /// Deprecated: The last slot at which the delegation was updated
@@ -118,7 +119,7 @@ impl_try_from_bytes_with_discriminator_borsh!(DelegationMetadata);
 
 #[cfg(test)]
 mod tests {
-    use borsh::to_vec;
+    use borsh_0_10::to_vec;
 
     use super::*;
 

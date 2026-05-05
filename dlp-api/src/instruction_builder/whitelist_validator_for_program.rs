@@ -1,4 +1,4 @@
-use borsh::to_vec;
+use borsh_0_10::to_vec;
 use dlp::{
     args::WhitelistValidatorForProgramArgs, consts::DELEGATION_PROGRAM_DATA_ID,
     discriminator::DlpDiscriminator, pda::program_config_from_program_id,

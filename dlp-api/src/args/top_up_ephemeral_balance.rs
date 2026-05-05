@@ -1,6 +1,7 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh_0_10::{BorshDeserialize, BorshSerialize};
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "borsh_0_10")]
 pub struct TopUpEphemeralBalanceArgs {
     /// The amount to add to the ephemeral balance.
     pub amount: u64,

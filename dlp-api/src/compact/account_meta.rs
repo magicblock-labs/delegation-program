@@ -1,4 +1,4 @@
-use borsh::{
+use borsh_0_10::{
     maybestd::io::{Error, Read, Write},
     BorshDeserialize, BorshSerialize,
 };

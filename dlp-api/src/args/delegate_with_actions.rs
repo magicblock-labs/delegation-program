@@ -1,4 +1,4 @@
-use borsh::{BorshDeserialize, BorshSerialize};
+use borsh_0_10::{BorshDeserialize, BorshSerialize};
 use pinocchio::error::ProgramError;
 
 use super::DelegateArgs;
@@ -8,6 +8,7 @@ use crate::{
 };
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "borsh_0_10")]
 pub struct DelegateWithActionsArgs {
     /// Standard delegation parameters.
     pub delegate: DelegateArgs,
@@ -82,6 +83,7 @@ impl DelegateWithActionsArgs {
 /// ---------------------------------------------------------------------------
 ///
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "borsh_0_10")]
 pub struct PostDelegationActions {
     pub inserted_signers: u8,
 
@@ -158,6 +160,7 @@ impl PostDelegationActions {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "borsh_0_10")]
 pub struct MaybeEncryptedInstruction {
     pub program_id: u8,
 
@@ -168,6 +171,7 @@ pub struct MaybeEncryptedInstruction {
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
 #[cfg_attr(test, derive(PartialEq))]
+#[borsh(crate = "borsh_0_10")]
 pub enum MaybeEncryptedPubkey {
     ClearText([u8; 32]),
     Encrypted(EncryptedBuffer),
@@ -186,6 +190,7 @@ impl From<Vec<u8>> for MaybeEncryptedPubkey {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "borsh_0_10")]
 pub enum MaybeEncryptedAccountMeta {
     ClearText(compact::AccountMeta),
     Encrypted(EncryptedBuffer),
@@ -204,6 +209,7 @@ impl From<Vec<u8>> for MaybeEncryptedAccountMeta {
 }
 
 #[derive(Clone, Debug, BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "borsh_0_10")]
 pub struct MaybeEncryptedIxData {
     pub prefix: Vec<u8>,
     pub suffix: EncryptedBuffer,
@@ -211,6 +217,7 @@ pub struct MaybeEncryptedIxData {
 
 #[derive(Clone, Debug, Default, BorshSerialize, BorshDeserialize)]
 #[cfg_attr(test, derive(PartialEq))]
+#[borsh(crate = "borsh_0_10")]
 pub struct EncryptedBuffer(Vec<u8>);
 
 impl EncryptedBuffer {
