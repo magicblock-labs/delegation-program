@@ -24,14 +24,14 @@ pub use account_size_class::*;
 #[cfg(feature = "cpi")]
 pub mod cpi;
 
-//#[cfg(feature = "instruction")]
-//pub mod instruction_builder;
+#[cfg(feature = "instruction")]
+pub mod instruction_builder;
 
 #[cfg(feature = "encryption")]
 pub mod decrypt;
 
-//#[cfg(feature = "encryption")]
-//pub mod encrypt;
+#[cfg(feature = "encryption")]
+pub mod encrypt;
 
 #[cfg(feature = "encryption")]
 pub mod encryption;

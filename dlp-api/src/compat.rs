@@ -21,4 +21,8 @@ impl Modernize for backward_compat::Pubkey {
     }
 }
 
+#[cfg(feature = "backward-compat")]
 pub use backward_compat::*;
+
+#[cfg(not(feature = "backward-compat"))]
+pub use latest::*;

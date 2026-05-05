@@ -1,4 +1,4 @@
-use borsh_0_10::to_vec;
+use crate::compat::borsh::to_vec;
 use dlp::{
     args::TopUpEphemeralBalanceArgs, discriminator::DlpDiscriminator,
     pda::ephemeral_balance_pda_from_payer,

@@ -20,7 +20,7 @@ diff = []
 unit_test_config = []
 cpi = []
 instruction = []
-
+backward-compat = []
 # Default to offchain-friendly build
 default = ["encryption", "diff", "cpi", "instruction"]
 

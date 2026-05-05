@@ -1,4 +1,4 @@
-use borsh_0_10::to_vec;
+use crate::compat::{borsh::to_vec, Modernize};
 use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     discriminator::DlpDiscriminator,
@@ -26,7 +26,8 @@ pub fn delegate_with_actions(
 ) -> Instruction {
     let encrypt_key = delegate
         .validator
-        .expect("validator must be provided for encryption");
+        .expect("validator must be provided for encryption")
+        .modernize();
     let (actions, signers) = actions
         .encrypt(&encrypt_key)
         .expect("post-delegation actions encryption failed");

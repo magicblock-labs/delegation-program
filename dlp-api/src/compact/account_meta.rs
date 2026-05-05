@@ -1,11 +1,10 @@
 use crate::compat::borsh;
 
-use borsh::{
-    // TODO (snawaz): we might need to use maybestd condtionalluy
-    maybestd::io::{Error, Read, Write},
-    BorshDeserialize,
-    BorshSerialize,
-};
+use borsh::{BorshDeserialize, BorshSerialize};
+
+#[cfg(feature = "backward-compat")]
+use borsh::maybestd::io::{Error, Read, Write};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{args::MaybeEncryptedAccountMeta, compact::ClearText};
