@@ -1,16 +1,16 @@
+use crate::compat::{borsh, Pubkey};
+
 use std::collections::BTreeSet;
 
-use borsh_0_10::{BorshDeserialize, BorshSerialize};
+use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{
     impl_to_bytes_with_discriminator_borsh,
     impl_try_from_bytes_with_discriminator_borsh,
-    solana_program::pubkey::Pubkey,
 };
 
 #[derive(BorshSerialize, BorshDeserialize, Default, Debug)]
-#[borsh(crate = "borsh_0_10")]
 pub struct ProgramConfig {
     pub approved_validators: BTreeSet<Pubkey>,
 }

@@ -17,7 +17,7 @@ pub mod error;
 pub mod pda;
 pub mod pod_view;
 pub mod requires;
-//pub mod state;
+pub mod state;
 
 pub use account_size_class::*;
 

@@ -50,7 +50,7 @@ strum = { version = ">=0.27", features = ["derive"] }
 thiserror = { version = ">=1" }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 
-solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = ["borsh"] } 
+solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = ["borsh", "bytemuck"] } 
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["small_rng"] }

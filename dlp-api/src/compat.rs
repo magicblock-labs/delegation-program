@@ -4,9 +4,9 @@ mod backward_compat {
     pub use solana_pubkey_compat::Pubkey;
 }
 
-mod current {
-    pub use crate::solana_program::pubkey::Pubkey;
+mod latest {
     pub use borsh_current as borsh;
+    pub use solana_program::pubkey::Pubkey;
 }
 
 pub use backward_compat::*;
