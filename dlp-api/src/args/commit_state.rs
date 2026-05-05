@@ -1,3 +1,4 @@
+use crate::compat::borsh;
 use std::mem::size_of;
 
 use borsh_0_10::{BorshDeserialize, BorshSerialize};
@@ -39,7 +40,6 @@ pub type CommitFinalizeArgsWithBuffer<'a> =
     ArgsWithBuffer<'a, CommitFinalizeArgs>;
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
-#[borsh(crate = "borsh_0_10")]
 pub struct CommitStateArgs {
     /// "Nonce" of an account. Updates are submitted historically and nonce incremented by 1
     /// Deprecated: The ephemeral slot at which the account data is committed
@@ -53,7 +53,6 @@ pub struct CommitStateArgs {
 }
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
-#[borsh(crate = "borsh_0_10")]
 pub struct CommitStateFromBufferArgs {
     /// "Nonce" of an account. Updates are submitted historically and nonce incremented by 1
     /// Deprecated: The ephemeral slot at which the account data is committed
@@ -65,7 +64,6 @@ pub struct CommitStateFromBufferArgs {
 }
 
 #[derive(Default, Debug, BorshSerialize)]
-#[borsh(crate = "borsh_0_10")]
 pub struct CommitDiffArgs {
     /// The account diff
     /// SAFETY: this must be the FIRST field in the struct because the serialized format
@@ -86,7 +84,6 @@ pub struct CommitDiffArgs {
 }
 
 #[derive(Default, Debug, BorshDeserialize)]
-#[borsh(crate = "borsh_0_10")]
 pub struct CommitDiffArgsWithoutDiff {
     /// "Nonce" of an account. Updates are submitted historically and nonce incremented by 1
     /// Deprecated: The ephemeral slot at which the account data is committed
