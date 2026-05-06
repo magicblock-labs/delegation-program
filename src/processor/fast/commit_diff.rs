@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use dlp_api::compat::borsh::BorshDeserialize;
 use pinocchio::{error::ProgramError, AccountView, Address, ProgramResult};
 use pinocchio_log::log;
 

@@ -1,3 +1,5 @@
+use dlp_api::compat::borsh;
+
 use pinocchio::{
     address::{address_eq, Address},
     cpi::{invoke_signed, Signer},

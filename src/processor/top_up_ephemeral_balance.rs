@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use dlp_api::compat::borsh::BorshDeserialize;
 use solana_sdk_ids::system_program;
 use solana_system_interface::instruction::transfer;
 

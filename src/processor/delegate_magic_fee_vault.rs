@@ -1,3 +1,4 @@
+use dlp_api::compat::borsh::{self};
 use solana_sdk_ids::system_program;
 
 use crate::{

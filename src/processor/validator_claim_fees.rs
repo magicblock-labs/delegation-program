@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use dlp_api::compat::borsh::BorshDeserialize;
 
 use crate::{
     args::ValidatorClaimFeesArgs,

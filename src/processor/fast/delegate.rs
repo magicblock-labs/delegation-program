@@ -1,4 +1,4 @@
-use borsh::BorshDeserialize;
+use dlp_api::compat::borsh::BorshDeserialize;
 use pinocchio::{
     address::address_eq,
     cpi::{Seed, Signer},
