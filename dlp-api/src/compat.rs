@@ -9,7 +9,13 @@ pub mod latest {
     pub use solana_program::pubkey::Pubkey;
 }
 
-pub trait Modernize {
+#[cfg(feature = "backward-compat")]
+pub use backward_compat::*;
+
+#[cfg(not(feature = "backward-compat"))]
+pub use latest::*;
+
+pub(crate) trait Modernize {
     type Modern;
     fn modernize(self) -> Self::Modern;
 }
@@ -27,9 +33,3 @@ impl Modernize for latest::Pubkey {
         self
     }
 }
-
-#[cfg(feature = "backward-compat")]
-pub use backward_compat::*;
-
-#[cfg(not(feature = "backward-compat"))]
-pub use latest::*;

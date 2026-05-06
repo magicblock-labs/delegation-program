@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 
-use borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use dlp::solana_program;
+use dlp_api::compat::borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use dlp_api::{
     args::CallHandlerArgs,
     ephemeral_balance_seeds_from_payer,
@@ -41,6 +41,7 @@ const UNDELEGATE_HANDLER_DISCRIMINATOR: [u8; 4] = [1, 0, 2, 0];
 
 // Mimic counter from test_delegation program
 #[derive(BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "dlp_api::compat::borsh")] // supported in borsh 1.0
 pub struct Counter {
     pub count: u64,
 }
