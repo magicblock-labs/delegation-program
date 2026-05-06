@@ -5,6 +5,9 @@ use borsh::{BorshDeserialize, BorshSerialize};
 #[cfg(feature = "backward-compat")]
 use borsh::maybestd::io::{Error, Read, Write};
 
+#[cfg(not(feature = "backward-compat"))]
+use borsh::io::{Error, Read, Write};
+
 use serde::{Deserialize, Serialize};
 
 use crate::{args::MaybeEncryptedAccountMeta, compact::ClearText};

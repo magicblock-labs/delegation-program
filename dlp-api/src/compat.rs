@@ -21,6 +21,13 @@ impl Modernize for backward_compat::Pubkey {
     }
 }
 
+impl Modernize for latest::Pubkey {
+    type Modern = latest::Pubkey;
+    fn modernize(self) -> latest::Pubkey {
+        self
+    }
+}
+
 #[cfg(feature = "backward-compat")]
 pub use backward_compat::*;
 
