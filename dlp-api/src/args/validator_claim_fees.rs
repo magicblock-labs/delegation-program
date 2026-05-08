@@ -1,6 +1,6 @@
-use crate::compat::borsh;
-
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use crate::compat::borsh;
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct ValidatorClaimFeesArgs {

@@ -1,9 +1,9 @@
 #![allow(deprecated)]
 
 use dlp::solana_program;
-use dlp_api::compat::borsh::{to_vec, BorshDeserialize, BorshSerialize};
 use dlp_api::{
     args::CallHandlerArgs,
+    compat::borsh::{to_vec, BorshDeserialize, BorshSerialize},
     ephemeral_balance_seeds_from_payer,
     pda::{
         commit_record_pda_from_delegated_account,

@@ -1,8 +1,6 @@
-use crate::compat::borsh;
-
 use borsh::{BorshDeserialize, BorshSerialize};
 
-use crate::args::DelegateArgs;
+use crate::{args::DelegateArgs, compat::borsh};
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateEphemeralBalanceArgs {

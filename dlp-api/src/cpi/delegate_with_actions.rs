@@ -1,5 +1,3 @@
-use crate::compat::{borsh, Modernize, Pubkey};
-
 use borsh::to_vec;
 use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs, PostDelegationActions},
@@ -12,6 +10,8 @@ use dlp::{
 };
 use solana_program::instruction::{AccountMeta, Instruction};
 use solana_sdk_ids::system_program;
+
+use crate::compat::{borsh, Modernize, Pubkey};
 
 pub fn delegate_with_actions(
     payer: Pubkey,

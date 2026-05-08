@@ -1,8 +1,8 @@
 use dlp::solana_program;
-use dlp_api::compat::borsh::BorshDeserialize;
 use dlp_api::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     compact,
+    compat::borsh::BorshDeserialize,
     instruction_builder::{
         delegate_with_actions, Encryptable, EncryptableFrom,
         PostDelegationInstruction,

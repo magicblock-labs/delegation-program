@@ -1,4 +1,3 @@
-use crate::compat::borsh::to_vec;
 use dlp::{
     args::DelegateArgs,
     discriminator::DlpDiscriminator,
@@ -14,6 +13,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_sdk_ids::system_program;
+
+use crate::compat::borsh::to_vec;
 
 /// Builds a delegate instruction
 /// See [dlp::processor::process_delegate] for docs.

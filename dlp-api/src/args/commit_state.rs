@@ -1,10 +1,12 @@
-use crate::compat::borsh;
 use std::mem::size_of;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 use bytemuck::{Pod, Zeroable};
 
-use crate::args::{ArgsWithBuffer, Boolean};
+use crate::{
+    args::{ArgsWithBuffer, Boolean},
+    compat::borsh,
+};
 
 /// bumps of the PDA accounts to be validated by ix
 #[repr(C)]

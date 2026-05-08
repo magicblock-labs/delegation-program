@@ -1,4 +1,3 @@
-use crate::compat::borsh::to_vec;
 use dlp::{
     args::CallHandlerArgs,
     discriminator::DlpDiscriminator,
@@ -12,6 +11,8 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
+
+use crate::compat::borsh::to_vec;
 
 /// Builds a call handler instruction.
 /// See [dlp::processor::call_handler] for docs.

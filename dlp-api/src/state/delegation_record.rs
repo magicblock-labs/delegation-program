@@ -1,12 +1,10 @@
-use crate::compat::Pubkey;
-
 use std::mem::size_of;
 
 use bytemuck::{Pod, Zeroable};
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{
-    impl_to_bytes_with_discriminator_zero_copy,
+    compat::Pubkey, impl_to_bytes_with_discriminator_zero_copy,
     impl_try_from_bytes_with_discriminator_zero_copy,
 };
 

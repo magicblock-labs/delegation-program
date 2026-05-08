@@ -1,11 +1,10 @@
-use crate::compat::{borsh, Pubkey};
-
 use std::collections::BTreeSet;
 
 use borsh::{BorshDeserialize, BorshSerialize};
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{
+    compat::{borsh, Pubkey},
     impl_to_bytes_with_discriminator_borsh,
     impl_try_from_bytes_with_discriminator_borsh,
 };

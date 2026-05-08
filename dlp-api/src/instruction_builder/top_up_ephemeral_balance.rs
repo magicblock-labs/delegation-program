@@ -1,4 +1,3 @@
-use crate::compat::borsh::to_vec;
 use dlp::{
     args::TopUpEphemeralBalanceArgs, discriminator::DlpDiscriminator,
     pda::ephemeral_balance_pda_from_payer,
@@ -8,6 +7,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_sdk_ids::system_program;
+
+use crate::compat::borsh::to_vec;
 
 /// Builds a top-up ephemeral balance instruction.
 /// See [dlp::processor::process_top_up_ephemeral_balance] for docs.

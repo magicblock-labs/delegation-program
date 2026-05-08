@@ -1,6 +1,8 @@
+#![allow(unused_imports)]
+#![allow(dead_code)]
+
 mod backward_compat {
     pub use borsh_compat as borsh;
-
     pub use solana_pubkey_compat::Pubkey;
 }
 
@@ -11,7 +13,6 @@ pub mod latest {
 
 #[cfg(feature = "backward-compat")]
 pub use backward_compat::*;
-
 #[cfg(not(feature = "backward-compat"))]
 pub use latest::*;
 

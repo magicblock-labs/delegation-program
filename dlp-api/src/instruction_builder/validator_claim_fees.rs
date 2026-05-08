@@ -1,4 +1,3 @@
-use crate::compat::borsh::to_vec;
 use dlp::{
     args::ValidatorClaimFeesArgs,
     discriminator::DlpDiscriminator,
@@ -8,6 +7,8 @@ use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
 };
+
+use crate::compat::borsh::to_vec;
 
 /// Claim the accrued fees from the fees vault.
 /// See [dlp::processor::process_validator_claim_fees] for docs.

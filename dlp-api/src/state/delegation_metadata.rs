@@ -1,5 +1,3 @@
-use crate::compat::{borsh, Pubkey};
-
 use std::ptr;
 
 use borsh::{BorshDeserialize, BorshSerialize};
@@ -7,6 +5,7 @@ use pinocchio::{account::RefMut, error::ProgramError, AccountView};
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
 use crate::{
+    compat::{borsh, Pubkey},
     impl_to_bytes_with_discriminator_borsh,
     impl_try_from_bytes_with_discriminator_borsh, require_ge,
 };
@@ -119,9 +118,8 @@ impl_try_from_bytes_with_discriminator_borsh!(DelegationMetadata);
 
 #[cfg(test)]
 mod tests {
-    use crate::compat::borsh::to_vec;
-
     use super::*;
+    use crate::compat::borsh::to_vec;
 
     #[test]
     fn test_serialization_without_discriminator() {

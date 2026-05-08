@@ -1,4 +1,3 @@
-use crate::compat::{borsh::to_vec, Modernize};
 use dlp::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     discriminator::DlpDiscriminator,
@@ -15,6 +14,7 @@ use solana_program::{
 use solana_sdk_ids::system_program;
 
 use super::types::{Encrypt, PostDelegationInstruction};
+use crate::compat::{borsh::to_vec, Modernize};
 
 /// See [dlp::processor::process_delegate_with_actions] for docs.
 pub fn delegate_with_actions(

@@ -1,6 +1,6 @@
-use crate::compat::{borsh, Pubkey};
-
 use borsh::{BorshDeserialize, BorshSerialize};
+
+use crate::compat::{borsh, Pubkey};
 
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct DelegateArgs {

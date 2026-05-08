@@ -1,4 +1,3 @@
-use crate::compat::borsh::to_vec;
 use dlp::{
     args::WhitelistValidatorForProgramArgs, consts::DELEGATION_PROGRAM_DATA_ID,
     discriminator::DlpDiscriminator, pda::program_config_from_program_id,
@@ -8,6 +7,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_sdk_ids::{bpf_loader_upgradeable, system_program};
+
+use crate::compat::borsh::to_vec;
 
 /// Whitelist validator for program
 ///

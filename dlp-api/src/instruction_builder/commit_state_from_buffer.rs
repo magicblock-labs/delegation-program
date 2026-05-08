@@ -1,4 +1,3 @@
-use crate::compat::borsh::to_vec;
 use dlp::{
     args::CommitStateFromBufferArgs,
     discriminator::DlpDiscriminator,
@@ -17,6 +16,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_sdk_ids::system_program;
+
+use crate::compat::borsh::to_vec;
 
 /// Builds a commit state from buffer instruction.
 /// See [dlp::processor::process_commit_state_from_buffer] for docs.
