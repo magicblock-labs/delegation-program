@@ -12,7 +12,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::compat::borsh::to_vec;
+use crate::compat::{borsh::to_vec, Compatize, Modernize};
 
 /// Builds a call handler instruction.
 /// See [dlp::processor::call_handler] for docs.
@@ -24,12 +24,17 @@ pub fn call_handler(
     other_accounts: Vec<AccountMeta>,
     args: CallHandlerArgs,
 ) -> Instruction {
+    let validator_compat = validator.compatize();
     let validator_fees_vault_pda =
-        validator_fees_vault_pda_from_validator(&validator);
+        validator_fees_vault_pda_from_validator(&validator_compat).modernize();
 
     // handler accounts
-    let escrow_account =
-        ephemeral_balance_pda_from_payer(&escrow_authority, args.escrow_index);
+    let escrow_authority_compat = escrow_authority.compatize();
+    let escrow_account = ephemeral_balance_pda_from_payer(
+        &escrow_authority_compat,
+        args.escrow_index,
+    )
+    .modernize();
     let mut accounts = vec![
         AccountMeta::new(validator, true),
         AccountMeta::new(validator_fees_vault_pda, false),
@@ -41,7 +46,7 @@ pub fn call_handler(
     accounts.extend(other_accounts);
 
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts,
         data: [
             DlpDiscriminator::CallHandler.to_vec(),

@@ -8,7 +8,7 @@ use solana_program::{
 };
 use solana_sdk_ids::{bpf_loader_upgradeable, system_program};
 
-use crate::compat::borsh::to_vec;
+use crate::compat::{borsh::to_vec, Compatize, Modernize};
 
 /// Whitelist validator for program
 ///
@@ -26,9 +26,11 @@ pub fn whitelist_validator_for_program(
     )
     .0;
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
-    let program_config_pda = program_config_from_program_id(&program);
+    let program_compat = program.compatize();
+    let program_config_pda =
+        program_config_from_program_id(&program_compat).modernize();
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(authority, true),
             AccountMeta::new_readonly(validator_identity, false),

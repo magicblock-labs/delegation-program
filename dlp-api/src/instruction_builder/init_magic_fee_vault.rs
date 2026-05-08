@@ -11,18 +11,23 @@ use solana_program::{
 };
 use solana_sdk_ids::system_program;
 
+use crate::compat::{Compatize, Modernize};
+
 /// Initialize a magic fee vault PDA for a validator.
 /// See [crate::processor::process_init_magic_fee_vault] for docs.
 pub fn init_magic_fee_vault(
     payer: Pubkey,
     validator_identity: Pubkey,
 ) -> Instruction {
+    let validator_identity_compat = validator_identity.compatize();
     let validator_fees_vault =
-        validator_fees_vault_pda_from_validator(&validator_identity);
+        validator_fees_vault_pda_from_validator(&validator_identity_compat)
+            .modernize();
     let magic_fee_vault =
-        magic_fee_vault_pda_from_validator(&validator_identity);
+        magic_fee_vault_pda_from_validator(&validator_identity_compat)
+            .modernize();
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new_readonly(validator_identity, true),

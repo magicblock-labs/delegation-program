@@ -1,6 +1,5 @@
 extern crate self as dlp;
 pub use ::solana_program;
-use solana_program::declare_id;
 
 pub mod compat;
 
@@ -39,7 +38,7 @@ pub mod encryption;
 #[cfg(feature = "encryption")]
 pub use decrypt::*;
 
-declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
+compat::declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
 
 pub mod fast {
     pinocchio::address::declare_id!(

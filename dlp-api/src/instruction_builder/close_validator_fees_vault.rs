@@ -7,6 +7,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+use crate::compat::{Compatize, Modernize};
+
 /// Close a validator fees vault PDA.
 /// See [dlp::processor::process_close_validator_fees_vault] for docs.
 pub fn close_validator_fees_vault(
@@ -14,11 +16,13 @@ pub fn close_validator_fees_vault(
     admin: Pubkey,
     validator_identity: Pubkey,
 ) -> Instruction {
+    let validator_identity_compat = validator_identity.compatize();
     let validator_fees_vault_pda =
-        validator_fees_vault_pda_from_validator(&validator_identity);
+        validator_fees_vault_pda_from_validator(&validator_identity_compat)
+            .modernize();
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(admin, true),

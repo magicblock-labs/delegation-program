@@ -14,7 +14,7 @@ use solana_program::{
 use solana_sdk_ids::system_program;
 
 use super::types::{Encrypt, PostDelegationInstruction};
-use crate::compat::{borsh::to_vec, Modernize};
+use crate::compat::{borsh::to_vec, Compatize, Modernize};
 
 /// See [dlp::processor::process_delegate_with_actions] for docs.
 pub fn delegate_with_actions(
@@ -33,21 +33,23 @@ pub fn delegate_with_actions(
         .expect("post-delegation actions encryption failed");
 
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: {
             let owner = owner.unwrap_or(system_program::id());
+            let delegated_account_compat = delegated_account.compatize();
+            let owner_compat = owner.compatize();
             let delegate_buffer_pda =
                 delegate_buffer_pda_from_delegated_account_and_owner_program(
-                    &delegated_account,
-                    &owner,
+                    &delegated_account_compat,
+                    &owner_compat,
                 );
             let delegation_record_pda =
                 delegation_record_pda_from_delegated_account(
-                    &delegated_account,
+                    &delegated_account_compat,
                 );
             let delegation_metadata_pda =
                 delegation_metadata_pda_from_delegated_account(
-                    &delegated_account,
+                    &delegated_account_compat,
                 );
 
             [
@@ -55,9 +57,12 @@ pub fn delegate_with_actions(
                     AccountMeta::new(payer, true),
                     AccountMeta::new(delegated_account, true),
                     AccountMeta::new_readonly(owner, false),
-                    AccountMeta::new(delegate_buffer_pda, false),
-                    AccountMeta::new(delegation_record_pda, false),
-                    AccountMeta::new(delegation_metadata_pda, false),
+                    AccountMeta::new(delegate_buffer_pda.modernize(), false),
+                    AccountMeta::new(delegation_record_pda.modernize(), false),
+                    AccountMeta::new(
+                        delegation_metadata_pda.modernize(),
+                        false,
+                    ),
                     AccountMeta::new_readonly(system_program::id(), false),
                 ],
                 signers,

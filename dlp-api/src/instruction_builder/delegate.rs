@@ -14,7 +14,7 @@ use solana_program::{
 };
 use solana_sdk_ids::system_program;
 
-use crate::compat::borsh::to_vec;
+use crate::compat::{borsh::to_vec, Compatize, Modernize};
 
 /// Builds a delegate instruction
 /// See [dlp::processor::process_delegate] for docs.
@@ -58,27 +58,31 @@ fn build_delegate_instruction(
     args: DelegateArgs,
 ) -> Instruction {
     let owner = owner.unwrap_or(system_program::id());
+    let delegated_account_compat = delegated_account.compatize();
+    let owner_compat = owner.compatize();
     let delegate_buffer_pda =
         delegate_buffer_pda_from_delegated_account_and_owner_program(
-            &delegated_account,
-            &owner,
+            &delegated_account_compat,
+            &owner_compat,
         );
     let delegation_record_pda =
-        delegation_record_pda_from_delegated_account(&delegated_account);
+        delegation_record_pda_from_delegated_account(&delegated_account_compat);
     let delegation_metadata_pda =
-        delegation_metadata_pda_from_delegated_account(&delegated_account);
+        delegation_metadata_pda_from_delegated_account(
+            &delegated_account_compat,
+        );
     let mut data = discriminator.to_vec();
     data.extend_from_slice(&to_vec(&args).unwrap());
 
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(delegated_account, true),
             AccountMeta::new_readonly(owner, false),
-            AccountMeta::new(delegate_buffer_pda, false),
-            AccountMeta::new(delegation_record_pda, false),
-            AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new(delegate_buffer_pda.modernize(), false),
+            AccountMeta::new(delegation_record_pda.modernize(), false),
+            AccountMeta::new(delegation_metadata_pda.modernize(), false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data,

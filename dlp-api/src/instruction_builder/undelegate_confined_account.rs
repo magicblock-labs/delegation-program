@@ -13,6 +13,8 @@ use solana_program::{
 };
 use solana_sdk_ids::system_program;
 
+use crate::compat::{Compatize, Modernize};
+
 /// Builds an admin-only undelegate instruction for confined accounts.
 /// See [dlp::processor::process_undelegate_confined_account] for docs.
 pub fn undelegate_confined_account(
@@ -20,16 +22,22 @@ pub fn undelegate_confined_account(
     delegated_account: Pubkey,
     owner_program: Pubkey,
 ) -> Instruction {
+    let delegated_account_compat = delegated_account.compatize();
     let undelegate_buffer_pda =
-        undelegate_buffer_pda_from_delegated_account(&delegated_account);
+        undelegate_buffer_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
     let delegation_record_pda =
-        delegation_record_pda_from_delegated_account(&delegated_account);
+        delegation_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
     let delegation_metadata_pda =
-        delegation_metadata_pda_from_delegated_account(&delegated_account);
+        delegation_metadata_pda_from_delegated_account(
+            &delegated_account_compat,
+        )
+        .modernize();
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
 
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(admin, true),
             AccountMeta::new(delegated_account, false),
