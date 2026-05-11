@@ -1,4 +1,3 @@
-use borsh::to_vec;
 use dlp::{
     args::ValidatorClaimFeesArgs,
     discriminator::DlpDiscriminator,
@@ -9,6 +8,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+use crate::compat::{borsh::to_vec, Compatize, Modernize};
+
 /// Claim the accrued fees from the fees vault.
 /// See [dlp::processor::process_validator_claim_fees] for docs.
 pub fn validator_claim_fees(
@@ -16,11 +17,12 @@ pub fn validator_claim_fees(
     amount: Option<u64>,
 ) -> Instruction {
     let args = ValidatorClaimFeesArgs { amount };
-    let fees_vault_pda = fees_vault_pda();
+    let validator_compat = validator.compatize();
+    let fees_vault_pda = fees_vault_pda().modernize();
     let validator_fees_vault_pda =
-        validator_fees_vault_pda_from_validator(&validator);
+        validator_fees_vault_pda_from_validator(&validator_compat).modernize();
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(validator, true),
             AccountMeta::new(fees_vault_pda, false),

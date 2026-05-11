@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
@@ -8,7 +9,6 @@ use dlp_api::{
 };
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
-    system_program,
 };
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -17,6 +17,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID,

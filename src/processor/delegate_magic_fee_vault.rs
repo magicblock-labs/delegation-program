@@ -1,13 +1,5 @@
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    instruction::{AccountMeta, Instruction},
-    msg,
-    program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    system_program,
-};
+use dlp_api::compat::borsh::{self};
+use solana_sdk_ids::system_program;
 
 use crate::{
     args::DelegateArgs,
@@ -17,6 +9,15 @@ use crate::{
     processor::utils::loaders::{
         load_initialized_pda, load_initialized_validator_fees_vault,
         load_program, load_signer,
+    },
+    solana_program::{
+        account_info::AccountInfo,
+        entrypoint::ProgramResult,
+        instruction::{AccountMeta, Instruction},
+        msg,
+        program::invoke_signed,
+        program_error::ProgramError,
+        pubkey::Pubkey,
     },
 };
 

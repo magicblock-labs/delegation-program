@@ -1,5 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::compat::borsh;
+
 #[derive(Default, Debug, BorshSerialize, BorshDeserialize)]
 pub struct ValidatorClaimFeesArgs {
     /// The amount to claim from the fees vault.

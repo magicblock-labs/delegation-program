@@ -1,6 +1,7 @@
 #![allow(unexpected_cfgs)]
 
 extern crate dlp_api;
+pub use ::solana_program;
 #[allow(unused_imports)]
 pub(crate) use dlp_api::diff;
 #[allow(unused_imports)]

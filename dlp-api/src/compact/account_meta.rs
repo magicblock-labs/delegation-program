@@ -1,10 +1,13 @@
-use borsh::{
-    maybestd::io::{Error, Read, Write},
-    BorshDeserialize, BorshSerialize,
-};
+#[cfg(not(feature = "backward-compat"))]
+use borsh::io::{Error, Read, Write};
+#[cfg(feature = "backward-compat")]
+use borsh::maybestd::io::{Error, Read, Write};
+use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
-use crate::{args::MaybeEncryptedAccountMeta, compact::ClearText};
+use crate::{
+    args::MaybeEncryptedAccountMeta, compact::ClearText, compat::borsh,
+};
 
 const ACCOUNT_INDEX_MASK: u8 = 0b0011_1111;
 const SIGNER_MASK: u8 = 0b0100_0000;

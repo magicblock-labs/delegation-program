@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     args::DelegateArgs,
     pda::{
@@ -7,15 +8,15 @@ use dlp_api::{
     },
     state::{DelegationMetadata, DelegationRecord},
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
+use solana_system_interface::instruction as system_instruction;
 
 use crate::fixtures::ON_CURVE_KEYPAIR;
 
@@ -30,10 +31,8 @@ async fn test_delegate_on_curve() {
     let delegated_account = alt_payer.pubkey();
 
     // Create transaction to change the owner of alt_payer
-    let change_owner_ix = solana_program::system_instruction::assign(
-        &alt_payer.pubkey(),
-        &dlp_api::id(),
-    );
+    let change_owner_ix =
+        system_instruction::assign(&alt_payer.pubkey(), &dlp_api::id());
 
     let change_owner_tx = Transaction::new_signed_with_payer(
         &[change_owner_ix],
@@ -137,7 +136,7 @@ async fn test_delegate_on_curve() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let payer_alt = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
+    let payer_alt = crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR);
 
     program_test.add_account(
         payer_alt.pubkey(),

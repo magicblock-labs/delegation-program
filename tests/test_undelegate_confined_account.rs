@@ -1,16 +1,16 @@
+use dlp::solana_program;
 use dlp_api::pda::{
     delegation_metadata_pda_from_delegated_account,
     delegation_record_pda_from_delegated_account,
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     create_delegation_record_data, get_delegation_metadata_data, DELEGATED_PDA,
@@ -71,7 +71,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.prefer_bpf(true);
 
     // Admin is the DEFAULT_VALIDATOR_IDENTITY when unit_test_config feature is enabled
-    let admin = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let admin = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     // Admin account
     program_test.add_account(

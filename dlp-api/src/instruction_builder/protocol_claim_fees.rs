@@ -7,13 +7,15 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+use crate::compat::Modernize;
+
 /// Claim the accrued fees from the protocol fees vault.
 /// See [dlp::processor::process_protocol_claim_fees] for docs.
 pub fn protocol_claim_fees(admin: Pubkey) -> Instruction {
-    let fees_vault_pda = fees_vault_pda();
+    let fees_vault_pda = fees_vault_pda().modernize();
     let delegation_program_data = DELEGATION_PROGRAM_DATA_ID.to_bytes().into();
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(admin, true),
             AccountMeta::new(fees_vault_pda, false),

@@ -1,4 +1,4 @@
-use solana_program::pubkey::Pubkey;
+use crate::compat::Pubkey;
 
 pub const DELEGATION_RECORD_TAG: &[u8] = b"delegation";
 #[macro_export]

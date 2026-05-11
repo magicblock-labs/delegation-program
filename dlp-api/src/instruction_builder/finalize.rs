@@ -12,24 +12,34 @@ use dlp::{
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
+
+use crate::compat::{Compatize, Modernize};
 
 /// Builds a finalize state instruction.
 /// See [dlp::processor::process_finalize] for docs.
 pub fn finalize(validator: Pubkey, delegated_account: Pubkey) -> Instruction {
+    let validator_compat = validator.compatize();
+    let delegated_account_compat = delegated_account.compatize();
     let commit_state_pda =
-        commit_state_pda_from_delegated_account(&delegated_account);
+        commit_state_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
     let commit_record_pda =
-        commit_record_pda_from_delegated_account(&delegated_account);
+        commit_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
     let delegation_record_pda =
-        delegation_record_pda_from_delegated_account(&delegated_account);
+        delegation_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
     let delegation_metadata_pda =
-        delegation_metadata_pda_from_delegated_account(&delegated_account);
+        delegation_metadata_pda_from_delegated_account(
+            &delegated_account_compat,
+        )
+        .modernize();
     let validator_fees_vault_pda =
-        validator_fees_vault_pda_from_validator(&validator);
+        validator_fees_vault_pda_from_validator(&validator_compat).modernize();
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(validator, true),
             AccountMeta::new(delegated_account, false),

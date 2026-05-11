@@ -4,6 +4,7 @@ use pinocchio::error::ProgramError;
 use super::DelegateArgs;
 use crate::{
     compact::{self, MAX_PUBKEYS},
+    compat::borsh,
     require, require_le,
 };
 

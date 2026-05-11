@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     args::DelegateEphemeralBalanceArgs,
     ephemeral_balance_seeds_from_payer,
@@ -9,15 +10,14 @@ use dlp_api::{
     },
     state::DelegationRecord,
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::{Account, ReadableAccount},
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
@@ -196,7 +196,7 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
 async fn test_undelegate() {
     // Setup
     let (banks, _, payer_alt, blockhash) = setup_program_test_env().await;
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     let ephemeral_balance_pda =
         ephemeral_balance_pda_from_payer(&payer_alt.pubkey(), 0);
@@ -240,7 +240,7 @@ async fn test_undelegate_and_close() {
     // Setup
     let (banks, _, payer_alt, blockhash) = setup_program_test_env().await;
 
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     let ephemeral_balance_pda =
         ephemeral_balance_pda_from_payer(&payer_alt.pubkey(), 0);
@@ -303,7 +303,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.prefer_bpf(true);
 
     let payer_alt = Keypair::new();
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         payer_alt.pubkey(),

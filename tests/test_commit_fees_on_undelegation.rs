@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     consts::{COMMIT_FEE_LAMPORTS, SESSION_FEE_LAMPORTS},
     pda::{
@@ -6,15 +7,14 @@ use dlp_api::{
         validator_fees_vault_pda_from_validator,
     },
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     create_delegation_metadata_data_with_nonce, get_delegation_record_data,
@@ -83,7 +83,7 @@ async fn test_commit_fees_on_undelegation() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         validator.pubkey(),

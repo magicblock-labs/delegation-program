@@ -1,13 +1,5 @@
-use borsh::BorshDeserialize;
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    instruction::{AccountMeta, Instruction},
-    program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    system_program,
-};
+use dlp_api::compat::borsh::BorshDeserialize;
+use solana_sdk_ids::system_program;
 
 use crate::{
     args::CallHandlerArgs,
@@ -16,6 +8,14 @@ use crate::{
     processor::utils::loaders::{
         load_initialized_validator_fees_vault, load_owned_pda, load_pda,
         load_signer,
+    },
+    solana_program::{
+        account_info::AccountInfo,
+        entrypoint::ProgramResult,
+        instruction::{AccountMeta, Instruction},
+        program::invoke_signed,
+        program_error::ProgramError,
+        pubkey::Pubkey,
     },
 };
 

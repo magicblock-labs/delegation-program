@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     args::{CommitFinalizeArgs, CommitStateArgs, DelegateArgs},
     pda::{
@@ -11,7 +12,6 @@ use dlp_api::{
 };
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
-    system_instruction, system_program,
 };
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -19,6 +19,8 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
+use solana_system_interface::instruction as system_instruction;
 
 use crate::fixtures::{
     create_delegation_record_data, get_delegation_metadata_data,
@@ -945,7 +947,7 @@ fn get_delegated_account_and_owner(is_pda: bool) -> (Pubkey, Pubkey) {
         (DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID)
     } else {
         (
-            Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap().pubkey(),
+            crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR).pubkey(),
             system_program::id(),
         )
     };
@@ -1100,7 +1102,7 @@ async fn setup_program_for_delegate_base_increase(
     program_test.prefer_bpf(true);
 
     let delegated = Keypair::new();
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         delegated.pubkey(),
@@ -1295,7 +1297,8 @@ async fn setup_program_for_commit_test_env(
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
-    let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator_keypair =
+        crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         validator_keypair.pubkey(),

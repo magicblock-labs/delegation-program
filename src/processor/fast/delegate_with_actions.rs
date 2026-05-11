@@ -1,4 +1,4 @@
-use dlp_api::require_eq;
+use dlp_api::{compat::borsh, require_eq};
 use pinocchio::{
     address::address_eq,
     cpi::{Seed, Signer},

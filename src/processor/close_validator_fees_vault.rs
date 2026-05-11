@@ -1,8 +1,3 @@
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg,
-    program_error::ProgramError, pubkey::Pubkey,
-};
-
 use crate::{
     error::DlpError::Unauthorized,
     processor::utils::{
@@ -10,6 +5,10 @@ use crate::{
             load_initialized_pda, load_program_upgrade_authority, load_signer,
         },
         pda::close_pda,
+    },
+    solana_program::{
+        account_info::AccountInfo, entrypoint::ProgramResult, msg,
+        program_error::ProgramError, pubkey::Pubkey,
     },
     validator_fees_vault_seeds_from_validator,
 };

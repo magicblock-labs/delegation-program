@@ -1,12 +1,14 @@
-use solana_program::{
-    account_info::AccountInfo, bpf_loader_upgradeable,
-    bpf_loader_upgradeable::UpgradeableLoaderState, msg,
-    program_error::ProgramError, pubkey::Pubkey, system_program, sysvar,
-};
+use solana_loader_v3_interface::state::UpgradeableLoaderState;
+use solana_sdk_ids::{bpf_loader_upgradeable, system_program};
 
 use crate::{
-    error::DlpError::InvalidAuthority, fees_vault_seeds,
+    error::DlpError::InvalidAuthority,
+    fees_vault_seeds,
     pda::validator_fees_vault_pda_from_validator,
+    solana_program::{
+        account_info::AccountInfo, msg, program_error::ProgramError,
+        pubkey::Pubkey, sysvar,
+    },
     validator_fees_vault_seeds_from_validator,
 };
 
@@ -234,10 +236,12 @@ pub fn load_program_upgrade_authority(
     if let UpgradeableLoaderState::ProgramData {
         upgrade_authority_address,
         ..
-    } = bincode::deserialize(&program_account_data).map_err(|_| {
-        msg!("Unable to deserialize ProgramData {}", program);
-        ProgramError::InvalidAccountData
-    })? {
+    } = bincode::deserialize::<UpgradeableLoaderState>(&program_account_data)
+        .map_err(|_| {
+            msg!("Unable to deserialize ProgramData {}", program);
+            ProgramError::InvalidAccountData
+        })?
+    {
         Ok(upgrade_authority_address)
     } else {
         msg!("Expected program account {} to hold ProgramData", program);
@@ -290,13 +294,14 @@ pub fn load_initialized_validator_fees_vault(
 
 #[cfg(test)]
 mod tests {
-    use solana_program::{
-        account_info::AccountInfo, pubkey::Pubkey, system_program,
-    };
+    use solana_sdk_ids::system_program;
 
     use super::load_program;
-    use crate::processor::utils::loaders::{
-        load_account, load_signer, load_sysvar, load_uninitialized_account,
+    use crate::{
+        processor::utils::loaders::{
+            load_account, load_signer, load_sysvar, load_uninitialized_account,
+        },
+        solana_program::{account_info::AccountInfo, pubkey::Pubkey},
     };
 
     #[test]
@@ -313,7 +318,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_signer(&info, "not signer").is_err());
     }
@@ -332,7 +336,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_uninitialized_account(&info, true, "bad owner").is_err());
     }
@@ -351,7 +354,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(
             load_uninitialized_account(&info, true, "data not empty").is_err()
@@ -372,7 +374,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(
             load_uninitialized_account(&info, true, "not writeable").is_err()
@@ -393,7 +394,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(
             load_uninitialized_account(&info, false, "not writable").is_ok()
@@ -414,7 +414,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_sysvar(&info, key).is_err());
     }
@@ -433,7 +432,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_account(&info, Pubkey::new_unique(), false, "bad key")
             .is_err());
@@ -453,7 +451,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_account(&info, key, true, "not writeable").is_err());
     }
@@ -472,7 +469,6 @@ mod tests {
             &mut data,
             &owner,
             true,
-            0,
         );
         assert!(load_program(&info, Pubkey::new_unique(), "bad key").is_err());
     }
@@ -491,7 +487,6 @@ mod tests {
             &mut data,
             &owner,
             false,
-            0,
         );
         assert!(load_program(&info, key, "not executable").is_err());
     }

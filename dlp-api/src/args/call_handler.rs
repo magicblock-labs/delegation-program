@@ -1,5 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::compat::borsh;
+
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct CallHandlerArgs {
     pub escrow_index: u8,

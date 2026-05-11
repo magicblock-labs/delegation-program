@@ -1,4 +1,5 @@
 use assertables::assert_ge;
+use dlp::solana_program;
 use dlp_api::{
     args::CommitFinalizeArgs,
     diff::compute_diff,
@@ -10,9 +11,7 @@ use dlp_api::{
     },
     state::{DelegationMetadata, DelegationRecord},
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{
     BanksClient, BanksClientError, BanksTransactionResultWithMetadata,
     ProgramTest,
@@ -23,6 +22,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::{Transaction, TransactionError},
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
@@ -193,7 +193,8 @@ async fn setup_program_test_env_with_record_lamports(
     let mut program_test = ProgramTest::new("dlp", dlp::ID, None);
     program_test.prefer_bpf(true);
 
-    let validator_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator_keypair =
+        crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         validator_keypair.pubkey(),

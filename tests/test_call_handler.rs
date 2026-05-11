@@ -1,8 +1,9 @@
 #![allow(deprecated)]
 
-use borsh::{to_vec, BorshDeserialize, BorshSerialize};
+use dlp::solana_program;
 use dlp_api::{
     args::CallHandlerArgs,
+    compat::borsh::{to_vec, BorshDeserialize, BorshSerialize},
     ephemeral_balance_seeds_from_payer,
     pda::{
         commit_record_pda_from_delegated_account,
@@ -15,7 +16,7 @@ use dlp_api::{
 };
 use solana_program::{
     hash::Hash, instruction::AccountMeta, native_token::LAMPORTS_PER_SOL,
-    rent::Rent, system_program,
+    rent::Rent,
 };
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -24,6 +25,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
@@ -39,6 +41,7 @@ const UNDELEGATE_HANDLER_DISCRIMINATOR: [u8; 4] = [1, 0, 2, 0];
 
 // Mimic counter from test_delegation program
 #[derive(BorshSerialize, BorshDeserialize)]
+#[borsh(crate = "dlp_api::compat::borsh")] // supported in borsh 1.0
 pub struct Counter {
     pub count: u64,
 }
@@ -263,7 +266,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.prefer_bpf(true);
 
     let payer = Keypair::new();
-    let validator = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     // Setup authority
     program_test.add_account(

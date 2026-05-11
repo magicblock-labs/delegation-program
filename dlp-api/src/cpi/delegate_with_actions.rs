@@ -8,11 +8,10 @@ use dlp::{
         delegation_record_pda_from_delegated_account,
     },
 };
-use solana_program::{
-    instruction::{AccountMeta, Instruction},
-    pubkey::Pubkey,
-    system_program,
-};
+use solana_program::instruction::{AccountMeta, Instruction};
+use solana_sdk_ids::system_program;
+
+use crate::compat::{borsh, Compatize, Modernize, Pubkey};
 
 pub fn delegate_with_actions(
     payer: Pubkey,
@@ -32,10 +31,14 @@ pub fn delegate_with_actions(
         .collect();
 
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
 
         accounts: {
-            let owner = owner.unwrap_or(system_program::id());
+            let owner =
+                owner.unwrap_or_else(|| system_program::id().compatize());
+            let payer = payer.modernize();
+            let delegated_account_modern = delegated_account.modernize();
+            let owner_modern = owner.modernize();
             let delegate_buffer_pda =
                 delegate_buffer_pda_from_delegated_account_and_owner_program(
                     &delegated_account,
@@ -53,11 +56,14 @@ pub fn delegate_with_actions(
             [
                 vec![
                     AccountMeta::new(payer, true),
-                    AccountMeta::new(delegated_account, true),
-                    AccountMeta::new_readonly(owner, false),
-                    AccountMeta::new(delegate_buffer_pda, false),
-                    AccountMeta::new(delegation_record_pda, false),
-                    AccountMeta::new(delegation_metadata_pda, false),
+                    AccountMeta::new(delegated_account_modern, true),
+                    AccountMeta::new_readonly(owner_modern, false),
+                    AccountMeta::new(delegate_buffer_pda.modernize(), false),
+                    AccountMeta::new(delegation_record_pda.modernize(), false),
+                    AccountMeta::new(
+                        delegation_metadata_pda.modernize(),
+                        false,
+                    ),
                     AccountMeta::new_readonly(system_program::id(), false),
                 ],
                 actions_signers,

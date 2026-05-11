@@ -1,10 +1,9 @@
+use dlp::solana_program;
 use dlp_api::{
     args::DelegateArgs, error::DlpError,
     pda::delegation_record_pda_from_delegated_account, state::DelegationRecord,
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
 use solana_sdk::{
     account::Account,
@@ -12,6 +11,8 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::{Transaction, TransactionError},
 };
+use solana_sdk_ids::system_program;
+use solana_system_interface::instruction as system_instruction;
 
 use crate::fixtures::ON_CURVE_KEYPAIR;
 
@@ -21,10 +22,8 @@ mod fixtures;
 async fn test_delegation_confined_accounts_rejects_system_validator() {
     let (banks, payer, delegated, blockhash) = setup_program_test_env().await;
 
-    let assign_ix = solana_program::system_instruction::assign(
-        &delegated.pubkey(),
-        &dlp_api::id(),
-    );
+    let assign_ix =
+        system_instruction::assign(&delegated.pubkey(), &dlp_api::id());
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
         Some(&delegated.pubkey()),
@@ -72,10 +71,8 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
 async fn test_delegation_confined_accounts_allows_system_validator() {
     let (banks, payer, delegated, blockhash) = setup_program_test_env().await;
 
-    let assign_ix = solana_program::system_instruction::assign(
-        &delegated.pubkey(),
-        &dlp_api::id(),
-    );
+    let assign_ix =
+        system_instruction::assign(&delegated.pubkey(), &dlp_api::id());
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
         Some(&delegated.pubkey()),
@@ -122,7 +119,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    let delegated = Keypair::from_bytes(&ON_CURVE_KEYPAIR).unwrap();
+    let delegated = crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR);
 
     program_test.add_account(
         delegated.pubkey(),

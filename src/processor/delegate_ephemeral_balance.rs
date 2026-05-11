@@ -1,13 +1,6 @@
-use borsh::BorshDeserialize;
-use solana_program::{
-    account_info::AccountInfo,
-    entrypoint::ProgramResult,
-    instruction::{AccountMeta, Instruction},
-    program::invoke_signed,
-    program_error::ProgramError,
-    pubkey::Pubkey,
-    system_instruction, system_program,
-};
+use dlp_api::compat::borsh::{self, BorshDeserialize};
+use solana_sdk_ids::system_program;
+use solana_system_interface::instruction as system_instruction;
 
 use crate::{
     args::DelegateEphemeralBalanceArgs,
@@ -19,6 +12,14 @@ use crate::{
         delegation_record_pda_from_delegated_account,
     },
     processor::utils::loaders::{load_program, load_signer},
+    solana_program::{
+        account_info::AccountInfo,
+        entrypoint::ProgramResult,
+        instruction::{AccountMeta, Instruction},
+        program::invoke_signed,
+        program_error::ProgramError,
+        pubkey::Pubkey,
+    },
 };
 
 /// Delegates an account to transfer lamports which are used to fund it inside

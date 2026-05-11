@@ -2,7 +2,6 @@ use dlp::args::{
     EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
     MaybeEncryptedPubkey,
 };
-use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 
 use crate::{
     encryption::EncryptionError,
@@ -10,6 +9,7 @@ use crate::{
         Encrypt, EncryptableAccountMeta, EncryptableIxData, EncryptablePubkey,
         PostDelegationInstruction,
     },
+    solana_program::{instruction::AccountMeta, pubkey::Pubkey},
 };
 
 impl Encrypt for EncryptablePubkey {

@@ -4,15 +4,19 @@ use dlp::{
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
+
+use crate::compat::{Compatize, Modernize};
 
 /// Creates instruction to close an ephemeral balance account
 /// See [dlp::processor::process_close_ephemeral_balance] for docs.
 pub fn close_ephemeral_balance(payer: Pubkey, index: u8) -> Instruction {
-    let ephemeral_balance_pda = ephemeral_balance_pda_from_payer(&payer, index);
+    let payer_compat = payer.compatize();
+    let ephemeral_balance_pda =
+        ephemeral_balance_pda_from_payer(&payer_compat, index).modernize();
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(payer, true),
             AccountMeta::new(ephemeral_balance_pda, false),

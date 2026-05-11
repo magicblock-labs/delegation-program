@@ -20,12 +20,13 @@ diff = []
 unit_test_config = []
 cpi = []
 instruction = []
-
+backward-compat = []
 # Default to offchain-friendly build
 default = ["encryption", "diff", "cpi", "instruction"]
 
 [dependencies]
-borsh = { version = "0.10.4" } #, features = ["derive"] }
+borsh-compat = { package = "borsh", version = "0.10.4" }
+borsh-current = { package = "borsh", version = "1.5" }
 bincode = { version = "^1.3" }
 bytemuck = { version = ">=1", features = ["derive"] }
 const-crypto = "0.3.0"
@@ -36,17 +37,22 @@ pinocchio-log = { version = "0.5.1" }
 pinocchio-pubkey = { version = "0.3.0" }
 pinocchio-system = { version = "0.5.0" }
 rkyv = "0.7.45"
-solana-address = { version = "2.0", features = ["bytemuck", "decode", "syscalls", "curve25519", "std"] }
-solana-instruction = "3.0.0"
-solana-program = { version = ">=1.16, <3.0.0" }
-solana-sdk = { version = ">=1.16, <3.0.0", optional = true }
+solana-loader-v3-interface = { version = "6.1.0", features = ["serde"] }
+solana-sdk-ids = "3.1.0"
+solana-system-interface = { version = "2.0.0", features = ["bincode"] }
+solana-address = { version = "2.0.0", features = ["bytemuck", "decode", "syscalls", "curve25519", "std"] }
+solana-instruction = "3.1.0"
+solana-program = { version = "3.0.0" }
+solana-sdk = { version = "3.0.0", optional = true }
 solana-sha256-hasher = "3.1.0"
 static_assertions = "1.1.0"
 strum = { version = ">=0.27", features = ["derive"] }
 thiserror = { version = ">=1" }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 
+solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = ["borsh", "bytemuck", "curve25519"] } 
+
 [dev-dependencies]
-rand = { version = "=0.8.5", features = ["small_rng"] }
+rand = { version = "0.8.5", features = ["small_rng"] }
 solana-pubkey = "3.0.0"
 spl-token = "4.0.0"

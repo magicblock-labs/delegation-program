@@ -1,4 +1,3 @@
-use borsh::to_vec;
 use dlp::{
     args::CommitStateFromBufferArgs,
     discriminator::DlpDiscriminator,
@@ -15,8 +14,10 @@ use dlp::{
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
-    system_program,
 };
+use solana_sdk_ids::system_program;
+
+use crate::compat::{borsh::to_vec, Compatize, Modernize};
 
 /// Builds a commit state from buffer instruction.
 /// See [dlp::processor::process_commit_diff_from_buffer] for docs.
@@ -28,20 +29,30 @@ pub fn commit_diff_from_buffer(
     commit_args: CommitStateFromBufferArgs,
 ) -> Instruction {
     let commit_args = to_vec(&commit_args).unwrap();
+    let validator_compat = validator.compatize();
+    let delegated_account_compat = delegated_account.compatize();
+    let delegated_account_owner_compat = delegated_account_owner.compatize();
     let delegation_record_pda =
-        delegation_record_pda_from_delegated_account(&delegated_account);
+        delegation_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
     let commit_state_pda =
-        commit_state_pda_from_delegated_account(&delegated_account);
+        commit_state_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
     let commit_record_pda =
-        commit_record_pda_from_delegated_account(&delegated_account);
+        commit_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
     let validator_fees_vault_pda =
-        validator_fees_vault_pda_from_validator(&validator);
+        validator_fees_vault_pda_from_validator(&validator_compat).modernize();
     let delegation_metadata_pda =
-        delegation_metadata_pda_from_delegated_account(&delegated_account);
+        delegation_metadata_pda_from_delegated_account(
+            &delegated_account_compat,
+        )
+        .modernize();
     let program_config_pda =
-        program_config_from_program_id(&delegated_account_owner);
+        program_config_from_program_id(&delegated_account_owner_compat)
+            .modernize();
     Instruction {
-        program_id: dlp::id(),
+        program_id: dlp::id().modernize(),
         accounts: vec![
             AccountMeta::new(validator, true),
             AccountMeta::new_readonly(delegated_account, false),

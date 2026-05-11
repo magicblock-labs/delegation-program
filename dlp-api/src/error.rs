@@ -1,7 +1,8 @@
 use num_enum::{IntoPrimitive, TryFromPrimitive};
-use solana_program::program_error::ProgramError;
 use strum::IntoStaticStr;
 use thiserror::Error;
+
+use crate::solana_program::program_error::ProgramError;
 
 pub const INVALID_ESCROW_PDA: &str = "invalid escrow pda in CallHandler";
 pub const INVALID_ESCROW_OWNER: &str =
@@ -161,12 +162,6 @@ pub enum DlpError {
 impl From<DlpError> for ProgramError {
     fn from(e: DlpError) -> Self {
         ProgramError::Custom(e as u32)
-    }
-}
-
-impl From<DlpError> for pinocchio::error::ProgramError {
-    fn from(e: DlpError) -> Self {
-        pinocchio::error::ProgramError::Custom(e as u32)
     }
 }
 

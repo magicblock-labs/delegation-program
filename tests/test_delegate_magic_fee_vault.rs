@@ -1,10 +1,9 @@
+use dlp::solana_program;
 use dlp_api::pda::{
     delegation_record_pda_from_delegated_account,
     magic_fee_vault_pda_from_validator,
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
 use solana_sdk::{
     account::Account,
@@ -12,6 +11,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::{Transaction, TransactionError},
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::TEST_AUTHORITY;
 
@@ -197,7 +197,7 @@ async fn setup_program_test_env(
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
-    let admin_keypair = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let admin_keypair = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
     program_test.add_account(
         admin_keypair.pubkey(),
         Account {

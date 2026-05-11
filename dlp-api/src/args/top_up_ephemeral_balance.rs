@@ -1,5 +1,7 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 
+use crate::compat::borsh;
+
 #[derive(Debug, BorshSerialize, BorshDeserialize)]
 pub struct TopUpEphemeralBalanceArgs {
     /// The amount to add to the ephemeral balance.

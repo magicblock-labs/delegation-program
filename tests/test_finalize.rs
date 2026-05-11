@@ -1,3 +1,4 @@
+use dlp::solana_program;
 use dlp_api::{
     pda::{
         commit_record_pda_from_delegated_account,
@@ -8,15 +9,14 @@ use dlp_api::{
     },
     state::{CommitRecord, DelegationMetadata},
 };
-use solana_program::{
-    hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent, system_program,
-};
+use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
     account::Account,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_commit_record_account_data, get_delegation_metadata_data,
@@ -109,7 +109,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
-    let authority = Keypair::from_bytes(&TEST_AUTHORITY).unwrap();
+    let authority = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 
     program_test.add_account(
         authority.pubkey(),

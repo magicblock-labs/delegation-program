@@ -1,8 +1,5 @@
-use borsh::BorshDeserialize;
-use solana_program::{
-    account_info::AccountInfo, entrypoint::ProgramResult, msg,
-    program_error::ProgramError, pubkey::Pubkey, system_program,
-};
+use dlp_api::compat::borsh::BorshDeserialize;
+use solana_sdk_ids::system_program;
 
 use crate::{
     args::WhitelistValidatorForProgramArgs,
@@ -14,6 +11,10 @@ use crate::{
         pda::{create_pda, resize_pda},
     },
     program_config_seeds_from_program_id,
+    solana_program::{
+        account_info::AccountInfo, entrypoint::ProgramResult, msg,
+        program_error::ProgramError, pubkey::Pubkey,
+    },
     state::ProgramConfig,
 };
 
