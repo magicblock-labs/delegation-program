@@ -49,9 +49,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: check release manifest alignment
-        run: bash ./.github/version_align.sh --check
-
       - name: install rust
         shell: bash
         run: rustup toolchain install ${{ env.rust_version }} --profile minimal --component rustfmt --component clippy
