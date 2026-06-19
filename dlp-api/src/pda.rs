@@ -60,6 +60,17 @@ macro_rules! undelegate_buffer_seeds_from_delegated_account {
     };
 }
 
+pub const UNDELEGATION_REQUEST_TAG: &[u8] = b"undelegation-request";
+#[macro_export]
+macro_rules! undelegation_request_seeds_from_delegated_account {
+    ($delegated_account: expr) => {
+        &[
+            $crate::pda::UNDELEGATION_REQUEST_TAG,
+            &$delegated_account.as_ref(),
+        ]
+    };
+}
+
 #[macro_export]
 macro_rules! fees_vault_seeds {
     () => {
@@ -167,6 +178,16 @@ pub fn undelegate_buffer_pda_from_delegated_account(
 ) -> Pubkey {
     Pubkey::find_program_address(
         undelegate_buffer_seeds_from_delegated_account!(delegated_account),
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn undelegation_request_pda_from_delegated_account(
+    delegated_account: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        undelegation_request_seeds_from_delegated_account!(delegated_account),
         &crate::id(),
     )
     .0

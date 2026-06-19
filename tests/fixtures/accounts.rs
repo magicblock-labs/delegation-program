@@ -1,6 +1,7 @@
 use dlp::solana_program;
 use dlp_api::state::{
     CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
+    UndelegationRequest,
 };
 use solana_program::{
     native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
@@ -196,5 +197,23 @@ pub fn create_program_config_data(approved_validator: Pubkey) -> Vec<u8> {
     program_config
         .to_bytes_with_discriminator(&mut bytes)
         .unwrap();
+    bytes
+}
+
+#[allow(dead_code)]
+pub fn create_undelegation_request_data(
+    delegated_account: Pubkey,
+    owner_program: Pubkey,
+    rent_payer: Pubkey,
+    created_slot: u64,
+) -> Vec<u8> {
+    let request = UndelegationRequest {
+        delegated_account,
+        owner_program,
+        rent_payer,
+        created_slot,
+    };
+    let mut bytes = vec![0u8; UndelegationRequest::size_with_discriminator()];
+    request.to_bytes_with_discriminator(&mut bytes).unwrap();
     bytes
 }

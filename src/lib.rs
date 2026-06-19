@@ -19,6 +19,7 @@ pub(crate) use dlp_api::{
     ephemeral_balance_seeds_from_payer, fees_vault_seeds,
     magic_fee_vault_seeds_from_validator, program_config_seeds_from_program_id,
     undelegate_buffer_seeds_from_delegated_account,
+    undelegation_request_seeds_from_delegated_account,
     validator_fees_vault_seeds_from_validator,
 };
 pub use dlp_api::{id, ID};
@@ -145,6 +146,11 @@ pub fn fast_process_instruction(
         ),
         DlpDiscriminator::UndelegateConfinedAccount => {
             Some(processor::fast::process_undelegate_confined_account(
+                program_id, accounts, data,
+            ))
+        }
+        DlpDiscriminator::RequestUndelegation => {
+            Some(processor::fast::process_request_undelegation(
                 program_id, accounts, data,
             ))
         }

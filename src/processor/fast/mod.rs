@@ -7,6 +7,7 @@ mod commit_state_from_buffer;
 mod delegate;
 mod delegate_with_actions;
 mod finalize;
+mod request_undelegation;
 mod undelegate;
 mod undelegate_confined_account;
 mod utils;
@@ -22,6 +23,7 @@ pub use commit_state_from_buffer::*;
 pub use delegate::*;
 pub use delegate_with_actions::*;
 pub use finalize::*;
+pub use request_undelegation::*;
 pub use undelegate::*;
 pub use undelegate_confined_account::*;
 

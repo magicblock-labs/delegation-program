@@ -759,6 +759,16 @@ define_uninitialized_ctx!(
 );
 
 define_uninitialized_ctx!(
+    UndelegationRequestCtx,
+    label = "undelegation request",
+    invalid_seeds = DlpError::UndelegationRequestInvalidSeeds,
+    invalid_account_owner = DlpError::UndelegationRequestInvalidAccountOwner,
+    account_already_initialized =
+        DlpError::UndelegationRequestAlreadyInitialized,
+    immutable = DlpError::UndelegationRequestImmutable
+);
+
+define_uninitialized_ctx!(
     DelegationRecordCtx,
     label = "delegation record",
     invalid_seeds = DlpError::DelegationRecordInvalidSeeds,

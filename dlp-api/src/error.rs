@@ -155,6 +155,24 @@ pub enum DlpError {
     )]
     InsufficientRent = 43,
 
+    #[error("Undelegation request PDA invalid seeds")]
+    UndelegationRequestInvalidSeeds = 44,
+
+    #[error("Undelegation request PDA invalid account owner")]
+    UndelegationRequestInvalidAccountOwner = 45,
+
+    #[error("Undelegation request PDA is already initialized")]
+    UndelegationRequestAlreadyInitialized = 46,
+
+    #[error("Undelegation request PDA immutable")]
+    UndelegationRequestImmutable = 47,
+
+    #[error("Invalid undelegation request")]
+    InvalidUndelegationRequest = 48,
+
+    #[error("Request undelegation is only supported for off-curve delegated accounts")]
+    RequestUndelegationOnCurveAccount = 49,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }
