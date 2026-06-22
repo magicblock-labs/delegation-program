@@ -22,6 +22,31 @@ pub fn request_undelegation(
     delegated_account: Pubkey,
     owner_program: Pubkey,
 ) -> Instruction {
+    build_request_undelegation(payer, delegated_account, owner_program, None)
+}
+
+/// Builds a request undelegation instruction with a custom timeout.
+/// See [dlp::processor::process_request_undelegation] for docs.
+pub fn request_undelegation_with_timeout(
+    payer: Pubkey,
+    delegated_account: Pubkey,
+    owner_program: Pubkey,
+    timeout_slots: u64,
+) -> Instruction {
+    build_request_undelegation(
+        payer,
+        delegated_account,
+        owner_program,
+        Some(timeout_slots),
+    )
+}
+
+fn build_request_undelegation(
+    payer: Pubkey,
+    delegated_account: Pubkey,
+    owner_program: Pubkey,
+    timeout_slots: Option<u64>,
+) -> Instruction {
     let delegated_account_compat = delegated_account.compatize();
     let undelegation_request_pda =
         undelegation_request_pda_from_delegated_account(
@@ -36,6 +61,10 @@ pub fn request_undelegation(
             &delegated_account_compat,
         )
         .modernize();
+    let mut data = DlpDiscriminator::RequestUndelegation.to_vec();
+    if let Some(timeout_slots) = timeout_slots {
+        data.extend_from_slice(&timeout_slots.to_le_bytes());
+    }
 
     Instruction {
         program_id: dlp::id().modernize(),
@@ -48,7 +77,7 @@ pub fn request_undelegation(
             AccountMeta::new_readonly(delegation_metadata_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminator::RequestUndelegation.to_vec(),
+        data,
     }
 }
 

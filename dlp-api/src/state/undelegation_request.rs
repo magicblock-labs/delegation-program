@@ -23,6 +23,18 @@ pub struct UndelegationRequest {
 
     /// The slot at which the request was created.
     pub created_slot: u64,
+
+    /// The first slot at which timeout carry-over is allowed.
+    pub expires_at_slot: u64,
+
+    /// Delegation metadata nonce observed when the request was created.
+    pub delegation_nonce_at_request: u64,
+
+    /// PDA bump for this request.
+    pub bump: u8,
+
+    /// Explicit padding keeps this type Pod-safe with repr(C).
+    pub _padding: [u8; 7],
 }
 
 impl AccountWithDiscriminator for UndelegationRequest {

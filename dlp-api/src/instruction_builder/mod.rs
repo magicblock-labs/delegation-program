@@ -1,5 +1,6 @@
 mod call_handler;
 mod call_handler_v2;
+mod carry_over_requested_undelegation;
 mod close_ephemeral_balance;
 mod close_validator_fees_vault;
 mod commit_diff;
@@ -28,6 +29,7 @@ mod whitelist_validator_for_program;
 
 pub use call_handler::*;
 pub use call_handler_v2::*;
+pub use carry_over_requested_undelegation::*;
 pub use close_ephemeral_balance::*;
 pub use close_validator_fees_vault::*;
 pub use commit_diff::*;

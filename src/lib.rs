@@ -154,6 +154,11 @@ pub fn fast_process_instruction(
                 program_id, accounts, data,
             ))
         }
+        DlpDiscriminator::CarryOverRequestedUndelegation => {
+            Some(processor::fast::process_carry_over_requested_undelegation(
+                program_id, accounts, data,
+            ))
+        }
         _ => None,
     }
 }

@@ -1,0 +1,100 @@
+use dlp::{
+    discriminator::DlpDiscriminator,
+    pda::{
+        commit_record_pda_from_delegated_account,
+        commit_state_pda_from_delegated_account,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+        undelegate_buffer_pda_from_delegated_account,
+        undelegation_request_pda_from_delegated_account,
+    },
+    total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
+};
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+};
+use solana_sdk_ids::system_program;
+
+use crate::compat::{Compatize, Modernize};
+
+/// Builds a timeout carry-over instruction for a requested undelegation.
+/// See [dlp::processor::process_carry_over_requested_undelegation] for docs.
+#[allow(clippy::too_many_arguments)]
+pub fn carry_over_requested_undelegation(
+    caller: Pubkey,
+    delegated_account: Pubkey,
+    owner_program: Pubkey,
+    request_rent_payer: Pubkey,
+    delegation_rent_payer: Pubkey,
+    commit_reimbursement: Pubkey,
+) -> Instruction {
+    let delegated_account_compat = delegated_account.compatize();
+    let undelegate_buffer_pda =
+        undelegate_buffer_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
+    let request_pda = undelegation_request_pda_from_delegated_account(
+        &delegated_account_compat,
+    )
+    .modernize();
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(
+            &delegated_account_compat,
+        )
+        .modernize();
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
+    let commit_record_pda =
+        commit_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
+
+    Instruction {
+        program_id: dlp::id().modernize(),
+        accounts: vec![
+            AccountMeta::new(caller, true),
+            AccountMeta::new(delegated_account, false),
+            AccountMeta::new_readonly(owner_program, false),
+            AccountMeta::new(undelegate_buffer_pda, false),
+            AccountMeta::new(request_pda, false),
+            AccountMeta::new(delegation_record_pda, false),
+            AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new(request_rent_payer, false),
+            AccountMeta::new(delegation_rent_payer, false),
+            AccountMeta::new(commit_state_pda, false),
+            AccountMeta::new(commit_record_pda, false),
+            AccountMeta::new(commit_reimbursement, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: DlpDiscriminator::CarryOverRequestedUndelegation.to_vec(),
+    }
+}
+
+///
+/// Returns accounts-data-size budget for requested undelegation carry-over.
+///
+/// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
+///
+pub fn carry_over_requested_undelegation_size_budget(
+    delegated_account: AccountSizeClass,
+) -> u32 {
+    total_size_budget(&[
+        DLP_PROGRAM_DATA_SIZE_CLASS,
+        AccountSizeClass::Tiny, // caller
+        delegated_account,      // delegated_account
+        AccountSizeClass::Tiny, // owner_program
+        delegated_account,      // undelegate_buffer_pda
+        AccountSizeClass::Tiny, // undelegation_request_pda
+        AccountSizeClass::Tiny, // delegation_record_pda
+        AccountSizeClass::Tiny, // delegation_metadata_pda
+        AccountSizeClass::Tiny, // request_rent_payer
+        AccountSizeClass::Tiny, // delegation_rent_payer
+        delegated_account,      // commit_state_pda
+        AccountSizeClass::Tiny, // commit_record_pda
+        AccountSizeClass::Tiny, // commit_reimbursement
+        AccountSizeClass::Tiny, // system_program
+    ])
+}

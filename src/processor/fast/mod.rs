@@ -1,3 +1,4 @@
+mod carry_over_requested_undelegation;
 mod commit_diff;
 mod commit_diff_from_buffer;
 mod commit_finalize;
@@ -14,6 +15,7 @@ mod utils;
 
 pub(crate) mod internal;
 
+pub use carry_over_requested_undelegation::*;
 pub use commit_diff::*;
 pub use commit_diff_from_buffer::*;
 pub use commit_finalize::*;

@@ -173,6 +173,15 @@ pub enum DlpError {
     #[error("Request undelegation is only supported for off-curve delegated accounts")]
     RequestUndelegationOnCurveAccount = 49,
 
+    #[error("Undelegation request timeout is below the minimum")]
+    UndelegationRequestTimeoutTooShort = 50,
+
+    #[error("Undelegation request has not expired")]
+    UndelegationRequestNotExpired = 51,
+
+    #[error("Invalid pending commit state for timeout carry-over")]
+    InvalidPendingCommitState = 52,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }

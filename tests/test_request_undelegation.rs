@@ -1,5 +1,6 @@
 use dlp::solana_program;
 use dlp_api::{
+    consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
     pda::{
         commit_record_pda_from_delegated_account,
         commit_state_pda_from_delegated_account,
@@ -70,6 +71,11 @@ async fn test_request_undelegation_creates_request() {
     assert_eq!(request.delegated_account, DELEGATED_PDA_ID);
     assert_eq!(request.owner_program, DELEGATED_PDA_OWNER_ID);
     assert_eq!(request.rent_payer, payer.pubkey());
+    assert_eq!(
+        request.expires_at_slot,
+        request.created_slot + DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS
+    );
+    assert_eq!(request.delegation_nonce_at_request, 0);
 }
 
 #[tokio::test]
@@ -104,6 +110,54 @@ async fn test_request_undelegation_is_idempotent() {
 
     let request_after = banks.get_account(request_pda).await.unwrap().unwrap();
     assert_eq!(request_after.data, request_before.data);
+}
+
+#[tokio::test]
+async fn test_request_undelegation_accepts_custom_timeout() {
+    let (banks, payer, _, blockhash) = setup_request_env().await;
+
+    let ix = request_undelegation_from_owner_program_with_timeout(
+        payer.pubkey(),
+        600,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer],
+        blockhash,
+    );
+
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok());
+
+    let request_pda =
+        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let request_account =
+        banks.get_account(request_pda).await.unwrap().unwrap();
+    let request = UndelegationRequest::try_from_bytes_with_discriminator(
+        &request_account.data,
+    )
+    .unwrap();
+    assert_eq!(request.expires_at_slot, request.created_slot + 600);
+}
+
+#[tokio::test]
+async fn test_request_undelegation_rejects_short_timeout() {
+    let (banks, payer, _, blockhash) = setup_request_env().await;
+
+    let ix = request_undelegation_from_owner_program_with_timeout(
+        payer.pubkey(),
+        DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS - 1,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer],
+        blockhash,
+    );
+
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_err());
 }
 
 #[tokio::test]
@@ -226,7 +280,7 @@ async fn test_undelegate_with_request_closes_request() {
 fn process_request_wrapper(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    _data: &[u8],
+    data: &[u8],
 ) -> ProgramResult {
     let [payer, delegated_account, owner_program, request_account, delegation_record_account, delegation_metadata_account, system_program_account, dlp_program] =
         accounts
@@ -238,11 +292,26 @@ fn process_request_wrapper(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    let ix = dlp_api::instruction_builder::request_undelegation(
-        *payer.key,
-        *delegated_account.key,
-        *program_id,
-    );
+    let ix = match data.len() {
+        0 => dlp_api::instruction_builder::request_undelegation(
+            *payer.key,
+            *delegated_account.key,
+            *program_id,
+        ),
+        8 => {
+            let timeout_slots = u64::from_le_bytes(
+                data.try_into()
+                    .map_err(|_| ProgramError::InvalidInstructionData)?,
+            );
+            dlp_api::instruction_builder::request_undelegation_with_timeout(
+                *payer.key,
+                *delegated_account.key,
+                *program_id,
+                timeout_slots,
+            )
+        }
+        _ => return Err(ProgramError::InvalidInstructionData),
+    };
     let (_, bump) = Pubkey::find_program_address(&[TEST_PDA_SEED], program_id);
     let bump_seed = [bump];
     invoke_signed(
@@ -262,6 +331,23 @@ fn process_request_wrapper(
 }
 
 fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
+    request_undelegation_from_owner_program_with_data(payer, vec![])
+}
+
+fn request_undelegation_from_owner_program_with_timeout(
+    payer: Pubkey,
+    timeout_slots: u64,
+) -> Instruction {
+    request_undelegation_from_owner_program_with_data(
+        payer,
+        timeout_slots.to_le_bytes().to_vec(),
+    )
+}
+
+fn request_undelegation_from_owner_program_with_data(
+    payer: Pubkey,
+    data: Vec<u8>,
+) -> Instruction {
     Instruction {
         program_id: DELEGATED_PDA_OWNER_ID,
         accounts: vec![
@@ -287,7 +373,7 @@ fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(dlp_api::id(), false),
         ],
-        data: vec![],
+        data,
     }
 }
 

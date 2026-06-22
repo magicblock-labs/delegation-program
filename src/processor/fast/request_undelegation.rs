@@ -10,6 +10,7 @@ use pinocchio_log::log;
 
 use super::to_pinocchio_program_error;
 use crate::{
+    consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
     error::DlpError,
     pda,
     processor::{fast::utils::pda::create_pda, utils::curve::is_on_curve_fast},
@@ -36,7 +37,7 @@ use crate::{
 pub fn process_request_undelegation(
     _program_id: &Address,
     accounts: &[AccountView],
-    _data: &[u8],
+    data: &[u8],
 ) -> ProgramResult {
     let [
         payer, // force multi-line
@@ -90,10 +91,11 @@ pub fn process_request_undelegation(
     }
 
     let delegation_metadata_data = delegation_metadata_account.try_borrow()?;
-    DelegationMetadata::try_from_bytes_with_discriminator(
-        &delegation_metadata_data,
-    )
-    .map_err(to_pinocchio_program_error)?;
+    let delegation_metadata =
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
 
     drop(delegation_record_data);
     drop(delegation_metadata_data);
@@ -102,8 +104,14 @@ pub fn process_request_undelegation(
         pda::UNDELEGATION_REQUEST_TAG,
         delegated_account.address().as_ref(),
     ];
+    let timeout_slots = parse_timeout_slots(data)?;
 
     if is_uninitialized_account(undelegation_request_account) {
+        let created_slot = Clock::get()?.slot;
+        let expires_at_slot = created_slot
+            .checked_add(timeout_slots)
+            .ok_or(DlpError::Overflow)?;
+
         let request_bump = require_uninitialized_pda(
             undelegation_request_account,
             request_seeds,
@@ -128,7 +136,11 @@ pub fn process_request_undelegation(
             delegated_account: delegated_account.address().to_bytes().into(),
             owner_program: owner_program.address().to_bytes().into(),
             rent_payer: payer.address().to_bytes().into(),
-            created_slot: Clock::get()?.slot,
+            created_slot,
+            expires_at_slot,
+            delegation_nonce_at_request: delegation_metadata.last_update_nonce,
+            bump: request_bump,
+            _padding: [0; 7],
         };
         let mut request_data = undelegation_request_account.try_borrow_mut()?;
         request
@@ -167,4 +179,21 @@ pub fn process_request_undelegation(
     }
 
     Ok(())
+}
+
+fn parse_timeout_slots(data: &[u8]) -> Result<u64, ProgramError> {
+    match data.len() {
+        0 => Ok(DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS),
+        8 => {
+            let timeout_slots = u64::from_le_bytes(
+                data.try_into()
+                    .map_err(|_| ProgramError::InvalidInstructionData)?,
+            );
+            if timeout_slots < DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS {
+                return Err(DlpError::UndelegationRequestTimeoutTooShort.into());
+            }
+            Ok(timeout_slots)
+        }
+        _ => Err(ProgramError::InvalidInstructionData),
+    }
 }
