@@ -122,7 +122,7 @@ async fn test_request_undelegation_accepts_custom_timeout() {
 
     let ix = request_undelegation_from_owner_program_with_timeout(
         payer.pubkey(),
-        600,
+        6000,
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -142,7 +142,7 @@ async fn test_request_undelegation_accepts_custom_timeout() {
         &request_account.data,
     )
     .unwrap();
-    assert_eq!(request.expires_at_slot, request.created_slot + 600);
+    assert_eq!(request.expires_at_slot, request.created_slot + 6000);
 }
 
 #[tokio::test]

@@ -15,7 +15,8 @@ pub const COMMIT_FEE_LAMPORTS: u64 = 100_000;
 pub const SESSION_FEE_LAMPORTS: u64 = 300_000;
 
 /// Default and minimum timeout for requested undelegation.
-pub const DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS: u64 = 300;
+/// Assuming 1 slot is roughly 400ms, then 4500 slots = 30min.
+pub const DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS: u64 = 4500;
 
 /// The discriminator for the external undelegate instruction.
 pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] =
