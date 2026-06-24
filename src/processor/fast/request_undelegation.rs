@@ -1,3 +1,7 @@
+use dlp_api::{
+    consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS, require_ge,
+    wheels::layout::Decodable as _,
+};
 use pinocchio::{
     address::Address,
     cpi::Signer,
@@ -9,11 +13,11 @@ use pinocchio::{
 
 use super::to_pinocchio_program_error;
 use crate::{
-    consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
+    args::RequestUndelegationArgs,
     error::DlpError,
     pda,
     processor::{fast::utils::pda::create_pda, utils::curve::is_on_curve_fast},
-    require, require_eq_keys, require_ge, require_n_accounts,
+    require, require_eq_keys, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_owned_pda, require_pda,
@@ -100,7 +104,17 @@ pub fn process_request_undelegation(
         pda::UNDELEGATION_REQUEST_TAG,
         delegated_account.address().as_ref(),
     ];
-    let timeout_slots = parse_timeout_slots(data)?;
+
+    let timeout_slots = RequestUndelegationArgs::decode(data)?
+        .timeout_slots()
+        .unwrap_or(DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS as u16)
+        as u64;
+
+    require_ge!(
+        timeout_slots,
+        DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
+        DlpError::UndelegationRequestTimeoutTooShort
+    );
 
     if is_uninitialized_account(undelegation_request_account) {
         let created_slot = Clock::get()?.slot;
@@ -176,23 +190,4 @@ pub fn process_request_undelegation(
     );
 
     Ok(())
-}
-
-fn parse_timeout_slots(data: &[u8]) -> Result<u64, ProgramError> {
-    match data.len() {
-        0 => Ok(DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS),
-        8 => {
-            let timeout_slots = u64::from_le_bytes(
-                data.try_into()
-                    .map_err(|_| ProgramError::InvalidInstructionData)?,
-            );
-            require_ge!(
-                timeout_slots,
-                DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
-                DlpError::UndelegationRequestTimeoutTooShort
-            );
-            Ok(timeout_slots)
-        }
-        _ => Err(ProgramError::InvalidInstructionData),
-    }
 }

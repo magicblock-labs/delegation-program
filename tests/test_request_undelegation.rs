@@ -1,5 +1,6 @@
 use dlp::solana_program;
 use dlp_api::{
+    args::RequestUndelegationArgs,
     consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
     error::DlpError,
     pda::{
@@ -11,6 +12,7 @@ use dlp_api::{
         validator_fees_vault_pda_from_validator,
     },
     state::UndelegationRequest,
+    wheels::layout::Encodable,
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -200,8 +202,19 @@ async fn test_request_undelegation_rejects_missing_delegated_signer() {
             ),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: dlp_api::discriminator::DlpDiscriminator::RequestUndelegation
-            .to_vec(),
+        data: {
+            let mut data =
+                dlp_api::discriminator::DlpDiscriminator::RequestUndelegation
+                    .to_vec();
+            data.extend_from_slice(
+                &RequestUndelegationArgs {
+                    timeout_slots: None,
+                }
+                .encode()
+                .unwrap(),
+            );
+            data
+        },
     };
 
     let tx = Transaction::new_signed_with_payer(
@@ -223,6 +236,9 @@ async fn test_request_undelegation_rejects_on_curve_delegated_account() {
         payer.pubkey(),
         delegated_on_curve.pubkey(),
         system_program::id(),
+        RequestUndelegationArgs {
+            timeout_slots: None,
+        },
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -333,7 +349,7 @@ async fn test_undelegate_with_malformed_optional_request_accounts_rejected() {
     );
 }
 
-fn process_request_wrapper(
+fn imaginary_program_processor_requesting_undelegation_through_cpi(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     data: &[u8],
@@ -353,17 +369,22 @@ fn process_request_wrapper(
             *payer.key,
             *delegated_account.key,
             *program_id,
+            RequestUndelegationArgs {
+                timeout_slots: None,
+            },
         ),
         8 => {
             let timeout_slots = u64::from_le_bytes(
                 data.try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?,
             );
-            dlp_api::instruction_builder::request_undelegation_with_timeout(
+            dlp_api::instruction_builder::request_undelegation(
                 *payer.key,
                 *delegated_account.key,
                 *program_id,
-                timeout_slots,
+                RequestUndelegationArgs {
+                    timeout_slots: Some(timeout_slots as u16),
+                },
             )
         }
         _ => return Err(ProgramError::InvalidInstructionData),
@@ -400,6 +421,12 @@ fn request_undelegation_from_owner_program_with_timeout(
     )
 }
 
+///
+/// Note this instruction invokes an imaginary "owner program" which then calls the DLP program to
+/// request undelegatation, which is why "data" doesn't contain any "instruction discriminator"
+/// because the imaginary program doesn't require it. See imaginary_program_processor_requesting_undelegation_through_cpi()
+/// which is supposed to be the processor of the imaginary program.
+///
 fn request_undelegation_from_owner_program_with_data(
     payer: Pubkey,
     data: Vec<u8>,
@@ -441,7 +468,9 @@ async fn setup_request_env() -> (BanksClient, Keypair, Keypair, Hash) {
     program_test.add_program(
         "request-wrapper",
         DELEGATED_PDA_OWNER_ID,
-        processor!(process_request_wrapper),
+        processor!(
+            imaginary_program_processor_requesting_undelegation_through_cpi
+        ),
     );
     program_test.prefer_bpf(true);
 
