@@ -54,7 +54,7 @@ use crate::{
 /// 10: `[writable]`         commit record PDA
 /// 11: `[writable]`         commit reimbursement account
 /// 12: `[]`                 system program
-pub fn process_carry_over_requested_undelegation(
+pub fn process_undelegate_after_request_timeout(
     _program_id: &Address,
     accounts: &[AccountView],
     _data: &[u8],
@@ -143,7 +143,7 @@ pub fn process_carry_over_requested_undelegation(
             delegated_account.assign(owner_program.address());
         }
     } else {
-        carry_over_with_undelegation_cpi(
+        undelegate_with_buffer_cpi(
             caller,
             delegated_account,
             owner_program,
@@ -214,7 +214,7 @@ fn load_valid_request(
     Ok(request)
 }
 
-fn carry_over_with_undelegation_cpi(
+fn undelegate_with_buffer_cpi(
     caller: &AccountView,
     delegated_account: &AccountView,
     owner_program: &AccountView,
@@ -332,7 +332,7 @@ fn cleanup_pending_commit(
         return Err(ProgramError::Immutable);
     }
 
-    // Timeout carry-over is a rollback/escape hatch. At this point the
+    // Request-timeout undelegation is a rollback/escape hatch. At this point the
     // validator has committed state into the commit PDAs, but that state has
     // not been finalized into the delegated account. Applying it here would let
     // this permissionless timeout path accept fresh validator state, which is

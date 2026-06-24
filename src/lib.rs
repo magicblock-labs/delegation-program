@@ -154,8 +154,8 @@ pub fn fast_process_instruction(
                 program_id, accounts, data,
             ))
         }
-        DlpDiscriminator::CarryOverRequestedUndelegation => {
-            Some(processor::fast::process_carry_over_requested_undelegation(
+        DlpDiscriminator::UndelegateAfterRequestTimeout => {
+            Some(processor::fast::process_undelegate_after_request_timeout(
                 program_id, accounts, data,
             ))
         }

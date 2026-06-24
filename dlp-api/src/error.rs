@@ -179,7 +179,7 @@ pub enum DlpError {
     #[error("Undelegation request has not expired")]
     UndelegationRequestNotExpired = 51,
 
-    #[error("Invalid pending commit state for timeout carry-over")]
+    #[error("Invalid pending commit state for request-timeout undelegation")]
     InvalidPendingCommitState = 52,
 
     #[error("An infallible error is encountered possibly due to logic error")]

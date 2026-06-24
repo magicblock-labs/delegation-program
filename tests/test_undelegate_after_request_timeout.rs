@@ -32,7 +32,7 @@ use crate::fixtures::{
 mod fixtures;
 
 #[tokio::test]
-async fn test_carry_over_requested_undelegation_after_expiry() {
+async fn test_undelegate_after_request_timeout_after_expiry() {
     let (
         banks,
         caller,
@@ -40,7 +40,7 @@ async fn test_carry_over_requested_undelegation_after_expiry() {
         delegation_rent_payer,
         _,
         blockhash,
-    ) = setup_carry_over_env(false, 0).await;
+    ) = setup_request_timeout_env(false, 0).await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -82,7 +82,7 @@ async fn test_carry_over_requested_undelegation_after_expiry() {
     let delegated_before =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
 
-    let ix = dlp_api::instruction_builder::carry_over_requested_undelegation(
+    let ix = dlp_api::instruction_builder::undelegate_after_request_timeout(
         caller.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -140,7 +140,7 @@ async fn test_carry_over_requested_undelegation_after_expiry() {
 }
 
 #[tokio::test]
-async fn test_carry_over_requested_undelegation_rejects_before_expiry() {
+async fn test_undelegate_after_request_timeout_rejects_before_expiry() {
     let (
         banks,
         caller,
@@ -148,7 +148,7 @@ async fn test_carry_over_requested_undelegation_rejects_before_expiry() {
         delegation_rent_payer,
         _,
         blockhash,
-    ) = setup_carry_over_env(false, 1_000_000).await;
+    ) = setup_request_timeout_env(false, 1_000_000).await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -171,7 +171,7 @@ async fn test_carry_over_requested_undelegation_rejects_before_expiry() {
     let delegated_before =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
 
-    let ix = dlp_api::instruction_builder::carry_over_requested_undelegation(
+    let ix = dlp_api::instruction_builder::undelegate_after_request_timeout(
         caller.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -227,7 +227,7 @@ async fn test_carry_over_requested_undelegation_rejects_before_expiry() {
 }
 
 #[tokio::test]
-async fn test_carry_over_requested_undelegation_rejects_stale_request() {
+async fn test_undelegate_after_request_timeout_rejects_stale_request() {
     let (
         banks,
         caller,
@@ -235,7 +235,7 @@ async fn test_carry_over_requested_undelegation_rejects_stale_request() {
         delegation_rent_payer,
         _,
         blockhash,
-    ) = setup_carry_over_env_with_nonces(false, 0, 1, 0).await;
+    ) = setup_request_timeout_env_with_nonces(false, 0, 1, 0).await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -258,7 +258,7 @@ async fn test_carry_over_requested_undelegation_rejects_stale_request() {
     let delegated_before =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
 
-    let ix = dlp_api::instruction_builder::carry_over_requested_undelegation(
+    let ix = dlp_api::instruction_builder::undelegate_after_request_timeout(
         caller.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -314,7 +314,7 @@ async fn test_carry_over_requested_undelegation_rejects_stale_request() {
 }
 
 #[tokio::test]
-async fn test_carry_over_closes_pending_commit_without_applying_it() {
+async fn test_request_timeout_closes_pending_commit_without_applying_it() {
     let (
         banks,
         caller,
@@ -322,7 +322,7 @@ async fn test_carry_over_closes_pending_commit_without_applying_it() {
         delegation_rent_payer,
         validator,
         blockhash,
-    ) = setup_carry_over_env(true, 0).await;
+    ) = setup_request_timeout_env(true, 0).await;
 
     let commit_state_pda =
         commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -347,7 +347,7 @@ async fn test_carry_over_closes_pending_commit_without_applying_it() {
         .unwrap()
         .lamports;
 
-    let ix = dlp_api::instruction_builder::carry_over_requested_undelegation(
+    let ix = dlp_api::instruction_builder::undelegate_after_request_timeout(
         caller.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -390,15 +390,20 @@ async fn test_carry_over_closes_pending_commit_without_applying_it() {
     );
 }
 
-async fn setup_carry_over_env(
+async fn setup_request_timeout_env(
     with_pending_commit: bool,
     expires_at_slot: u64,
 ) -> (BanksClient, Keypair, Keypair, Keypair, Keypair, Hash) {
-    setup_carry_over_env_with_nonces(with_pending_commit, expires_at_slot, 0, 0)
-        .await
+    setup_request_timeout_env_with_nonces(
+        with_pending_commit,
+        expires_at_slot,
+        0,
+        0,
+    )
+    .await
 }
 
-async fn setup_carry_over_env_with_nonces(
+async fn setup_request_timeout_env_with_nonces(
     with_pending_commit: bool,
     expires_at_slot: u64,
     delegation_last_update_nonce: u64,

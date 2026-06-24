@@ -24,7 +24,7 @@ pub struct UndelegationRequest {
     /// The slot at which the request was created.
     pub created_slot: u64,
 
-    /// The first slot at which timeout carry-over is allowed.
+    /// The first slot at which undelegate-after-request-timeout is allowed.
     pub expires_at_slot: u64,
 
     /// Delegation metadata nonce observed when the request was created.

@@ -66,8 +66,8 @@ pub enum DlpDiscriminator {
     /// See [crate::processor::process_request_undelegation] for docs.
     RequestUndelegation = 26,
 
-    /// See [crate::processor::process_carry_over_requested_undelegation] for docs.
-    CarryOverRequestedUndelegation = 27,
+    /// See [crate::processor::process_undelegate_after_request_timeout] for docs.
+    UndelegateAfterRequestTimeout = 27,
 }
 
 impl DlpDiscriminator {

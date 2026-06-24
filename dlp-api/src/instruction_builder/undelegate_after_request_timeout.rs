@@ -18,10 +18,10 @@ use solana_sdk_ids::system_program;
 
 use crate::compat::{Compatize, Modernize};
 
-/// Builds a timeout carry-over instruction for a requested undelegation.
-/// See [dlp::processor::process_carry_over_requested_undelegation] for docs.
+/// Builds a timeout fallback instruction for a requested undelegation.
+/// See [dlp::processor::process_undelegate_after_request_timeout] for docs.
 #[allow(clippy::too_many_arguments)]
-pub fn carry_over_requested_undelegation(
+pub fn undelegate_after_request_timeout(
     caller: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
@@ -69,16 +69,16 @@ pub fn carry_over_requested_undelegation(
             AccountMeta::new(commit_reimbursement, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminator::CarryOverRequestedUndelegation.to_vec(),
+        data: DlpDiscriminator::UndelegateAfterRequestTimeout.to_vec(),
     }
 }
 
 ///
-/// Returns accounts-data-size budget for requested undelegation carry-over.
+/// Returns accounts-data-size budget for undelegate-after-request-timeout.
 ///
 /// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
 ///
-pub fn carry_over_requested_undelegation_size_budget(
+pub fn undelegate_after_request_timeout_size_budget(
     delegated_account: AccountSizeClass,
 ) -> u32 {
     total_size_budget(&[
