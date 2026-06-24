@@ -1,12 +1,11 @@
 use pinocchio::{
-    address::{address_eq, Address},
+    address::Address,
     cpi::Signer,
     error::ProgramError,
     instruction::seeds,
     sysvars::{clock::Clock, Sysvar},
     AccountView, ProgramResult,
 };
-use pinocchio_log::log;
 
 use super::to_pinocchio_program_error;
 use crate::{
@@ -14,7 +13,7 @@ use crate::{
     error::DlpError,
     pda,
     processor::{fast::utils::pda::create_pda, utils::curve::is_on_curve_fast},
-    require_n_accounts,
+    require, require_eq_keys, require_ge, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_owned_pda, require_pda,
@@ -50,9 +49,7 @@ pub fn process_request_undelegation(
     ] = require_n_accounts!(accounts, 7);
 
     require_signer(payer, "payer")?;
-    if !payer.is_writable() {
-        return Err(ProgramError::Immutable);
-    }
+    require!(payer.is_writable(), ProgramError::Immutable);
     require_signer(delegated_account, "delegated account")?;
     require_owned_pda(
         delegated_account,
@@ -60,10 +57,10 @@ pub fn process_request_undelegation(
         "delegated account",
     )?;
 
-    if is_on_curve_fast(delegated_account.address()) {
-        log!("request undelegation is only supported for off-curve accounts");
-        return Err(DlpError::RequestUndelegationOnCurveAccount.into());
-    }
+    require!(
+        !is_on_curve_fast(delegated_account.address()),
+        DlpError::RequestUndelegationOnCurveAccount
+    );
 
     require_initialized_delegation_record(
         delegated_account,
@@ -83,12 +80,11 @@ pub fn process_request_undelegation(
         )
         .map_err(to_pinocchio_program_error)?;
 
-    if !address_eq(
-        &delegation_record.owner.to_bytes().into(),
+    require_eq_keys!(
+        &delegation_record.owner,
         owner_program.address(),
-    ) {
-        return Err(ProgramError::InvalidAccountOwner);
-    }
+        ProgramError::InvalidAccountOwner
+    );
 
     let delegation_metadata_data = delegation_metadata_account.try_borrow()?;
     let delegation_metadata =
@@ -133,9 +129,9 @@ pub fn process_request_undelegation(
         )?;
 
         let request = UndelegationRequest {
-            delegated_account: delegated_account.address().to_bytes().into(),
-            owner_program: owner_program.address().to_bytes().into(),
-            rent_payer: payer.address().to_bytes().into(),
+            delegated_account: *delegated_account.address(),
+            owner_program: *owner_program.address(),
+            rent_payer: *payer.address(),
             created_slot,
             expires_at_slot,
             delegation_nonce_at_request: delegation_metadata.last_update_nonce,
@@ -168,15 +164,16 @@ pub fn process_request_undelegation(
         UndelegationRequest::try_from_bytes_with_discriminator(&request_data)
             .map_err(to_pinocchio_program_error)?;
 
-    if !address_eq(
-        &request.delegated_account.to_bytes().into(),
+    require_eq_keys!(
+        &request.delegated_account,
         delegated_account.address(),
-    ) || !address_eq(
-        &request.owner_program.to_bytes().into(),
+        DlpError::InvalidUndelegationRequest
+    );
+    require_eq_keys!(
+        &request.owner_program,
         owner_program.address(),
-    ) {
-        return Err(DlpError::InvalidUndelegationRequest.into());
-    }
+        DlpError::InvalidUndelegationRequest
+    );
 
     Ok(())
 }
@@ -189,9 +186,11 @@ fn parse_timeout_slots(data: &[u8]) -> Result<u64, ProgramError> {
                 data.try_into()
                     .map_err(|_| ProgramError::InvalidInstructionData)?,
             );
-            if timeout_slots < DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS {
-                return Err(DlpError::UndelegationRequestTimeoutTooShort.into());
-            }
+            require_ge!(
+                timeout_slots,
+                DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
+                DlpError::UndelegationRequestTimeoutTooShort
+            );
             Ok(timeout_slots)
         }
         _ => Err(ProgramError::InvalidInstructionData),

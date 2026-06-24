@@ -1,5 +1,5 @@
 use pinocchio::{
-    address::{address_eq, Address},
+    address::Address,
     cpi::Signer,
     error::ProgramError,
     instruction::seeds,
@@ -12,7 +12,7 @@ use crate::{
     error::DlpError,
     pda,
     processor::fast::utils::pda::{close_pda, create_pda},
-    require, require_n_accounts,
+    require, require_eq, require_eq_keys, require_ge, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_commit_record,
         require_initialized_commit_state,
@@ -63,9 +63,7 @@ pub fn process_undelegate_after_request_timeout(
         require_n_accounts!(accounts, 13);
 
     require_signer(caller, "caller")?;
-    if !caller.is_writable() {
-        return Err(ProgramError::Immutable);
-    }
+    require!(caller.is_writable(), ProgramError::Immutable);
     require_owned_pda(
         delegated_account,
         &crate::fast::ID,
@@ -79,9 +77,12 @@ pub fn process_undelegate_after_request_timeout(
         undelegation_request_account,
         request_rent_payer,
     )?;
-    if Clock::get()?.slot < request.expires_at_slot {
-        return Err(DlpError::UndelegationRequestNotExpired.into());
-    }
+    let current_slot = Clock::get()?.slot;
+    require_ge!(
+        current_slot,
+        request.expires_at_slot,
+        DlpError::UndelegationRequestNotExpired
+    );
 
     require_initialized_delegation_record(
         delegated_account,
@@ -113,30 +114,26 @@ pub fn process_undelegate_after_request_timeout(
         (delegation_record.owner, delegation_metadata)
     };
 
-    if !address_eq(&delegation_owner.to_bytes().into(), owner_program.address())
-    {
-        return Err(ProgramError::InvalidAccountOwner);
-    }
+    require_eq_keys!(
+        &delegation_owner,
+        owner_program.address(),
+        ProgramError::InvalidAccountOwner
+    );
     // CHECKPOINT: A timeout request is bound to the delegation nonce observed
     // when it was created. If undelegation is still desired after the nonce
     // changes, one possible design is to let request_undelegation refresh an
     // existing request so it records the current nonce.
-    if request.delegation_nonce_at_request
-        != delegation_metadata.last_update_nonce
-    {
-        return Err(DlpError::InvalidUndelegationRequest.into());
-    }
-    if !address_eq(
-        &delegation_metadata.rent_payer.to_bytes().into(),
+    require_eq!(
+        request.delegation_nonce_at_request,
+        delegation_metadata.last_update_nonce,
+        DlpError::InvalidUndelegationRequest
+    );
+    require_eq_keys!(
+        &delegation_metadata.rent_payer,
         delegation_rent_payer.address(),
-    ) {
-        return Err(
-            DlpError::InvalidReimbursementAddressForDelegationRent.into()
-        );
-    }
-    if !delegation_rent_payer.is_writable() {
-        return Err(ProgramError::Immutable);
-    }
+        DlpError::InvalidReimbursementAddressForDelegationRent
+    );
+    require!(delegation_rent_payer.is_writable(), ProgramError::Immutable);
 
     if delegated_account.is_data_empty() {
         unsafe {
@@ -188,28 +185,33 @@ fn load_valid_request(
         "undelegation request",
     )?;
 
-    if !request_rent_payer.is_writable() {
-        return Err(ProgramError::Immutable);
-    }
+    require!(request_rent_payer.is_writable(), ProgramError::Immutable);
 
     let request_data = undelegation_request_account.try_borrow()?;
     let request =
         *UndelegationRequest::try_from_bytes_with_discriminator(&request_data)
             .map_err(to_pinocchio_program_error)?;
 
-    if !address_eq(
-        &request.delegated_account.to_bytes().into(),
+    require_eq_keys!(
+        &request.delegated_account,
         delegated_account.address(),
-    ) || !address_eq(
-        &request.owner_program.to_bytes().into(),
+        DlpError::InvalidUndelegationRequest
+    );
+    require_eq_keys!(
+        &request.owner_program,
         owner_program.address(),
-    ) || !address_eq(
-        &request.rent_payer.to_bytes().into(),
+        DlpError::InvalidUndelegationRequest
+    );
+    require_eq_keys!(
+        &request.rent_payer,
         request_rent_payer.address(),
-    ) || request.bump != request_bump
-    {
-        return Err(DlpError::InvalidUndelegationRequest.into());
-    }
+        DlpError::InvalidUndelegationRequest
+    );
+    require_eq!(
+        request.bump,
+        request_bump,
+        DlpError::InvalidUndelegationRequest
+    );
 
     Ok(request)
 }
@@ -295,9 +297,11 @@ fn cleanup_pending_commit(
         return Ok(());
     }
 
-    if commit_state_uninitialized != commit_record_uninitialized {
-        return Err(DlpError::InvalidPendingCommitState.into());
-    }
+    require_eq!(
+        commit_state_uninitialized,
+        commit_record_uninitialized,
+        DlpError::InvalidPendingCommitState
+    );
 
     require_initialized_commit_state(
         delegated_account,
@@ -317,20 +321,19 @@ fn cleanup_pending_commit(
         )
         .map_err(to_pinocchio_program_error)?;
 
-        if !address_eq(
-            &commit_record.account.to_bytes().into(),
+        require_eq_keys!(
+            &commit_record.account,
             delegated_account.address(),
-        ) || !address_eq(
-            &commit_record.identity.to_bytes().into(),
+            DlpError::InvalidPendingCommitState
+        );
+        require_eq_keys!(
+            &commit_record.identity,
             commit_reimbursement.address(),
-        ) {
-            return Err(DlpError::InvalidPendingCommitState.into());
-        }
+            DlpError::InvalidPendingCommitState
+        );
     }
 
-    if !commit_reimbursement.is_writable() {
-        return Err(ProgramError::Immutable);
-    }
+    require!(commit_reimbursement.is_writable(), ProgramError::Immutable);
 
     // Request-timeout undelegation is a rollback/escape hatch. At this point the
     // validator has committed state into the commit PDAs, but that state has
