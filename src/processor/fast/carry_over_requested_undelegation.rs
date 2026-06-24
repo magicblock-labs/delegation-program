@@ -12,14 +12,14 @@ use crate::{
     error::DlpError,
     pda,
     processor::fast::utils::pda::{close_pda, create_pda},
-    require_n_accounts,
+    require, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_commit_record,
         require_initialized_commit_state,
         require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_initialized_pda,
-        require_owned_pda, require_signer, require_uninitialized_pda,
-        UndelegateBufferCtx,
+        require_owned_pda, require_pda, require_signer,
+        require_uninitialized_pda, UndelegateBufferCtx,
     },
     state::{
         CommitRecord, DelegationMetadata, DelegationRecord, UndelegationRequest,
@@ -71,6 +71,7 @@ pub fn process_carry_over_requested_undelegation(
         &crate::fast::ID,
         "delegated account",
     )?;
+    require!(delegated_account.is_writable(), ProgramError::Immutable);
 
     let request = load_valid_request(
         delegated_account,
@@ -261,6 +262,21 @@ fn cleanup_pending_commit(
     commit_record_account: &AccountView,
     commit_reimbursement: &AccountView,
 ) -> ProgramResult {
+    require_pda(
+        commit_state_account,
+        &[pda::COMMIT_STATE_TAG, delegated_account.address().as_ref()],
+        &crate::fast::ID,
+        false,
+        "commit state",
+    )?;
+    require_pda(
+        commit_record_account,
+        &[pda::COMMIT_RECORD_TAG, delegated_account.address().as_ref()],
+        &crate::fast::ID,
+        false,
+        "commit record",
+    )?;
+
     let commit_state_uninitialized =
         is_uninitialized_account(commit_state_account);
     let commit_record_uninitialized =

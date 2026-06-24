@@ -1,6 +1,7 @@
 use dlp::solana_program;
 use dlp_api::{
     consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
+    error::DlpError,
     pda::{
         commit_record_pda_from_delegated_account,
         commit_state_pda_from_delegated_account,
@@ -22,11 +23,14 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
 };
-use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
+use solana_program_test::{
+    processor, read_file, BanksClient, BanksClientError, ProgramTest,
+};
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use solana_sdk_ids::system_program;
 
@@ -156,8 +160,19 @@ async fn test_request_undelegation_rejects_short_timeout() {
         blockhash,
     );
 
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_err());
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::Custom(code),
+                )
+            ) if code == DlpError::UndelegationRequestTimeoutTooShort as u32
+        ),
+        "expected UndelegationRequestTimeoutTooShort, got {err:?}"
+    );
 }
 
 #[tokio::test]
@@ -274,6 +289,47 @@ async fn test_undelegate_with_request_closes_request() {
     assert_eq!(
         payer_lamports_after,
         payer_lamports_before + request_lamports_before
+    );
+}
+
+#[tokio::test]
+async fn test_undelegate_with_malformed_optional_request_accounts_rejected() {
+    let (banks, _, authority, request_rent_payer, blockhash) =
+        setup_undelegate_with_request_env().await;
+
+    let ix_finalize = dlp_api::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+    );
+    let mut ix_undelegate =
+        dlp_api::instruction_builder::undelegate_with_request(
+            authority.pubkey(),
+            DELEGATED_PDA_ID,
+            DELEGATED_PDA_OWNER_ID,
+            authority.pubkey(),
+            request_rent_payer.pubkey(),
+        );
+    ix_undelegate.accounts.pop();
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix_finalize, ix_undelegate],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    1,
+                    InstructionError::InvalidInstructionData,
+                )
+            )
+        ),
+        "expected malformed optional request accounts to fail undelegate \
+         with InvalidInstructionData, got {err:?}"
     );
 }
 

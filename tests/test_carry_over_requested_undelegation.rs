@@ -1,17 +1,23 @@
 use dlp::solana_program;
-use dlp_api::pda::{
-    commit_record_pda_from_delegated_account,
-    commit_state_pda_from_delegated_account,
-    delegation_metadata_pda_from_delegated_account,
-    delegation_record_pda_from_delegated_account,
-    undelegation_request_pda_from_delegated_account,
+use dlp_api::{
+    error::DlpError,
+    pda::{
+        commit_record_pda_from_delegated_account,
+        commit_state_pda_from_delegated_account,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+        undelegation_request_pda_from_delegated_account,
+    },
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
-use solana_program_test::{read_file, BanksClient, ProgramTest};
+use solana_program_test::{
+    read_file, BanksClient, BanksClientError, ProgramTest,
+};
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use solana_sdk_ids::system_program;
 
@@ -144,6 +150,27 @@ async fn test_carry_over_requested_undelegation_rejects_before_expiry() {
         blockhash,
     ) = setup_carry_over_env(false, 1_000_000).await;
 
+    let request_pda =
+        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+
+    let request_before = banks.get_account(request_pda).await.unwrap().unwrap();
+    let delegation_record_before = banks
+        .get_account(delegation_record_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_metadata_before = banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegated_before =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+
     let ix = dlp_api::instruction_builder::carry_over_requested_undelegation(
         caller.pubkey(),
         DELEGATED_PDA_ID,
@@ -159,12 +186,44 @@ async fn test_carry_over_requested_undelegation_rejects_before_expiry() {
         blockhash,
     );
 
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_err());
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::Custom(code),
+                )
+            ) if code == DlpError::UndelegationRequestNotExpired as u32
+        ),
+        "expected UndelegationRequestNotExpired, got {err:?}"
+    );
 
-    let request_pda =
-        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    assert!(banks.get_account(request_pda).await.unwrap().is_some());
+    assert_eq!(
+        banks.get_account(request_pda).await.unwrap().unwrap(),
+        request_before
+    );
+    assert_eq!(
+        banks
+            .get_account(delegation_record_pda)
+            .await
+            .unwrap()
+            .unwrap(),
+        delegation_record_before
+    );
+    assert_eq!(
+        banks
+            .get_account(delegation_metadata_pda)
+            .await
+            .unwrap()
+            .unwrap(),
+        delegation_metadata_before
+    );
+    assert_eq!(
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap(),
+        delegated_before
+    );
 }
 
 #[tokio::test]
