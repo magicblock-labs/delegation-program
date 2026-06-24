@@ -134,10 +134,24 @@ pub fn get_delegation_metadata_data(
     rent_payer: Pubkey,
     is_undelegatable: Option<bool>,
 ) -> Vec<u8> {
-    create_delegation_metadata_data(
+    get_delegation_metadata_data_with_nonce(
+        rent_payer,
+        is_undelegatable,
+        DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
+    )
+}
+
+#[allow(dead_code)]
+pub fn get_delegation_metadata_data_with_nonce(
+    rent_payer: Pubkey,
+    is_undelegatable: Option<bool>,
+    last_update_nonce: u64,
+) -> Vec<u8> {
+    create_delegation_metadata_data_with_nonce(
         rent_payer,
         DEFAULT_SEEDS,
         is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
+        last_update_nonce,
     )
 }
 

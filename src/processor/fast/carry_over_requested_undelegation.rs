@@ -117,6 +117,15 @@ pub fn process_carry_over_requested_undelegation(
     {
         return Err(ProgramError::InvalidAccountOwner);
     }
+    // CHECKPOINT: A timeout request is bound to the delegation nonce observed
+    // when it was created. If undelegation is still desired after the nonce
+    // changes, one possible design is to let request_undelegation refresh an
+    // existing request so it records the current nonce.
+    if request.delegation_nonce_at_request
+        != delegation_metadata.last_update_nonce
+    {
+        return Err(DlpError::InvalidUndelegationRequest.into());
+    }
     if !address_eq(
         &delegation_metadata.rent_payer.to_bytes().into(),
         delegation_rent_payer.address(),

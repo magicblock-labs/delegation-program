@@ -23,7 +23,7 @@ use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     create_undelegation_request_data_with_expiry,
-    get_commit_record_account_data, get_delegation_metadata_data,
+    get_commit_record_account_data, get_delegation_metadata_data_with_nonce,
     get_delegation_record_data, keypair_from_bytes,
     COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA, DELEGATED_PDA_ID,
     DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
@@ -227,6 +227,93 @@ async fn test_carry_over_requested_undelegation_rejects_before_expiry() {
 }
 
 #[tokio::test]
+async fn test_carry_over_requested_undelegation_rejects_stale_request() {
+    let (
+        banks,
+        caller,
+        request_rent_payer,
+        delegation_rent_payer,
+        _,
+        blockhash,
+    ) = setup_carry_over_env_with_nonces(false, 0, 1, 0).await;
+
+    let request_pda =
+        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+
+    let request_before = banks.get_account(request_pda).await.unwrap().unwrap();
+    let delegation_record_before = banks
+        .get_account(delegation_record_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_metadata_before = banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegated_before =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+
+    let ix = dlp_api::instruction_builder::carry_over_requested_undelegation(
+        caller.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        request_rent_payer.pubkey(),
+        delegation_rent_payer.pubkey(),
+        caller.pubkey(),
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&caller.pubkey()),
+        &[&caller],
+        blockhash,
+    );
+
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::Custom(code),
+                )
+            ) if code == DlpError::InvalidUndelegationRequest as u32
+        ),
+        "expected InvalidUndelegationRequest, got {err:?}"
+    );
+
+    assert_eq!(
+        banks.get_account(request_pda).await.unwrap().unwrap(),
+        request_before
+    );
+    assert_eq!(
+        banks
+            .get_account(delegation_record_pda)
+            .await
+            .unwrap()
+            .unwrap(),
+        delegation_record_before
+    );
+    assert_eq!(
+        banks
+            .get_account(delegation_metadata_pda)
+            .await
+            .unwrap()
+            .unwrap(),
+        delegation_metadata_before
+    );
+    assert_eq!(
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap(),
+        delegated_before
+    );
+}
+
+#[tokio::test]
 async fn test_carry_over_closes_pending_commit_without_applying_it() {
     let (
         banks,
@@ -307,6 +394,16 @@ async fn setup_carry_over_env(
     with_pending_commit: bool,
     expires_at_slot: u64,
 ) -> (BanksClient, Keypair, Keypair, Keypair, Keypair, Hash) {
+    setup_carry_over_env_with_nonces(with_pending_commit, expires_at_slot, 0, 0)
+        .await
+}
+
+async fn setup_carry_over_env_with_nonces(
+    with_pending_commit: bool,
+    expires_at_slot: u64,
+    delegation_last_update_nonce: u64,
+    request_delegation_nonce: u64,
+) -> (BanksClient, Keypair, Keypair, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
@@ -320,11 +417,16 @@ async fn setup_carry_over_env(
     add_system_account(&mut program_test, delegation_rent_payer.pubkey());
     add_system_account(&mut program_test, validator.pubkey());
     add_delegated_account(&mut program_test);
-    add_delegation_accounts(&mut program_test, delegation_rent_payer.pubkey());
+    add_delegation_accounts(
+        &mut program_test,
+        delegation_rent_payer.pubkey(),
+        delegation_last_update_nonce,
+    );
     add_request_account(
         &mut program_test,
         request_rent_payer.pubkey(),
         expires_at_slot,
+        request_delegation_nonce,
     );
     add_owner_program(&mut program_test);
     if with_pending_commit {
@@ -374,6 +476,7 @@ fn add_delegated_account(program_test: &mut ProgramTest) {
 fn add_delegation_accounts(
     program_test: &mut ProgramTest,
     delegation_rent_payer: solana_program::pubkey::Pubkey,
+    last_update_nonce: u64,
 ) {
     let delegation_record_data = get_delegation_record_data(
         keypair_from_bytes(&TEST_AUTHORITY).pubkey(),
@@ -391,8 +494,11 @@ fn add_delegation_accounts(
         },
     );
 
-    let delegation_metadata_data =
-        get_delegation_metadata_data(delegation_rent_payer, Some(false));
+    let delegation_metadata_data = get_delegation_metadata_data_with_nonce(
+        delegation_rent_payer,
+        Some(false),
+        last_update_nonce,
+    );
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
@@ -410,6 +516,7 @@ fn add_request_account(
     program_test: &mut ProgramTest,
     request_rent_payer: solana_program::pubkey::Pubkey,
     expires_at_slot: u64,
+    delegation_nonce_at_request: u64,
 ) {
     let request_data = create_undelegation_request_data_with_expiry(
         DELEGATED_PDA_ID,
@@ -417,7 +524,7 @@ fn add_request_account(
         request_rent_payer,
         0,
         expires_at_slot,
-        0,
+        delegation_nonce_at_request,
     );
     program_test.add_account(
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID),
