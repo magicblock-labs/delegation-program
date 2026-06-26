@@ -24,11 +24,12 @@ pub struct UndelegationRequest {
     /// The slot at which the request was created.
     pub created_slot: u64,
 
-    /// The first slot at which undelegate-after-request-timeout is allowed.
+    /// The first slot at which timeout rollback is allowed.
     pub expires_at_slot: u64,
 
-    /// Delegation metadata nonce observed when the request was created.
-    pub delegation_nonce_at_request: u64,
+    /// DelegationMetadata.last_commit_id observed when the request was last
+    /// made or refreshed.
+    pub last_commit_id_at_request: u64,
 
     /// PDA bump for this request.
     pub bump: u8,

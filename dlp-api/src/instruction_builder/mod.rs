@@ -22,8 +22,8 @@ mod request_undelegation;
 mod top_up_ephemeral_balance;
 mod types;
 mod undelegate;
-mod undelegate_after_request_timeout;
 mod undelegate_confined_account;
+mod undelegate_with_rollback_after_timeout;
 mod validator_claim_fees;
 mod whitelist_validator_for_program;
 
@@ -51,7 +51,7 @@ pub use request_undelegation::*;
 pub use top_up_ephemeral_balance::*;
 pub use types::*;
 pub use undelegate::*;
-pub use undelegate_after_request_timeout::*;
 pub use undelegate_confined_account::*;
+pub use undelegate_with_rollback_after_timeout::*;
 pub use validator_claim_fees::*;
 pub use whitelist_validator_for_program::*;

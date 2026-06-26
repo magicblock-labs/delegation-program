@@ -241,7 +241,7 @@ fn process_delegate_inner(
 
     let delegation_metadata = DelegationMetadata {
         seeds: args.seeds,
-        last_update_nonce: 0,
+        last_commit_id: 0,
         is_undelegatable: false,
         rent_payer: payer.address().to_bytes().into(),
     };

@@ -154,11 +154,11 @@ pub fn fast_process_instruction(
                 program_id, accounts, data,
             ))
         }
-        DlpDiscriminator::UndelegateAfterRequestTimeout => {
-            Some(processor::fast::process_undelegate_after_request_timeout(
+        DlpDiscriminator::UndelegateWithRollbackAfterTimeout => Some(
+            processor::fast::process_undelegate_with_rollback_after_timeout(
                 program_id, accounts, data,
-            ))
-        }
+            ),
+        ),
         _ => None,
     }
 }

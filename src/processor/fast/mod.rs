@@ -9,8 +9,8 @@ mod delegate_with_actions;
 mod finalize;
 mod request_undelegation;
 mod undelegate;
-mod undelegate_after_request_timeout;
 mod undelegate_confined_account;
+mod undelegate_with_rollback_after_timeout;
 mod utils;
 
 pub(crate) mod internal;
@@ -26,8 +26,8 @@ pub use delegate_with_actions::*;
 pub use finalize::*;
 pub use request_undelegation::*;
 pub use undelegate::*;
-pub use undelegate_after_request_timeout::*;
 pub use undelegate_confined_account::*;
+pub use undelegate_with_rollback_after_timeout::*;
 
 pub fn to_pinocchio_program_error(
     error: solana_program::program_error::ProgramError,

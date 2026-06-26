@@ -17,7 +17,7 @@ use crate::{
     error::DlpError,
     pda,
     processor::{fast::utils::pda::create_pda, utils::curve::is_on_curve_fast},
-    require, require_eq_keys, require_n_accounts,
+    require, require_eq, require_eq_keys, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_owned_pda, require_pda,
@@ -148,7 +148,7 @@ pub fn process_request_undelegation(
             rent_payer: *payer.address(),
             created_slot,
             expires_at_slot,
-            delegation_nonce_at_request: delegation_metadata.last_update_nonce,
+            last_commit_id_at_request: delegation_metadata.last_commit_id,
             bump: request_bump,
             _padding: [0; 7],
         };
@@ -160,7 +160,7 @@ pub fn process_request_undelegation(
         return Ok(());
     }
 
-    require_pda(
+    let request_bump = require_pda(
         undelegation_request_account,
         request_seeds,
         &crate::fast::ID,
@@ -173,10 +173,11 @@ pub fn process_request_undelegation(
         "undelegation request",
     )?;
 
-    let request_data = undelegation_request_account.try_borrow()?;
-    let request =
-        UndelegationRequest::try_from_bytes_with_discriminator(&request_data)
-            .map_err(to_pinocchio_program_error)?;
+    let mut request_data = undelegation_request_account.try_borrow_mut()?;
+    let request = UndelegationRequest::try_from_bytes_with_discriminator_mut(
+        &mut request_data,
+    )
+    .map_err(to_pinocchio_program_error)?;
 
     require_eq_keys!(
         &request.delegated_account,
@@ -188,6 +189,16 @@ pub fn process_request_undelegation(
         owner_program.address(),
         DlpError::InvalidUndelegationRequest
     );
+    require_eq!(
+        request.bump,
+        request_bump,
+        DlpError::InvalidUndelegationRequest
+    );
+
+    // Refresh only the base-chain commit checkpoint. Repeated requests must not
+    // reset or extend the timeout, but they are allowed to make rollback an
+    // explicit owner-program decision after finalized base state has changed.
+    request.last_commit_id_at_request = delegation_metadata.last_commit_id;
 
     Ok(())
 }

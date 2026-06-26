@@ -18,10 +18,11 @@ use solana_sdk_ids::system_program;
 
 use crate::compat::{Compatize, Modernize};
 
-/// Builds a timeout fallback instruction for a requested undelegation.
-/// See [dlp::processor::process_undelegate_after_request_timeout] for docs.
+/// Builds a request-authorized timeout rollback instruction for a requested
+/// undelegation.
+/// See [dlp::processor::process_undelegate_with_rollback_after_timeout] for docs.
 #[allow(clippy::too_many_arguments)]
-pub fn undelegate_after_request_timeout(
+pub fn undelegate_with_rollback_after_timeout(
     caller: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
@@ -69,16 +70,16 @@ pub fn undelegate_after_request_timeout(
             AccountMeta::new(commit_reimbursement, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: DlpDiscriminator::UndelegateAfterRequestTimeout.to_vec(),
+        data: DlpDiscriminator::UndelegateWithRollbackAfterTimeout.to_vec(),
     }
 }
 
 ///
-/// Returns accounts-data-size budget for undelegate-after-request-timeout.
+/// Returns accounts-data-size budget for undelegate-with-rollback-after-timeout.
 ///
 /// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
 ///
-pub fn undelegate_after_request_timeout_size_budget(
+pub fn undelegate_with_rollback_after_timeout_size_budget(
     delegated_account: AccountSizeClass,
 ) -> u32 {
     total_size_budget(&[

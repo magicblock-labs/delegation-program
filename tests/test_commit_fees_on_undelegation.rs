@@ -17,7 +17,7 @@ use solana_sdk::{
 use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
-    create_delegation_metadata_data_with_nonce, get_delegation_record_data,
+    create_delegation_metadata_data_with_commit_id, get_delegation_record_data,
     DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
@@ -37,12 +37,13 @@ async fn test_commit_fees_on_undelegation() {
 
     let delegation_record_data =
         get_delegation_record_data(validator.pubkey(), None);
-    let delegation_metadata_data = create_delegation_metadata_data_with_nonce(
-        validator.pubkey(),
-        &[],
-        true,
-        101,
-    );
+    let delegation_metadata_data =
+        create_delegation_metadata_data_with_commit_id(
+            validator.pubkey(),
+            &[],
+            true,
+            101,
+        );
 
     let record_rent =
         Rent::default().minimum_balance(delegation_record_data.len());
@@ -124,12 +125,13 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     );
 
     // Setup the delegated account metadata PDA with high nonce
-    let delegation_metadata_data = create_delegation_metadata_data_with_nonce(
-        validator.pubkey(),
-        &[],
-        true,
-        101,
-    );
+    let delegation_metadata_data =
+        create_delegation_metadata_data_with_commit_id(
+            validator.pubkey(),
+            &[],
+            true,
+            101,
+        );
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {

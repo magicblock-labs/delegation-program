@@ -26,7 +26,7 @@ use crate::{
     },
 };
 
-/// Permissionless timeout path for a requested undelegation.
+/// Request-authorized rollback after a requested undelegation times out.
 ///
 /// This intentionally returns the currently available base-chain delegated
 /// account state. It does not accept or apply any pending validator commit.
@@ -36,8 +36,15 @@ use crate::{
 /// ephemeral validator has newer state that was never finalized on the base
 /// chain, that state is intentionally not used here and can be lost from the
 /// returned account's perspective. The safety property is that this path never
-/// trusts fresh validator data after timeout; the tradeoff is that Program A
-/// gets back only the last base-chain state available in the delegated account.
+/// trusts fresh validator data after timeout; the tradeoff is that the owner
+/// program gets back only the last base-chain state available in the delegated
+/// account.
+///
+/// The owner program authorizes the rollback window by signing the
+/// request/re-request path for the delegated account. The timed-out rollback is
+/// then restricted to the request rent payer so unrelated callers cannot race to
+/// execute it. For non-empty accounts, the owner program must also accept the
+/// external undelegate CPI that restores the account.
 ///
 /// Accounts:
 ///
@@ -54,7 +61,7 @@ use crate::{
 /// 10: `[writable]`         commit record PDA
 /// 11: `[writable]`         commit reimbursement account
 /// 12: `[]`                 system program
-pub fn process_undelegate_after_request_timeout(
+pub fn process_undelegate_with_rollback_after_timeout(
     _program_id: &Address,
     accounts: &[AccountView],
     _data: &[u8],
@@ -77,6 +84,11 @@ pub fn process_undelegate_after_request_timeout(
         undelegation_request_account,
         request_rent_payer,
     )?;
+    require_eq_keys!(
+        caller.address(),
+        request_rent_payer.address(),
+        DlpError::InvalidUndelegationRequest
+    );
     let current_slot = Clock::get()?.slot;
     require_ge!(
         current_slot,
@@ -119,14 +131,17 @@ pub fn process_undelegate_after_request_timeout(
         owner_program.address(),
         ProgramError::InvalidAccountOwner
     );
-    // CHECKPOINT: A timeout request is bound to the delegation nonce observed
-    // when it was created. If undelegation is still desired after the nonce
-    // changes, one possible design is to let request_undelegation refresh an
-    // existing request so it records the current nonce.
+    // CHECKPOINT: This does not prove whether unfinalized ER state exists. It
+    // only proves that no finalized base-chain commit changed the delegated
+    // account since the owner program requested/refreshed undelegation. When the
+    // base state has moved, require a fresh owner-program re-request so rollback
+    // is an explicit decision against the current base-chain state. This
+    // minimizes, but cannot prevent, discarding newer ER state that has not been
+    // finalized to base.
     require_eq!(
-        request.delegation_nonce_at_request,
-        delegation_metadata.last_update_nonce,
-        DlpError::InvalidUndelegationRequest
+        request.last_commit_id_at_request,
+        delegation_metadata.last_commit_id,
+        DlpError::RollbackCommitIdMismatch
     );
     require_eq_keys!(
         &delegation_metadata.rent_payer,
@@ -335,11 +350,11 @@ fn cleanup_pending_commit(
 
     require!(commit_reimbursement.is_writable(), ProgramError::Immutable);
 
-    // Request-timeout undelegation is a rollback/escape hatch. At this point the
-    // validator has committed state into the commit PDAs, but that state has
-    // not been finalized into the delegated account. Applying it here would let
-    // this permissionless timeout path accept fresh validator state, which is
-    // exactly what the timeout design forbids.
+    // Timeout rollback is a request-authorized escape hatch. At this point the
+    // validator has committed state into the commit PDAs, but that state has not
+    // been finalized into the delegated account. Applying it here would let this
+    // rollback path accept fresh validator state, which is exactly what the
+    // timeout rollback design forbids.
     //
     // We still close both commit PDAs so the delegated account cannot leave
     // orphaned DLP-owned accounts behind. The commit record identity is the
