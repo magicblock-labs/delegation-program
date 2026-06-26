@@ -148,7 +148,7 @@ pub fn process_request_undelegation(
             rent_payer: *payer.address(),
             created_slot,
             expires_at_slot,
-            last_commit_id_at_request: delegation_metadata.last_commit_id,
+            last_commit_nonce_at_request: delegation_metadata.last_update_nonce,
             bump: request_bump,
             _padding: [0; 7],
         };
@@ -198,7 +198,8 @@ pub fn process_request_undelegation(
     // Refresh only the base-chain commit checkpoint. Repeated requests must not
     // reset or extend the timeout, but they are allowed to make rollback an
     // explicit owner-program decision after finalized base state has changed.
-    request.last_commit_id_at_request = delegation_metadata.last_commit_id;
+    request.last_commit_nonce_at_request =
+        delegation_metadata.last_update_nonce;
 
     Ok(())
 }

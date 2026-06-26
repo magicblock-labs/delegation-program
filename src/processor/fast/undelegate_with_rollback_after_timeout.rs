@@ -139,9 +139,9 @@ pub fn process_undelegate_with_rollback_after_timeout(
     // minimizes, but cannot prevent, discarding newer ER state that has not been
     // finalized to base.
     require_eq!(
-        request.last_commit_id_at_request,
-        delegation_metadata.last_commit_id,
-        DlpError::RollbackCommitIdMismatch
+        request.last_commit_nonce_at_request,
+        delegation_metadata.last_update_nonce,
+        DlpError::RollbackCommitNonceMismatch
     );
     require_eq_keys!(
         &delegation_metadata.rent_payer,

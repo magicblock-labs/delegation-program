@@ -37,10 +37,10 @@ use solana_system_interface::instruction as system_instruction;
 
 use crate::fixtures::{
     create_undelegation_request_data_with_expiry,
-    get_commit_record_account_data,
-    get_delegation_metadata_data_with_commit_id, get_delegation_record_data,
-    keypair_from_bytes, COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA,
-    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
+    get_commit_record_account_data, get_delegation_metadata_data_with_nonce,
+    get_delegation_record_data, keypair_from_bytes,
+    COMMIT_NEW_STATE_ACCOUNT_DATA, DELEGATED_PDA, DELEGATED_PDA_ID,
+    DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -291,7 +291,7 @@ async fn test_undelegate_with_rollback_after_timeout_rejects_stale_request() {
         delegation_rent_payer,
         _,
         blockhash,
-    ) = setup_request_timeout_env_with_commit_ids(false, 0, 1, 0).await;
+    ) = setup_request_timeout_env_with_nonces(false, 0, 1, 0).await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -336,9 +336,9 @@ async fn test_undelegate_with_rollback_after_timeout_rejects_stale_request() {
                     0,
                     InstructionError::Custom(code),
                 )
-            ) if code == DlpError::RollbackCommitIdMismatch as u32
+            ) if code == DlpError::RollbackCommitNonceMismatch as u32
         ),
-        "expected InvalidUndelegationRequest, got {err:?}"
+        "expected RollbackCommitNonceMismatch, got {err:?}"
     );
 
     assert_eq!(
@@ -443,7 +443,7 @@ async fn test_request_timeout_closes_pending_commit_without_applying_it() {
 }
 
 #[tokio::test]
-async fn test_re_request_refreshes_commit_id_without_extending_timeout() {
+async fn test_re_request_refreshes_commit_nonce_without_extending_timeout() {
     let (
         banks,
         caller,
@@ -451,7 +451,7 @@ async fn test_re_request_refreshes_commit_id_without_extending_timeout() {
         delegation_rent_payer,
         _,
         blockhash,
-    ) = setup_request_timeout_env_with_commit_ids(false, 0, 1, 0).await;
+    ) = setup_request_timeout_env_with_nonces(false, 0, 1, 0).await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -462,7 +462,7 @@ async fn test_re_request_refreshes_commit_id_without_extending_timeout() {
             &request_before_account.data,
         )
         .unwrap();
-    assert_eq!(request_before.last_commit_id_at_request, 0);
+    assert_eq!(request_before.last_commit_nonce_at_request, 0);
 
     let request_ix =
         request_undelegation_from_owner_program(request_rent_payer.pubkey());
@@ -482,7 +482,7 @@ async fn test_re_request_refreshes_commit_id_without_extending_timeout() {
             &request_after_account.data,
         )
         .unwrap();
-    assert_eq!(request_after.last_commit_id_at_request, 1);
+    assert_eq!(request_after.last_commit_nonce_at_request, 1);
     assert_eq!(request_after.created_slot, request_before.created_slot);
     assert_eq!(
         request_after.expires_at_slot,
@@ -510,7 +510,7 @@ async fn setup_request_timeout_env(
     with_pending_commit: bool,
     expires_at_slot: u64,
 ) -> (BanksClient, Keypair, Keypair, Keypair, Keypair, Hash) {
-    setup_request_timeout_env_with_commit_ids(
+    setup_request_timeout_env_with_nonces(
         with_pending_commit,
         expires_at_slot,
         0,
@@ -519,11 +519,11 @@ async fn setup_request_timeout_env(
     .await
 }
 
-async fn setup_request_timeout_env_with_commit_ids(
+async fn setup_request_timeout_env_with_nonces(
     with_pending_commit: bool,
     expires_at_slot: u64,
-    delegation_last_commit_id: u64,
-    request_last_commit_id: u64,
+    delegation_last_update_nonce: u64,
+    request_last_commit_nonce: u64,
 ) -> (BanksClient, Keypair, Keypair, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::default();
     program_test.prefer_bpf(true);
@@ -549,13 +549,13 @@ async fn setup_request_timeout_env_with_commit_ids(
     add_delegation_accounts(
         &mut program_test,
         delegation_rent_payer.pubkey(),
-        delegation_last_commit_id,
+        delegation_last_update_nonce,
     );
     add_request_account(
         &mut program_test,
         request_rent_payer.pubkey(),
         expires_at_slot,
-        request_last_commit_id,
+        request_last_commit_nonce,
     );
     if with_pending_commit {
         add_pending_commit_accounts(&mut program_test, validator.pubkey());
@@ -604,7 +604,7 @@ fn add_delegated_account(program_test: &mut ProgramTest) {
 fn add_delegation_accounts(
     program_test: &mut ProgramTest,
     delegation_rent_payer: solana_program::pubkey::Pubkey,
-    last_commit_id: u64,
+    last_update_nonce: u64,
 ) {
     let delegation_record_data = get_delegation_record_data(
         keypair_from_bytes(&TEST_AUTHORITY).pubkey(),
@@ -622,10 +622,10 @@ fn add_delegation_accounts(
         },
     );
 
-    let delegation_metadata_data = get_delegation_metadata_data_with_commit_id(
+    let delegation_metadata_data = get_delegation_metadata_data_with_nonce(
         delegation_rent_payer,
         Some(false),
-        last_commit_id,
+        last_update_nonce,
     );
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
@@ -644,7 +644,7 @@ fn add_request_account(
     program_test: &mut ProgramTest,
     request_rent_payer: solana_program::pubkey::Pubkey,
     expires_at_slot: u64,
-    last_commit_id_at_request: u64,
+    last_commit_nonce_at_request: u64,
 ) {
     let request_data = create_undelegation_request_data_with_expiry(
         DELEGATED_PDA_ID,
@@ -652,7 +652,7 @@ fn add_request_account(
         request_rent_payer,
         0,
         expires_at_slot,
-        last_commit_id_at_request,
+        last_commit_nonce_at_request,
     );
     program_test.add_account(
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID),

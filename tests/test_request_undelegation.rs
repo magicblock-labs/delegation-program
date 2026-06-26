@@ -81,7 +81,7 @@ async fn test_request_undelegation_creates_request() {
         request.expires_at_slot,
         request.created_slot + DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS
     );
-    assert_eq!(request.last_commit_id_at_request, 0);
+    assert_eq!(request.last_commit_nonce_at_request, 0);
 }
 
 #[tokio::test]

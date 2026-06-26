@@ -161,7 +161,7 @@ pub fn process_finalize(
     )?;
 
     // Update the delegation metadata
-    delegation_metadata.last_commit_id = commit_record.nonce;
+    delegation_metadata.last_update_nonce = commit_record.nonce;
     delegation_metadata
         .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
         .map_err(to_pinocchio_program_error)?;

@@ -83,7 +83,7 @@ pub(crate) fn process_commit_finalize_internal(
             args.delegation_metadata_account,
         )?;
 
-        let prev_id = metadata.replace_last_commit_id(args.commit_id);
+        let prev_id = metadata.replace_last_update_nonce(args.commit_id);
 
         require_eq!(args.commit_id, prev_id + 1, DlpError::NonceOutOfOrder);
 

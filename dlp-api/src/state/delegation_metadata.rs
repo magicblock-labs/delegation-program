@@ -16,7 +16,7 @@ use crate::{
 #[derive(BorshSerialize, BorshDeserialize, Debug, PartialEq)]
 pub struct DelegationMetadata {
     /// Latest finalized commit id applied to the delegated account on base.
-    pub last_commit_id: u64,
+    pub last_update_nonce: u64,
     /// Whether the account can be undelegated or not
     pub is_undelegatable: bool,
     /// The seeds of the account, used to reopen it on undelegation
@@ -36,7 +36,7 @@ impl<'a> DelegationMetadataFast<'a> {
         require_ge!(
             account.data_len(),
             AccountDiscriminator::SPACE
-            + 8  // last_commit_id
+            + 8  // last_update_nonce
             + 1  // is_undelegatable
             + 32 // rent_payer
             + 4, // seeds (at least 4)
@@ -48,14 +48,14 @@ impl<'a> DelegationMetadataFast<'a> {
         })
     }
 
-    pub fn last_commit_id(&self) -> u64 {
+    pub fn last_update_nonce(&self) -> u64 {
         unsafe {
             ptr::read(self.data.as_ptr().add(AccountDiscriminator::SPACE)
                 as *const u64)
         }
     }
 
-    pub fn set_last_commit_id(&mut self, val: u64) {
+    pub fn set_last_update_nonce(&mut self, val: u64) {
         unsafe {
             ptr::write(
                 self.data.as_mut_ptr().add(AccountDiscriminator::SPACE)
@@ -65,7 +65,7 @@ impl<'a> DelegationMetadataFast<'a> {
         }
     }
 
-    pub fn replace_last_commit_id(&mut self, val: u64) -> u64 {
+    pub fn replace_last_update_nonce(&mut self, val: u64) -> u64 {
         unsafe {
             ptr::replace(
                 self.data.as_mut_ptr().add(AccountDiscriminator::SPACE)
@@ -105,7 +105,7 @@ impl AccountWithDiscriminator for DelegationMetadata {
 impl DelegationMetadata {
     pub fn serialized_size(&self) -> usize {
         AccountDiscriminator::SPACE
-        + 8 // last_commit_id (u64) 
+        + 8 // last_update_nonce (u64) 
         + 1 // is_undelegatable (bool)
         + 32 // rent_payer (Pubkey)
         + (4 + self.seeds.iter().map(|s| 4 + s.len()).sum::<usize>()) // seeds (Vec<Vec<u8>>)
@@ -132,7 +132,7 @@ mod tests {
                 ],
             ],
             is_undelegatable: false,
-            last_commit_id: 0,
+            last_update_nonce: 0,
             rent_payer: Pubkey::default(),
         };
 

@@ -188,7 +188,7 @@ pub fn process_undelegate(
             &delegation_metadata_data,
         )
         .map_err(to_pinocchio_program_error)?;
-    let delegation_last_commit_id = delegation_metadata.last_commit_id;
+    let delegation_last_update_nonce = delegation_metadata.last_update_nonce;
 
     // Check if the delegated account is undelegatable
     if !delegation_metadata.is_undelegatable {
@@ -229,7 +229,7 @@ pub fn process_undelegate(
             rent_reimbursement,
             fees_vault,
             validator_fees_vault,
-            delegation_last_commit_id,
+            delegation_last_update_nonce,
         )?;
         if let Some((undelegation_request_account, request_rent_payer)) =
             request_accounts
@@ -292,7 +292,7 @@ pub fn process_undelegate(
         rent_reimbursement,
         fees_vault,
         validator_fees_vault,
-        delegation_last_commit_id,
+        delegation_last_update_nonce,
     )?;
     if let Some((undelegation_request_account, request_rent_payer)) =
         request_accounts
@@ -460,9 +460,9 @@ fn process_delegation_cleanup(
     rent_reimbursement: &AccountView,
     fees_vault: &AccountView,
     validator_fees_vault: &AccountView,
-    delegation_last_commit_id: u64,
+    delegation_last_update_nonce: u64,
 ) -> ProgramResult {
-    let commit_count = delegation_last_commit_id.saturating_sub(1);
+    let commit_count = delegation_last_update_nonce.saturating_sub(1);
     let commit_fee = COMMIT_FEE_LAMPORTS
         .checked_mul(commit_count)
         .ok_or(DlpError::Overflow)?;
