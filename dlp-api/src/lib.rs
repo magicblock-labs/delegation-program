@@ -19,7 +19,6 @@ pub mod requires;
 pub mod state;
 
 pub use account_size_class::*;
-pub use wheels;
 
 #[cfg(feature = "cpi")]
 pub mod cpi;

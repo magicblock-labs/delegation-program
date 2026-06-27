@@ -51,7 +51,6 @@ thiserror = { version = ">=1" }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 
 solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = ["borsh", "bytemuck", "curve25519"] } 
-wheels = { git = "https://github.com/magicblock-labs/magicblock-wheels.git", rev = "5b83b56" }
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["small_rng"] }
