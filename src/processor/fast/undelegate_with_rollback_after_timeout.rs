@@ -1,17 +1,15 @@
 use pinocchio::{
     address::Address,
-    cpi::Signer,
     error::ProgramError,
-    instruction::seeds,
     sysvars::{clock::Clock, Sysvar},
     AccountView, ProgramResult,
 };
 
-use super::{process_undelegation_with_cpi, to_pinocchio_program_error};
+use super::to_pinocchio_program_error;
 use crate::{
     error::DlpError,
     pda,
-    processor::fast::utils::pda::{close_pda, create_pda},
+    processor::fast::utils::pda::close_pda,
     require, require_eq, require_eq_keys, require_ge, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_commit_record,
@@ -19,58 +17,60 @@ use crate::{
         require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_initialized_pda,
         require_owned_pda, require_pda, require_signer,
-        require_uninitialized_pda, UndelegateBufferCtx,
     },
     state::{
         CommitRecord, DelegationMetadata, DelegationRecord, UndelegationRequest,
     },
 };
 
-/// Request-authorized rollback after a requested undelegation times out.
+/// Owner-program-authorized rollback after a requested undelegation times out.
 ///
-/// This intentionally returns the currently available base-chain delegated
-/// account state. It does not accept or apply any pending validator commit.
+/// This returns the currently available base-chain delegated
+/// account state. It does not accept or apply any pending validator
+/// commit, which means it might cause data-loss!
 ///
-/// Data-loss warning:
-/// this is a rollback/escape hatch for validator non-response. If the
-/// ephemeral validator has newer state that was never finalized on the base
-/// chain, that state is intentionally not used here and can be lost from the
-/// returned account's perspective. The safety property is that this path never
-/// trusts fresh validator data after timeout; the tradeoff is that the owner
-/// program gets back only the last base-chain state available in the delegated
-/// account.
+/// Data-loss Warning:
 ///
-/// The owner program authorizes the rollback window by signing the
-/// request/re-request path for the delegated account. The timed-out rollback is
-/// then restricted to the request rent payer so unrelated callers cannot race to
-/// execute it. For non-empty accounts, the owner program must also accept the
-/// external undelegate CPI that restores the account.
+/// This is a rollback/escape hatch for validator non-response. If the ephemeral
+/// validator has newer state that was never finalized on the base chain, that
+/// state can be lost from the returned account's perspective. The tradeoff
+/// is that the owner program gets the account back with only the last base-chain
+/// state available in the delegated account.
+///
+/// Authorization:
+///
+/// The owner program authorizes rollback by invoking this instruction through
+/// CPI and signing for the delegated account, same as the request/re-request
+/// path. The request rent payer is only the recorded request rent recipient;
+/// the rollback authority is the delegated-account signer.
+///
+/// This instruction releases the delegated account back to the owner program
+/// without making an external undelegate CPI, because the owner program is
+/// already on the invocation stack. The owner-program wrapper must preserve the
+/// delegated account data before invoking DLP and restore it after DLP returns.
 ///
 /// Accounts:
 ///
-///  0: `[signer, writable]` caller
-///  1: `[writable]`         delegated account
+///  0: `[writable]`         request rent payer
+///  1: `[signer, writable]` delegated account
 ///  2: `[]`                 owner program of the delegated account
-///  3: `[writable]`         undelegate buffer PDA
-///  4: `[writable]`         undelegation request PDA
-///  5: `[writable]`         delegation record PDA
-///  6: `[writable]`         delegation metadata PDA
-///  7: `[writable]`         request rent payer
-///  8: `[writable]`         delegation rent payer
-///  9: `[writable]`         commit state PDA
-/// 10: `[writable]`         commit record PDA
-/// 11: `[writable]`         commit reimbursement account
-/// 12: `[]`                 system program
+///  3: `[writable]`         undelegation request PDA
+///  4: `[writable]`         delegation record PDA
+///  5: `[writable]`         delegation metadata PDA
+///  6: `[writable]`         delegation rent payer
+///  7: `[writable]`         commit state PDA
+///  8: `[writable]`         commit record PDA
+///  9: `[writable]`         commit reimbursement account
 pub fn process_undelegate_with_rollback_after_timeout(
     _program_id: &Address,
     accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {
-    let [caller, delegated_account, owner_program, undelegate_buffer_account, undelegation_request_account, delegation_record_account, delegation_metadata_account, request_rent_payer, delegation_rent_payer, commit_state_account, commit_record_account, commit_reimbursement, system_program] =
-        require_n_accounts!(accounts, 13);
+    let [request_rent_payer, delegated_account, owner_program, undelegation_request_account, delegation_record_account, delegation_metadata_account, delegation_rent_payer, commit_state_account, commit_record_account, commit_reimbursement] =
+        require_n_accounts!(accounts, 10);
 
-    require_signer(caller, "caller")?;
-    require!(caller.is_writable(), ProgramError::Immutable);
+    require!(request_rent_payer.is_writable(), ProgramError::Immutable);
+    require_signer(delegated_account, "delegated account")?;
     require_owned_pda(
         delegated_account,
         &crate::fast::ID,
@@ -84,11 +84,6 @@ pub fn process_undelegate_with_rollback_after_timeout(
         undelegation_request_account,
         request_rent_payer,
     )?;
-    require_eq_keys!(
-        caller.address(),
-        request_rent_payer.address(),
-        DlpError::InvalidUndelegationRequest
-    );
     let current_slot = Clock::get()?.slot;
     require_ge!(
         current_slot,
@@ -150,21 +145,6 @@ pub fn process_undelegate_with_rollback_after_timeout(
     );
     require!(delegation_rent_payer.is_writable(), ProgramError::Immutable);
 
-    if delegated_account.is_data_empty() {
-        unsafe {
-            delegated_account.assign(owner_program.address());
-        }
-    } else {
-        undelegate_with_buffer_cpi(
-            caller,
-            delegated_account,
-            owner_program,
-            undelegate_buffer_account,
-            delegation_metadata,
-            system_program,
-        )?;
-    }
-
     // If a validator started a commit but did not finish finalizing it before
     // timeout, the commit PDAs are cleanup-only inputs. Do not move their data
     // into the delegated account. That would turn this rollback path into a
@@ -175,6 +155,11 @@ pub fn process_undelegate_with_rollback_after_timeout(
         commit_record_account,
         commit_reimbursement,
     )?;
+
+    delegated_account.resize(0)?;
+    unsafe {
+        delegated_account.assign(owner_program.address());
+    }
 
     close_pda(undelegation_request_account, request_rent_payer)?;
     close_pda(delegation_record_account, delegation_rent_payer)?;
@@ -229,57 +214,6 @@ fn load_valid_request(
     );
 
     Ok(request)
-}
-
-fn undelegate_with_buffer_cpi(
-    caller: &AccountView,
-    delegated_account: &AccountView,
-    owner_program: &AccountView,
-    undelegate_buffer_account: &AccountView,
-    delegation_metadata: DelegationMetadata,
-    system_program: &AccountView,
-) -> ProgramResult {
-    let undelegate_buffer_bump: u8 = require_uninitialized_pda(
-        undelegate_buffer_account,
-        &[
-            pda::UNDELEGATE_BUFFER_TAG,
-            delegated_account.address().as_ref(),
-        ],
-        &crate::fast::ID,
-        true,
-        UndelegateBufferCtx,
-    )?;
-
-    create_pda(
-        undelegate_buffer_account,
-        &crate::fast::ID,
-        delegated_account.data_len(),
-        &[Signer::from(&seeds!(
-            pda::UNDELEGATE_BUFFER_TAG,
-            delegated_account.address().as_ref(),
-            &[undelegate_buffer_bump]
-        ))],
-        caller,
-    )?;
-
-    (*undelegate_buffer_account.try_borrow_mut()?)
-        .copy_from_slice(&delegated_account.try_borrow()?);
-
-    process_undelegation_with_cpi(
-        caller,
-        delegated_account,
-        owner_program,
-        undelegate_buffer_account,
-        &[Signer::from(&seeds!(
-            pda::UNDELEGATE_BUFFER_TAG,
-            delegated_account.address().as_ref(),
-            &[undelegate_buffer_bump]
-        ))],
-        delegation_metadata,
-        system_program,
-    )?;
-
-    close_pda(undelegate_buffer_account, caller)
 }
 
 fn cleanup_pending_commit(
@@ -350,11 +284,11 @@ fn cleanup_pending_commit(
 
     require!(commit_reimbursement.is_writable(), ProgramError::Immutable);
 
-    // Timeout rollback is a request-authorized escape hatch. At this point the
-    // validator has committed state into the commit PDAs, but that state has not
-    // been finalized into the delegated account. Applying it here would let this
-    // rollback path accept fresh validator state, which is exactly what the
-    // timeout rollback design forbids.
+    // Timeout rollback is an owner-program-authorized escape hatch. At this
+    // point the validator has committed state into the commit PDAs, but that
+    // state has not been finalized into the delegated account. Applying it here
+    // would let this rollback path accept fresh validator state, which is
+    // exactly what the timeout rollback design forbids.
     //
     // We still close both commit PDAs so the delegated account cannot leave
     // orphaned DLP-owned accounts behind. The commit record identity is the
