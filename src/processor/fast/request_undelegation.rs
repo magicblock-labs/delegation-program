@@ -41,8 +41,6 @@ pub fn process_request_undelegation(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    require!(data.is_empty(), ProgramError::InvalidInstructionData);
-
     let [
         payer, // force multi-line
         delegated_account,
@@ -52,6 +50,8 @@ pub fn process_request_undelegation(
         delegation_metadata_account,
         _system_program,
     ] = require_n_accounts!(accounts, 7);
+
+    require!(data.is_empty(), ProgramError::InvalidInstructionData);
 
     require_signer(payer, "payer")?;
     require!(payer.is_writable(), ProgramError::Immutable);
@@ -141,8 +141,6 @@ pub fn process_request_undelegation(
         request
             .to_bytes_with_discriminator(&mut request_data)
             .map_err(to_pinocchio_program_error)?;
-
-        return Ok(());
     } else {
         let request_bump = require_pda(
             undelegation_request_account,
@@ -178,7 +176,6 @@ pub fn process_request_undelegation(
             request_bump,
             DlpError::InvalidUndelegationRequest
         );
-
-        Ok(())
     }
+    Ok(())
 }

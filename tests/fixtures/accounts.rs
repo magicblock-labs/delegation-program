@@ -177,7 +177,7 @@ pub fn create_delegation_metadata_data_with_commit_id(
 ) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
         last_commit_id,
-        undelegatable: UndelegationRequester::from_allow_undelegation(
+        undelegation_requester: UndelegationRequester::from_allow_undelegation(
             undelegatable,
         ),
         seeds: seeds.iter().map(|s| s.to_vec()).collect(),

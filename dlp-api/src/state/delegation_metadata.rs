@@ -57,7 +57,7 @@ pub struct DelegationMetadata {
     /// Latest finalized commit id applied to the delegated account on base.
     pub last_commit_id: u64,
     /// Who requested undelegation, stored in the legacy undelegatable byte.
-    pub undelegatable: UndelegationRequester,
+    pub undelegation_requester: UndelegationRequester,
     /// The seeds of the account, used to reopen it on undelegation
     pub seeds: Vec<Vec<u8>>,
     /// The account that paid the rent for the delegation PDAs
@@ -76,7 +76,7 @@ impl<'a> DelegationMetadataFast<'a> {
             account.data_len(),
             AccountDiscriminator::SPACE
             + 8  // last_commit_id
-            + 1  // undelegatable
+            + 1  // undelegation_requester
             + 32 // rent_payer
             + 4, // seeds (at least 4)
             ProgramError::InvalidAccountData
@@ -146,7 +146,7 @@ impl DelegationMetadata {
     pub fn serialized_size(&self) -> usize {
         AccountDiscriminator::SPACE
         + 8 // last_commit_id (u64) 
-        + 1 // undelegatable (UndelegationRequester)
+        + 1 // undelegation_requester (UndelegationRequester)
         + 32 // rent_payer (Pubkey)
         + (4 + self.seeds.iter().map(|s| 4 + s.len()).sum::<usize>()) // seeds (Vec<Vec<u8>>)
     }
@@ -171,7 +171,7 @@ mod tests {
                     211, 164, 97, 139, 136, 136, 77,
                 ],
             ],
-            undelegatable: UndelegationRequester::None,
+            undelegation_requester: UndelegationRequester::None,
             last_commit_id: 0,
             rent_payer: Pubkey::default(),
         };
@@ -213,7 +213,7 @@ mod tests {
                 DelegationMetadata::try_from_slice(&serialized)
                     .expect("Deserialization failed");
 
-            assert_eq!(deserialized.undelegatable, expected);
+            assert_eq!(deserialized.undelegation_requester, expected);
             assert_eq!(deserialized.last_commit_id, 42);
         }
     }

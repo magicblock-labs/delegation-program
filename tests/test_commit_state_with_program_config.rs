@@ -113,7 +113,7 @@ async fn test_commit_new_state(valid_config: bool) {
             )
             .unwrap();
         assert_eq!(
-            delegation_metadata.undelegatable,
+            delegation_metadata.undelegation_requester,
             dlp_api::state::UndelegationRequester::Validator
         );
     }

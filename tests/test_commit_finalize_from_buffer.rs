@@ -94,7 +94,7 @@ async fn test_commit_finalize_from_buffer_perf() {
         .unwrap();
 
     assert_eq!(
-        delegation_metadata.undelegatable,
+        delegation_metadata.undelegation_requester,
         dlp_api::state::UndelegationRequester::Validator
     );
 }

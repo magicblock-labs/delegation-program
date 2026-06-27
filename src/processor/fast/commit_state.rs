@@ -168,14 +168,15 @@ pub(crate) fn process_commit_state_internal(
     }
 
     // Once undelegation has been requested, any subsequent commit should fail.
-    if delegation_metadata.undelegatable != UndelegationRequester::None {
+    if delegation_metadata.undelegation_requester != UndelegationRequester::None
+    {
         log!("delegation metadata already has an undelegation requester: ");
         args.delegation_metadata_account.address().log();
         return Err(DlpError::AlreadyUndelegated.into());
     }
 
     // Record whether this commit requested undelegation.
-    delegation_metadata.undelegatable =
+    delegation_metadata.undelegation_requester =
         UndelegationRequester::from_allow_undelegation(args.allow_undelegation);
     delegation_metadata
         .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())

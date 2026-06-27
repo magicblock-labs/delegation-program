@@ -93,7 +93,7 @@ async fn test_request_undelegation_creates_request() {
         )
         .unwrap();
     assert_eq!(
-        delegation_metadata.undelegatable,
+        delegation_metadata.undelegation_requester,
         UndelegationRequester::OwnerProgram
     );
 }

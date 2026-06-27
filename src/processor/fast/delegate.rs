@@ -242,7 +242,7 @@ fn process_delegate_inner(
     let delegation_metadata = DelegationMetadata {
         seeds: args.seeds,
         last_commit_id: 0,
-        undelegatable: UndelegationRequester::None,
+        undelegation_requester: UndelegationRequester::None,
         rent_payer: payer.address().to_bytes().into(),
     };
 

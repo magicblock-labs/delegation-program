@@ -254,7 +254,7 @@ pub fn process_delegate_with_actions(
     let delegation_metadata = DelegationMetadata {
         seeds: args.delegate.seeds,
         last_commit_id: 0,
-        undelegatable: UndelegationRequester::None,
+        undelegation_requester: UndelegationRequester::None,
         rent_payer: payer.address().to_bytes().into(),
     };
 

@@ -194,7 +194,8 @@ pub fn process_undelegate(
     let delegation_last_commit_id = delegation_metadata.last_commit_id;
 
     // Check if undelegation has been requested for the delegated account.
-    if delegation_metadata.undelegatable == UndelegationRequester::None {
+    if delegation_metadata.undelegation_requester == UndelegationRequester::None
+    {
         log!("delegation metadata has no undelegation requester: ");
         delegation_metadata_account.address().log();
         return Err(DlpError::NotUndelegatable.into());

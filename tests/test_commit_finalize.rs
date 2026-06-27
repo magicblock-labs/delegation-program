@@ -116,7 +116,7 @@ async fn run_test_commit_finalize(
         .unwrap();
 
     assert_eq!(
-        delegation_metadata.undelegatable,
+        delegation_metadata.undelegation_requester,
         dlp_api::state::UndelegationRequester::Validator
     );
 }
