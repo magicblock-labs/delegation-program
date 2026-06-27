@@ -10,7 +10,7 @@ use crate::{
     error::DlpError,
     pda,
     processor::fast::utils::pda::close_pda,
-    require, require_eq, require_eq_keys, require_ge, require_n_accounts,
+    require_eq, require_eq_keys, require_ge, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_commit_record,
         require_initialized_commit_state,
@@ -69,14 +69,12 @@ pub fn process_undelegate_with_rollback_after_timeout(
     let [request_rent_payer, delegated_account, owner_program, undelegation_request_account, delegation_record_account, delegation_metadata_account, delegation_rent_payer, commit_state_account, commit_record_account, commit_reimbursement] =
         require_n_accounts!(accounts, 10);
 
-    require!(request_rent_payer.is_writable(), ProgramError::Immutable);
     require_signer(delegated_account, "delegated account")?;
     require_owned_pda(
         delegated_account,
         &crate::fast::ID,
         "delegated account",
     )?;
-    require!(delegated_account.is_writable(), ProgramError::Immutable);
 
     let request = load_valid_request(
         delegated_account,
@@ -143,8 +141,6 @@ pub fn process_undelegate_with_rollback_after_timeout(
         delegation_rent_payer.address(),
         DlpError::InvalidReimbursementAddressForDelegationRent
     );
-    require!(delegation_rent_payer.is_writable(), ProgramError::Immutable);
-
     // If a validator started a commit but did not finish finalizing it before
     // timeout, the commit PDAs are cleanup-only inputs. Do not move their data
     // into the delegated account. That would turn this rollback path into a
@@ -184,8 +180,6 @@ fn load_valid_request(
         true,
         "undelegation request",
     )?;
-
-    require!(request_rent_payer.is_writable(), ProgramError::Immutable);
 
     let request_data = undelegation_request_account.try_borrow()?;
     let request =
@@ -281,8 +275,6 @@ fn cleanup_pending_commit(
             DlpError::InvalidPendingCommitState
         );
     }
-
-    require!(commit_reimbursement.is_writable(), ProgramError::Immutable);
 
     // Timeout rollback is an owner-program-authorized escape hatch. At this
     // point the validator has committed state into the commit PDAs, but that
