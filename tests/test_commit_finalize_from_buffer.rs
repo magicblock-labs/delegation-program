@@ -68,7 +68,7 @@ async fn test_commit_finalize_from_buffer_perf() {
 
         let metadata = metadata.unwrap();
 
-        assertables::assert_lt!(metadata.compute_units_consumed, 1400);
+        assertables::assert_lt!(metadata.compute_units_consumed, 1450);
 
         assert_eq!(
             metadata.log_messages.len(),
@@ -93,7 +93,10 @@ async fn test_commit_finalize_from_buffer_perf() {
         )
         .unwrap();
 
-    assert!(delegation_metadata.is_undelegatable);
+    assert_eq!(
+        delegation_metadata.undelegatable,
+        dlp_api::state::UndelegationRequester::Validator
+    );
 }
 
 #[tokio::test]

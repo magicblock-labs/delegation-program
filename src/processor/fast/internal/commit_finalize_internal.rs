@@ -15,7 +15,7 @@ use crate::{
     processor::fast::{utils::LamportsOperation, NewState},
     require, require_eq, require_eq_keys, require_ge,
     require_initialized_pda_fast, require_owned_by, require_signer,
-    state::{DelegationMetadataFast, DelegationRecord},
+    state::{DelegationMetadataFast, DelegationRecord, UndelegationRequester},
 };
 
 /// Arguments for the commit state internal function
@@ -87,8 +87,13 @@ pub(crate) fn process_commit_finalize_internal(
 
         require_eq!(args.commit_id, prev_id + 1, DlpError::NonceOutOfOrder);
 
+        let previous_requester = metadata.replace_undelegation_requester(
+            UndelegationRequester::from_allow_undelegation(
+                args.allow_undelegation,
+            ),
+        )?;
         require!(
-            !metadata.replace_is_undelegatable(args.allow_undelegation),
+            previous_requester == UndelegationRequester::None,
             DlpError::AlreadyUndelegated
         );
     }

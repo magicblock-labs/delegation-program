@@ -30,7 +30,10 @@ use crate::{
         require_signer, require_uninitialized_pda, CommitRecordCtx,
         CommitStateAccountCtx, UndelegateBufferCtx,
     },
-    state::{DelegationMetadata, DelegationRecord, UndelegationRequest},
+    state::{
+        DelegationMetadata, DelegationRecord, UndelegationRequest,
+        UndelegationRequester,
+    },
 };
 
 /// Undelegate a delegated account
@@ -59,7 +62,7 @@ use crate::{
 /// - validator fees vault is initialized
 /// - commit state is uninitialized
 /// - commit record is uninitialized
-/// - delegated account is NOT undelegatable
+/// - undelegation has been requested for the delegated account
 /// - owner program account matches the owner in the delegation record
 /// - rent reimbursement account matches the rent payer in the delegation metadata
 ///
@@ -190,11 +193,9 @@ pub fn process_undelegate(
         .map_err(to_pinocchio_program_error)?;
     let delegation_last_update_nonce = delegation_metadata.last_update_nonce;
 
-    // Check if the delegated account is undelegatable
-    if !delegation_metadata.is_undelegatable {
-        log!(
-            "delegation metadata indicates the account is not undelegatable : "
-        );
+    // Check if undelegation has been requested for the delegated account.
+    if delegation_metadata.undelegatable == UndelegationRequester::None {
+        log!("delegation metadata has no undelegation requester: ");
         delegation_metadata_account.address().log();
         return Err(DlpError::NotUndelegatable.into());
     }

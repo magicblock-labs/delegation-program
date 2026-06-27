@@ -21,6 +21,7 @@ use crate::{
     },
     state::{
         CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
+        UndelegationRequester,
     },
     DiffSet,
 };
@@ -166,15 +167,16 @@ pub(crate) fn process_commit_state_internal(
         return Err(DlpError::NonceOutOfOrder.into());
     }
 
-    // Once the account is marked as undelegatable, any subsequent commit should fail
-    if delegation_metadata.is_undelegatable {
-        log!("delegation metadata is already undelegated: ");
+    // Once undelegation has been requested, any subsequent commit should fail.
+    if delegation_metadata.undelegatable != UndelegationRequester::None {
+        log!("delegation metadata already has an undelegation requester: ");
         args.delegation_metadata_account.address().log();
         return Err(DlpError::AlreadyUndelegated.into());
     }
 
-    // Update delegation metadata undelegation flag
-    delegation_metadata.is_undelegatable = args.allow_undelegation;
+    // Record whether this commit requested undelegation.
+    delegation_metadata.undelegatable =
+        UndelegationRequester::from_allow_undelegation(args.allow_undelegation);
     delegation_metadata
         .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
         .map_err(to_pinocchio_program_error)?;

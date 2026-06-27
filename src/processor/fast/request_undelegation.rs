@@ -19,7 +19,10 @@ use crate::{
         require_initialized_delegation_record, require_owned_pda, require_pda,
         require_signer, require_uninitialized_pda, UndelegationRequestCtx,
     },
-    state::{DelegationMetadata, DelegationRecord, UndelegationRequest},
+    state::{
+        DelegationMetadataFast, DelegationRecord, UndelegationRequest,
+        UndelegationRequester,
+    },
 };
 
 /// Request undelegation for one delegated account.
@@ -31,7 +34,7 @@ use crate::{
 /// 2: `[]`                 owner program of the delegated account
 /// 3: `[writable]`         undelegation request PDA
 /// 4: `[]`                 delegation record PDA
-/// 5: `[]`                 delegation metadata PDA
+/// 5: `[writable]`         delegation metadata PDA
 /// 6: `[]`                 system program
 pub fn process_request_undelegation(
     _program_id: &Address,
@@ -88,15 +91,14 @@ pub fn process_request_undelegation(
         ProgramError::InvalidAccountOwner
     );
 
-    let delegation_metadata_data = delegation_metadata_account.try_borrow()?;
-    let delegation_metadata =
-        DelegationMetadata::try_from_bytes_with_discriminator(
-            &delegation_metadata_data,
-        )
-        .map_err(to_pinocchio_program_error)?;
+    let mut delegation_metadata =
+        DelegationMetadataFast::from_account(delegation_metadata_account)?;
+    delegation_metadata
+        .set_undelegation_requester(UndelegationRequester::OwnerProgram);
+    let last_commit_nonce_at_request = delegation_metadata.last_update_nonce();
 
     drop(delegation_record_data);
-    drop(delegation_metadata_data);
+    drop(delegation_metadata);
 
     let request_seeds = &[
         pda::UNDELEGATION_REQUEST_TAG,
@@ -135,7 +137,7 @@ pub fn process_request_undelegation(
             rent_payer: *payer.address(),
             created_slot,
             expires_at_slot,
-            last_commit_nonce_at_request: delegation_metadata.last_update_nonce,
+            last_commit_nonce_at_request,
             bump: request_bump,
             _padding: [0; 7],
         };
@@ -185,8 +187,7 @@ pub fn process_request_undelegation(
     // Refresh only the base-chain commit checkpoint. Repeated requests must not
     // reset or extend the timeout, but they are allowed to make rollback an
     // explicit owner-program decision after finalized base state has changed.
-    request.last_commit_nonce_at_request =
-        delegation_metadata.last_update_nonce;
+    request.last_commit_nonce_at_request = last_commit_nonce_at_request;
 
     Ok(())
 }

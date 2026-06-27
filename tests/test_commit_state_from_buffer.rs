@@ -101,7 +101,10 @@ async fn test_commit_new_state_from_buffer() {
             &delegation_metadata_account.data,
         )
         .unwrap();
-    assert!(delegation_metadata.is_undelegatable);
+    assert_eq!(
+        delegation_metadata.undelegatable,
+        dlp_api::state::UndelegationRequester::Validator
+    );
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

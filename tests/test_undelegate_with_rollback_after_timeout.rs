@@ -758,7 +758,7 @@ fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
                 delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
                 false,
             ),
-            AccountMeta::new_readonly(
+            AccountMeta::new(
                 delegation_metadata_pda_from_delegated_account(
                     &DELEGATED_PDA_ID,
                 ),

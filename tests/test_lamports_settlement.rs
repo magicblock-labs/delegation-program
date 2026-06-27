@@ -1215,7 +1215,10 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
             &delegation_metadata_account.data,
         )
         .unwrap();
-    assert!(delegation_metadata.is_undelegatable);
+    assert_eq!(
+        delegation_metadata.undelegatable,
+        dlp_api::state::UndelegationRequester::Validator
+    );
 }
 
 async fn commit_state_with_nonce(args: CommitStateWithNonceArgs<'_>) {

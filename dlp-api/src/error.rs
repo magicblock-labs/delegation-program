@@ -24,7 +24,7 @@ pub enum DlpError {
     #[error("Invalid Authority")]
     InvalidAuthority = 0,
 
-    #[error("Account cannot be undelegated, is_undelegatable is false")]
+    #[error("Account cannot be undelegated, no undelegation requester")]
     NotUndelegatable = 1,
 
     #[error("Unauthorized Operation")]

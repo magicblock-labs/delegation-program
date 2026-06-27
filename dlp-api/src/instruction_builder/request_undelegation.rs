@@ -44,7 +44,7 @@ pub fn request_undelegation(
             AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(undelegation_request_pda, false),
             AccountMeta::new_readonly(delegation_record_pda, false),
-            AccountMeta::new_readonly(delegation_metadata_pda, false),
+            AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpDiscriminator::RequestUndelegation.to_vec(),

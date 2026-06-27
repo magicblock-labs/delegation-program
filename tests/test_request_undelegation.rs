@@ -9,7 +9,7 @@ use dlp_api::{
         undelegation_request_pda_from_delegated_account,
         validator_fees_vault_pda_from_validator,
     },
-    state::UndelegationRequest,
+    state::{DelegationMetadata, UndelegationRequest, UndelegationRequester},
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -79,6 +79,23 @@ async fn test_request_undelegation_creates_request() {
         request.created_slot + DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS
     );
     assert_eq!(request.last_commit_nonce_at_request, 0);
+
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_account = banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_metadata =
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_account.data,
+        )
+        .unwrap();
+    assert_eq!(
+        delegation_metadata.undelegatable,
+        UndelegationRequester::OwnerProgram
+    );
 }
 
 #[tokio::test]
@@ -160,7 +177,7 @@ async fn test_request_undelegation_rejects_missing_delegated_signer() {
                 delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
                 false,
             ),
-            AccountMeta::new_readonly(
+            AccountMeta::new(
                 delegation_metadata_pda_from_delegated_account(
                     &DELEGATED_PDA_ID,
                 ),
@@ -364,7 +381,7 @@ fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
                 delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
                 false,
             ),
-            AccountMeta::new_readonly(
+            AccountMeta::new(
                 delegation_metadata_pda_from_delegated_account(
                     &DELEGATED_PDA_ID,
                 ),
@@ -531,7 +548,7 @@ fn add_delegation_accounts(program_test: &mut ProgramTest, authority: Pubkey) {
 fn add_delegation_accounts_with_metadata(
     program_test: &mut ProgramTest,
     authority: Pubkey,
-    is_undelegatable: Option<bool>,
+    undelegatable: Option<bool>,
 ) {
     let delegation_record_data = get_delegation_record_data(authority, None);
     program_test.add_account(
@@ -547,7 +564,7 @@ fn add_delegation_accounts_with_metadata(
     );
 
     let delegation_metadata_data =
-        get_delegation_metadata_data(authority, is_undelegatable);
+        get_delegation_metadata_data(authority, undelegatable);
     program_test.add_account(
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {

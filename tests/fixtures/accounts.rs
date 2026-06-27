@@ -4,7 +4,7 @@ use dlp_api::{
     pda::UNDELEGATION_REQUEST_TAG,
     state::{
         CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
-        UndelegationRequest,
+        UndelegationRequest, UndelegationRequester,
     },
 };
 use solana_program::{
@@ -17,7 +17,7 @@ use solana_sdk_ids::system_program;
 const DEFAULT_DELEGATION_SLOT: u64 = 0;
 const DEFAULT_COMMIT_FREQUENCY_MS: u64 = 0;
 const DEFAULT_LAST_UPDATE_EXTERNAL_SLOT: u64 = 0;
-const DEFAULT_IS_UNDELEGATABLE: bool = false;
+const DEFAULT_UNDELEGATABLE: bool = false;
 const DEFAULT_SEEDS: &[&[u8]] = &[&[116, 101, 115, 116, 45, 112, 100, 97]];
 
 #[allow(dead_code)]
@@ -120,23 +120,23 @@ pub fn create_delegation_record_data(
 #[allow(dead_code)]
 pub fn get_delegation_metadata_data_on_curve(
     rent_payer: Pubkey,
-    is_undelegatable: Option<bool>,
+    undelegatable: Option<bool>,
 ) -> Vec<u8> {
     create_delegation_metadata_data(
         rent_payer,
         &[],
-        is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
+        undelegatable.unwrap_or(DEFAULT_UNDELEGATABLE),
     )
 }
 
 #[allow(dead_code)]
 pub fn get_delegation_metadata_data(
     rent_payer: Pubkey,
-    is_undelegatable: Option<bool>,
+    undelegatable: Option<bool>,
 ) -> Vec<u8> {
     get_delegation_metadata_data_with_nonce(
         rent_payer,
-        is_undelegatable,
+        undelegatable,
         DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
     )
 }
@@ -144,13 +144,13 @@ pub fn get_delegation_metadata_data(
 #[allow(dead_code)]
 pub fn get_delegation_metadata_data_with_nonce(
     rent_payer: Pubkey,
-    is_undelegatable: Option<bool>,
+    undelegatable: Option<bool>,
     last_update_nonce: u64,
 ) -> Vec<u8> {
     create_delegation_metadata_data_with_nonce(
         rent_payer,
         DEFAULT_SEEDS,
-        is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
+        undelegatable.unwrap_or(DEFAULT_UNDELEGATABLE),
         last_update_nonce,
     )
 }
@@ -158,12 +158,12 @@ pub fn get_delegation_metadata_data_with_nonce(
 pub fn create_delegation_metadata_data(
     rent_payer: Pubkey,
     seeds: &[&[u8]],
-    is_undelegatable: bool,
+    undelegatable: bool,
 ) -> Vec<u8> {
     create_delegation_metadata_data_with_nonce(
         rent_payer,
         seeds,
-        is_undelegatable,
+        undelegatable,
         DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
     )
 }
@@ -172,12 +172,14 @@ pub fn create_delegation_metadata_data(
 pub fn create_delegation_metadata_data_with_nonce(
     rent_payer: Pubkey,
     seeds: &[&[u8]],
-    is_undelegatable: bool,
+    undelegatable: bool,
     last_update_nonce: u64,
 ) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
         last_update_nonce,
-        is_undelegatable,
+        undelegatable: UndelegationRequester::from_allow_undelegation(
+            undelegatable,
+        ),
         seeds: seeds.iter().map(|s| s.to_vec()).collect(),
         rent_payer,
     };
