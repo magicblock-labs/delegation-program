@@ -27,9 +27,9 @@ pub struct UndelegationRequest {
     /// The first slot at which timeout rollback is allowed.
     pub expires_at_slot: u64,
 
-    /// DelegationMetadata.last_update_nonce observed when the request was last
+    /// DelegationMetadata.last_commit_id observed when the request was last
     /// made or refreshed.
-    pub last_commit_nonce_at_request: u64,
+    pub last_commit_id_at_request: u64,
 
     /// PDA bump for this request.
     pub bump: u8,

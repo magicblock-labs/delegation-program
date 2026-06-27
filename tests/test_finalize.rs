@@ -102,7 +102,7 @@ async fn test_finalize() {
             &delegation_metadata_account.data,
         )
         .unwrap();
-    assert_eq!(commit_record.nonce, delegation_metadata.last_update_nonce);
+    assert_eq!(commit_record.nonce, delegation_metadata.last_commit_id);
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

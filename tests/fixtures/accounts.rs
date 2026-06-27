@@ -134,7 +134,7 @@ pub fn get_delegation_metadata_data(
     rent_payer: Pubkey,
     undelegatable: Option<bool>,
 ) -> Vec<u8> {
-    get_delegation_metadata_data_with_nonce(
+    get_delegation_metadata_data_with_commit_id(
         rent_payer,
         undelegatable,
         DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
@@ -142,16 +142,16 @@ pub fn get_delegation_metadata_data(
 }
 
 #[allow(dead_code)]
-pub fn get_delegation_metadata_data_with_nonce(
+pub fn get_delegation_metadata_data_with_commit_id(
     rent_payer: Pubkey,
     undelegatable: Option<bool>,
-    last_update_nonce: u64,
+    last_commit_id: u64,
 ) -> Vec<u8> {
-    create_delegation_metadata_data_with_nonce(
+    create_delegation_metadata_data_with_commit_id(
         rent_payer,
         DEFAULT_SEEDS,
         undelegatable.unwrap_or(DEFAULT_UNDELEGATABLE),
-        last_update_nonce,
+        last_commit_id,
     )
 }
 
@@ -160,7 +160,7 @@ pub fn create_delegation_metadata_data(
     seeds: &[&[u8]],
     undelegatable: bool,
 ) -> Vec<u8> {
-    create_delegation_metadata_data_with_nonce(
+    create_delegation_metadata_data_with_commit_id(
         rent_payer,
         seeds,
         undelegatable,
@@ -169,14 +169,14 @@ pub fn create_delegation_metadata_data(
 }
 
 #[allow(dead_code)]
-pub fn create_delegation_metadata_data_with_nonce(
+pub fn create_delegation_metadata_data_with_commit_id(
     rent_payer: Pubkey,
     seeds: &[&[u8]],
     undelegatable: bool,
-    last_update_nonce: u64,
+    last_commit_id: u64,
 ) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
-        last_update_nonce,
+        last_commit_id,
         undelegatable: UndelegationRequester::from_allow_undelegation(
             undelegatable,
         ),
@@ -244,7 +244,7 @@ pub fn create_undelegation_request_data_with_expiry(
     rent_payer: Pubkey,
     created_slot: u64,
     expires_at_slot: u64,
-    last_commit_nonce_at_request: u64,
+    last_commit_id_at_request: u64,
 ) -> Vec<u8> {
     let (_, bump) = Pubkey::find_program_address(
         &[UNDELEGATION_REQUEST_TAG, delegated_account.as_ref()],
@@ -256,7 +256,7 @@ pub fn create_undelegation_request_data_with_expiry(
         rent_payer,
         created_slot,
         expires_at_slot,
-        last_commit_nonce_at_request,
+        last_commit_id_at_request,
         bump,
         _padding: [0; 7],
     };
