@@ -434,12 +434,12 @@ async fn test_request_timeout_closes_pending_commit_without_applying_it() {
 }
 
 #[tokio::test]
-async fn test_re_request_refreshes_commit_id_without_extending_timeout() {
+async fn test_re_request_is_idempotent_without_extending_timeout() {
     let (
         banks,
-        caller,
+        _caller,
         request_rent_payer,
-        delegation_rent_payer,
+        _delegation_rent_payer,
         _,
         blockhash,
     ) = setup_request_timeout_env_with_commit_ids(false, 0, 1, 0).await;
@@ -468,32 +468,19 @@ async fn test_re_request_refreshes_commit_id_without_extending_timeout() {
 
     let request_after_account =
         banks.get_account(request_pda).await.unwrap().unwrap();
+    assert_eq!(request_after_account.data, request_before_account.data);
     let request_after =
         dlp_api::state::UndelegationRequest::try_from_bytes_with_discriminator(
             &request_after_account.data,
         )
         .unwrap();
-    assert_eq!(request_after.last_commit_id_at_request, 1);
+    assert_eq!(request_after.last_commit_id_at_request, 0);
     assert_eq!(request_after.created_slot, request_before.created_slot);
     assert_eq!(
         request_after.expires_at_slot,
         request_before.expires_at_slot
     );
     assert_eq!(request_after.rent_payer, request_rent_payer.pubkey());
-
-    let rollback_ix = rollback_from_owner_program(
-        request_rent_payer.pubkey(),
-        delegation_rent_payer.pubkey(),
-        request_rent_payer.pubkey(),
-    );
-    let rollback_tx = Transaction::new_signed_with_payer(
-        &[rollback_ix],
-        Some(&caller.pubkey()),
-        &[&caller],
-        blockhash,
-    );
-    let res = banks.process_transaction(rollback_tx).await;
-    assert!(res.is_ok());
 }
 
 async fn setup_request_timeout_env(

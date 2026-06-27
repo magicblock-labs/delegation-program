@@ -182,7 +182,7 @@ pub enum DlpError {
     #[error("Invalid pending commit state for request-timeout undelegation")]
     InvalidPendingCommitState = 52,
 
-    #[error("Commit id did not match. Re-request to update commit id")]
+    #[error("Commit id did not match undelegation request checkpoint")]
     RollbackCommitIdMismatch = 53,
 
     #[error("An infallible error is encountered possibly due to logic error")]

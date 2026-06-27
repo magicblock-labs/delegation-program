@@ -91,20 +91,10 @@ pub fn process_request_undelegation(
         ProgramError::InvalidAccountOwner
     );
 
-    let mut delegation_metadata =
-        DelegationMetadataFast::from_account(delegation_metadata_account)?;
-    delegation_metadata
-        .set_undelegation_requester(UndelegationRequester::OwnerProgram);
-    let last_commit_id_at_request = delegation_metadata.last_commit_id();
-
-    drop(delegation_record_data);
-    drop(delegation_metadata);
-
     let request_seeds = &[
         pda::UNDELEGATION_REQUEST_TAG,
         delegated_account.address().as_ref(),
     ];
-
     if is_uninitialized_account(undelegation_request_account) {
         let created_slot = Clock::get()?.slot;
         let expires_at_slot = created_slot
@@ -131,6 +121,12 @@ pub fn process_request_undelegation(
             payer,
         )?;
 
+        let mut delegation_metadata =
+            DelegationMetadataFast::from_account(delegation_metadata_account)?;
+        delegation_metadata
+            .set_undelegation_requester(UndelegationRequester::OwnerProgram);
+        let last_commit_id_at_request = delegation_metadata.last_commit_id();
+
         let request = UndelegationRequest {
             delegated_account: *delegated_account.address(),
             owner_program: *owner_program.address(),
@@ -147,47 +143,42 @@ pub fn process_request_undelegation(
             .map_err(to_pinocchio_program_error)?;
 
         return Ok(());
+    } else {
+        let request_bump = require_pda(
+            undelegation_request_account,
+            request_seeds,
+            &crate::fast::ID,
+            true,
+            "undelegation request",
+        )?;
+        require_owned_pda(
+            undelegation_request_account,
+            &crate::fast::ID,
+            "undelegation request",
+        )?;
+
+        let request_data = undelegation_request_account.try_borrow()?;
+        let request = UndelegationRequest::try_from_bytes_with_discriminator(
+            &request_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
+
+        require_eq_keys!(
+            &request.delegated_account,
+            delegated_account.address(),
+            DlpError::InvalidUndelegationRequest
+        );
+        require_eq_keys!(
+            &request.owner_program,
+            owner_program.address(),
+            DlpError::InvalidUndelegationRequest
+        );
+        require_eq!(
+            request.bump,
+            request_bump,
+            DlpError::InvalidUndelegationRequest
+        );
+
+        Ok(())
     }
-
-    let request_bump = require_pda(
-        undelegation_request_account,
-        request_seeds,
-        &crate::fast::ID,
-        true,
-        "undelegation request",
-    )?;
-    require_owned_pda(
-        undelegation_request_account,
-        &crate::fast::ID,
-        "undelegation request",
-    )?;
-
-    let mut request_data = undelegation_request_account.try_borrow_mut()?;
-    let request = UndelegationRequest::try_from_bytes_with_discriminator_mut(
-        &mut request_data,
-    )
-    .map_err(to_pinocchio_program_error)?;
-
-    require_eq_keys!(
-        &request.delegated_account,
-        delegated_account.address(),
-        DlpError::InvalidUndelegationRequest
-    );
-    require_eq_keys!(
-        &request.owner_program,
-        owner_program.address(),
-        DlpError::InvalidUndelegationRequest
-    );
-    require_eq!(
-        request.bump,
-        request_bump,
-        DlpError::InvalidUndelegationRequest
-    );
-
-    // Refresh only the base-chain commit checkpoint. Repeated requests must not
-    // reset or extend the timeout, but they are allowed to make rollback an
-    // explicit owner-program decision after finalized base state has changed.
-    request.last_commit_id_at_request = last_commit_id_at_request;
-
-    Ok(())
 }
