@@ -1,8 +1,6 @@
 use dlp::solana_program;
 use dlp_api::{
-    args::RequestUndelegationArgs,
     consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
-    error::DlpError,
     pda::{
         commit_record_pda_from_delegated_account,
         commit_state_pda_from_delegated_account,
@@ -12,7 +10,6 @@ use dlp_api::{
         validator_fees_vault_pda_from_validator,
     },
     state::UndelegationRequest,
-    wheels::layout::Encodable,
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -119,42 +116,11 @@ async fn test_request_undelegation_is_idempotent() {
 }
 
 #[tokio::test]
-async fn test_request_undelegation_accepts_custom_timeout() {
+async fn test_request_undelegation_rejects_payload() {
     let (banks, payer, _, blockhash) = setup_request_env().await;
 
-    let ix = request_undelegation_from_owner_program_with_timeout(
-        payer.pubkey(),
-        6000,
-    );
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer],
-        blockhash,
-    );
-
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_ok());
-
-    let request_pda =
-        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let request_account =
-        banks.get_account(request_pda).await.unwrap().unwrap();
-    let request = UndelegationRequest::try_from_bytes_with_discriminator(
-        &request_account.data,
-    )
-    .unwrap();
-    assert_eq!(request.expires_at_slot, request.created_slot + 6000);
-}
-
-#[tokio::test]
-async fn test_request_undelegation_rejects_short_timeout() {
-    let (banks, payer, _, blockhash) = setup_request_env().await;
-
-    let ix = request_undelegation_from_owner_program_with_timeout(
-        payer.pubkey(),
-        DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS - 1,
-    );
+    let mut ix = request_undelegation_from_owner_program(payer.pubkey());
+    ix.data = 123_u64.to_le_bytes().to_vec();
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -169,11 +135,11 @@ async fn test_request_undelegation_rejects_short_timeout() {
             BanksClientError::TransactionError(
                 TransactionError::InstructionError(
                     0,
-                    InstructionError::Custom(code),
+                    InstructionError::InvalidInstructionData,
                 )
-            ) if code == DlpError::UndelegationRequestTimeoutTooShort as u32
+            )
         ),
-        "expected UndelegationRequestTimeoutTooShort, got {err:?}"
+        "expected request payload to fail with InvalidInstructionData, got {err:?}"
     );
 }
 
@@ -202,19 +168,8 @@ async fn test_request_undelegation_rejects_missing_delegated_signer() {
             ),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: {
-            let mut data =
-                dlp_api::discriminator::DlpDiscriminator::RequestUndelegation
-                    .to_vec();
-            data.extend_from_slice(
-                &RequestUndelegationArgs {
-                    timeout_slots: None,
-                }
-                .encode()
-                .unwrap(),
-            );
-            data
-        },
+        data: dlp_api::discriminator::DlpDiscriminator::RequestUndelegation
+            .to_vec(),
     };
 
     let tx = Transaction::new_signed_with_payer(
@@ -236,9 +191,6 @@ async fn test_request_undelegation_rejects_on_curve_delegated_account() {
         payer.pubkey(),
         delegated_on_curve.pubkey(),
         system_program::id(),
-        RequestUndelegationArgs {
-            timeout_slots: None,
-        },
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -364,31 +316,12 @@ fn imaginary_program_processor_requesting_undelegation_through_cpi(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    let ix = match data.len() {
-        0 => dlp_api::instruction_builder::request_undelegation(
-            *payer.key,
-            *delegated_account.key,
-            *program_id,
-            RequestUndelegationArgs {
-                timeout_slots: None,
-            },
-        ),
-        8 => {
-            let timeout_slots = u64::from_le_bytes(
-                data.try_into()
-                    .map_err(|_| ProgramError::InvalidInstructionData)?,
-            );
-            dlp_api::instruction_builder::request_undelegation(
-                *payer.key,
-                *delegated_account.key,
-                *program_id,
-                RequestUndelegationArgs {
-                    timeout_slots: Some(timeout_slots as u16),
-                },
-            )
-        }
-        _ => return Err(ProgramError::InvalidInstructionData),
-    };
+    let mut ix = dlp_api::instruction_builder::request_undelegation(
+        *payer.key,
+        *delegated_account.key,
+        *program_id,
+    );
+    ix.data.extend_from_slice(data);
     let (_, bump) = Pubkey::find_program_address(&[TEST_PDA_SEED], program_id);
     let bump_seed = [bump];
     invoke_signed(
@@ -407,30 +340,14 @@ fn imaginary_program_processor_requesting_undelegation_through_cpi(
     )
 }
 
-fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
-    request_undelegation_from_owner_program_with_data(payer, vec![])
-}
-
-fn request_undelegation_from_owner_program_with_timeout(
-    payer: Pubkey,
-    timeout_slots: u64,
-) -> Instruction {
-    request_undelegation_from_owner_program_with_data(
-        payer,
-        timeout_slots.to_le_bytes().to_vec(),
-    )
-}
-
 ///
-/// Note this instruction invokes an imaginary "owner program" which then calls the DLP program to
-/// request undelegatation, which is why "data" doesn't contain any "instruction discriminator"
-/// because the imaginary program doesn't require it. See imaginary_program_processor_requesting_undelegation_through_cpi()
+/// Note this instruction invokes an imaginary "owner program" which then calls
+/// the DLP program to request undelegation, which is why "data" doesn't contain
+/// any "instruction discriminator" because the imaginary program doesn't
+/// require it. See imaginary_program_processor_requesting_undelegation_through_cpi()
 /// which is supposed to be the processor of the imaginary program.
 ///
-fn request_undelegation_from_owner_program_with_data(
-    payer: Pubkey,
-    data: Vec<u8>,
-) -> Instruction {
+fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
     Instruction {
         program_id: DELEGATED_PDA_OWNER_ID,
         accounts: vec![
@@ -456,7 +373,7 @@ fn request_undelegation_from_owner_program_with_data(
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(dlp_api::id(), false),
         ],
-        data,
+        data: vec![],
     }
 }
 

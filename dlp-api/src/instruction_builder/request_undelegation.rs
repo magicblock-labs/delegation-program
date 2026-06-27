@@ -12,12 +12,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_sdk_ids::system_program;
-use wheels::layout::Encodable;
 
-use crate::{
-    args::RequestUndelegationArgs,
-    compat::{Compatize, Modernize},
-};
+use crate::compat::{Compatize, Modernize};
 
 /// Builds a request undelegation instruction.
 /// See [dlp::processor::process_request_undelegation] for docs.
@@ -25,7 +21,6 @@ pub fn request_undelegation(
     payer: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
-    args: RequestUndelegationArgs,
 ) -> Instruction {
     let delegated_account_compat = delegated_account.compatize();
     let undelegation_request_pda =
@@ -52,11 +47,7 @@ pub fn request_undelegation(
             AccountMeta::new_readonly(delegation_metadata_pda, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: {
-            let mut data = DlpDiscriminator::RequestUndelegation.to_vec();
-            data.extend_from_slice(&args.encode().unwrap());
-            data
-        },
+        data: DlpDiscriminator::RequestUndelegation.to_vec(),
     }
 }
 

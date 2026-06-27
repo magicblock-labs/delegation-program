@@ -1,6 +1,5 @@
 use dlp::solana_program;
 use dlp_api::{
-    args::RequestUndelegationArgs,
     consts::EXTERNAL_UNDELEGATE_DISCRIMINATOR,
     error::DlpError,
     pda::{
@@ -773,9 +772,6 @@ fn process_request_undelegation(
         *payer.key,
         *delegated_account.key,
         *program_id,
-        RequestUndelegationArgs {
-            timeout_slots: None,
-        },
     );
     let (_, bump) = Pubkey::find_program_address(&[TEST_PDA_SEED], program_id);
     let bump_seed = [bump];

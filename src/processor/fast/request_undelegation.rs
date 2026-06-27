@@ -1,7 +1,4 @@
-use dlp_api::{
-    consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS, require_ge,
-    wheels::layout::Decodable as _,
-};
+use dlp_api::consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS;
 use pinocchio::{
     address::Address,
     cpi::Signer,
@@ -13,7 +10,6 @@ use pinocchio::{
 
 use super::to_pinocchio_program_error;
 use crate::{
-    args::RequestUndelegationArgs,
     error::DlpError,
     pda,
     processor::{fast::utils::pda::create_pda, utils::curve::is_on_curve_fast},
@@ -42,6 +38,8 @@ pub fn process_request_undelegation(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
+    require!(data.is_empty(), ProgramError::InvalidInstructionData);
+
     let [
         payer, // force multi-line
         delegated_account,
@@ -105,21 +103,10 @@ pub fn process_request_undelegation(
         delegated_account.address().as_ref(),
     ];
 
-    let timeout_slots = RequestUndelegationArgs::decode(data)?
-        .timeout_slots()
-        .unwrap_or(DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS as u16)
-        as u64;
-
-    require_ge!(
-        timeout_slots,
-        DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
-        DlpError::UndelegationRequestTimeoutTooShort
-    );
-
     if is_uninitialized_account(undelegation_request_account) {
         let created_slot = Clock::get()?.slot;
         let expires_at_slot = created_slot
-            .checked_add(timeout_slots)
+            .checked_add(DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS)
             .ok_or(DlpError::Overflow)?;
 
         let request_bump = require_uninitialized_pda(
