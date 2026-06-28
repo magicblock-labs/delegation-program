@@ -93,7 +93,7 @@ pub(crate) fn process_commit_finalize_internal(
             ),
         )?;
         require!(
-            previous_requester == UndelegationRequester::None,
+            previous_requester != UndelegationRequester::Validator,
             DlpError::AlreadyUndelegated
         );
     }

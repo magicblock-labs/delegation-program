@@ -168,7 +168,8 @@ pub(crate) fn process_commit_state_internal(
     }
 
     // Once undelegation has been requested, any subsequent commit should fail.
-    if delegation_metadata.undelegation_requester != UndelegationRequester::None
+    if delegation_metadata.undelegation_requester
+        == UndelegationRequester::Validator
     {
         log!("delegation metadata already has an undelegation requester: ");
         args.delegation_metadata_account.address().log();
