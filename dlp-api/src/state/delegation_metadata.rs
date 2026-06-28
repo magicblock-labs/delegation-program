@@ -15,19 +15,18 @@ use crate::{
 #[derive(
     BorshSerialize, BorshDeserialize, Clone, Copy, Debug, Eq, PartialEq,
 )]
-#[borsh(use_discriminant = true)]
 #[repr(u8)]
 pub enum UndelegationRequester {
     /// No undelegation request has been recorded.
     ///
     /// Kept backward compatible with legacy `is_undelegatable = false`.
-    None = 0,
+    None,
     /// The validator requested undelegation through a commit/finalize path.
     ///
     /// Kept backward compatible with legacy `is_undelegatable = true`.
-    Validator = 1,
+    Validator,
     /// The account owner program requested undelegation.
-    OwnerProgram = 2,
+    OwnerProgram,
 }
 
 impl UndelegationRequester {
