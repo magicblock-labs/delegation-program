@@ -124,16 +124,6 @@ pub fn process_undelegate_with_rollback_after_timeout(
         owner_program.address(),
         ProgramError::InvalidAccountOwner
     );
-    // // CHECKPOINT: This does not prove whether unfinalized ER state exists. It
-    // // only proves that no finalized base-chain commit changed the delegated
-    // // account after the owner program requested undelegation. This minimizes,
-    // // but cannot prevent, discarding newer ER state that has not been finalized
-    // // to base.
-    // require_eq!(
-    //     request.last_commit_id_at_request,
-    //     delegation_metadata.last_commit_id,
-    //     DlpError::RollbackCommitIdMismatch
-    // );
     require_eq_keys!(
         &delegation_metadata.rent_payer,
         delegation_rent_payer.address(),
