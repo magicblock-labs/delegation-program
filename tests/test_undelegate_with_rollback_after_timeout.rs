@@ -46,6 +46,12 @@ mod fixtures;
 
 const TEST_PDA_SEED: &[u8] = b"test-pda";
 
+#[derive(Clone, Copy)]
+enum RentPayerMode {
+    Split,
+    Shared,
+}
+
 #[tokio::test]
 async fn test_undelegate_with_rollback_after_timeout_rejects_wrong_request_payer(
 ) {
@@ -358,7 +364,14 @@ async fn test_re_request_is_idempotent_without_extending_timeout() {
         _delegation_rent_payer,
         _,
         blockhash,
-    ) = setup_request_timeout_env_with_commit_ids(false, 0, 1, 0).await;
+    ) = setup_request_timeout_env_with_commit_ids(
+        false,
+        0,
+        1,
+        0,
+        RentPayerMode::Shared,
+    )
+    .await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -408,6 +421,7 @@ async fn setup_request_timeout_env(
         expires_at_slot,
         0,
         0,
+        RentPayerMode::Split,
     )
     .await
 }
@@ -417,6 +431,7 @@ async fn setup_request_timeout_env_with_commit_ids(
     expires_at_slot: u64,
     delegation_last_commit_id: u64,
     request_last_commit_id: u64,
+    rent_payer_mode: RentPayerMode,
 ) -> (BanksClient, Keypair, Keypair, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::default();
     program_test.prefer_bpf(true);
@@ -439,9 +454,13 @@ async fn setup_request_timeout_env_with_commit_ids(
     add_system_account(&mut program_test, delegation_rent_payer.pubkey());
     add_system_account(&mut program_test, validator.pubkey());
     add_delegated_account(&mut program_test);
+    let delegation_rent_payer_pubkey = match rent_payer_mode {
+        RentPayerMode::Split => delegation_rent_payer.pubkey(),
+        RentPayerMode::Shared => request_rent_payer.pubkey(),
+    };
     add_delegation_accounts(
         &mut program_test,
-        delegation_rent_payer.pubkey(),
+        delegation_rent_payer_pubkey,
         delegation_last_commit_id,
     );
     add_request_account(
