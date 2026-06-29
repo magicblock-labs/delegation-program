@@ -21,7 +21,7 @@ use solana_sdk_ids::system_program;
 use crate::fixtures::{
     get_commit_record_account_data, get_delegation_metadata_data,
     get_delegation_record_data, COMMIT_NEW_STATE_ACCOUNT_DATA,
-    DELEGATED_PDA_ID, TEST_AUTHORITY,
+    DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -55,6 +55,8 @@ async fn test_finalize() {
     let ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],

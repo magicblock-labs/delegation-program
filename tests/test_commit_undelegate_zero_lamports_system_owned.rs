@@ -62,6 +62,8 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
     let ix_finalize = dlp_api::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        validator.pubkey(),
     );
     let ix_undelegate = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),

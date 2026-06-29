@@ -22,7 +22,7 @@ use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
-    TEST_AUTHORITY,
+    DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
 mod fixtures;
@@ -43,6 +43,8 @@ async fn test_commit_finalize_from_buffer_perf() {
         authority.pubkey(),
         DELEGATED_PDA_ID,
         state_buffer_pda,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
         &mut CommitFinalizeArgs {
             commit_id: 1,
             allow_undelegation: true.into(),
@@ -68,7 +70,7 @@ async fn test_commit_finalize_from_buffer_perf() {
 
         let metadata = metadata.unwrap();
 
-        assertables::assert_lt!(metadata.compute_units_consumed, 1450);
+        assertables::assert_lt!(metadata.compute_units_consumed, 1600);
 
         assert_eq!(
             metadata.log_messages.len(),
@@ -114,6 +116,8 @@ async fn test_commit_finalize_from_buffer_out_of_order() {
         authority.pubkey(),
         DELEGATED_PDA_ID,
         state_buffer_pda,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
         &mut CommitFinalizeArgs {
             commit_id: 2, // this is the min value which will cause NonceOutOfOrder
             allow_undelegation: true.into(),

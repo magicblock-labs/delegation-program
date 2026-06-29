@@ -183,6 +183,8 @@ async fn test_commit_finalize_lamports_settlement() {
         let (commit_ix, _) = dlp_api::instruction_builder::commit_finalize(
             validator.pubkey(),
             delegated.pubkey(),
+            system_program::id(),
+            payer.pubkey(),
             &mut args,
             &[],
         );
@@ -233,6 +235,8 @@ async fn test_commit_finalize_lamports_settlement() {
         let (commit_ix, _) = dlp_api::instruction_builder::commit_finalize(
             validator.pubkey(),
             delegated.pubkey(),
+            system_program::id(),
+            payer.pubkey(),
             &mut args,
             &[],
         );
@@ -286,6 +290,8 @@ async fn test_commit_finalize_lamports_settlement() {
         let (commit_ix, _) = dlp_api::instruction_builder::commit_finalize(
             validator.pubkey(),
             delegated.pubkey(),
+            system_program::id(),
+            payer.pubkey(),
             &mut args,
             &[],
         );
@@ -339,6 +345,8 @@ async fn test_commit_finalize_lamports_settlement() {
         let (commit_ix, _) = dlp_api::instruction_builder::commit_finalize(
             validator.pubkey(),
             delegated.pubkey(),
+            system_program::id(),
+            payer.pubkey(),
             &mut args,
             &[],
         );
@@ -471,6 +479,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
             fee_payer: &payer,
             label: "first finalize",
             delegated_account: delegated.pubkey(),
+            owner_program: system_program::id(),
         })
         .await;
 
@@ -516,6 +525,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
             fee_payer: &payer,
             label: "second finalize",
             delegated_account: delegated.pubkey(),
+            owner_program: system_program::id(),
         })
         .await;
 
@@ -563,6 +573,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
             fee_payer: &payer,
             label: "third finalize",
             delegated_account: delegated.pubkey(),
+            owner_program: system_program::id(),
         })
         .await;
 
@@ -610,6 +621,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
             fee_payer: &payer,
             label: "fourth finalize",
             delegated_account: delegated.pubkey(),
+            owner_program: system_program::id(),
         })
         .await;
 
@@ -959,6 +971,7 @@ async fn finalize_and_maybe_undelegate(
         authority,
         blockhash,
         delegated_account,
+        owner_program,
     })
     .await;
     if also_undelegate {
@@ -1032,12 +1045,15 @@ struct FinalizeNewStateArgs<'a> {
     authority: &'a Keypair,
     blockhash: Hash,
     delegated_account: Pubkey,
+    owner_program: Pubkey,
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
     let ix = dlp_api::instruction_builder::finalize(
         args.authority.pubkey(),
         args.delegated_account,
+        args.owner_program,
+        args.authority.pubkey(),
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -1257,12 +1273,15 @@ struct FinalizeWithFeePayerArgs<'a> {
     fee_payer: &'a Keypair,
     label: &'a str,
     delegated_account: Pubkey,
+    owner_program: Pubkey,
 }
 
 async fn finalize_with_fee_payer(args: FinalizeWithFeePayerArgs<'_>) {
     let ix = dlp_api::instruction_builder::finalize(
         args.authority.pubkey(),
         args.delegated_account,
+        args.owner_program,
+        args.authority.pubkey(),
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],

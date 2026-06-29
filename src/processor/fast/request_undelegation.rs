@@ -20,7 +20,7 @@ use crate::{
         require_signer, require_uninitialized_pda, UndelegationRequestCtx,
     },
     state::{
-        DelegationMetadataFast, DelegationRecord, UndelegationRequest,
+        DelegationMetadata, DelegationRecord, UndelegationRequest,
         UndelegationRequester,
     },
 };
@@ -54,7 +54,6 @@ pub fn process_request_undelegation(
     require!(data.is_empty(), ProgramError::InvalidInstructionData);
 
     require_signer(payer, "payer")?;
-    require!(payer.is_writable(), ProgramError::Immutable);
     require_signer(delegated_account, "delegated account")?;
     require_owned_pda(
         delegated_account,
@@ -91,6 +90,19 @@ pub fn process_request_undelegation(
         ProgramError::InvalidAccountOwner
     );
 
+    let mut delegation_metadata_data =
+        delegation_metadata_account.try_borrow_mut()?;
+    let mut delegation_metadata =
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
+    require_eq_keys!(
+        &delegation_metadata.rent_payer,
+        payer.address(),
+        DlpError::InvalidReimbursementAddressForDelegationRent
+    );
+
     let request_seeds = &[
         pda::UNDELEGATION_REQUEST_TAG,
         delegated_account.address().as_ref(),
@@ -121,11 +133,12 @@ pub fn process_request_undelegation(
             payer,
         )?;
 
-        let mut delegation_metadata =
-            DelegationMetadataFast::from_account(delegation_metadata_account)?;
+        delegation_metadata.undelegation_requester =
+            UndelegationRequester::OwnerProgram;
+        let last_commit_id_at_request = delegation_metadata.last_commit_id;
         delegation_metadata
-            .set_undelegation_requester(UndelegationRequester::OwnerProgram);
-        let last_commit_id_at_request = delegation_metadata.last_commit_id();
+            .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
+            .map_err(to_pinocchio_program_error)?;
 
         let request = UndelegationRequest {
             delegated_account: *delegated_account.address(),

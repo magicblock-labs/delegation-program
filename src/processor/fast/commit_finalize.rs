@@ -7,9 +7,10 @@ use crate::{
         internal::{
             process_commit_finalize_internal, CommitFinalizeInternalArgs,
         },
-        NewState,
+        parse_auto_undelegation_accounts,
+        process_auto_undelegation_if_requested, NewState,
     },
-    require_n_accounts, DiffSet,
+    require_n_accounts_with_optionals, DiffSet,
 };
 
 /// Commit a new state, or a diff, directly to the delegated account. Unlike, CommitState and
@@ -32,14 +33,18 @@ pub fn process_commit_finalize(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    let [
-        validator, // force multi-line
-        delegated_account,
-        delegation_record_account,
-        delegation_metadata_account,
-        validator_fees_vault,
-        _system_program,
-    ] = require_n_accounts!(accounts, 6);
+    let (
+        [
+            validator, // force multi-line
+            delegated_account,
+            delegation_record_account,
+            delegation_metadata_account,
+            validator_fees_vault,
+            system_program,
+        ],
+        optional_accounts,
+    ) = require_n_accounts_with_optionals!(accounts, 6);
+    let auto_accounts = parse_auto_undelegation_accounts(optional_accounts)?;
 
     let args = CommitFinalizeArgsWithBuffer::from_bytes(data)?;
 
@@ -64,5 +69,15 @@ pub fn process_commit_finalize(
         validator_fees_vault,
     };
 
-    process_commit_finalize_internal(commit_args)
+    let requester = process_commit_finalize_internal(commit_args)?;
+    process_auto_undelegation_if_requested(
+        requester,
+        validator,
+        delegated_account,
+        delegation_record_account,
+        delegation_metadata_account,
+        validator_fees_vault,
+        system_program,
+        auto_accounts,
+    )
 }

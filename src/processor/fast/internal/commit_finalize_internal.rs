@@ -35,7 +35,7 @@ pub(crate) struct CommitFinalizeInternalArgs<'a> {
 /// Commit a new state of a delegated Pda
 pub(crate) fn process_commit_finalize_internal(
     args: CommitFinalizeInternalArgs,
-) -> Result<(), ProgramError> {
+) -> Result<UndelegationRequester, ProgramError> {
     // check delegated_account is actually delegated to the DLP
     require_owned_by!(args.delegated_account, &crate::fast::ID);
 
@@ -78,7 +78,7 @@ pub(crate) fn process_commit_finalize_internal(
     );
 
     // validate and update metadata
-    {
+    let undelegation_requester = {
         let mut metadata = DelegationMetadataFast::from_account(
             args.delegation_metadata_account,
         )?;
@@ -87,16 +87,22 @@ pub(crate) fn process_commit_finalize_internal(
 
         require_eq!(args.commit_id, prev_id + 1, DlpError::NonceOutOfOrder);
 
-        let previous_requester = metadata.replace_undelegation_requester(
-            UndelegationRequester::from_allow_undelegation(
-                args.allow_undelegation,
-            ),
-        )?;
-        require!(
-            previous_requester != UndelegationRequester::Validator,
-            DlpError::AlreadyUndelegated
-        );
-    }
+        match metadata.undelegation_requester()? {
+            UndelegationRequester::None => {
+                let requester = UndelegationRequester::from_allow_undelegation(
+                    args.allow_undelegation,
+                );
+                metadata.set_undelegation_requester(requester);
+                requester
+            }
+            UndelegationRequester::OwnerProgram => {
+                UndelegationRequester::OwnerProgram
+            }
+            UndelegationRequester::Validator => {
+                return Err(DlpError::AlreadyUndelegated.into());
+            }
+        }
+    };
 
     let mut delegation_record_data =
         args.delegation_record_account.try_borrow_mut()?;
@@ -169,5 +175,5 @@ pub(crate) fn process_commit_finalize_internal(
         }
     }
 
-    Ok(())
+    Ok(undelegation_requester)
 }

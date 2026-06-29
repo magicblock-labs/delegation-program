@@ -26,19 +26,19 @@ use solana_sdk_ids::system_program;
 
 use crate::fixtures::{
     get_delegation_metadata_data, get_delegation_record_data, DELEGATED_PDA_ID,
-    TEST_AUTHORITY,
+    DELEGATED_PDA_OWNER_ID, TEST_AUTHORITY,
 };
 
 mod fixtures;
 
 #[tokio::test]
 async fn test_commit_finalize_data_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1400).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1550).await;
 }
 
 #[tokio::test]
 async fn test_commit_finalize_diff_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1650).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1800).await;
 }
 
 async fn run_test_commit_finalize(
@@ -57,6 +57,8 @@ async fn run_test_commit_finalize(
     let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
         &mut CommitFinalizeArgs {
             commit_id: 1,
             allow_undelegation: true.into(),
@@ -133,6 +135,8 @@ async fn test_commit_finalize_out_of_order() {
     let (ix, _pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
         &mut CommitFinalizeArgs {
             commit_id: 2, // this is the min value which will cause NonceOutOfOrder
             allow_undelegation: true.into(),
@@ -285,6 +289,8 @@ async fn test_commit_finalize_lamports_increase() {
     let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
         &mut CommitFinalizeArgs {
             commit_id: 1,
             allow_undelegation: false.into(),
@@ -363,6 +369,8 @@ async fn test_commit_finalize_lamports_decrease() {
     let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
         &mut CommitFinalizeArgs {
             commit_id: 1,
             allow_undelegation: false.into(),
@@ -426,6 +434,8 @@ async fn test_commit_finalize_rejects_underfunded_account() {
     let (ix, pdas) = dlp_api::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
         &mut CommitFinalizeArgs {
             commit_id: 1,
             allow_undelegation: false.into(),

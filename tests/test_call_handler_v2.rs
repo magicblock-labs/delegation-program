@@ -333,6 +333,8 @@ async fn test_finalize_call_handler_v2() {
     let finalize_ix = dlp_api::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        validator.pubkey(),
     );
     let call_handler_v2_ix = dlp_api::instruction_builder::call_handler_v2(
         validator.pubkey(),
@@ -382,6 +384,8 @@ async fn test_undelegate_call_handler_v2() {
     let finalize_ix = dlp_api::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        validator.pubkey(),
     );
     let undelegate_ix = dlp_api::instruction_builder::undelegate(
         validator.pubkey(),
@@ -448,6 +452,8 @@ async fn test_finalize_invalid_escrow_call_handler_v2() {
     let finalize_ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
     );
     let call_handler_v2_ix = dlp_api::instruction_builder::call_handler_v2(
         authority.pubkey(),
@@ -484,6 +490,8 @@ async fn test_undelegate_invalid_escrow_call_handler_v2() {
     let finalize_ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
     );
     let finalize_call_handler_v2_ix =
         dlp_api::instruction_builder::call_handler_v2(

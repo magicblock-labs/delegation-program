@@ -8,7 +8,11 @@ use pinocchio_log::log;
 use super::to_pinocchio_program_error;
 use crate::{
     error::DlpError,
-    processor::fast::utils::pda::close_pda,
+    processor::fast::{
+        parse_auto_undelegation_accounts,
+        process_auto_undelegation_if_requested, utils::pda::close_pda,
+    },
+    require_n_accounts_with_optionals,
     requires::{
         is_uninitialized_account, require_initialized_commit_record,
         require_initialized_commit_state,
@@ -58,11 +62,11 @@ pub fn process_finalize(
     accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {
-    let [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, _system_program] =
-        accounts
-    else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
+    let (
+        [validator, delegated_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, validator_fees_vault, system_program],
+        optional_accounts,
+    ) = require_n_accounts_with_optionals!(accounts, 8);
+    let auto_accounts = parse_auto_undelegation_accounts(optional_accounts)?;
 
     require_signer(validator, "validator")?;
     require_owned_pda(
@@ -162,6 +166,7 @@ pub fn process_finalize(
 
     // Update the delegation metadata
     delegation_metadata.last_commit_id = commit_record.nonce;
+    let undelegation_requester = delegation_metadata.undelegation_requester;
     delegation_metadata
         .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
         .map_err(to_pinocchio_program_error)?;
@@ -181,6 +186,21 @@ pub fn process_finalize(
     // Drop remaining reference before closing accounts
     drop(commit_record_data);
     drop(commit_state_data);
+
+    drop(delegated_account_data);
+    drop(delegation_record_data);
+    drop(delegation_metadata_data);
+
+    process_auto_undelegation_if_requested(
+        undelegation_requester,
+        validator,
+        delegated_account,
+        delegation_record_account,
+        delegation_metadata_account,
+        validator_fees_vault,
+        system_program,
+        auto_accounts,
+    )?;
 
     // Closing accounts
     close_pda(commit_state_account, validator)?;

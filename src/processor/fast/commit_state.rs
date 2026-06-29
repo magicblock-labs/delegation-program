@@ -167,18 +167,20 @@ pub(crate) fn process_commit_state_internal(
         return Err(DlpError::NonceOutOfOrder.into());
     }
 
-    // Once undelegation has been requested, any subsequent commit should fail.
-    if delegation_metadata.undelegation_requester
-        == UndelegationRequester::Validator
-    {
-        log!("delegation metadata already has an undelegation requester: ");
-        args.delegation_metadata_account.address().log();
-        return Err(DlpError::AlreadyUndelegated.into());
+    match delegation_metadata.undelegation_requester {
+        UndelegationRequester::None => {
+            delegation_metadata.undelegation_requester =
+                UndelegationRequester::from_allow_undelegation(
+                    args.allow_undelegation,
+                );
+        }
+        UndelegationRequester::OwnerProgram => {}
+        UndelegationRequester::Validator => {
+            log!("delegation metadata already has an undelegation requester: ");
+            args.delegation_metadata_account.address().log();
+            return Err(DlpError::AlreadyUndelegated.into());
+        }
     }
-
-    // Record whether this commit requested undelegation.
-    delegation_metadata.undelegation_requester =
-        UndelegationRequester::from_allow_undelegation(args.allow_undelegation);
     delegation_metadata
         .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())
         .map_err(to_pinocchio_program_error)?;

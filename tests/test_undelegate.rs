@@ -43,6 +43,8 @@ async fn test_finalize_and_undelegate() {
     let ix_finalize = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
     );
 
     // Create the undelegate tx
