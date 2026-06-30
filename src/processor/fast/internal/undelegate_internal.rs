@@ -92,6 +92,7 @@ pub(crate) fn process_auto_undelegation_if_requested(
         fees_vault: auto_accounts.fees_vault,
         validator_fees_vault,
         system_program,
+        // See UndelegationRequest::rent_payer for this invariant.
         request_accounts: Some((
             auto_accounts.undelegation_request_account,
             auto_accounts.rent_reimbursement,

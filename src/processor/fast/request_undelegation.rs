@@ -97,6 +97,7 @@ pub fn process_request_undelegation(
             &delegation_metadata_data,
         )
         .map_err(to_pinocchio_program_error)?;
+    // See UndelegationRequest::rent_payer for this invariant.
     require_eq_keys!(
         &delegation_metadata.rent_payer,
         payer.address(),

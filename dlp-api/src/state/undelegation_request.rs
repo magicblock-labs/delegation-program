@@ -19,6 +19,14 @@ pub struct UndelegationRequest {
     pub owner_program: Pubkey,
 
     /// The account that paid rent for this request PDA.
+    ///
+    /// Owner-program requests intentionally use the same account as
+    /// `DelegationMetadata::rent_payer`. That matches the common case where
+    /// the delegation payer also requests undelegation, and it lets validators
+    /// process auto-undelegation by fetching one account (delegation metadata only)
+    /// instead of two accounts and it also keeps the tx-size smaller. The request
+    /// PDA can be derived and passed without fetching it just to discover
+    /// a second close reimbursement account.
     pub rent_payer: Pubkey,
 
     /// The slot at which the request was created.
