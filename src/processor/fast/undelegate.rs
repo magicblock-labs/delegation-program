@@ -97,10 +97,10 @@ pub fn process_undelegate(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    if address_eq(
-        unsafe { delegated_account.owner() },
-        owner_program.address(),
-    ) {
+    let delegated_account_owner = unsafe { delegated_account.owner() };
+    if !address_eq(delegated_account_owner, &crate::fast::ID)
+        && address_eq(delegated_account_owner, owner_program.address())
+    {
         return Ok(());
     }
 
