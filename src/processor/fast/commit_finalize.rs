@@ -5,10 +5,11 @@ use crate::{
     args::CommitFinalizeArgsWithBuffer,
     processor::fast::{
         internal::{
+            parse_auto_undelegation_accounts,
+            process_auto_undelegation_if_requested,
             process_commit_finalize_internal, CommitFinalizeInternalArgs,
         },
-        parse_auto_undelegation_accounts,
-        process_auto_undelegation_if_requested, NewState,
+        NewState,
     },
     require_n_accounts_with_optionals, DiffSet,
 };

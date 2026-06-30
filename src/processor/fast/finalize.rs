@@ -9,8 +9,11 @@ use super::to_pinocchio_program_error;
 use crate::{
     error::DlpError,
     processor::fast::{
-        parse_auto_undelegation_accounts,
-        process_auto_undelegation_if_requested, utils::pda::close_pda,
+        internal::{
+            parse_auto_undelegation_accounts,
+            process_auto_undelegation_if_requested,
+        },
+        utils::pda::close_pda,
     },
     require_n_accounts_with_optionals,
     requires::{

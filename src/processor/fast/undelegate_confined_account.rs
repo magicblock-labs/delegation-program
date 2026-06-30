@@ -3,11 +3,14 @@ use pinocchio::{
     ProgramResult,
 };
 
-use super::{process_undelegation_with_cpi, to_pinocchio_program_error};
+use super::to_pinocchio_program_error;
 use crate::{
     error::DlpError,
     pda,
-    processor::fast::utils::pda::{close_pda, create_pda},
+    processor::fast::{
+        internal::process_undelegation_with_cpi,
+        utils::pda::{close_pda, create_pda},
+    },
     require_eq_keys,
     requires::{
         require_authorization, require_initialized_delegation_metadata,
