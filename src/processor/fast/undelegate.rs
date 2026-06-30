@@ -9,7 +9,7 @@ use crate::compute;
 use crate::{
     pda,
     processor::fast::internal::{process_undelegation, UndelegationAccounts},
-    require_n_accounts, require_n_accounts_with_optionals,
+    require_eq_keys, require_n_accounts, require_n_accounts_with_optionals,
     requires::{
         require_initialized_delegation_metadata,
         require_initialized_delegation_record,
@@ -98,9 +98,14 @@ pub fn process_undelegate(
     };
 
     let delegated_account_owner = unsafe { delegated_account.owner() };
-    if !address_eq(delegated_account_owner, &crate::fast::ID)
-        && address_eq(delegated_account_owner, owner_program.address())
-    {
+    if !address_eq(delegated_account_owner, &crate::fast::ID) {
+        // this case is possible only if one of the previous instruction (Finalize or
+        // CommitFinalize) has undelegated the account.
+        require_eq_keys!(
+            delegated_account_owner,
+            owner_program.address(),
+            ProgramError::InvalidAccountOwner
+        );
         return Ok(());
     }
 
