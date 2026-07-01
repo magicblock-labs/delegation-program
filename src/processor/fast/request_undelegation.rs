@@ -13,10 +13,10 @@ use crate::{
     error::DlpError,
     pda,
     processor::{fast::utils::pda::create_pda, utils::curve::is_on_curve_fast},
-    require, require_eq, require_eq_keys, require_n_accounts,
+    require, require_eq_keys, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_delegation_metadata,
-        require_initialized_delegation_record, require_owned_pda, require_pda,
+        require_initialized_delegation_record, require_owned_pda,
         require_signer, require_uninitialized_pda, UndelegationRequestCtx,
     },
     state::{
@@ -141,41 +141,6 @@ pub fn process_request_undelegation(
         request
             .to_bytes_with_discriminator(&mut request_data)
             .map_err(to_pinocchio_program_error)?;
-    } else {
-        let request_bump = require_pda(
-            undelegation_request_account,
-            request_seeds,
-            &crate::fast::ID,
-            true,
-            "undelegation request",
-        )?;
-        require_owned_pda(
-            undelegation_request_account,
-            &crate::fast::ID,
-            "undelegation request",
-        )?;
-
-        let request_data = undelegation_request_account.try_borrow()?;
-        let request = UndelegationRequest::try_from_bytes_with_discriminator(
-            &request_data,
-        )
-        .map_err(to_pinocchio_program_error)?;
-
-        require_eq_keys!(
-            &request.delegated_account,
-            delegated_account.address(),
-            DlpError::InvalidUndelegationRequest
-        );
-        require_eq_keys!(
-            &request.owner_program,
-            owner_program.address(),
-            DlpError::InvalidUndelegationRequest
-        );
-        require_eq!(
-            request.bump,
-            request_bump,
-            DlpError::InvalidUndelegationRequest
-        );
     }
     Ok(())
 }
