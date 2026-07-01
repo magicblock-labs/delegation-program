@@ -75,12 +75,13 @@ pub(crate) fn process_auto_undelegation_if_requested(
     system_program: &AccountView,
     auto_accounts: Option<AutoUndelegationAccounts<'_>>,
 ) -> ProgramResult {
-    if requester != UndelegationRequester::OwnerProgram {
+    if requester == UndelegationRequester::None {
         return Ok(());
     }
 
     let auto_accounts =
         auto_accounts.ok_or(ProgramError::NotEnoughAccountKeys)?;
+
     process_undelegation(UndelegationAccounts {
         validator,
         delegated_account,
@@ -92,11 +93,17 @@ pub(crate) fn process_auto_undelegation_if_requested(
         fees_vault: auto_accounts.fees_vault,
         validator_fees_vault,
         system_program,
-        // See UndelegationRequest::rent_payer for this invariant.
-        request_accounts: Some((
-            auto_accounts.undelegation_request_account,
-            auto_accounts.rent_reimbursement,
-        )),
+        // For OwnerProgram requests, see UndelegationRequest::rent_payer
+        // for the rent-payer invariant. Validator requests do not use the
+        // request PDA.
+        request_accounts: if requester == UndelegationRequester::OwnerProgram {
+            Some((
+                auto_accounts.undelegation_request_account,
+                auto_accounts.rent_reimbursement,
+            ))
+        } else {
+            None
+        },
     })
 }
 

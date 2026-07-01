@@ -350,12 +350,6 @@ async fn test_undelegate_with_request_closes_request() {
         .unwrap()
         .lamports;
 
-    let ix_finalize = dlp_api::instruction_builder::finalize(
-        authority.pubkey(),
-        DELEGATED_PDA_ID,
-        DELEGATED_PDA_OWNER_ID,
-        request_rent_payer.pubkey(),
-    );
     let ix_undelegate = dlp_api::instruction_builder::undelegate_with_request(
         authority.pubkey(),
         DELEGATED_PDA_ID,
@@ -365,7 +359,7 @@ async fn test_undelegate_with_request_closes_request() {
     );
 
     let tx = Transaction::new_signed_with_payer(
-        &[ix_finalize, ix_undelegate],
+        &[ix_undelegate],
         Some(&authority.pubkey()),
         &[&authority],
         blockhash,
@@ -434,24 +428,7 @@ async fn test_finalize_auto_undelegates_owner_program_request_and_trailing_undel
     assert!(res.is_ok(), "{res:?}");
 
     assert!(banks.get_account(request_pda).await.unwrap().is_none());
-    assert!(banks
-        .get_account(delegation_record_pda_from_delegated_account(
-            &DELEGATED_PDA_ID,
-        ))
-        .await
-        .unwrap()
-        .is_none());
-    assert!(banks
-        .get_account(delegation_metadata_pda_from_delegated_account(
-            &DELEGATED_PDA_ID,
-        ))
-        .await
-        .unwrap()
-        .is_none());
-
-    let delegated_account =
-        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert_eq!(delegated_account.owner, DELEGATED_PDA_OWNER_ID);
+    assert_delegation_closed_and_account_returned(&banks).await;
 }
 
 #[tokio::test]
@@ -502,24 +479,7 @@ async fn test_commit_finalize_auto_undelegates_owner_program_request() {
     assert!(res.is_ok(), "{res:?}");
 
     assert!(banks.get_account(request_pda).await.unwrap().is_none());
-    assert!(banks
-        .get_account(delegation_record_pda_from_delegated_account(
-            &DELEGATED_PDA_ID,
-        ))
-        .await
-        .unwrap()
-        .is_none());
-    assert!(banks
-        .get_account(delegation_metadata_pda_from_delegated_account(
-            &DELEGATED_PDA_ID,
-        ))
-        .await
-        .unwrap()
-        .is_none());
-
-    let delegated_account =
-        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert_eq!(delegated_account.owner, DELEGATED_PDA_OWNER_ID);
+    assert_delegation_closed_and_account_returned(&banks).await;
 }
 
 #[tokio::test]
@@ -573,6 +533,143 @@ async fn test_commit_finalize_from_buffer_auto_undelegates_owner_program_request
     assert!(res.is_ok(), "{res:?}");
 
     assert!(banks.get_account(request_pda).await.unwrap().is_none());
+    assert_delegation_closed_and_account_returned(&banks).await;
+}
+
+#[tokio::test]
+async fn test_finalize_auto_undelegates_validator_request() {
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        requester: UndelegationRequester::Validator,
+        with_commit_accounts: true,
+        with_owner_program: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
+
+    let ix = dlp_api::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        payer.pubkey(),
+    );
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{res:?}");
+
+    assert_delegation_closed_and_account_returned(&banks).await;
+}
+
+#[tokio::test]
+async fn test_commit_finalize_auto_undelegates_validator_request() {
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_owner_program: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
+
+    let request_pda =
+        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let mut args = CommitFinalizeArgs {
+        commit_id: 1,
+        lamports: LAMPORTS_PER_SOL,
+        allow_undelegation: true.into(),
+        data_is_diff: false.into(),
+        bumps: Default::default(),
+        reserved_padding: Default::default(),
+    };
+    let (ix, _) = dlp_api::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        payer.pubkey(),
+        &mut args,
+        &COMMIT_NEW_STATE_ACCOUNT_DATA,
+    );
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{res:?}");
+
+    assert!(banks.get_account(request_pda).await.unwrap().is_none());
+    assert_delegation_closed_and_account_returned(&banks).await;
+}
+
+#[tokio::test]
+async fn test_commit_finalize_from_buffer_auto_undelegates_validator_request() {
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_state_buffer: true,
+        with_owner_program: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
+
+    let request_pda =
+        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+    let mut args = CommitFinalizeArgs {
+        commit_id: 1,
+        lamports: LAMPORTS_PER_SOL,
+        allow_undelegation: true.into(),
+        data_is_diff: false.into(),
+        bumps: Default::default(),
+        reserved_padding: Default::default(),
+    };
+    let (ix, _) = dlp_api::instruction_builder::commit_finalize_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        state_buffer_pda,
+        DELEGATED_PDA_OWNER_ID,
+        payer.pubkey(),
+        &mut args,
+    );
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{res:?}");
+
+    assert!(banks.get_account(request_pda).await.unwrap().is_none());
+    assert_delegation_closed_and_account_returned(&banks).await;
+}
+
+async fn assert_delegation_closed_and_account_returned(banks: &BanksClient) {
     assert!(banks
         .get_account(delegation_record_pda_from_delegated_account(
             &DELEGATED_PDA_ID,

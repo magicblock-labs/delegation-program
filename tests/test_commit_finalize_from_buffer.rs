@@ -47,7 +47,7 @@ async fn test_commit_finalize_from_buffer_perf() {
         authority.pubkey(),
         &mut CommitFinalizeArgs {
             commit_id: 1,
-            allow_undelegation: true.into(),
+            allow_undelegation: false.into(),
             data_is_diff: false.into(),
             lamports: new_account_balance,
             bumps: Default::default(),
@@ -97,7 +97,7 @@ async fn test_commit_finalize_from_buffer_perf() {
 
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        dlp_api::state::UndelegationRequester::Validator
+        dlp_api::state::UndelegationRequester::None
     );
 }
 
