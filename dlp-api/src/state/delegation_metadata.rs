@@ -26,6 +26,9 @@ pub enum UndelegationRequester {
     /// Kept backward compatible with legacy `is_undelegatable = true`.
     Validator,
     /// The account owner program requested undelegation.
+    ///
+    /// Encoded as byte `2`; legacy clients that deserialize this byte as a
+    /// bool may reject metadata that contains this variant.
     OwnerProgram,
 }
 

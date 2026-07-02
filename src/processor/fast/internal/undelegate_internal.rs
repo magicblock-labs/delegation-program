@@ -79,8 +79,16 @@ pub(crate) fn process_auto_undelegation_if_requested(
         return Ok(());
     }
 
-    let auto_accounts =
-        auto_accounts.ok_or(ProgramError::NotEnoughAccountKeys)?;
+    let Some(auto_accounts) = auto_accounts else {
+        if requester == UndelegationRequester::Validator {
+            log!(
+                "WARN: validator-requested undelegation skipped; \
+                 auto-undelegation accounts were not provided"
+            );
+            return Ok(());
+        }
+        return Err(ProgramError::NotEnoughAccountKeys);
+    };
 
     process_undelegation(UndelegationAccounts {
         validator,
