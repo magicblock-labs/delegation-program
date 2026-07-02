@@ -669,6 +669,165 @@ async fn test_commit_finalize_from_buffer_auto_undelegates_validator_request() {
     assert_delegation_closed_and_account_returned(&banks).await;
 }
 
+// Covers older validators that still send the pre-auto-undelegation Finalize
+// account layout. Validator-requested undelegation should not make finalize
+// fail; it should skip undelegation and leave the standalone undelegate flow
+// available.
+#[tokio::test]
+async fn test_finalize_skips_validator_undelegation_without_auto_accounts_for_backward_compat(
+) {
+    let (banks, _, authority, rent_payer, blockhash) =
+        setup_undelegate_with_requester_env_config(
+            UndelegationRequester::Validator,
+            false,
+            true,
+            false,
+        )
+        .await;
+
+    let mut ix = dlp_api::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        rent_payer.pubkey(),
+    );
+    // Simulate an older validator that sends the pre-auto-undelegation
+    // Finalize account list. The state should still finalize, while
+    // undelegation is skipped for backward compatibility.
+    ix.accounts.truncate(8);
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{res:?}");
+
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_record_pda =
+        commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    assert!(banks.get_account(commit_state_pda).await.unwrap().is_none());
+    assert!(banks
+        .get_account(commit_record_pda)
+        .await
+        .unwrap()
+        .is_none());
+    assert_delegation_still_active_with_validator_requester(
+        &banks,
+        &COMMIT_NEW_STATE_ACCOUNT_DATA,
+    )
+    .await;
+}
+
+// Covers older validators that still send the pre-auto-undelegation
+// CommitFinalize account layout. The commit should finalize, while
+// undelegation is skipped for backward compatibility.
+#[tokio::test]
+async fn test_commit_finalize_skips_validator_undelegation_without_auto_accounts_for_backward_compat(
+) {
+    let (banks, _, authority, rent_payer, blockhash) =
+        setup_undelegate_with_requester_env_config(
+            UndelegationRequester::None,
+            false,
+            false,
+            false,
+        )
+        .await;
+
+    let mut args = CommitFinalizeArgs {
+        commit_id: 1,
+        lamports: LAMPORTS_PER_SOL,
+        allow_undelegation: true.into(),
+        data_is_diff: false.into(),
+        bumps: Default::default(),
+        reserved_padding: Default::default(),
+    };
+    let (mut ix, _) = dlp_api::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        rent_payer.pubkey(),
+        &mut args,
+        &COMMIT_NEW_STATE_ACCOUNT_DATA,
+    );
+    // Simulate an older validator that sends the pre-auto-undelegation
+    // CommitFinalize account list. The commit should still finalize, while
+    // undelegation is skipped for backward compatibility.
+    ix.accounts.truncate(6);
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{res:?}");
+
+    assert_delegation_still_active_with_validator_requester(
+        &banks,
+        &COMMIT_NEW_STATE_ACCOUNT_DATA,
+    )
+    .await;
+}
+
+// Covers older validators that still send the pre-auto-undelegation
+// CommitFinalizeFromBuffer account layout. The commit should finalize, while
+// undelegation is skipped for backward compatibility.
+#[tokio::test]
+async fn test_commit_finalize_from_buffer_skips_validator_undelegation_without_auto_accounts_for_backward_compat(
+) {
+    let (banks, _, authority, rent_payer, blockhash) =
+        setup_undelegate_with_requester_env_config(
+            UndelegationRequester::None,
+            false,
+            false,
+            true,
+        )
+        .await;
+
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+    let mut args = CommitFinalizeArgs {
+        commit_id: 1,
+        lamports: LAMPORTS_PER_SOL,
+        allow_undelegation: true.into(),
+        data_is_diff: false.into(),
+        bumps: Default::default(),
+        reserved_padding: Default::default(),
+    };
+    let (mut ix, _) = dlp_api::instruction_builder::commit_finalize_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        state_buffer_pda,
+        DELEGATED_PDA_OWNER_ID,
+        rent_payer.pubkey(),
+        &mut args,
+    );
+    // Simulate an older validator that sends the pre-auto-undelegation
+    // CommitFinalizeFromBuffer account list. The commit should still
+    // finalize, while undelegation is skipped for backward compatibility.
+    ix.accounts.truncate(7);
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{res:?}");
+
+    assert_delegation_still_active_with_validator_requester(
+        &banks,
+        &COMMIT_NEW_STATE_ACCOUNT_DATA,
+    )
+    .await;
+}
+
 async fn assert_delegation_closed_and_account_returned(banks: &BanksClient) {
     assert!(banks
         .get_account(delegation_record_pda_from_delegated_account(
@@ -688,6 +847,41 @@ async fn assert_delegation_closed_and_account_returned(banks: &BanksClient) {
     let delegated_account =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
     assert_eq!(delegated_account.owner, DELEGATED_PDA_OWNER_ID);
+}
+
+async fn assert_delegation_still_active_with_validator_requester(
+    banks: &BanksClient,
+    expected_data: &[u8],
+) {
+    assert!(banks
+        .get_account(delegation_record_pda_from_delegated_account(
+            &DELEGATED_PDA_ID,
+        ))
+        .await
+        .unwrap()
+        .is_some());
+
+    let delegation_metadata_account = banks
+        .get_account(delegation_metadata_pda_from_delegated_account(
+            &DELEGATED_PDA_ID,
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_metadata =
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_account.data,
+        )
+        .unwrap();
+    assert_eq!(
+        delegation_metadata.undelegation_requester,
+        UndelegationRequester::Validator
+    );
+
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert_eq!(delegated_account.owner, dlp_api::id());
+    assert_eq!(delegated_account.data, expected_data);
 }
 
 #[tokio::test]

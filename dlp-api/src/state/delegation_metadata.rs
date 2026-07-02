@@ -29,6 +29,7 @@ pub enum UndelegationRequester {
     ///
     /// Encoded as byte `2`; legacy clients that deserialize this byte as a
     /// bool may reject metadata that contains this variant.
+    // TODO (snawaz): edit the doc once all validators upgrade.
     OwnerProgram,
 }
 
