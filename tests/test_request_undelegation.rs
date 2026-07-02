@@ -47,7 +47,16 @@ const TEST_PDA_SEED: &[u8] = b"test-pda";
 
 #[tokio::test]
 async fn test_request_undelegation_creates_request() {
-    let (banks, payer, _, blockhash) = setup_request_env().await;
+    let SetupContext {
+        banks,
+        payer,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        ..Default::default()
+    })
+    .await;
 
     let ix = request_undelegation_from_owner_program(payer.pubkey());
     let tx = Transaction::new_signed_with_payer(
@@ -100,7 +109,17 @@ async fn test_request_undelegation_creates_request() {
 
 #[tokio::test]
 async fn test_request_undelegation_is_idempotent() {
-    let (banks, payer, second_payer, blockhash) = setup_request_env().await;
+    let SetupContext {
+        banks,
+        payer,
+        second_payer,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        ..Default::default()
+    })
+    .await;
 
     let first_ix = request_undelegation_from_owner_program(payer.pubkey());
     let first_tx = Transaction::new_signed_with_payer(
@@ -134,7 +153,16 @@ async fn test_request_undelegation_is_idempotent() {
 
 #[tokio::test]
 async fn test_request_undelegation_rejects_payload() {
-    let (banks, payer, _, blockhash) = setup_request_env().await;
+    let SetupContext {
+        banks,
+        payer,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        ..Default::default()
+    })
+    .await;
 
     let mut ix = request_undelegation_from_owner_program(payer.pubkey());
     ix.data = 123_u64.to_le_bytes().to_vec();
@@ -162,7 +190,16 @@ async fn test_request_undelegation_rejects_payload() {
 
 #[tokio::test]
 async fn test_request_undelegation_rejects_missing_delegated_signer() {
-    let (banks, payer, _, blockhash) = setup_request_env().await;
+    let SetupContext {
+        banks,
+        payer,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        ..Default::default()
+    })
+    .await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -201,12 +238,22 @@ async fn test_request_undelegation_rejects_missing_delegated_signer() {
 
 #[tokio::test]
 async fn test_request_undelegation_rejects_on_curve_delegated_account() {
-    let (banks, payer, delegated_on_curve, blockhash) =
-        setup_on_curve_request_env().await;
+    let SetupContext {
+        banks,
+        payer,
+        delegated_on_curve,
+        delegated_account,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        delegated_account: DelegatedAccountSetup::OnCurveKeypair,
+        ..Default::default()
+    })
+    .await;
 
     let ix = dlp_api::instruction_builder::request_undelegation(
         payer.pubkey(),
-        delegated_on_curve.pubkey(),
+        delegated_account,
         system_program::id(),
     );
     let tx = Transaction::new_signed_with_payer(
@@ -222,8 +269,21 @@ async fn test_request_undelegation_rejects_on_curve_delegated_account() {
 
 #[tokio::test]
 async fn test_undelegate_with_request_closes_request() {
-    let (banks, _, authority, request_rent_payer, blockhash) =
-        setup_undelegate_with_request_env().await;
+    let SetupContext {
+        banks,
+        authority,
+        request_rent_payer,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        metadata_undelegatable: true,
+        with_commit_accounts: true,
+        with_owner_program: true,
+        with_fee_accounts: true,
+        with_request_account: true,
+        ..Default::default()
+    })
+    .await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -279,8 +339,21 @@ async fn test_undelegate_with_request_closes_request() {
 
 #[tokio::test]
 async fn test_undelegate_with_malformed_optional_request_accounts_rejected() {
-    let (banks, _, authority, request_rent_payer, blockhash) =
-        setup_undelegate_with_request_env().await;
+    let SetupContext {
+        banks,
+        authority,
+        request_rent_payer,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        metadata_undelegatable: true,
+        with_commit_accounts: true,
+        with_owner_program: true,
+        with_fee_accounts: true,
+        with_request_account: true,
+        ..Default::default()
+    })
+    .await;
 
     let ix_finalize = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
@@ -394,23 +467,64 @@ fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
     }
 }
 
-async fn setup_request_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::default();
+#[derive(Clone, Copy)]
+enum DelegatedAccountSetup {
+    OffCurvePda,
+    OnCurveKeypair,
+}
+
+impl Default for DelegatedAccountSetup {
+    fn default() -> Self {
+        Self::OffCurvePda
+    }
+}
+
+#[derive(Default)]
+struct SetupConfig {
+    delegated_account: DelegatedAccountSetup,
+    with_request_wrapper: bool,
+    metadata_undelegatable: bool,
+    with_commit_accounts: bool,
+    with_owner_program: bool,
+    with_fee_accounts: bool,
+    with_request_account: bool,
+}
+
+struct SetupContext {
+    banks: BanksClient,
+    payer: Keypair,
+    second_payer: Keypair,
+    authority: Keypair,
+    request_rent_payer: Keypair,
+    delegated_on_curve: Keypair,
+    delegated_account: Pubkey,
+    blockhash: Hash,
+}
+
+async fn setup_env(config: SetupConfig) -> SetupContext {
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
-    program_test.add_program("dlp", dlp_api::ID, None);
-    program_test.prefer_bpf(false);
-    program_test.add_program(
-        "request-wrapper",
-        DELEGATED_PDA_OWNER_ID,
-        processor!(
-            imaginary_program_processor_requesting_undelegation_through_cpi
-        ),
-    );
-    program_test.prefer_bpf(true);
+    if config.with_request_wrapper {
+        program_test.prefer_bpf(false);
+        program_test.add_program(
+            "request-wrapper",
+            DELEGATED_PDA_OWNER_ID,
+            processor!(
+                imaginary_program_processor_requesting_undelegation_through_cpi
+            ),
+        );
+        program_test.prefer_bpf(true);
+    }
 
     let payer = Keypair::new();
     let second_payer = Keypair::new();
     let authority = keypair_from_bytes(&TEST_AUTHORITY);
+    let request_rent_payer = Keypair::new();
+    let delegated_on_curve = keypair_from_bytes(&ON_CURVE_KEYPAIR);
+    let delegated_account = match config.delegated_account {
+        DelegatedAccountSetup::OffCurvePda => DELEGATED_PDA_ID,
+        DelegatedAccountSetup::OnCurveKeypair => delegated_on_curve.pubkey(),
+    };
 
     add_system_account(&mut program_test, payer.pubkey(), LAMPORTS_PER_SOL);
     add_system_account(
@@ -419,96 +533,68 @@ async fn setup_request_env() -> (BanksClient, Keypair, Keypair, Hash) {
         LAMPORTS_PER_SOL,
     );
     add_system_account(&mut program_test, authority.pubkey(), LAMPORTS_PER_SOL);
-
-    add_delegated_account(&mut program_test, DELEGATED_PDA_ID);
-    add_delegation_accounts(&mut program_test, authority.pubkey());
-
-    let (banks, _, blockhash) = program_test.start().await;
-    (banks, payer, second_payer, blockhash)
-}
-
-async fn setup_on_curve_request_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
-    program_test.prefer_bpf(true);
-    let payer = Keypair::new();
-    let delegated_on_curve = keypair_from_bytes(&ON_CURVE_KEYPAIR);
-
-    add_system_account(&mut program_test, payer.pubkey(), LAMPORTS_PER_SOL);
-    program_test.add_account(
-        delegated_on_curve.pubkey(),
-        Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: vec![],
-            owner: dlp_api::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    let delegation_record_data = get_delegation_record_on_curve_data(
-        delegated_on_curve.pubkey(),
-        Some(LAMPORTS_PER_SOL),
-    );
-    program_test.add_account(
-        delegation_record_pda_from_delegated_account(
-            &delegated_on_curve.pubkey(),
-        ),
-        Account {
-            lamports: Rent::default()
-                .minimum_balance(delegation_record_data.len()),
-            data: delegation_record_data,
-            owner: dlp_api::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-    let delegation_metadata_data =
-        get_delegation_metadata_data_on_curve(payer.pubkey(), Some(false));
-    program_test.add_account(
-        delegation_metadata_pda_from_delegated_account(
-            &delegated_on_curve.pubkey(),
-        ),
-        Account {
-            lamports: Rent::default()
-                .minimum_balance(delegation_metadata_data.len()),
-            data: delegation_metadata_data,
-            owner: dlp_api::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    let (banks, _, blockhash) = program_test.start().await;
-    (banks, payer, delegated_on_curve, blockhash)
-}
-
-async fn setup_undelegate_with_request_env(
-) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
-    program_test.prefer_bpf(true);
-    let authority = keypair_from_bytes(&TEST_AUTHORITY);
-    let request_rent_payer = Keypair::new();
-
-    add_system_account(&mut program_test, authority.pubkey(), LAMPORTS_PER_SOL);
     add_system_account(
         &mut program_test,
         request_rent_payer.pubkey(),
         LAMPORTS_PER_SOL,
     );
 
-    add_delegated_account(&mut program_test, DELEGATED_PDA_ID);
-    add_delegation_accounts_with_metadata(
-        &mut program_test,
-        authority.pubkey(),
-        Some(true),
-    );
-    add_commit_accounts(&mut program_test, authority.pubkey());
-    add_owner_program(&mut program_test);
-    add_fee_accounts(&mut program_test, authority.pubkey());
-    add_request_account(&mut program_test, request_rent_payer.pubkey());
+    add_delegated_account(&mut program_test, delegated_account);
+    match config.delegated_account {
+        DelegatedAccountSetup::OffCurvePda => {
+            add_delegation_accounts_with_metadata(
+                &mut program_test,
+                delegated_account,
+                authority.pubkey(),
+                authority.pubkey(),
+                config.metadata_undelegatable,
+                false,
+            );
+        }
+        DelegatedAccountSetup::OnCurveKeypair => {
+            add_delegation_accounts_with_metadata(
+                &mut program_test,
+                delegated_account,
+                delegated_on_curve.pubkey(),
+                payer.pubkey(),
+                config.metadata_undelegatable,
+                true,
+            );
+        }
+    }
 
-    let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, authority, request_rent_payer, blockhash)
+    if config.with_commit_accounts {
+        add_commit_accounts(
+            &mut program_test,
+            delegated_account,
+            authority.pubkey(),
+        );
+    }
+    if config.with_owner_program {
+        add_owner_program(&mut program_test);
+    }
+    if config.with_fee_accounts {
+        add_fee_accounts(&mut program_test, authority.pubkey());
+    }
+    if config.with_request_account {
+        add_request_account(
+            &mut program_test,
+            delegated_account,
+            request_rent_payer.pubkey(),
+        );
+    }
+
+    let (banks, _, blockhash) = program_test.start().await;
+    SetupContext {
+        banks,
+        payer,
+        second_payer,
+        authority,
+        request_rent_payer,
+        delegated_on_curve,
+        delegated_account,
+        blockhash,
+    }
 }
 
 fn add_system_account(
@@ -541,18 +627,21 @@ fn add_delegated_account(program_test: &mut ProgramTest, pubkey: Pubkey) {
     );
 }
 
-fn add_delegation_accounts(program_test: &mut ProgramTest, authority: Pubkey) {
-    add_delegation_accounts_with_metadata(program_test, authority, Some(false));
-}
-
 fn add_delegation_accounts_with_metadata(
     program_test: &mut ProgramTest,
+    delegated_account: Pubkey,
     authority: Pubkey,
-    undelegatable: Option<bool>,
+    rent_payer: Pubkey,
+    undelegatable: bool,
+    on_curve: bool,
 ) {
-    let delegation_record_data = get_delegation_record_data(authority, None);
+    let delegation_record_data = if on_curve {
+        get_delegation_record_on_curve_data(authority, Some(LAMPORTS_PER_SOL))
+    } else {
+        get_delegation_record_data(authority, None)
+    };
     program_test.add_account(
-        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        delegation_record_pda_from_delegated_account(&delegated_account),
         Account {
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
@@ -563,10 +652,13 @@ fn add_delegation_accounts_with_metadata(
         },
     );
 
-    let delegation_metadata_data =
-        get_delegation_metadata_data(authority, undelegatable);
+    let delegation_metadata_data = if on_curve {
+        get_delegation_metadata_data_on_curve(rent_payer, Some(undelegatable))
+    } else {
+        get_delegation_metadata_data(rent_payer, Some(undelegatable))
+    };
     program_test.add_account(
-        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        delegation_metadata_pda_from_delegated_account(&delegated_account),
         Account {
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
@@ -578,9 +670,13 @@ fn add_delegation_accounts_with_metadata(
     );
 }
 
-fn add_commit_accounts(program_test: &mut ProgramTest, authority: Pubkey) {
+fn add_commit_accounts(
+    program_test: &mut ProgramTest,
+    delegated_account: Pubkey,
+    authority: Pubkey,
+) {
     program_test.add_account(
-        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        commit_state_pda_from_delegated_account(&delegated_account),
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
@@ -592,7 +688,7 @@ fn add_commit_accounts(program_test: &mut ProgramTest, authority: Pubkey) {
 
     let commit_record_data = get_commit_record_account_data(authority);
     program_test.add_account(
-        commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        commit_record_pda_from_delegated_account(&delegated_account),
         Account {
             lamports: Rent::default().minimum_balance(commit_record_data.len()),
             data: commit_record_data,
@@ -640,15 +736,19 @@ fn add_fee_accounts(program_test: &mut ProgramTest, authority: Pubkey) {
     );
 }
 
-fn add_request_account(program_test: &mut ProgramTest, rent_payer: Pubkey) {
+fn add_request_account(
+    program_test: &mut ProgramTest,
+    delegated_account: Pubkey,
+    rent_payer: Pubkey,
+) {
     let request_data = create_undelegation_request_data(
-        DELEGATED_PDA_ID,
+        delegated_account,
         DELEGATED_PDA_OWNER_ID,
         rent_payer,
         1,
     );
     program_test.add_account(
-        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        undelegation_request_pda_from_delegated_account(&delegated_account),
         Account {
             lamports: Rent::default().minimum_balance(request_data.len()),
             data: request_data,
