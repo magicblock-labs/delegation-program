@@ -75,19 +75,36 @@ pub(crate) fn process_auto_undelegation_if_requested(
     system_program: &AccountView,
     auto_accounts: Option<AutoUndelegationAccounts<'_>>,
 ) -> ProgramResult {
-    if requester == UndelegationRequester::None {
-        return Ok(());
-    }
-
-    let Some(auto_accounts) = auto_accounts else {
-        if requester == UndelegationRequester::Validator {
-            log!(
-                "WARN: validator-requested undelegation skipped; \
-                 auto-undelegation accounts were not provided"
-            );
-            return Ok(());
+    let (request_accounts, auto_accounts) = match requester {
+        UndelegationRequester::None => return Ok(()),
+        UndelegationRequester::Validator => {
+            let Some(auto_accounts) = auto_accounts else {
+                // Backward compatibility: this is normally an error case
+                // because Finalize cannot process validator-requested
+                // undelegation without auto-undelegation accounts. Returning
+                // Ok here keeps older validators compatible: they do not pass
+                // these accounts and instead send standalone Undelegate after
+                // Finalize.
+                log!("WARN: validator-requested undelegation skipped; auto-undelegation accounts were not provided");
+                return Ok(());
+            };
+            (None, auto_accounts)
         }
-        return Err(ProgramError::NotEnoughAccountKeys);
+        UndelegationRequester::OwnerProgram => {
+            let Some(auto_accounts) = auto_accounts else {
+                return Err(ProgramError::NotEnoughAccountKeys);
+            };
+            // For OwnerProgram requests, see UndelegationRequest::rent_payer
+            // for the rent-payer invariant. Validator requests do not use the
+            // request PDA.
+            (
+                Some((
+                    auto_accounts.undelegation_request_account,
+                    auto_accounts.rent_reimbursement,
+                )),
+                auto_accounts,
+            )
+        }
     };
 
     process_undelegation(UndelegationAccounts {
@@ -101,17 +118,7 @@ pub(crate) fn process_auto_undelegation_if_requested(
         fees_vault: auto_accounts.fees_vault,
         validator_fees_vault,
         system_program,
-        // For OwnerProgram requests, see UndelegationRequest::rent_payer
-        // for the rent-payer invariant. Validator requests do not use the
-        // request PDA.
-        request_accounts: if requester == UndelegationRequester::OwnerProgram {
-            Some((
-                auto_accounts.undelegation_request_account,
-                auto_accounts.rent_reimbursement,
-            ))
-        } else {
-            None
-        },
+        request_accounts,
     })
 }
 
