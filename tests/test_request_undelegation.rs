@@ -325,9 +325,7 @@ async fn test_undelegate_with_request_closes_request() {
         blockhash,
         ..
     } = setup_env(SetupConfig {
-        requester: UndelegationRequester::Validator,
-        with_commit_accounts: true,
-        with_state_buffer: true,
+        requester: UndelegationRequester::OwnerProgram,
         with_owner_program: true,
         with_fee_accounts: true,
         with_request_account: true,
@@ -676,20 +674,26 @@ async fn test_commit_finalize_from_buffer_auto_undelegates_validator_request() {
 #[tokio::test]
 async fn test_finalize_skips_validator_undelegation_without_auto_accounts_for_backward_compat(
 ) {
-    let (banks, _, authority, rent_payer, blockhash) =
-        setup_undelegate_with_requester_env_config(
-            UndelegationRequester::Validator,
-            false,
-            true,
-            false,
-        )
-        .await;
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        requester: UndelegationRequester::Validator,
+        with_commit_accounts: true,
+        with_owner_program: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
 
     let mut ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
-        rent_payer.pubkey(),
+        payer.pubkey(),
     );
     // Simulate an older validator that sends the pre-auto-undelegation
     // Finalize account list. The state should still finalize, while
@@ -728,14 +732,18 @@ async fn test_finalize_skips_validator_undelegation_without_auto_accounts_for_ba
 #[tokio::test]
 async fn test_commit_finalize_skips_validator_undelegation_without_auto_accounts_for_backward_compat(
 ) {
-    let (banks, _, authority, rent_payer, blockhash) =
-        setup_undelegate_with_requester_env_config(
-            UndelegationRequester::None,
-            false,
-            false,
-            false,
-        )
-        .await;
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_owner_program: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
 
     let mut args = CommitFinalizeArgs {
         commit_id: 1,
@@ -749,7 +757,7 @@ async fn test_commit_finalize_skips_validator_undelegation_without_auto_accounts
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
-        rent_payer.pubkey(),
+        payer.pubkey(),
         &mut args,
         &COMMIT_NEW_STATE_ACCOUNT_DATA,
     );
@@ -780,14 +788,19 @@ async fn test_commit_finalize_skips_validator_undelegation_without_auto_accounts
 #[tokio::test]
 async fn test_commit_finalize_from_buffer_skips_validator_undelegation_without_auto_accounts_for_backward_compat(
 ) {
-    let (banks, _, authority, rent_payer, blockhash) =
-        setup_undelegate_with_requester_env_config(
-            UndelegationRequester::None,
-            false,
-            false,
-            true,
-        )
-        .await;
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_state_buffer: true,
+        with_owner_program: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
 
     let state_buffer_pda =
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
@@ -804,7 +817,7 @@ async fn test_commit_finalize_from_buffer_skips_validator_undelegation_without_a
         DELEGATED_PDA_ID,
         state_buffer_pda,
         DELEGATED_PDA_OWNER_ID,
-        rent_payer.pubkey(),
+        payer.pubkey(),
         &mut args,
     );
     // Simulate an older validator that sends the pre-auto-undelegation
@@ -893,7 +906,7 @@ async fn test_undelegate_with_malformed_optional_request_accounts_rejected() {
         blockhash,
         ..
     } = setup_env(SetupConfig {
-        requester: UndelegationRequester::Validator,
+        requester: UndelegationRequester::OwnerProgram,
         with_commit_accounts: true,
         with_state_buffer: true,
         with_owner_program: true,

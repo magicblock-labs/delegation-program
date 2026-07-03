@@ -15,7 +15,9 @@ use dlp_api::{
     },
 };
 use solana_program::{
-    hash::Hash, instruction::AccountMeta, native_token::LAMPORTS_PER_SOL,
+    hash::Hash,
+    instruction::{AccountMeta, Instruction},
+    native_token::LAMPORTS_PER_SOL,
     rent::Rent,
 };
 use solana_program_test::{processor, read_file, BanksClient, ProgramTest};
@@ -328,6 +330,25 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     (banks, payer, validator, blockhash)
 }
 
+fn legacy_finalize_ix(
+    validator: Pubkey,
+    delegated_account: Pubkey,
+    owner_program: Pubkey,
+    rent_reimbursement: Pubkey,
+) -> Instruction {
+    let mut ix = dlp_api::instruction_builder::finalize(
+        validator,
+        delegated_account,
+        owner_program,
+        rent_reimbursement,
+    );
+    // These tests exercise call_handler with the pre-auto-undelegation finalize
+    // layout. Validator-requested undelegation is skipped when auto accounts are
+    // absent, keeping standalone undelegate available for the following ix.
+    ix.accounts.truncate(8);
+    ix
+}
+
 /// Test call_handler in finalize context
 #[tokio::test]
 async fn test_finalize_call_handler() {
@@ -336,7 +357,7 @@ async fn test_finalize_call_handler() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp_api::instruction_builder::finalize(
+    let finalize_ix = legacy_finalize_ix(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -386,7 +407,7 @@ async fn test_undelegate_call_handler() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp_api::instruction_builder::finalize(
+    let finalize_ix = legacy_finalize_ix(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -455,7 +476,7 @@ async fn test_finalize_invalid_escrow_call_handler() {
 
     // Submit the finalize with handler tx
     let transfer_destination = Keypair::new();
-    let finalize_ix = dlp_api::instruction_builder::finalize(
+    let finalize_ix = legacy_finalize_ix(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -492,7 +513,7 @@ async fn test_undelegate_invalid_escow_call_handler() {
 
     // Submit the finalize with handler tx
     let destination = Keypair::new();
-    let finalize_ix = dlp_api::instruction_builder::finalize(
+    let finalize_ix = legacy_finalize_ix(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

@@ -742,6 +742,7 @@ pub async fn test_commit_system_account_after_balance_decrease(
         authority: &authority,
         blockhash,
         new_delegated_account_lamports,
+        allow_undelegation: also_undelegate,
         delegated_account,
         delegated_account_owner: owner_program,
     })
@@ -799,6 +800,7 @@ async fn test_commit_system_account_after_balance_increase(
         authority: &authority,
         blockhash,
         new_delegated_account_lamports,
+        allow_undelegation: also_undelegate,
         delegated_account,
         delegated_account_owner: owner_program,
     })
@@ -854,6 +856,7 @@ async fn test_commit_system_account_after_balance_decrease_and_increase_mainchai
         authority: &authority,
         blockhash,
         new_delegated_account_lamports,
+        allow_undelegation: also_undelegate,
         delegated_account,
         delegated_account_owner: owner_program,
     })
@@ -912,6 +915,7 @@ async fn test_commit_system_account_after_balance_increase_and_increase_mainchai
         authority: &authority,
         blockhash,
         new_delegated_account_lamports,
+        allow_undelegation: also_undelegate,
         delegated_account,
         delegated_account_owner: owner_program,
     })
@@ -1049,12 +1053,17 @@ struct FinalizeNewStateArgs<'a> {
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = dlp_api::instruction_builder::finalize(
+    let mut ix = dlp_api::instruction_builder::finalize(
         args.authority.pubkey(),
         args.delegated_account,
         args.owner_program,
         args.authority.pubkey(),
     );
+    // These lamports-settlement tests cover the original two-step
+    // finalize-then-undelegate flow. Keep finalize on the pre-auto-undelegation
+    // layout so `commit_undelegate_*` variants exercise the standalone
+    // undelegate instruction below.
+    ix.accounts.truncate(8);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&args.authority.pubkey()),
@@ -1064,7 +1073,7 @@ async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
     let res = args.banks.process_transaction(tx).await;
     assert!(res.is_ok());
 
-    // Assert that the account owner is still the delegation program
+    // Assert that the account owner is still the delegation program.
     let pda_account = args
         .banks
         .get_account(args.delegated_account)
@@ -1079,6 +1088,7 @@ struct CommitNewStateArgs<'a> {
     authority: &'a Keypair,
     blockhash: Hash,
     new_delegated_account_lamports: u64,
+    allow_undelegation: bool,
     delegated_account: Pubkey,
     delegated_account_owner: Pubkey,
 }
@@ -1158,7 +1168,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     let commit_args = CommitStateArgs {
         data: data.clone(),
         nonce: 1,
-        allow_undelegation: true,
+        allow_undelegation: args.allow_undelegation,
         lamports: args.new_delegated_account_lamports,
     };
 
@@ -1231,9 +1241,14 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
             &delegation_metadata_account.data,
         )
         .unwrap();
+    let expected_requester = if args.allow_undelegation {
+        dlp_api::state::UndelegationRequester::Validator
+    } else {
+        dlp_api::state::UndelegationRequester::None
+    };
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        dlp_api::state::UndelegationRequester::Validator
+        expected_requester
     );
 }
 
