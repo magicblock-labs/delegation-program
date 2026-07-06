@@ -87,15 +87,18 @@ pub(crate) fn process_commit_finalize_internal(
 
         require_eq!(args.commit_id, prev_id + 1, DlpError::NonceOutOfOrder);
 
-        let previous_requester = metadata.replace_undelegation_requester(
-            UndelegationRequester::from_allow_undelegation(
-                args.allow_undelegation,
-            ),
-        )?;
+        let previous_requester = metadata.undelegation_requester()?;
         require!(
             previous_requester != UndelegationRequester::Validator,
             DlpError::AlreadyUndelegated
         );
+        if previous_requester == UndelegationRequester::None {
+            metadata.set_undelegation_requester(
+                UndelegationRequester::from_allow_undelegation(
+                    args.allow_undelegation,
+                ),
+            );
+        }
     }
 
     let mut delegation_record_data =

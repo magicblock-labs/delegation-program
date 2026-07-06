@@ -54,7 +54,7 @@ pub fn process_request_undelegation(
     require!(data.is_empty(), ProgramError::InvalidInstructionData);
 
     require_signer(payer, "payer")?;
-    require!(payer.is_writable(), ProgramError::Immutable);
+
     require_signer(delegated_account, "delegated account")?;
     require_owned_pda(
         delegated_account,

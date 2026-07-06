@@ -185,6 +185,9 @@ pub enum DlpError {
     #[error("Commit id did not match undelegation request checkpoint")]
     RollbackCommitIdMismatch = 53,
 
+    #[error("Undelegation request accounts are required")]
+    MissingUndelegationRequest = 54,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }

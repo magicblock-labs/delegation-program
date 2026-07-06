@@ -200,6 +200,12 @@ pub fn process_undelegate(
         delegation_metadata_account.address().log();
         return Err(DlpError::NotUndelegatable.into());
     }
+    if delegation_metadata.undelegation_requester
+        == UndelegationRequester::OwnerProgram
+        && request_accounts.is_none()
+    {
+        return Err(DlpError::MissingUndelegationRequest.into());
+    }
 
     // Check if the rent payer is correct
     if !address_eq(

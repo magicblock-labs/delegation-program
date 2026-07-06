@@ -1,6 +1,8 @@
 use dlp::solana_program;
 use dlp_api::{
+    args::{CommitFinalizeArgs, CommitStateArgs},
     consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
+    error::DlpError,
     pda::{
         commit_record_pda_from_delegated_account,
         commit_state_pda_from_delegated_account,
@@ -334,6 +336,184 @@ async fn test_undelegate_with_request_closes_request() {
     assert_eq!(
         payer_lamports_after,
         payer_lamports_before + request_lamports_before
+    );
+}
+
+#[tokio::test]
+async fn test_commit_state_preserves_owner_program_requester() {
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
+
+    let request_ix = request_undelegation_from_owner_program(payer.pubkey());
+    let commit_ix = dlp_api::instruction_builder::commit_state(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        CommitStateArgs {
+            data: COMMIT_NEW_STATE_ACCOUNT_DATA.to_vec(),
+            nonce: 1,
+            allow_undelegation: false,
+            lamports: LAMPORTS_PER_SOL,
+        },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[request_ix, commit_ix],
+        Some(&payer.pubkey()),
+        &[&payer, &authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{res:?}");
+
+    assert_delegation_metadata_requester(
+        &banks,
+        UndelegationRequester::OwnerProgram,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_commit_finalize_preserves_owner_program_requester() {
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
+
+    let request_ix = request_undelegation_from_owner_program(payer.pubkey());
+    let mut args = CommitFinalizeArgs {
+        commit_id: 1,
+        lamports: LAMPORTS_PER_SOL,
+        allow_undelegation: false.into(),
+        data_is_diff: false.into(),
+        bumps: Default::default(),
+        reserved_padding: Default::default(),
+    };
+    let (commit_finalize_ix, _) = dlp_api::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        &mut args,
+        &COMMIT_NEW_STATE_ACCOUNT_DATA,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[request_ix, commit_finalize_ix],
+        Some(&payer.pubkey()),
+        &[&payer, &authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{res:?}");
+
+    assert_delegation_metadata_requester(
+        &banks,
+        UndelegationRequester::OwnerProgram,
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_undelegate_owner_program_request_without_request_accounts_rejected(
+) {
+    let SetupContext {
+        banks,
+        payer,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        with_commit_accounts: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
+
+    let request_ix = request_undelegation_from_owner_program(payer.pubkey());
+    let request_tx = Transaction::new_signed_with_payer(
+        &[request_ix],
+        Some(&payer.pubkey()),
+        &[&payer],
+        blockhash,
+    );
+    let request_res = banks.process_transaction(request_tx).await;
+    assert!(request_res.is_ok(), "{request_res:?}");
+
+    let finalize_ix = dlp_api::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+    );
+    let finalize_tx = Transaction::new_signed_with_payer(
+        &[finalize_ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let finalize_res = banks.process_transaction(finalize_tx).await;
+    assert!(finalize_res.is_ok(), "{finalize_res:?}");
+
+    let undelegate_ix = dlp_api::instruction_builder::undelegate(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
+    );
+    let undelegate_tx = Transaction::new_signed_with_payer(
+        &[undelegate_ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(undelegate_tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::Custom(code),
+                )
+            ) if code == DlpError::MissingUndelegationRequest as u32
+        ),
+        "expected MissingUndelegationRequest, got {err:?}"
+    );
+}
+
+async fn assert_delegation_metadata_requester(
+    banks: &BanksClient,
+    expected_requester: UndelegationRequester,
+) {
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let delegation_metadata_account = banks
+        .get_account(delegation_metadata_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_metadata =
+        DelegationMetadata::try_from_bytes_with_discriminator(
+            &delegation_metadata_account.data,
+        )
+        .unwrap();
+    assert_eq!(
+        delegation_metadata.undelegation_requester,
+        expected_requester
     );
 }
 
