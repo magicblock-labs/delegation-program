@@ -51,7 +51,7 @@ const TEST_PDA_SEED: &[u8] = b"test-pda";
 async fn test_request_undelegation_creates_request() {
     let SetupContext {
         banks,
-        payer,
+        authority,
         blockhash,
         ..
     } = setup_env(SetupConfig {
@@ -60,11 +60,11 @@ async fn test_request_undelegation_creates_request() {
     })
     .await;
 
-    let ix = request_undelegation_from_owner_program(payer.pubkey());
+    let ix = request_undelegation_from_owner_program(authority.pubkey());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
-        Some(&payer.pubkey()),
-        &[&payer],
+        Some(&authority.pubkey()),
+        &[&authority],
         blockhash,
     );
 
@@ -84,7 +84,7 @@ async fn test_request_undelegation_creates_request() {
     .unwrap();
     assert_eq!(request.delegated_account, DELEGATED_PDA_ID);
     assert_eq!(request.owner_program, DELEGATED_PDA_OWNER_ID);
-    assert_eq!(request.rent_payer, payer.pubkey());
+    assert_eq!(request.rent_payer, authority.pubkey());
     assert_eq!(
         request.expires_at_slot,
         request.created_slot + DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS
@@ -113,8 +113,7 @@ async fn test_request_undelegation_creates_request() {
 async fn test_request_undelegation_is_idempotent() {
     let SetupContext {
         banks,
-        payer,
-        second_payer,
+        authority,
         blockhash,
         ..
     } = setup_env(SetupConfig {
@@ -123,11 +122,11 @@ async fn test_request_undelegation_is_idempotent() {
     })
     .await;
 
-    let first_ix = request_undelegation_from_owner_program(payer.pubkey());
+    let first_ix = request_undelegation_from_owner_program(authority.pubkey());
     let first_tx = Transaction::new_signed_with_payer(
         &[first_ix],
-        Some(&payer.pubkey()),
-        &[&payer],
+        Some(&authority.pubkey()),
+        &[&authority],
         blockhash,
     );
     let first_res = banks.process_transaction(first_tx).await;
@@ -137,12 +136,11 @@ async fn test_request_undelegation_is_idempotent() {
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let request_before = banks.get_account(request_pda).await.unwrap().unwrap();
 
-    let second_ix =
-        request_undelegation_from_owner_program(second_payer.pubkey());
+    let second_ix = request_undelegation_from_owner_program(authority.pubkey());
     let second_tx = Transaction::new_signed_with_payer(
         &[second_ix],
-        Some(&second_payer.pubkey()),
-        &[&second_payer],
+        Some(&authority.pubkey()),
+        &[&authority],
         blockhash,
     );
     let second_res = banks.process_transaction(second_tx).await;
@@ -274,7 +272,6 @@ async fn test_undelegate_with_request_closes_request() {
     let SetupContext {
         banks,
         authority,
-        request_rent_payer,
         blockhash,
         ..
     } = setup_env(SetupConfig {
@@ -289,18 +286,6 @@ async fn test_undelegate_with_request_closes_request() {
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let request_lamports_before = banks
-        .get_account(request_pda)
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    let payer_lamports_before = banks
-        .get_account(request_rent_payer.pubkey())
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
 
     let ix_finalize = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
@@ -311,7 +296,6 @@ async fn test_undelegate_with_request_closes_request() {
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         authority.pubkey(),
-        request_rent_payer.pubkey(),
     );
 
     let tx = Transaction::new_signed_with_payer(
@@ -326,24 +310,12 @@ async fn test_undelegate_with_request_closes_request() {
 
     let request_account = banks.get_account(request_pda).await.unwrap();
     assert!(request_account.is_none());
-
-    let payer_lamports_after = banks
-        .get_account(request_rent_payer.pubkey())
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    assert_eq!(
-        payer_lamports_after,
-        payer_lamports_before + request_lamports_before
-    );
 }
 
 #[tokio::test]
 async fn test_commit_state_preserves_owner_program_requester() {
     let SetupContext {
         banks,
-        payer,
         authority,
         blockhash,
         ..
@@ -354,7 +326,8 @@ async fn test_commit_state_preserves_owner_program_requester() {
     })
     .await;
 
-    let request_ix = request_undelegation_from_owner_program(payer.pubkey());
+    let request_ix =
+        request_undelegation_from_owner_program(authority.pubkey());
     let commit_ix = dlp_api::instruction_builder::commit_state(
         authority.pubkey(),
         DELEGATED_PDA_ID,
@@ -368,8 +341,8 @@ async fn test_commit_state_preserves_owner_program_requester() {
     );
     let tx = Transaction::new_signed_with_payer(
         &[request_ix, commit_ix],
-        Some(&payer.pubkey()),
-        &[&payer, &authority],
+        Some(&authority.pubkey()),
+        &[&authority],
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
@@ -386,7 +359,6 @@ async fn test_commit_state_preserves_owner_program_requester() {
 async fn test_commit_finalize_preserves_owner_program_requester() {
     let SetupContext {
         banks,
-        payer,
         authority,
         blockhash,
         ..
@@ -397,7 +369,8 @@ async fn test_commit_finalize_preserves_owner_program_requester() {
     })
     .await;
 
-    let request_ix = request_undelegation_from_owner_program(payer.pubkey());
+    let request_ix =
+        request_undelegation_from_owner_program(authority.pubkey());
     let mut args = CommitFinalizeArgs {
         commit_id: 1,
         lamports: LAMPORTS_PER_SOL,
@@ -414,8 +387,8 @@ async fn test_commit_finalize_preserves_owner_program_requester() {
     );
     let tx = Transaction::new_signed_with_payer(
         &[request_ix, commit_finalize_ix],
-        Some(&payer.pubkey()),
-        &[&payer, &authority],
+        Some(&authority.pubkey()),
+        &[&authority],
         blockhash,
     );
     let res = banks.process_transaction(tx).await;
@@ -433,7 +406,6 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
 ) {
     let SetupContext {
         banks,
-        payer,
         authority,
         blockhash,
         ..
@@ -445,11 +417,12 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
     })
     .await;
 
-    let request_ix = request_undelegation_from_owner_program(payer.pubkey());
+    let request_ix =
+        request_undelegation_from_owner_program(authority.pubkey());
     let request_tx = Transaction::new_signed_with_payer(
         &[request_ix],
-        Some(&payer.pubkey()),
-        &[&payer],
+        Some(&authority.pubkey()),
+        &[&authority],
         blockhash,
     );
     let request_res = banks.process_transaction(request_tx).await;
@@ -522,7 +495,6 @@ async fn test_undelegate_with_malformed_optional_request_accounts_rejected() {
     let SetupContext {
         banks,
         authority,
-        request_rent_payer,
         blockhash,
         ..
     } = setup_env(SetupConfig {
@@ -545,9 +517,13 @@ async fn test_undelegate_with_malformed_optional_request_accounts_rejected() {
             DELEGATED_PDA_ID,
             DELEGATED_PDA_OWNER_ID,
             authority.pubkey(),
-            request_rent_payer.pubkey(),
         );
-    ix_undelegate.accounts.pop();
+    ix_undelegate
+        .accounts
+        .push(AccountMeta::new_readonly(system_program::id(), false));
+    ix_undelegate
+        .accounts
+        .push(AccountMeta::new_readonly(dlp_api::id(), false));
 
     let tx = Transaction::new_signed_with_payer(
         &[ix_finalize, ix_undelegate],
@@ -617,11 +593,13 @@ fn imaginary_program_processor_requesting_undelegation_through_cpi(
 /// require it. See imaginary_program_processor_requesting_undelegation_through_cpi()
 /// which is supposed to be the processor of the imaginary program.
 ///
-fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
+fn request_undelegation_from_owner_program(
+    delegation_rent_payer: Pubkey,
+) -> Instruction {
     Instruction {
         program_id: DELEGATED_PDA_OWNER_ID,
         accounts: vec![
-            AccountMeta::new(payer, true),
+            AccountMeta::new(delegation_rent_payer, true),
             AccountMeta::new(DELEGATED_PDA_ID, false),
             AccountMeta::new_readonly(DELEGATED_PDA_OWNER_ID, false),
             AccountMeta::new(
@@ -673,9 +651,7 @@ struct SetupConfig {
 struct SetupContext {
     banks: BanksClient,
     payer: Keypair,
-    second_payer: Keypair,
     authority: Keypair,
-    request_rent_payer: Keypair,
     delegated_on_curve: Keypair,
     delegated_account: Pubkey,
     blockhash: Hash,
@@ -697,27 +673,19 @@ async fn setup_env(config: SetupConfig) -> SetupContext {
     }
 
     let payer = Keypair::new();
-    let second_payer = Keypair::new();
     let authority = keypair_from_bytes(&TEST_AUTHORITY);
-    let request_rent_payer = Keypair::new();
     let delegated_on_curve = keypair_from_bytes(&ON_CURVE_KEYPAIR);
     let delegated_account = match config.delegated_account {
         DelegatedAccountSetup::OffCurvePda => DELEGATED_PDA_ID,
         DelegatedAccountSetup::OnCurveKeypair => delegated_on_curve.pubkey(),
     };
+    let delegation_rent_payer = match config.delegated_account {
+        DelegatedAccountSetup::OffCurvePda => authority.pubkey(),
+        DelegatedAccountSetup::OnCurveKeypair => payer.pubkey(),
+    };
 
     add_system_account(&mut program_test, payer.pubkey(), LAMPORTS_PER_SOL);
-    add_system_account(
-        &mut program_test,
-        second_payer.pubkey(),
-        LAMPORTS_PER_SOL,
-    );
     add_system_account(&mut program_test, authority.pubkey(), LAMPORTS_PER_SOL);
-    add_system_account(
-        &mut program_test,
-        request_rent_payer.pubkey(),
-        LAMPORTS_PER_SOL,
-    );
 
     add_delegated_account(&mut program_test, delegated_account);
     match config.delegated_account {
@@ -726,7 +694,7 @@ async fn setup_env(config: SetupConfig) -> SetupContext {
                 &mut program_test,
                 delegated_account,
                 authority.pubkey(),
-                authority.pubkey(),
+                delegation_rent_payer,
                 config.metadata_undelegatable,
                 false,
             );
@@ -736,7 +704,7 @@ async fn setup_env(config: SetupConfig) -> SetupContext {
                 &mut program_test,
                 delegated_account,
                 delegated_on_curve.pubkey(),
-                payer.pubkey(),
+                delegation_rent_payer,
                 config.metadata_undelegatable,
                 true,
             );
@@ -760,7 +728,7 @@ async fn setup_env(config: SetupConfig) -> SetupContext {
         add_request_account(
             &mut program_test,
             delegated_account,
-            request_rent_payer.pubkey(),
+            delegation_rent_payer,
         );
     }
 
@@ -768,9 +736,7 @@ async fn setup_env(config: SetupConfig) -> SetupContext {
     SetupContext {
         banks,
         payer,
-        second_payer,
         authority,
-        request_rent_payer,
         delegated_on_curve,
         delegated_account,
         blockhash,

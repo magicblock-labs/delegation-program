@@ -20,39 +20,44 @@ use solana_sdk_ids::system_program;
 use crate::compat::{Compatize, Modernize};
 
 /// Builds an undelegate instruction.
+///
+/// `delegation_rent_payer` must match the rent payer stored in the delegation
+/// metadata PDA.
 /// See [dlp::processor::process_undelegate] for docs.
 #[allow(clippy::too_many_arguments)]
 pub fn undelegate(
     validator: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
-    rent_reimbursement: Pubkey,
+    delegation_rent_payer: Pubkey,
 ) -> Instruction {
     build_undelegate(
         validator,
         delegated_account,
         owner_program,
-        rent_reimbursement,
-        None,
+        delegation_rent_payer,
+        false,
     )
 }
 
 /// Builds an undelegate instruction that also closes a matching request.
+///
+/// `delegation_rent_payer` must match the rent payer stored in the delegation
+/// metadata PDA and undelegation request PDA.
 /// See [dlp::processor::process_undelegate] for docs.
 #[allow(clippy::too_many_arguments)]
 pub fn undelegate_with_request(
     validator: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
-    rent_reimbursement: Pubkey,
-    request_rent_payer: Pubkey,
+    delegation_rent_payer: Pubkey,
 ) -> Instruction {
     build_undelegate(
         validator,
         delegated_account,
         owner_program,
-        rent_reimbursement,
-        Some(request_rent_payer),
+        delegation_rent_payer,
+        true,
     )
 }
 
@@ -60,8 +65,8 @@ fn build_undelegate(
     validator: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
-    rent_reimbursement: Pubkey,
-    request_rent_payer: Option<Pubkey>,
+    delegation_rent_payer: Pubkey,
+    include_undelegation_request: bool,
 ) -> Instruction {
     let validator_compat = validator.compatize();
     let delegated_account_compat = delegated_account.compatize();
@@ -94,20 +99,19 @@ fn build_undelegate(
         AccountMeta::new_readonly(commit_record_pda, false),
         AccountMeta::new(delegation_record_pda, false),
         AccountMeta::new(delegation_metadata_pda, false),
-        AccountMeta::new(rent_reimbursement, false),
+        AccountMeta::new(delegation_rent_payer, false),
         AccountMeta::new(fees_vault_pda, false),
         AccountMeta::new(validator_fees_vault_pda, false),
         AccountMeta::new_readonly(system_program::id(), false),
     ];
 
-    if let Some(request_rent_payer) = request_rent_payer {
+    if include_undelegation_request {
         let undelegation_request_pda =
             undelegation_request_pda_from_delegated_account(
                 &delegated_account_compat,
             )
             .modernize();
         accounts.push(AccountMeta::new(undelegation_request_pda, false));
-        accounts.push(AccountMeta::new(request_rent_payer, false));
     }
 
     Instruction {
@@ -133,7 +137,7 @@ pub fn undelegate_size_budget(delegated_account: AccountSizeClass) -> u32 {
         AccountSizeClass::Tiny, // commit_record_pda
         AccountSizeClass::Tiny, // delegation_record_pda
         AccountSizeClass::Tiny, // delegation_metadata_pda
-        AccountSizeClass::Tiny, // rent_reimbursement
+        AccountSizeClass::Tiny, // delegation_rent_payer
         AccountSizeClass::Tiny, // fees_vault_pda
         AccountSizeClass::Tiny, // validator_fees_vault_pda
         AccountSizeClass::Tiny, // system_program
@@ -159,11 +163,10 @@ pub fn undelegate_with_request_size_budget(
         AccountSizeClass::Tiny, // commit_record_pda
         AccountSizeClass::Tiny, // delegation_record_pda
         AccountSizeClass::Tiny, // delegation_metadata_pda
-        AccountSizeClass::Tiny, // rent_reimbursement
+        AccountSizeClass::Tiny, // delegation_rent_payer
         AccountSizeClass::Tiny, // fees_vault_pda
         AccountSizeClass::Tiny, // validator_fees_vault_pda
         AccountSizeClass::Tiny, // system_program
         AccountSizeClass::Tiny, // undelegation_request_pda
-        AccountSizeClass::Tiny, // request_rent_payer
     ])
 }

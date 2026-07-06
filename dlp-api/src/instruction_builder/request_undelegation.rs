@@ -16,9 +16,12 @@ use solana_sdk_ids::system_program;
 use crate::compat::{Compatize, Modernize};
 
 /// Builds a request undelegation instruction.
+///
+/// `delegation_rent_payer` must match the rent payer stored in the delegation
+/// metadata PDA.
 /// See [dlp::processor::process_request_undelegation] for docs.
 pub fn request_undelegation(
-    payer: Pubkey,
+    delegation_rent_payer: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
 ) -> Instruction {
@@ -39,7 +42,7 @@ pub fn request_undelegation(
     Instruction {
         program_id: dlp::id().modernize(),
         accounts: vec![
-            AccountMeta::new(payer, true),
+            AccountMeta::new(delegation_rent_payer, true),
             AccountMeta::new_readonly(delegated_account, true),
             AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(undelegation_request_pda, false),
@@ -61,7 +64,7 @@ pub fn request_undelegation_size_budget(
 ) -> u32 {
     total_size_budget(&[
         DLP_PROGRAM_DATA_SIZE_CLASS,
-        AccountSizeClass::Tiny, // payer
+        AccountSizeClass::Tiny, // delegation_rent_payer
         delegated_account,      // delegated_account
         AccountSizeClass::Tiny, // owner_program
         AccountSizeClass::Tiny, // undelegation_request_pda

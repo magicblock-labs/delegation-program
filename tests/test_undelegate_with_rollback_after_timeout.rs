@@ -355,7 +355,7 @@ async fn test_re_request_is_idempotent_without_extending_timeout() {
         banks,
         _caller,
         request_rent_payer,
-        _delegation_rent_payer,
+        delegation_rent_payer,
         _,
         blockhash,
     ) = setup_request_timeout_env_with_commit_ids(false, 0, 1, 0).await;
@@ -372,11 +372,11 @@ async fn test_re_request_is_idempotent_without_extending_timeout() {
     assert_eq!(request_before.last_commit_id_at_request, 0);
 
     let request_ix =
-        request_undelegation_from_owner_program(request_rent_payer.pubkey());
+        request_undelegation_from_owner_program(delegation_rent_payer.pubkey());
     let request_tx = Transaction::new_signed_with_payer(
         &[request_ix],
-        Some(&request_rent_payer.pubkey()),
-        &[&request_rent_payer],
+        Some(&delegation_rent_payer.pubkey()),
+        &[&delegation_rent_payer],
         blockhash,
     );
     let res = banks.process_transaction(request_tx).await;
@@ -644,11 +644,13 @@ fn rollback_ix(
     )
 }
 
-fn request_undelegation_from_owner_program(payer: Pubkey) -> Instruction {
+fn request_undelegation_from_owner_program(
+    delegation_rent_payer: Pubkey,
+) -> Instruction {
     Instruction {
         program_id: DELEGATED_PDA_OWNER_ID,
         accounts: vec![
-            AccountMeta::new(payer, true),
+            AccountMeta::new(delegation_rent_payer, true),
             AccountMeta::new(DELEGATED_PDA_ID, false),
             AccountMeta::new_readonly(DELEGATED_PDA_OWNER_ID, false),
             AccountMeta::new(

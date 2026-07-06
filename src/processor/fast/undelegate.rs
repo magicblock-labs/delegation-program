@@ -21,7 +21,7 @@ use crate::{
     error::DlpError,
     pda,
     processor::fast::utils::pda::{close_pda, close_pda_with_fees, create_pda},
-    require_n_accounts, require_n_accounts_with_optionals,
+    require_n_accounts_with_optionals,
     requires::{
         require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_initialized_pda,
@@ -48,7 +48,7 @@ use crate::{
 ///  5: `[]`         the commit record PDA
 ///  6: `[writable]` the delegation record PDA
 ///  7: `[writable]` the delegation metadata PDA
-///  8: `[]`         the rent reimbursement account
+///  8: `[writable]` the delegation rent payer account
 ///  9: `[writable]` the protocol fees vault account
 /// 10: `[writable]` the validator fees vault account
 /// 11: `[]`         the system program (TODO (snawaz): soon to be removed from the requirement)
@@ -64,7 +64,7 @@ use crate::{
 /// - commit record is uninitialized
 /// - undelegation has been requested for the delegated account
 /// - owner program account matches the owner in the delegation record
-/// - rent reimbursement account matches the rent payer in the delegation metadata
+/// - delegation rent payer account matches the rent payer in the delegation metadata
 ///
 /// Steps:
 ///
@@ -93,7 +93,7 @@ pub fn process_undelegate(
             commit_record_account,
             delegation_record_account,
             delegation_metadata_account,
-            rent_reimbursement,
+            delegation_rent_payer,
             fees_vault,
             validator_fees_vault,
             system_program,
@@ -101,26 +101,18 @@ pub fn process_undelegate(
         optional_accounts,
     ) = require_n_accounts_with_optionals!(accounts, 12);
 
-    let request_accounts = match optional_accounts.len() {
+    let request_account = match optional_accounts.len() {
         0 => None,
-        2 => {
-            let [
-                undelegation_request_account, // force multi-line
-                request_rent_payer,
-            ] = require_n_accounts!(optional_accounts, 2);
-            Some((undelegation_request_account, request_rent_payer))
-        }
+        1 => Some(&optional_accounts[0]),
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    if let Some((undelegation_request_account, request_rent_payer)) =
-        request_accounts
-    {
+    if let Some(undelegation_request_account) = request_account {
         require_valid_undelegation_request(
             delegated_account,
             owner_program,
             undelegation_request_account,
-            request_rent_payer,
+            delegation_rent_payer,
         )?;
     };
 
@@ -202,7 +194,7 @@ pub fn process_undelegate(
     }
     if delegation_metadata.undelegation_requester
         == UndelegationRequester::OwnerProgram
-        && request_accounts.is_none()
+        && request_account.is_none()
     {
         return Err(DlpError::MissingUndelegationRequest.into());
     }
@@ -210,12 +202,12 @@ pub fn process_undelegate(
     // Check if the rent payer is correct
     if !address_eq(
         &delegation_metadata.rent_payer.to_bytes().into(),
-        rent_reimbursement.address(),
+        delegation_rent_payer.address(),
     ) {
         log!("Expected rent payer to be : ");
         Address::from(delegation_metadata.rent_payer.to_bytes()).log();
         log!("but got : ");
-        rent_reimbursement.address().log();
+        delegation_rent_payer.address().log();
         return Err(
             DlpError::InvalidReimbursementAddressForDelegationRent.into()
         );
@@ -234,15 +226,13 @@ pub fn process_undelegate(
         process_delegation_cleanup(
             delegation_record_account,
             delegation_metadata_account,
-            rent_reimbursement,
+            delegation_rent_payer,
             fees_vault,
             validator_fees_vault,
             delegation_last_commit_id,
         )?;
-        if let Some((undelegation_request_account, request_rent_payer)) =
-            request_accounts
-        {
-            close_pda(undelegation_request_account, request_rent_payer)?;
+        if let Some(undelegation_request_account) = request_account {
+            close_pda(undelegation_request_account, delegation_rent_payer)?;
         }
         return Ok(());
     }
@@ -297,15 +287,13 @@ pub fn process_undelegate(
     process_delegation_cleanup(
         delegation_record_account,
         delegation_metadata_account,
-        rent_reimbursement,
+        delegation_rent_payer,
         fees_vault,
         validator_fees_vault,
         delegation_last_commit_id,
     )?;
-    if let Some((undelegation_request_account, request_rent_payer)) =
-        request_accounts
-    {
-        close_pda(undelegation_request_account, request_rent_payer)?;
+    if let Some(undelegation_request_account) = request_account {
+        close_pda(undelegation_request_account, delegation_rent_payer)?;
     }
     Ok(())
 }
@@ -314,7 +302,7 @@ fn require_valid_undelegation_request(
     delegated_account: &AccountView,
     owner_program: &AccountView,
     undelegation_request_account: &AccountView,
-    request_rent_payer: &AccountView,
+    delegation_rent_payer: &AccountView,
 ) -> ProgramResult {
     require_initialized_pda(
         undelegation_request_account,
@@ -326,10 +314,6 @@ fn require_valid_undelegation_request(
         true,
         "undelegation request",
     )?;
-
-    if !request_rent_payer.is_writable() {
-        return Err(ProgramError::Immutable);
-    }
 
     let request_data = undelegation_request_account.try_borrow()?;
     let request =
@@ -344,7 +328,7 @@ fn require_valid_undelegation_request(
         owner_program.address(),
     ) || !address_eq(
         &request.rent_payer.to_bytes().into(),
-        request_rent_payer.address(),
+        delegation_rent_payer.address(),
     ) {
         return Err(DlpError::InvalidUndelegationRequest.into());
     }
@@ -465,7 +449,7 @@ fn cpi_external_undelegate(
 fn process_delegation_cleanup(
     delegation_record_account: &AccountView,
     delegation_metadata_account: &AccountView,
-    rent_reimbursement: &AccountView,
+    delegation_rent_payer: &AccountView,
     fees_vault: &AccountView,
     validator_fees_vault: &AccountView,
     delegation_last_commit_id: u64,
@@ -480,14 +464,14 @@ fn process_delegation_cleanup(
     let mut fee_remaining = total_fee_requested.min(total_lamports);
     close_pda_with_fees(
         delegation_record_account,
-        rent_reimbursement,
+        delegation_rent_payer,
         fees_vault,
         validator_fees_vault,
         &mut fee_remaining,
     )?;
     close_pda_with_fees(
         delegation_metadata_account,
-        rent_reimbursement,
+        delegation_rent_payer,
         fees_vault,
         validator_fees_vault,
         &mut fee_remaining,
