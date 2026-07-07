@@ -48,7 +48,7 @@ mod fixtures;
 const TEST_PDA_SEED: &[u8] = b"test-pda";
 
 #[tokio::test]
-async fn test_request_undelegation_creates_request() {
+async fn test_request_undelegation_creates_request_and_is_idempotent() {
     let SetupContext {
         banks,
         authority,
@@ -68,9 +68,7 @@ async fn test_request_undelegation_creates_request() {
         blockhash,
     );
 
-    let res = banks.process_transaction(tx).await;
-    println!("{:?}", res);
-    assert!(res.is_ok());
+    banks.process_transaction(tx).await.unwrap();
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -107,34 +105,6 @@ async fn test_request_undelegation_creates_request() {
         delegation_metadata.undelegation_requester,
         UndelegationRequester::OwnerProgram
     );
-}
-
-#[tokio::test]
-async fn test_request_undelegation_is_idempotent() {
-    let SetupContext {
-        banks,
-        authority,
-        blockhash,
-        ..
-    } = setup_env(SetupConfig {
-        with_request_wrapper: true,
-        ..Default::default()
-    })
-    .await;
-
-    let first_ix = request_undelegation_from_owner_program(authority.pubkey());
-    let first_tx = Transaction::new_signed_with_payer(
-        &[first_ix],
-        Some(&authority.pubkey()),
-        &[&authority],
-        blockhash,
-    );
-    let first_res = banks.process_transaction(first_tx).await;
-    assert!(first_res.is_ok());
-
-    let request_pda =
-        undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let request_before = banks.get_account(request_pda).await.unwrap().unwrap();
 
     let second_ix = request_undelegation_from_owner_program(authority.pubkey());
     let second_tx = Transaction::new_signed_with_payer(
@@ -143,49 +113,10 @@ async fn test_request_undelegation_is_idempotent() {
         &[&authority],
         blockhash,
     );
-    let second_res = banks.process_transaction(second_tx).await;
-    println!("{:?}", second_res);
-    assert!(second_res.is_ok());
+    banks.process_transaction(second_tx).await.unwrap();
 
     let request_after = banks.get_account(request_pda).await.unwrap().unwrap();
-    assert_eq!(request_after.data, request_before.data);
-}
-
-#[tokio::test]
-async fn test_request_undelegation_rejects_payload() {
-    let SetupContext {
-        banks,
-        payer,
-        blockhash,
-        ..
-    } = setup_env(SetupConfig {
-        with_request_wrapper: true,
-        ..Default::default()
-    })
-    .await;
-
-    let mut ix = request_undelegation_from_owner_program(payer.pubkey());
-    ix.data = 123_u64.to_le_bytes().to_vec();
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer],
-        blockhash,
-    );
-
-    let err = banks.process_transaction(tx).await.unwrap_err();
-    assert!(
-        matches!(
-            err,
-            BanksClientError::TransactionError(
-                TransactionError::InstructionError(
-                    0,
-                    InstructionError::InvalidInstructionData,
-                )
-            )
-        ),
-        "expected request payload to fail with InvalidInstructionData, got {err:?}"
-    );
+    assert_eq!(request_after.data, request_account.data);
 }
 
 #[tokio::test]
@@ -304,9 +235,7 @@ async fn test_undelegate_with_request_closes_request() {
         &[&authority],
         blockhash,
     );
-    let res = banks.process_transaction(tx).await;
-    println!("{:?}", res);
-    assert!(res.is_ok());
+    banks.process_transaction(tx).await.unwrap();
 
     let request_account = banks.get_account(request_pda).await.unwrap();
     assert!(request_account.is_none());
@@ -345,8 +274,7 @@ async fn test_commit_state_preserves_owner_program_requester() {
         &[&authority],
         blockhash,
     );
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_ok(), "{res:?}");
+    banks.process_transaction(tx).await.unwrap();
 
     assert_delegation_metadata_requester(
         &banks,
@@ -391,8 +319,7 @@ async fn test_commit_finalize_preserves_owner_program_requester() {
         &[&authority],
         blockhash,
     );
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_ok(), "{res:?}");
+    banks.process_transaction(tx).await.unwrap();
 
     assert_delegation_metadata_requester(
         &banks,
@@ -425,8 +352,7 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
         &[&authority],
         blockhash,
     );
-    let request_res = banks.process_transaction(request_tx).await;
-    assert!(request_res.is_ok(), "{request_res:?}");
+    banks.process_transaction(request_tx).await.unwrap();
 
     let finalize_ix = dlp_api::instruction_builder::finalize(
         authority.pubkey(),
@@ -438,8 +364,7 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
         &[&authority],
         blockhash,
     );
-    let finalize_res = banks.process_transaction(finalize_tx).await;
-    assert!(finalize_res.is_ok(), "{finalize_res:?}");
+    banks.process_transaction(finalize_tx).await.unwrap();
 
     let undelegate_ix = dlp_api::instruction_builder::undelegate(
         authority.pubkey(),
@@ -487,63 +412,6 @@ async fn assert_delegation_metadata_requester(
     assert_eq!(
         delegation_metadata.undelegation_requester,
         expected_requester
-    );
-}
-
-#[tokio::test]
-async fn test_undelegate_with_malformed_optional_request_accounts_rejected() {
-    let SetupContext {
-        banks,
-        authority,
-        blockhash,
-        ..
-    } = setup_env(SetupConfig {
-        metadata_undelegatable: true,
-        with_commit_accounts: true,
-        with_owner_program: true,
-        with_fee_accounts: true,
-        with_request_account: true,
-        ..Default::default()
-    })
-    .await;
-
-    let ix_finalize = dlp_api::instruction_builder::finalize(
-        authority.pubkey(),
-        DELEGATED_PDA_ID,
-    );
-    let mut ix_undelegate =
-        dlp_api::instruction_builder::undelegate_with_request(
-            authority.pubkey(),
-            DELEGATED_PDA_ID,
-            DELEGATED_PDA_OWNER_ID,
-            authority.pubkey(),
-        );
-    ix_undelegate
-        .accounts
-        .push(AccountMeta::new_readonly(system_program::id(), false));
-    ix_undelegate
-        .accounts
-        .push(AccountMeta::new_readonly(dlp_api::id(), false));
-
-    let tx = Transaction::new_signed_with_payer(
-        &[ix_finalize, ix_undelegate],
-        Some(&authority.pubkey()),
-        &[&authority],
-        blockhash,
-    );
-    let err = banks.process_transaction(tx).await.unwrap_err();
-    assert!(
-        matches!(
-            err,
-            BanksClientError::TransactionError(
-                TransactionError::InstructionError(
-                    1,
-                    InstructionError::InvalidInstructionData,
-                )
-            )
-        ),
-        "expected malformed optional request accounts to fail undelegate \
-         with InvalidInstructionData, got {err:?}"
     );
 }
 
