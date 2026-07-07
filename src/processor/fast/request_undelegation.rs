@@ -102,7 +102,6 @@ pub fn process_request_undelegation(
         payer.address(),
         DlpError::InvalidReimbursementAddressForDelegationRent
     );
-    let last_commit_id_at_request = delegation_metadata.last_commit_id;
     drop(delegation_metadata_data);
 
     let request_seeds = &[
@@ -145,13 +144,7 @@ pub fn process_request_undelegation(
 
         let request = UndelegationRequest {
             delegated_account: *delegated_account.address(),
-            owner_program: *owner_program.address(),
-            rent_payer: *payer.address(),
-            created_slot,
             expires_at_slot,
-            last_commit_id_at_request,
-            bump: request_bump,
-            _padding: [0; 7],
         };
         let mut request_data = undelegation_request_account.try_borrow_mut()?;
         request

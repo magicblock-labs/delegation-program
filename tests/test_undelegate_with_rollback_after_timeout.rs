@@ -47,55 +47,9 @@ mod fixtures;
 const TEST_PDA_SEED: &[u8] = b"test-pda";
 
 #[tokio::test]
-async fn test_undelegate_with_rollback_after_timeout_rejects_wrong_request_payer(
-) {
-    let (
-        banks,
-        caller,
-        _request_rent_payer,
-        delegation_rent_payer,
-        _,
-        blockhash,
-    ) = setup_request_timeout_env(false, 0).await;
-
-    let ix = rollback_from_owner_program(
-        caller.pubkey(),
-        delegation_rent_payer.pubkey(),
-        caller.pubkey(),
-    );
-
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&caller.pubkey()),
-        &[&caller],
-        blockhash,
-    );
-
-    let err = banks.process_transaction(tx).await.unwrap_err();
-    assert!(
-        matches!(
-            err,
-            BanksClientError::TransactionError(
-                TransactionError::InstructionError(
-                    0,
-                    InstructionError::Custom(code),
-                )
-            ) if code == DlpError::InvalidUndelegationRequest as u32
-        ),
-        "expected InvalidUndelegationRequest, got {err:?}"
-    );
-}
-
-#[tokio::test]
 async fn test_undelegate_with_rollback_after_timeout_after_expiry() {
-    let (
-        banks,
-        caller,
-        request_rent_payer,
-        delegation_rent_payer,
-        _,
-        blockhash,
-    ) = setup_request_timeout_env(false, 0).await;
+    let (banks, caller, delegation_rent_payer, _, blockhash) =
+        setup_request_timeout_env(false, 0).await;
 
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -122,12 +76,6 @@ async fn test_undelegate_with_rollback_after_timeout_after_expiry() {
         .unwrap()
         .unwrap()
         .lamports;
-    let request_payer_before = banks
-        .get_account(request_rent_payer.pubkey())
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
     let delegation_payer_before = banks
         .get_account(delegation_rent_payer.pubkey())
         .await
@@ -138,9 +86,8 @@ async fn test_undelegate_with_rollback_after_timeout_after_expiry() {
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
 
     let ix = rollback_from_owner_program(
-        request_rent_payer.pubkey(),
         delegation_rent_payer.pubkey(),
-        request_rent_payer.pubkey(),
+        delegation_rent_payer.pubkey(),
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -168,14 +115,6 @@ async fn test_undelegate_with_rollback_after_timeout_after_expiry() {
     assert_eq!(delegated_after.owner, DELEGATED_PDA_OWNER_ID);
     assert_eq!(delegated_after.data, delegated_before.data);
 
-    let request_payer_after = banks
-        .get_account(request_rent_payer.pubkey())
-        .await
-        .unwrap()
-        .unwrap()
-        .lamports;
-    assert_eq!(request_payer_after, request_payer_before + request_lamports);
-
     let delegation_payer_after = banks
         .get_account(delegation_rent_payer.pubkey())
         .await
@@ -185,6 +124,7 @@ async fn test_undelegate_with_rollback_after_timeout_after_expiry() {
     assert_eq!(
         delegation_payer_after,
         delegation_payer_before
+            + request_lamports
             + delegation_record_lamports
             + delegation_metadata_lamports
     );
@@ -192,19 +132,12 @@ async fn test_undelegate_with_rollback_after_timeout_after_expiry() {
 
 #[tokio::test]
 async fn test_undelegate_with_rollback_after_timeout_rejects_before_expiry() {
-    let (
-        banks,
-        caller,
-        request_rent_payer,
-        delegation_rent_payer,
-        _,
-        blockhash,
-    ) = setup_request_timeout_env(false, 1_000_000).await;
+    let (banks, caller, delegation_rent_payer, _, blockhash) =
+        setup_request_timeout_env(false, 1_000_000).await;
 
     let ix = rollback_from_owner_program(
-        request_rent_payer.pubkey(),
         delegation_rent_payer.pubkey(),
-        request_rent_payer.pubkey(),
+        delegation_rent_payer.pubkey(),
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -230,14 +163,8 @@ async fn test_undelegate_with_rollback_after_timeout_rejects_before_expiry() {
 
 #[tokio::test]
 async fn test_request_timeout_closes_pending_commit_without_applying_it() {
-    let (
-        banks,
-        caller,
-        request_rent_payer,
-        delegation_rent_payer,
-        validator,
-        blockhash,
-    ) = setup_request_timeout_env(true, 0).await;
+    let (banks, caller, delegation_rent_payer, validator, blockhash) =
+        setup_request_timeout_env(true, 0).await;
 
     let commit_state_pda =
         commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -263,7 +190,6 @@ async fn test_request_timeout_closes_pending_commit_without_applying_it() {
         .lamports;
 
     let ix = rollback_from_owner_program(
-        request_rent_payer.pubkey(),
         delegation_rent_payer.pubkey(),
         validator.pubkey(),
     );
@@ -304,7 +230,7 @@ async fn test_request_timeout_closes_pending_commit_without_applying_it() {
 async fn setup_request_timeout_env(
     with_pending_commit: bool,
     expires_at_slot: u64,
-) -> (BanksClient, Keypair, Keypair, Keypair, Keypair, Hash) {
+) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::default();
     program_test.prefer_bpf(true);
     program_test.add_program("dlp", dlp_api::ID, None);
@@ -317,34 +243,21 @@ async fn setup_request_timeout_env(
     program_test.prefer_bpf(true);
 
     let caller = Keypair::new();
-    let request_rent_payer = Keypair::new();
     let delegation_rent_payer = Keypair::new();
     let validator = keypair_from_bytes(&TEST_AUTHORITY);
 
     add_system_account(&mut program_test, caller.pubkey());
-    add_system_account(&mut program_test, request_rent_payer.pubkey());
     add_system_account(&mut program_test, delegation_rent_payer.pubkey());
     add_system_account(&mut program_test, validator.pubkey());
     add_delegated_account(&mut program_test);
     add_delegation_accounts(&mut program_test, delegation_rent_payer.pubkey());
-    add_request_account(
-        &mut program_test,
-        request_rent_payer.pubkey(),
-        expires_at_slot,
-    );
+    add_request_account(&mut program_test, expires_at_slot);
     if with_pending_commit {
         add_pending_commit_accounts(&mut program_test, validator.pubkey());
     }
 
     let (banks, _, blockhash) = program_test.start().await;
-    (
-        banks,
-        caller,
-        request_rent_payer,
-        delegation_rent_payer,
-        validator,
-        blockhash,
-    )
+    (banks, caller, delegation_rent_payer, validator, blockhash)
 }
 
 fn add_system_account(
@@ -414,18 +327,10 @@ fn add_delegation_accounts(
     );
 }
 
-fn add_request_account(
-    program_test: &mut ProgramTest,
-    request_rent_payer: solana_program::pubkey::Pubkey,
-    expires_at_slot: u64,
-) {
+fn add_request_account(program_test: &mut ProgramTest, expires_at_slot: u64) {
     let request_data = create_undelegation_request_data_with_expiry(
         DELEGATED_PDA_ID,
-        DELEGATED_PDA_OWNER_ID,
-        request_rent_payer,
-        0,
         expires_at_slot,
-        0,
     );
     program_test.add_account(
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID),
@@ -468,14 +373,12 @@ fn add_pending_commit_accounts(
 }
 
 fn rollback_from_owner_program(
-    request_rent_payer: Pubkey,
     delegation_rent_payer: Pubkey,
     commit_reimbursement: Pubkey,
 ) -> Instruction {
     Instruction {
         program_id: DELEGATED_PDA_OWNER_ID,
         accounts: vec![
-            AccountMeta::new(request_rent_payer, false),
             AccountMeta::new(DELEGATED_PDA_ID, false),
             AccountMeta::new_readonly(DELEGATED_PDA_OWNER_ID, false),
             AccountMeta::new(
@@ -529,7 +432,7 @@ fn process_rollback(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
 ) -> ProgramResult {
-    let [request_rent_payer, delegated_account, owner_program, request_account, delegation_record_account, delegation_metadata_account, delegation_rent_payer, commit_state_account, commit_record_account, commit_reimbursement, dlp_program] =
+    let [delegated_account, owner_program, request_account, delegation_record_account, delegation_metadata_account, delegation_rent_payer, commit_state_account, commit_record_account, commit_reimbursement, dlp_program] =
         accounts
     else {
         return Err(ProgramError::NotEnoughAccountKeys);
@@ -543,7 +446,6 @@ fn process_rollback(
 
     let ix =
         dlp_api::instruction_builder::undelegate_with_rollback_after_timeout(
-            *request_rent_payer.key,
             *delegated_account.key,
             *owner_program.key,
             *delegation_rent_payer.key,
@@ -554,7 +456,6 @@ fn process_rollback(
     invoke_signed(
         &ix,
         &[
-            request_rent_payer.clone(),
             delegated_account.clone(),
             owner_program.clone(),
             request_account.clone(),

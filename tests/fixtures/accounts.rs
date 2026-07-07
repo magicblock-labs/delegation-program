@@ -1,7 +1,6 @@
 use dlp::solana_program;
 use dlp_api::{
     consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
-    pda::UNDELEGATION_REQUEST_TAG,
     state::{
         CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
         UndelegationRequest, UndelegationRequester,
@@ -223,42 +222,22 @@ pub fn create_program_config_data(approved_validator: Pubkey) -> Vec<u8> {
 #[allow(dead_code)]
 pub fn create_undelegation_request_data(
     delegated_account: Pubkey,
-    owner_program: Pubkey,
-    rent_payer: Pubkey,
     created_slot: u64,
 ) -> Vec<u8> {
     create_undelegation_request_data_with_expiry(
         delegated_account,
-        owner_program,
-        rent_payer,
-        created_slot,
         created_slot + DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
-        DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
     )
 }
 
 #[allow(dead_code)]
 pub fn create_undelegation_request_data_with_expiry(
     delegated_account: Pubkey,
-    owner_program: Pubkey,
-    rent_payer: Pubkey,
-    created_slot: u64,
     expires_at_slot: u64,
-    last_commit_id_at_request: u64,
 ) -> Vec<u8> {
-    let (_, bump) = Pubkey::find_program_address(
-        &[UNDELEGATION_REQUEST_TAG, delegated_account.as_ref()],
-        &dlp_api::id(),
-    );
     let request = UndelegationRequest {
         delegated_account,
-        owner_program,
-        rent_payer,
-        created_slot,
         expires_at_slot,
-        last_commit_id_at_request,
-        bump,
-        _padding: [0; 7],
     };
     let mut bytes = vec![0u8; UndelegationRequest::size_with_discriminator()];
     request.to_bytes_with_discriminator(&mut bytes).unwrap();

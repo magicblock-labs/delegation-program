@@ -12,29 +12,14 @@ use crate::{
 #[repr(C)]
 #[derive(Clone, Copy, Debug, PartialEq, Pod, Zeroable)]
 pub struct UndelegationRequest {
-    /// The delegated account this request targets.
+    /// Delegated account this request is for.
+    ///
+    /// DLP validates the request by PDA seeds, so this is stored only to let
+    /// validators identify the matching delegated account when scanning
+    /// request accounts.
     pub delegated_account: Pubkey,
-
-    /// The original owner program recorded for the delegated account.
-    pub owner_program: Pubkey,
-
-    /// The account that paid rent for this request PDA.
-    pub rent_payer: Pubkey,
-
-    /// The slot at which the request was created.
-    pub created_slot: u64,
-
     /// The first slot at which timeout rollback is allowed.
     pub expires_at_slot: u64,
-
-    /// DelegationMetadata.last_commit_id observed when the request was created.
-    pub last_commit_id_at_request: u64,
-
-    /// PDA bump for this request.
-    pub bump: u8,
-
-    /// Explicit padding keeps this type Pod-safe with repr(C).
-    pub _padding: [u8; 7],
 }
 
 impl AccountWithDiscriminator for UndelegationRequest {

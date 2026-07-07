@@ -41,8 +41,7 @@ use crate::{
 ///
 /// The owner program authorizes rollback by invoking this instruction through
 /// CPI and signing for the delegated account, same as the request/re-request
-/// path. The request rent payer is only the recorded request rent recipient;
-/// the rollback authority is the delegated-account signer.
+/// path.
 ///
 /// This instruction releases the delegated account back to the owner program
 /// without making an external undelegate CPI, because the owner program is
@@ -51,23 +50,22 @@ use crate::{
 ///
 /// Accounts:
 ///
-///  0: `[writable]`         request rent payer
-///  1: `[signer, writable]` delegated account
-///  2: `[]`                 owner program of the delegated account
-///  3: `[writable]`         undelegation request PDA
-///  4: `[writable]`         delegation record PDA
-///  5: `[writable]`         delegation metadata PDA
-///  6: `[writable]`         delegation rent payer
-///  7: `[writable]`         commit state PDA
-///  8: `[writable]`         commit record PDA
-///  9: `[writable]`         commit reimbursement account
+///  0: `[signer, writable]` delegated account
+///  1: `[]`                 owner program of the delegated account
+///  2: `[writable]`         undelegation request PDA
+///  3: `[writable]`         delegation record PDA
+///  4: `[writable]`         delegation metadata PDA
+///  5: `[writable]`         delegation rent payer
+///  6: `[writable]`         commit state PDA
+///  7: `[writable]`         commit record PDA
+///  8: `[writable]`         commit reimbursement account
 pub fn process_undelegate_with_rollback_after_timeout(
     _program_id: &Address,
     accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {
-    let [request_rent_payer, delegated_account, owner_program, undelegation_request_account, delegation_record_account, delegation_metadata_account, delegation_rent_payer, commit_state_account, commit_record_account, commit_reimbursement] =
-        require_n_accounts!(accounts, 10);
+    let [delegated_account, owner_program, undelegation_request_account, delegation_record_account, delegation_metadata_account, delegation_rent_payer, commit_state_account, commit_record_account, commit_reimbursement] =
+        require_n_accounts!(accounts, 9);
 
     require_signer(delegated_account, "delegated account")?;
     require_owned_pda(
@@ -76,12 +74,8 @@ pub fn process_undelegate_with_rollback_after_timeout(
         "delegated account",
     )?;
 
-    let request = load_valid_request(
-        delegated_account,
-        owner_program,
-        undelegation_request_account,
-        request_rent_payer,
-    )?;
+    let request =
+        load_valid_request(delegated_account, undelegation_request_account)?;
     let current_slot = Clock::get()?.slot;
     require_ge!(
         current_slot,
@@ -145,7 +139,7 @@ pub fn process_undelegate_with_rollback_after_timeout(
         delegated_account.assign(owner_program.address());
     }
 
-    close_pda(undelegation_request_account, request_rent_payer)?;
+    close_pda(undelegation_request_account, delegation_rent_payer)?;
     close_pda(delegation_record_account, delegation_rent_payer)?;
     close_pda(delegation_metadata_account, delegation_rent_payer)?;
 
@@ -154,11 +148,9 @@ pub fn process_undelegate_with_rollback_after_timeout(
 
 fn load_valid_request(
     delegated_account: &AccountView,
-    owner_program: &AccountView,
     undelegation_request_account: &AccountView,
-    request_rent_payer: &AccountView,
 ) -> Result<UndelegationRequest, ProgramError> {
-    let request_bump = require_initialized_pda(
+    require_initialized_pda(
         undelegation_request_account,
         &[
             pda::UNDELEGATION_REQUEST_TAG,
@@ -173,27 +165,6 @@ fn load_valid_request(
     let request =
         *UndelegationRequest::try_from_bytes_with_discriminator(&request_data)
             .map_err(to_pinocchio_program_error)?;
-
-    require_eq_keys!(
-        &request.delegated_account,
-        delegated_account.address(),
-        DlpError::InvalidUndelegationRequest
-    );
-    require_eq_keys!(
-        &request.owner_program,
-        owner_program.address(),
-        DlpError::InvalidUndelegationRequest
-    );
-    require_eq_keys!(
-        &request.rent_payer,
-        request_rent_payer.address(),
-        DlpError::InvalidUndelegationRequest
-    );
-    require_eq!(
-        request.bump,
-        request_bump,
-        DlpError::InvalidUndelegationRequest
-    );
 
     Ok(request)
 }

@@ -19,9 +19,7 @@ use crate::compat::{Compatize, Modernize};
 /// Builds an owner-program-authorized timeout rollback instruction for a
 /// requested undelegation.
 /// See [dlp::processor::process_undelegate_with_rollback_after_timeout] for docs.
-#[allow(clippy::too_many_arguments)]
 pub fn undelegate_with_rollback_after_timeout(
-    request_rent_payer: Pubkey,
     delegated_account: Pubkey,
     owner_program: Pubkey,
     delegation_rent_payer: Pubkey,
@@ -50,7 +48,6 @@ pub fn undelegate_with_rollback_after_timeout(
     Instruction {
         program_id: dlp::id().modernize(),
         accounts: vec![
-            AccountMeta::new(request_rent_payer, false),
             AccountMeta::new(delegated_account, true),
             AccountMeta::new_readonly(owner_program, false),
             AccountMeta::new(request_pda, false),
@@ -75,7 +72,6 @@ pub fn undelegate_with_rollback_after_timeout_size_budget(
 ) -> u32 {
     total_size_budget(&[
         DLP_PROGRAM_DATA_SIZE_CLASS,
-        AccountSizeClass::Tiny, // request_rent_payer
         delegated_account,      // delegated_account
         AccountSizeClass::Tiny, // owner_program
         AccountSizeClass::Tiny, // undelegation_request_pda

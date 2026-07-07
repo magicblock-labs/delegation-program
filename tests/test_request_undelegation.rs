@@ -81,13 +81,9 @@ async fn test_request_undelegation_creates_request_and_is_idempotent() {
     )
     .unwrap();
     assert_eq!(request.delegated_account, DELEGATED_PDA_ID);
-    assert_eq!(request.owner_program, DELEGATED_PDA_OWNER_ID);
-    assert_eq!(request.rent_payer, authority.pubkey());
-    assert_eq!(
-        request.expires_at_slot,
-        request.created_slot + DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS
+    assert!(
+        request.expires_at_slot >= DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS
     );
-    assert_eq!(request.last_commit_id_at_request, 0);
 
     let delegation_metadata_pda =
         delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID);
@@ -593,11 +589,7 @@ async fn setup_env(config: SetupConfig) -> SetupContext {
         add_fee_accounts(&mut program_test, authority.pubkey());
     }
     if config.with_request_account {
-        add_request_account(
-            &mut program_test,
-            delegated_account,
-            delegation_rent_payer,
-        );
+        add_request_account(&mut program_test, delegated_account);
     }
 
     let (banks, _, blockhash) = program_test.start().await;
@@ -753,14 +745,8 @@ fn add_fee_accounts(program_test: &mut ProgramTest, authority: Pubkey) {
 fn add_request_account(
     program_test: &mut ProgramTest,
     delegated_account: Pubkey,
-    rent_payer: Pubkey,
 ) {
-    let request_data = create_undelegation_request_data(
-        delegated_account,
-        DELEGATED_PDA_OWNER_ID,
-        rent_payer,
-        1,
-    );
+    let request_data = create_undelegation_request_data(delegated_account, 1);
     program_test.add_account(
         undelegation_request_pda_from_delegated_account(&delegated_account),
         Account {

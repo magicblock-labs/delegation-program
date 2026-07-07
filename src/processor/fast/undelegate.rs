@@ -110,9 +110,7 @@ pub fn process_undelegate(
     if let Some(undelegation_request_account) = request_account {
         require_valid_undelegation_request(
             delegated_account,
-            owner_program,
             undelegation_request_account,
-            delegation_rent_payer,
         )?;
     };
 
@@ -300,9 +298,7 @@ pub fn process_undelegate(
 
 fn require_valid_undelegation_request(
     delegated_account: &AccountView,
-    owner_program: &AccountView,
     undelegation_request_account: &AccountView,
-    delegation_rent_payer: &AccountView,
 ) -> ProgramResult {
     require_initialized_pda(
         undelegation_request_account,
@@ -316,22 +312,8 @@ fn require_valid_undelegation_request(
     )?;
 
     let request_data = undelegation_request_account.try_borrow()?;
-    let request =
-        UndelegationRequest::try_from_bytes_with_discriminator(&request_data)
-            .map_err(to_pinocchio_program_error)?;
-
-    if !address_eq(
-        &request.delegated_account.to_bytes().into(),
-        delegated_account.address(),
-    ) || !address_eq(
-        &request.owner_program.to_bytes().into(),
-        owner_program.address(),
-    ) || !address_eq(
-        &request.rent_payer.to_bytes().into(),
-        delegation_rent_payer.address(),
-    ) {
-        return Err(DlpError::InvalidUndelegationRequest.into());
-    }
+    UndelegationRequest::try_from_bytes_with_discriminator(&request_data)
+        .map_err(to_pinocchio_program_error)?;
 
     Ok(())
 }
