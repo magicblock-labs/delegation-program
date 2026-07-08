@@ -1,6 +1,10 @@
 use dlp::solana_program;
-use dlp_api::state::{
-    CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
+use dlp_api::{
+    consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
+    state::{
+        CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
+        UndelegationRequest, UndelegationRequester,
+    },
 };
 use solana_program::{
     native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
@@ -12,7 +16,7 @@ use solana_sdk_ids::system_program;
 const DEFAULT_DELEGATION_SLOT: u64 = 0;
 const DEFAULT_COMMIT_FREQUENCY_MS: u64 = 0;
 const DEFAULT_LAST_UPDATE_EXTERNAL_SLOT: u64 = 0;
-const DEFAULT_IS_UNDELEGATABLE: bool = false;
+const DEFAULT_UNDELEGATABLE: bool = false;
 const DEFAULT_SEEDS: &[&[u8]] = &[&[116, 101, 115, 116, 45, 112, 100, 97]];
 
 #[allow(dead_code)]
@@ -115,50 +119,66 @@ pub fn create_delegation_record_data(
 #[allow(dead_code)]
 pub fn get_delegation_metadata_data_on_curve(
     rent_payer: Pubkey,
-    is_undelegatable: Option<bool>,
+    undelegatable: Option<bool>,
 ) -> Vec<u8> {
     create_delegation_metadata_data(
         rent_payer,
         &[],
-        is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
+        undelegatable.unwrap_or(DEFAULT_UNDELEGATABLE),
     )
 }
 
 #[allow(dead_code)]
 pub fn get_delegation_metadata_data(
     rent_payer: Pubkey,
-    is_undelegatable: Option<bool>,
+    undelegatable: Option<bool>,
 ) -> Vec<u8> {
-    create_delegation_metadata_data(
+    get_delegation_metadata_data_with_commit_id(
+        rent_payer,
+        undelegatable,
+        DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
+    )
+}
+
+#[allow(dead_code)]
+pub fn get_delegation_metadata_data_with_commit_id(
+    rent_payer: Pubkey,
+    undelegatable: Option<bool>,
+    last_commit_id: u64,
+) -> Vec<u8> {
+    create_delegation_metadata_data_with_commit_id(
         rent_payer,
         DEFAULT_SEEDS,
-        is_undelegatable.unwrap_or(DEFAULT_IS_UNDELEGATABLE),
+        undelegatable.unwrap_or(DEFAULT_UNDELEGATABLE),
+        last_commit_id,
     )
 }
 
 pub fn create_delegation_metadata_data(
     rent_payer: Pubkey,
     seeds: &[&[u8]],
-    is_undelegatable: bool,
+    undelegatable: bool,
 ) -> Vec<u8> {
-    create_delegation_metadata_data_with_nonce(
+    create_delegation_metadata_data_with_commit_id(
         rent_payer,
         seeds,
-        is_undelegatable,
+        undelegatable,
         DEFAULT_LAST_UPDATE_EXTERNAL_SLOT,
     )
 }
 
 #[allow(dead_code)]
-pub fn create_delegation_metadata_data_with_nonce(
+pub fn create_delegation_metadata_data_with_commit_id(
     rent_payer: Pubkey,
     seeds: &[&[u8]],
-    is_undelegatable: bool,
-    last_update_nonce: u64,
+    undelegatable: bool,
+    last_commit_id: u64,
 ) -> Vec<u8> {
     let delegation_metadata = DelegationMetadata {
-        last_update_nonce,
-        is_undelegatable,
+        last_commit_id,
+        undelegation_requester: UndelegationRequester::from_allow_undelegation(
+            undelegatable,
+        ),
         seeds: seeds.iter().map(|s| s.to_vec()).collect(),
         rent_payer,
     };
@@ -196,5 +216,30 @@ pub fn create_program_config_data(approved_validator: Pubkey) -> Vec<u8> {
     program_config
         .to_bytes_with_discriminator(&mut bytes)
         .unwrap();
+    bytes
+}
+
+#[allow(dead_code)]
+pub fn create_undelegation_request_data(
+    delegated_account: Pubkey,
+    created_slot: u64,
+) -> Vec<u8> {
+    create_undelegation_request_data_with_expiry(
+        delegated_account,
+        created_slot + DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
+    )
+}
+
+#[allow(dead_code)]
+pub fn create_undelegation_request_data_with_expiry(
+    delegated_account: Pubkey,
+    expires_at_slot: u64,
+) -> Vec<u8> {
+    let request = UndelegationRequest {
+        delegated_account,
+        expires_at_slot,
+    };
+    let mut bytes = vec![0u8; UndelegationRequest::size_with_discriminator()];
+    request.to_bytes_with_discriminator(&mut bytes).unwrap();
     bytes
 }

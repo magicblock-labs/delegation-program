@@ -97,7 +97,10 @@ async fn test_commit_new_state() {
             &delegation_metadata_account.data,
         )
         .unwrap();
-    assert!(delegation_metadata.is_undelegatable);
+    assert_eq!(
+        delegation_metadata.undelegation_requester,
+        dlp_api::state::UndelegationRequester::Validator
+    );
 }
 
 #[tokio::test]

@@ -24,7 +24,7 @@ pub enum DlpError {
     #[error("Invalid Authority")]
     InvalidAuthority = 0,
 
-    #[error("Account cannot be undelegated, is_undelegatable is false")]
+    #[error("Account cannot be undelegated, no undelegation requester")]
     NotUndelegatable = 1,
 
     #[error("Unauthorized Operation")]
@@ -154,6 +154,42 @@ pub enum DlpError {
         "The account lamports is too small to make the account rent-exempt"
     )]
     InsufficientRent = 43,
+
+    #[error("Undelegation request PDA invalid seeds")]
+    UndelegationRequestInvalidSeeds = 44,
+
+    #[error("Undelegation request PDA invalid account owner")]
+    UndelegationRequestInvalidAccountOwner = 45,
+
+    #[error("Undelegation request PDA is already initialized")]
+    UndelegationRequestAlreadyInitialized = 46,
+
+    #[error("Undelegation request PDA immutable")]
+    UndelegationRequestImmutable = 47,
+
+    #[error("Invalid undelegation request")]
+    InvalidUndelegationRequest = 48,
+
+    #[error("Request undelegation is only supported for off-curve delegated accounts")]
+    RequestUndelegationOnCurveAccount = 49,
+
+    #[error("Undelegation request timeout is below the minimum")]
+    UndelegationRequestTimeoutTooShort = 50,
+
+    #[error("Undelegation request has not expired")]
+    UndelegationRequestNotExpired = 51,
+
+    #[error("Invalid pending commit state for request-timeout undelegation")]
+    InvalidPendingCommitState = 52,
+
+    #[error("Commit id did not match undelegation request checkpoint")]
+    RollbackCommitIdMismatch = 53,
+
+    #[error("Undelegation request accounts are required")]
+    MissingUndelegationRequest = 54,
+
+    #[error("Owner program requested undelegation")]
+    OwnerRequestedUndelegation = 55,
 
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,

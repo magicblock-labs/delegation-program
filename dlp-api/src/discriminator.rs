@@ -62,6 +62,12 @@ pub enum DlpDiscriminator {
 
     /// See [crate::processor::process_delegate_magic_fee_vault] for docs.
     DelegateMagicFeeVault = 25,
+
+    /// See [crate::processor::process_request_undelegation] for docs.
+    RequestUndelegation = 26,
+
+    /// See [crate::processor::process_undelegate_with_rollback_after_timeout] for docs.
+    UndelegateWithRollbackAfterTimeout = 27,
 }
 
 impl DlpDiscriminator {

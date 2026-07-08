@@ -76,6 +76,9 @@ jobs:
           solana --version
           solana-keygen new --silent --no-bip39-passphrase
 
+      - name: log disk space
+        run: df -h
+
       - name: run build
         run: |
           cargo build

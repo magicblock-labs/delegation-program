@@ -23,7 +23,7 @@ use crate::{
         require_owned_pda, require_pda, require_signer,
         require_uninitialized_pda, DelegationMetadataCtx, DelegationRecordCtx,
     },
-    state::{DelegationMetadata, DelegationRecord},
+    state::{DelegationMetadata, DelegationRecord, UndelegationRequester},
 };
 
 /// Delegates an account and stores an actions payload.
@@ -253,8 +253,8 @@ pub fn process_delegate_with_actions(
 
     let delegation_metadata = DelegationMetadata {
         seeds: args.delegate.seeds,
-        last_update_nonce: 0,
-        is_undelegatable: false,
+        last_commit_id: 0,
+        undelegation_requester: UndelegationRequester::None,
         rent_payer: payer.address().to_bytes().into(),
     };
 

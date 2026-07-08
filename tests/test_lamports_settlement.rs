@@ -456,7 +456,6 @@ async fn test_commit_and_finalize_lamports_settlement() {
             banks: &mut base_banks,
             authority: &validator,
             fee_payer: &payer,
-            blockhash,
             new_delegated_account_lamports: lamports_on_ephem,
             nonce: 1,
             allow_undelegation: false,
@@ -470,7 +469,6 @@ async fn test_commit_and_finalize_lamports_settlement() {
             banks: &mut base_banks,
             authority: &validator,
             fee_payer: &payer,
-            blockhash,
             label: "first finalize",
             delegated_account: delegated.pubkey(),
         })
@@ -503,7 +501,6 @@ async fn test_commit_and_finalize_lamports_settlement() {
             banks: &mut base_banks,
             authority: &validator,
             fee_payer: &payer,
-            blockhash,
             new_delegated_account_lamports: lamports_on_ephem,
             nonce: 2,
             allow_undelegation: false,
@@ -517,7 +514,6 @@ async fn test_commit_and_finalize_lamports_settlement() {
             banks: &mut base_banks,
             authority: &validator,
             fee_payer: &payer,
-            blockhash,
             label: "second finalize",
             delegated_account: delegated.pubkey(),
         })
@@ -552,7 +548,6 @@ async fn test_commit_and_finalize_lamports_settlement() {
             banks: &mut base_banks,
             authority: &validator,
             fee_payer: &payer,
-            blockhash,
             new_delegated_account_lamports: lamports_on_ephem,
             nonce: 3,
             allow_undelegation: false,
@@ -566,7 +561,6 @@ async fn test_commit_and_finalize_lamports_settlement() {
             banks: &mut base_banks,
             authority: &validator,
             fee_payer: &payer,
-            blockhash,
             label: "third finalize",
             delegated_account: delegated.pubkey(),
         })
@@ -601,7 +595,6 @@ async fn test_commit_and_finalize_lamports_settlement() {
             banks: &mut base_banks,
             authority: &validator,
             fee_payer: &payer,
-            blockhash,
             new_delegated_account_lamports: lamports_on_ephem,
             nonce: 4,
             allow_undelegation: false,
@@ -615,7 +608,6 @@ async fn test_commit_and_finalize_lamports_settlement() {
             banks: &mut base_banks,
             authority: &validator,
             fee_payer: &payer,
-            blockhash,
             label: "fourth finalize",
             delegated_account: delegated.pubkey(),
         })
@@ -1079,7 +1071,6 @@ struct CommitStateWithNonceArgs<'a> {
     banks: &'a mut BanksClient,
     authority: &'a Keypair,
     fee_payer: &'a Keypair,
-    blockhash: Hash,
     new_delegated_account_lamports: u64,
     nonce: u64,
     allow_undelegation: bool,
@@ -1224,7 +1215,10 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
             &delegation_metadata_account.data,
         )
         .unwrap();
-    assert!(delegation_metadata.is_undelegatable);
+    assert_eq!(
+        delegation_metadata.undelegation_requester,
+        dlp_api::state::UndelegationRequester::Validator
+    );
 }
 
 async fn commit_state_with_nonce(args: CommitStateWithNonceArgs<'_>) {
@@ -1261,7 +1255,6 @@ struct FinalizeWithFeePayerArgs<'a> {
     banks: &'a mut BanksClient,
     authority: &'a Keypair,
     fee_payer: &'a Keypair,
-    blockhash: Hash,
     label: &'a str,
     delegated_account: Pubkey,
 }

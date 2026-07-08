@@ -21,15 +21,19 @@ use crate::{
     error::DlpError,
     pda,
     processor::fast::utils::pda::{close_pda, close_pda_with_fees, create_pda},
+    require_n_accounts_with_optionals,
     requires::{
         require_initialized_delegation_metadata,
-        require_initialized_delegation_record,
+        require_initialized_delegation_record, require_initialized_pda,
         require_initialized_protocol_fees_vault,
         require_initialized_validator_fees_vault, require_owned_pda,
         require_signer, require_uninitialized_pda, CommitRecordCtx,
         CommitStateAccountCtx, UndelegateBufferCtx,
     },
-    state::{DelegationMetadata, DelegationRecord},
+    state::{
+        DelegationMetadata, DelegationRecord, UndelegationRequest,
+        UndelegationRequester,
+    },
 };
 
 /// Undelegate a delegated account
@@ -44,7 +48,7 @@ use crate::{
 ///  5: `[]`         the commit record PDA
 ///  6: `[writable]` the delegation record PDA
 ///  7: `[writable]` the delegation metadata PDA
-///  8: `[]`         the rent reimbursement account
+///  8: `[writable]` the delegation rent payer account
 ///  9: `[writable]` the protocol fees vault account
 /// 10: `[writable]` the validator fees vault account
 /// 11: `[]`         the system program (TODO (snawaz): soon to be removed from the requirement)
@@ -58,9 +62,9 @@ use crate::{
 /// - validator fees vault is initialized
 /// - commit state is uninitialized
 /// - commit record is uninitialized
-/// - delegated account is NOT undelegatable
+/// - undelegation has been requested for the delegated account
 /// - owner program account matches the owner in the delegation record
-/// - rent reimbursement account matches the rent payer in the delegation metadata
+/// - delegation rent payer account matches the rent payer in the delegation metadata
 ///
 /// Steps:
 ///
@@ -79,10 +83,35 @@ pub fn process_undelegate(
     accounts: &[AccountView],
     _data: &[u8],
 ) -> ProgramResult {
-    let [validator, delegated_account, owner_program, undelegate_buffer_account, commit_state_account, commit_record_account, delegation_record_account, delegation_metadata_account, rent_reimbursement, fees_vault, validator_fees_vault, system_program] =
-        accounts
-    else {
-        return Err(ProgramError::NotEnoughAccountKeys);
+    let (
+        [
+            validator, // force multi-line
+            delegated_account,
+            owner_program,
+            undelegate_buffer_account,
+            commit_state_account,
+            commit_record_account,
+            delegation_record_account,
+            delegation_metadata_account,
+            delegation_rent_payer,
+            fees_vault,
+            validator_fees_vault,
+            system_program,
+        ],
+        optional_accounts,
+    ) = require_n_accounts_with_optionals!(accounts, 12);
+
+    let request_account = match optional_accounts.len() {
+        0 => None,
+        1 => Some(&optional_accounts[0]),
+        _ => return Err(ProgramError::InvalidInstructionData),
+    };
+
+    if let Some(undelegation_request_account) = request_account {
+        require_valid_undelegation_request(
+            delegated_account,
+            undelegation_request_account,
+        )?;
     };
 
     // Check accounts
@@ -152,26 +181,31 @@ pub fn process_undelegate(
             &delegation_metadata_data,
         )
         .map_err(to_pinocchio_program_error)?;
-    let delegation_last_update_nonce = delegation_metadata.last_update_nonce;
+    let delegation_last_commit_id = delegation_metadata.last_commit_id;
 
-    // Check if the delegated account is undelegatable
-    if !delegation_metadata.is_undelegatable {
-        log!(
-            "delegation metadata indicates the account is not undelegatable : "
-        );
+    // Check if undelegation has been requested for the delegated account.
+    if delegation_metadata.undelegation_requester == UndelegationRequester::None
+    {
+        log!("delegation metadata has no undelegation requester: ");
         delegation_metadata_account.address().log();
         return Err(DlpError::NotUndelegatable.into());
+    }
+    if delegation_metadata.undelegation_requester
+        == UndelegationRequester::OwnerProgram
+        && request_account.is_none()
+    {
+        return Err(DlpError::MissingUndelegationRequest.into());
     }
 
     // Check if the rent payer is correct
     if !address_eq(
         &delegation_metadata.rent_payer.to_bytes().into(),
-        rent_reimbursement.address(),
+        delegation_rent_payer.address(),
     ) {
         log!("Expected rent payer to be : ");
         Address::from(delegation_metadata.rent_payer.to_bytes()).log();
         log!("but got : ");
-        rent_reimbursement.address().log();
+        delegation_rent_payer.address().log();
         return Err(
             DlpError::InvalidReimbursementAddressForDelegationRent.into()
         );
@@ -190,11 +224,14 @@ pub fn process_undelegate(
         process_delegation_cleanup(
             delegation_record_account,
             delegation_metadata_account,
-            rent_reimbursement,
+            delegation_rent_payer,
             fees_vault,
             validator_fees_vault,
-            delegation_last_update_nonce,
+            delegation_last_commit_id,
         )?;
+        if let Some(undelegation_request_account) = request_account {
+            close_pda(undelegation_request_account, delegation_rent_payer)?;
+        }
         return Ok(());
     }
 
@@ -248,11 +285,36 @@ pub fn process_undelegate(
     process_delegation_cleanup(
         delegation_record_account,
         delegation_metadata_account,
-        rent_reimbursement,
+        delegation_rent_payer,
         fees_vault,
         validator_fees_vault,
-        delegation_last_update_nonce,
+        delegation_last_commit_id,
     )?;
+    if let Some(undelegation_request_account) = request_account {
+        close_pda(undelegation_request_account, delegation_rent_payer)?;
+    }
+    Ok(())
+}
+
+fn require_valid_undelegation_request(
+    delegated_account: &AccountView,
+    undelegation_request_account: &AccountView,
+) -> ProgramResult {
+    require_initialized_pda(
+        undelegation_request_account,
+        &[
+            pda::UNDELEGATION_REQUEST_TAG,
+            delegated_account.address().as_ref(),
+        ],
+        &crate::fast::ID,
+        true,
+        "undelegation request",
+    )?;
+
+    let request_data = undelegation_request_account.try_borrow()?;
+    UndelegationRequest::try_from_bytes_with_discriminator(&request_data)
+        .map_err(to_pinocchio_program_error)?;
+
     Ok(())
 }
 
@@ -369,12 +431,12 @@ fn cpi_external_undelegate(
 fn process_delegation_cleanup(
     delegation_record_account: &AccountView,
     delegation_metadata_account: &AccountView,
-    rent_reimbursement: &AccountView,
+    delegation_rent_payer: &AccountView,
     fees_vault: &AccountView,
     validator_fees_vault: &AccountView,
-    delegation_last_update_nonce: u64,
+    delegation_last_commit_id: u64,
 ) -> ProgramResult {
-    let commit_count = delegation_last_update_nonce.saturating_sub(1);
+    let commit_count = delegation_last_commit_id.saturating_sub(1);
     let commit_fee = COMMIT_FEE_LAMPORTS
         .checked_mul(commit_count)
         .ok_or(DlpError::Overflow)?;
@@ -384,14 +446,14 @@ fn process_delegation_cleanup(
     let mut fee_remaining = total_fee_requested.min(total_lamports);
     close_pda_with_fees(
         delegation_record_account,
-        rent_reimbursement,
+        delegation_rent_payer,
         fees_vault,
         validator_fees_vault,
         &mut fee_remaining,
     )?;
     close_pda_with_fees(
         delegation_metadata_account,
-        rent_reimbursement,
+        delegation_rent_payer,
         fees_vault,
         validator_fees_vault,
         &mut fee_remaining,

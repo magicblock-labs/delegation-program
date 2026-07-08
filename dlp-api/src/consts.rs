@@ -14,6 +14,10 @@ pub const COMMIT_FEE_LAMPORTS: u64 = 100_000;
 /// Fixed fee per delegation session (0.0003 SOL).
 pub const SESSION_FEE_LAMPORTS: u64 = 300_000;
 
+/// Default and minimum timeout for requested undelegation.
+/// Assuming 1 slot is roughly 400ms, then 9000 slots = 60min.
+pub const DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS: u64 = 9000;
+
 /// The discriminator for the external undelegate instruction.
 pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] =
     [196, 28, 41, 206, 48, 37, 51, 167];
