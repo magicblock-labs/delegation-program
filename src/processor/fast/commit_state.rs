@@ -167,24 +167,27 @@ pub(crate) fn process_commit_state_internal(
         return Err(DlpError::NonceOutOfOrder.into());
     }
 
-    // Validator-requested undelegation is recorded by commit/finalize itself,
-    // so a later commit must not run again once that request exists.
-    if delegation_metadata.undelegation_requester
-        == UndelegationRequester::Validator
-    {
-        log!("delegation metadata already has an undelegation requester: ");
-        args.delegation_metadata_account.address().log();
-        return Err(DlpError::AlreadyUndelegated.into());
-    }
-
-    // Record whether this commit requested undelegation. Preserve
-    // OwnerProgram requests so Undelegate can require request accounts.
-    if delegation_metadata.undelegation_requester == UndelegationRequester::None
-    {
-        delegation_metadata.undelegation_requester =
-            UndelegationRequester::from_allow_undelegation(
-                args.allow_undelegation,
-            );
+    match delegation_metadata.undelegation_requester {
+        UndelegationRequester::Validator => {
+            log!("delegation metadata already has an undelegation requester: ");
+            args.delegation_metadata_account.address().log();
+            return Err(DlpError::AlreadyUndelegated.into());
+        }
+        UndelegationRequester::OwnerProgram => {
+            if !args.allow_undelegation {
+                log!(
+                    "owner program requested undelegation but commit did not allow undelegation: "
+                );
+                args.delegation_metadata_account.address().log();
+                return Err(DlpError::OwnerRequestedUndelegation.into());
+            }
+        }
+        UndelegationRequester::None => {
+            delegation_metadata.undelegation_requester =
+                UndelegationRequester::from_allow_undelegation(
+                    args.allow_undelegation,
+                );
+        }
     }
     delegation_metadata
         .to_bytes_with_discriminator(&mut delegation_metadata_data.as_mut())

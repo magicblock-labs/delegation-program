@@ -238,7 +238,7 @@ async fn test_undelegate_with_request_closes_request() {
 }
 
 #[tokio::test]
-async fn test_commit_state_preserves_owner_program_requester() {
+async fn test_commit_state_rejects_owner_request_without_allow() {
     let SetupContext {
         banks,
         authority,
@@ -270,6 +270,43 @@ async fn test_commit_state_preserves_owner_program_requester() {
         &[&authority],
         blockhash,
     );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::OwnerRequestedUndelegation);
+}
+
+#[tokio::test]
+async fn test_commit_state_preserves_owner_request_with_allow() {
+    let SetupContext {
+        banks,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
+
+    let request_ix =
+        request_undelegation_from_owner_program(authority.pubkey());
+    let commit_ix = dlp_api::instruction_builder::commit_state(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        CommitStateArgs {
+            data: COMMIT_NEW_STATE_ACCOUNT_DATA.to_vec(),
+            nonce: 1,
+            allow_undelegation: true,
+            lamports: LAMPORTS_PER_SOL,
+        },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[request_ix, commit_ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
     banks.process_transaction(tx).await.unwrap();
 
     assert_delegation_metadata_requester(
@@ -280,7 +317,7 @@ async fn test_commit_state_preserves_owner_program_requester() {
 }
 
 #[tokio::test]
-async fn test_commit_finalize_preserves_owner_program_requester() {
+async fn test_commit_finalize_rejects_owner_request_without_allow() {
     let SetupContext {
         banks,
         authority,
@@ -299,6 +336,46 @@ async fn test_commit_finalize_preserves_owner_program_requester() {
         commit_id: 1,
         lamports: LAMPORTS_PER_SOL,
         allow_undelegation: false.into(),
+        data_is_diff: false.into(),
+        bumps: Default::default(),
+        reserved_padding: Default::default(),
+    };
+    let (commit_finalize_ix, _) = dlp_api::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        &mut args,
+        &COMMIT_NEW_STATE_ACCOUNT_DATA,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[request_ix, commit_finalize_ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::OwnerRequestedUndelegation);
+}
+
+#[tokio::test]
+async fn test_commit_finalize_preserves_owner_request_with_allow() {
+    let SetupContext {
+        banks,
+        authority,
+        blockhash,
+        ..
+    } = setup_env(SetupConfig {
+        with_request_wrapper: true,
+        with_fee_accounts: true,
+        ..Default::default()
+    })
+    .await;
+
+    let request_ix =
+        request_undelegation_from_owner_program(authority.pubkey());
+    let mut args = CommitFinalizeArgs {
+        commit_id: 1,
+        lamports: LAMPORTS_PER_SOL,
+        allow_undelegation: true.into(),
         data_is_diff: false.into(),
         bumps: Default::default(),
         reserved_padding: Default::default(),
@@ -375,18 +452,7 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
         blockhash,
     );
     let err = banks.process_transaction(undelegate_tx).await.unwrap_err();
-    assert!(
-        matches!(
-            err,
-            BanksClientError::TransactionError(
-                TransactionError::InstructionError(
-                    0,
-                    InstructionError::Custom(code),
-                )
-            ) if code == DlpError::MissingUndelegationRequest as u32
-        ),
-        "expected MissingUndelegationRequest, got {err:?}"
-    );
+    assert_custom_error(err, DlpError::MissingUndelegationRequest);
 }
 
 async fn assert_delegation_metadata_requester(
@@ -408,6 +474,21 @@ async fn assert_delegation_metadata_requester(
     assert_eq!(
         delegation_metadata.undelegation_requester,
         expected_requester
+    );
+}
+
+fn assert_custom_error(err: BanksClientError, expected: DlpError) {
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::Custom(code),
+                )
+            ) if code == expected as u32
+        ),
+        "expected {expected:?}, got {err:?}"
     );
 }
 

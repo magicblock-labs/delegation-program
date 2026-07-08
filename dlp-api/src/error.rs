@@ -188,6 +188,9 @@ pub enum DlpError {
     #[error("Undelegation request accounts are required")]
     MissingUndelegationRequest = 54,
 
+    #[error("Owner program requested undelegation")]
+    OwnerRequestedUndelegation = 55,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }

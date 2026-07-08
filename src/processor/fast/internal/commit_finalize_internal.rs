@@ -4,6 +4,7 @@ use pinocchio::{
     sysvars::{rent::Rent, Sysvar},
     AccountView, Address,
 };
+use pinocchio_log::log;
 use pinocchio_system::instructions as system;
 
 use crate::{
@@ -83,22 +84,35 @@ pub(crate) fn process_commit_finalize_internal(
             args.delegation_metadata_account,
         )?;
 
-        let prev_id = metadata.replace_last_commit_id(args.commit_id);
+        let prev_id = metadata.last_commit_id();
 
         require_eq!(args.commit_id, prev_id + 1, DlpError::NonceOutOfOrder);
 
         let previous_requester = metadata.undelegation_requester()?;
-        require!(
-            previous_requester != UndelegationRequester::Validator,
-            DlpError::AlreadyUndelegated
-        );
-        if previous_requester == UndelegationRequester::None {
-            metadata.set_undelegation_requester(
-                UndelegationRequester::from_allow_undelegation(
-                    args.allow_undelegation,
-                ),
-            );
+        match previous_requester {
+            UndelegationRequester::Validator => {
+                log!("delegation metadata already has an undelegation requester: ");
+                args.delegation_metadata_account.address().log();
+                return Err(DlpError::AlreadyUndelegated.into());
+            }
+            UndelegationRequester::OwnerProgram => {
+                if !args.allow_undelegation {
+                    log!(
+                        "owner program requested undelegation but commit did not allow undelegation: "
+                    );
+                    args.delegation_metadata_account.address().log();
+                    return Err(DlpError::OwnerRequestedUndelegation.into());
+                }
+            }
+            UndelegationRequester::None => {
+                metadata.set_undelegation_requester(
+                    UndelegationRequester::from_allow_undelegation(
+                        args.allow_undelegation,
+                    ),
+                );
+            }
         }
+        metadata.set_last_commit_id(args.commit_id);
     }
 
     let mut delegation_record_data =
