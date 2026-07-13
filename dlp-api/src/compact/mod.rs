@@ -471,4 +471,53 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn test_cleartext_with_insertable_reuses_inserted_signer_as_non_signer() {
+        let shared = pk(1);
+        let program_id = pk(2);
+
+        let insertable = PostDelegationActions {
+            inserted_signers: 0,
+            inserted_non_signers: 0,
+            signers: vec![shared.to_bytes()],
+            non_signers: vec![],
+            instructions: vec![],
+        };
+
+        let ix = Instruction {
+            program_id,
+            accounts: vec![AccountMeta::new_readonly(shared, false)],
+            data: vec![1, 2, 3],
+        };
+
+        let actions = vec![ix].cleartext_with_insertable(insertable, 0);
+
+        assert_eq!(actions.inserted_signers, 1);
+        assert_eq!(actions.inserted_non_signers, 0);
+        assert_eq!(actions.signers, vec![shared.to_bytes()]);
+
+        let new_ix = &actions.instructions[0];
+        assert_cleartext_meta(&new_ix.accounts[0], 0, false);
+
+        // This mirrors process_delegate_with_actions() validation and
+        // currently fails because index 0 is in the signer section.
+        let index = actions
+            .validate_index(match &new_ix.accounts[0] {
+                MaybeEncryptedAccountMeta::ClearText(meta) => meta.key(),
+                MaybeEncryptedAccountMeta::Encrypted(_) => {
+                    panic!("expected cleartext account meta")
+                }
+            })
+            .unwrap();
+        assert_eq!(
+            match &new_ix.accounts[0] {
+                MaybeEncryptedAccountMeta::ClearText(meta) => meta.is_signer(),
+                MaybeEncryptedAccountMeta::Encrypted(_) => {
+                    panic!("expected cleartext account meta")
+                }
+            },
+            actions.is_signer(index).unwrap()
+        );
+    }
 }
