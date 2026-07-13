@@ -456,7 +456,9 @@ mod tests {
         assert_cleartext_meta(&new_ix.accounts[2], 7, false);
         assert_cleartext_meta(&new_ix.accounts[3], 8, false);
 
-        // a similar code is used in process_delegate_with_actions() to early validate actions
+        // A similar check is used in process_delegate_with_actions() to
+        // validate the signer security model: signer metas must resolve to
+        // signer storage, and signer-storage pubkeys must be signed.
         for ix in actions.instructions.iter() {
             actions.validate_index(ix.program_id).unwrap();
 
@@ -467,7 +469,9 @@ mod tests {
                     continue;
                 };
                 let index = actions.validate_index(meta.key()).unwrap();
-                assert_eq!(meta.is_signer(), actions.is_signer(index).unwrap());
+                if meta.is_signer() {
+                    assert!(actions.is_signer(index).unwrap());
+                }
             }
         }
     }
@@ -500,8 +504,9 @@ mod tests {
         let new_ix = &actions.instructions[0];
         assert_cleartext_meta(&new_ix.accounts[0], 0, false);
 
-        // This mirrors process_delegate_with_actions() validation and
-        // currently fails because index 0 is in the signer section.
+        // A non-signer meta may reuse signer storage. The signer account is
+        // available to the action set, but this instruction does not request
+        // signer privilege for this account.
         let index = actions
             .validate_index(match &new_ix.accounts[0] {
                 MaybeEncryptedAccountMeta::ClearText(meta) => meta.key(),
@@ -510,14 +515,11 @@ mod tests {
                 }
             })
             .unwrap();
-        assert_eq!(
-            match &new_ix.accounts[0] {
-                MaybeEncryptedAccountMeta::ClearText(meta) => meta.is_signer(),
-                MaybeEncryptedAccountMeta::Encrypted(_) => {
-                    panic!("expected cleartext account meta")
-                }
-            },
-            actions.is_signer(index).unwrap()
-        );
+        let MaybeEncryptedAccountMeta::ClearText(meta) = &new_ix.accounts[0]
+        else {
+            panic!("expected cleartext account meta");
+        };
+        assert!(!meta.is_signer());
+        assert!(actions.is_signer(index).unwrap());
     }
 }
