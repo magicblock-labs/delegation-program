@@ -312,8 +312,15 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
                 return index as u8;
             }
 
-            (old_total + signers.iter().position(|s| &s.pubkey == pk).unwrap())
-                as u8
+            // This lookup is only used for metas from `self` that have
+            // `is_signer = true`. The earlier signer collection loop inserts
+            // every such pubkey unless existing inserted signer storage can
+            // satisfy it, which returns above.
+            let Some(index) = signers.iter().position(|s| &s.pubkey == pk)
+            else {
+                unreachable!("signer meta must resolve to inserted or new signer storage");
+            };
+            (old_total + index) as u8
         };
 
         let mut compact_instructions: Vec<MaybeEncryptedInstruction> = self
