@@ -1,4 +1,4 @@
-use dlp_api::compat::borsh;
+use dlp_api::{compat::borsh, require_eq_keys};
 use pinocchio::{
     address::{address_eq, Address},
     cpi::{invoke_signed, Signer},
@@ -161,6 +161,12 @@ pub fn process_undelegate(
             &delegation_record_data,
         )
         .map_err(to_pinocchio_program_error)?;
+
+    require_eq_keys!(
+        &delegation_record.authority,
+        validator.address(),
+        DlpError::InvalidAuthority
+    );
 
     // Check passed owner and owner stored in the delegation record match
     if !address_eq(
