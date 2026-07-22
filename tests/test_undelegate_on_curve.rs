@@ -91,7 +91,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
 
     // Setup the delegated record PDA
     let delegation_record_data = get_delegation_record_on_curve_data(
-        payer_alt.pubkey(),
+        validator.pubkey(),
         Some(LAMPORTS_PER_SOL),
     );
     program_test.add_account(
