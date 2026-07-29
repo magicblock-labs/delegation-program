@@ -1,58 +1,70 @@
 [package]
 name = "magicblock-delegation-program-api"
-description = "Public API for the Magicblock delegation program"
-version = "3.1.0"
+
 authors = ["Magicblock Labs <dev@magicblock.gg>"]
-edition = "2021"
-license = "MIT"
-homepage = "https://www.magicblock.gg/"
+description = "Public API for the Magicblock delegation program"
 documentation = "https://docs.magicblock.gg/"
+edition = "2021"
+homepage = "https://www.magicblock.gg/"
+keywords = ["crypto", "delegation", "ephemeral-rollups", "magicblock", "solana"]
+license = "MIT"
 repository = "https://github.com/magicblock-labs/delegation-program"
-keywords = ["solana", "crypto", "delegation", "ephemeral-rollups", "magicblock"]
+version = "3.1.0"
 
 [lib]
 name = "dlp_api"
 
 [features]
-# Offchain encryption/decryption helpers (libsodium + solana-sdk)
-encryption = ["dep:libsodium-rs", "dep:solana-sdk"]
-diff = []
-unit_test_config = []
+# Offchain encryption/decryption helpers.
+backward-compat = ["dep:borsh-compat", "dep:solana-pubkey-compat"]
 cpi = []
+diff = []
+encryption = ["dep:libsodium-rs", "dep:solana-keypair", "dep:solana-signer"]
 instruction = []
-backward-compat = []
+unit_test_config = []
 # Default to offchain-friendly build
-default = ["encryption", "diff", "cpi", "instruction"]
+default = ["cpi", "diff", "encryption", "instruction"]
 
 [dependencies]
-borsh-compat = { package = "borsh", version = "0.10.4" }
-borsh-current = { package = "borsh", version = "1.5" }
 bincode = { version = "^1.3" }
+borsh-compat = { package = "borsh", version = "0.10.4", optional = true }
+borsh-current = { package = "borsh", version = "1.5" }
 bytemuck = { version = ">=1", features = ["derive"] }
 const-crypto = "0.3.0"
 libsodium-rs = { version = "0.2.0", optional = true }
 num_enum = "^0.7.2"
+rkyv = "0.7.45"
+serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+static_assertions = "1.1.0"
+strum = { version = "0.28", features = ["derive"] }
+thiserror = { version = ">=1" }
+
 pinocchio = { version = "0.10.1" }
 pinocchio-log = { version = "0.5.1" }
-pinocchio-pubkey = { version = "0.3.0" }
 pinocchio-system = { version = "0.5.0" }
-rkyv = "0.7.45"
-solana-loader-v3-interface = { version = "6.1.0", features = ["serde"] }
-solana-sdk-ids = "3.1.0"
-solana-system-interface = { version = "2.0.0", features = ["bincode"] }
-solana-address = { version = "2.0.0", features = ["bytemuck", "decode", "syscalls", "curve25519", "std"] }
-solana-instruction = "3.1.0"
-solana-program = { version = "3.0.0" }
-solana-sdk = { version = "3.0.0", optional = true }
-solana-sha256-hasher = "3.1.0"
-static_assertions = "1.1.0"
-strum = { version = ">=0.27", features = ["derive"] }
-thiserror = { version = ">=1" }
-serde = { version = "1.0.228", default-features = false, features = ["derive"] }
 
-solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = ["borsh", "bytemuck", "curve25519"] } 
+solana-address = { version = "2.0.0", features = [
+    "bytemuck",
+    "curve25519",
+    "decode",
+    "std",
+    "syscalls"
+] }
+solana-instruction = "3.1.0"
+solana-keypair = { version = "3.1.0", optional = true }
+solana-loader-v3-interface = { version = "7.0.0", features = ["serde"] }
+solana-program = { version = "4.0.0" }
+solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = [
+    "borsh",
+    "bytemuck",
+    "curve25519"
+], optional = true }
+solana-sdk-ids = "3.1.0"
+solana-sha256-hasher = "3.1.0"
+solana-signer = { version = "3.0.0", optional = true }
+solana-system-interface = { version = "3.0.0", features = ["bincode"] }
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["small_rng"] }
-solana-pubkey = "3.0.0"
-spl-token = "4.0.0"
+solana-pubkey = "4.2.0"
+spl-token = { package = "spl-token-interface", version = "2.0.0" }

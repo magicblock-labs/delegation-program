@@ -80,7 +80,8 @@ pub fn delegate_with_actions(
 
 #[cfg(test)]
 mod tests {
-    use solana_sdk::{signature::Keypair, signer::Signer};
+    use solana_keypair::Keypair;
+    use solana_signer::Signer;
 
     use super::*;
     use crate::instruction_builder::types::{Encryptable, EncryptableFrom};

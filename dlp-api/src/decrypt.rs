@@ -5,10 +5,11 @@ use dlp::{
     },
     compact,
 };
-use solana_sdk::{
+use crate::solana_program::{
     instruction::{AccountMeta, Instruction},
-    signer::Signer,
 };
+use solana_keypair::Keypair;
+use solana_signer::Signer;
 use thiserror::Error;
 
 use crate::encryption::{self, EncryptionError, KEY_LEN};
@@ -58,7 +59,7 @@ pub trait Decrypt: Sized {
 
     fn decrypt_with_keypair(
         self,
-        recipient_keypair: &solana_sdk::signature::Keypair,
+        recipient_keypair: &Keypair,
     ) -> Result<Self::Output, DecryptError>
     where
         Self: Sized,
@@ -276,14 +277,15 @@ impl Decrypt for PostDelegationActions {
 
 #[cfg(test)]
 mod tests {
-    use solana_sdk::{pubkey::Pubkey, signature::Keypair, signer::Signer};
+    use solana_keypair::Keypair;
+    use solana_signer::Signer;
 
     use super::*;
     use crate::{
         instruction_builder::{
             Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
         },
-        solana_program::instruction::AccountMeta,
+        solana_program::{instruction::AccountMeta, pubkey::Pubkey},
     };
 
     #[test]
