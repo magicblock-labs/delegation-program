@@ -6,6 +6,7 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 ## Contents
 
 - [Decisions To Review](#decisions-to-review)
+- [Permissioned vs Permissionless](#permissioned-vs-permissionless)
 - [Hashes](#hashes)
 - [Accounts](#accounts)
 - [Instructions](#instructions)
@@ -19,12 +20,38 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 
 - Use `ephemeral-vrf`; DLP requests randomness and receives a callback.
 - Start the challenge window after VRF activation, not at initial post.
-- v1 verifier approvals are normal Solana signer transactions.
+- DLP v2 verifier approvals are normal Solana signer transactions.
 - `PendingCommitment` stores hashes/metadata; full data is opened via
   `StateBuffer` for finalize or dispute resolution.
 - Council voting is on-chain; off-chain council services are clients.
-- v1 supports one active challenge per pending commitment.
+- DLP v2 supports one active challenge per pending commitment.
 - Operator timeout is evidence only. Challenger must still reveal state+salt.
+
+## Permissioned vs Permissionless
+
+In this document:
+
+- `Permissionless` means any participant can become an operator, verifier, or
+  challenger by satisfying on-chain bond/stake rules. Eligibility, withdrawals,
+  slashing, verifier snapshots, and payouts are enforced without admin curation.
+- `Permissioned` means the protocol uses the same accounts and state machine,
+  but bootstrap actions such as operator admission, verifier admission, verifier
+  snapshot creation, and council membership are controlled by configured
+  authorities.
+
+Our implementation target is **DLP v2**. DLP v1 is the current program. DLP v2
+should start permissioned, but with the permissionless account shape:
+
+- use `OperatorBond`, `VerifierBond`, `VerifierSetSnapshot`,
+  `PendingCommitment`, `Challenge`, and council accounts from the start;
+- do not treat legacy fee vaults or whitelists as slashable protocol stake;
+- allow controlled authorities to admit operators/verifiers and create
+  snapshots during bootstrap;
+- keep commitment, approval, challenge, reveal, council, and finalization logic
+  independent of whether actor admission is permissioned or permissionless.
+
+The later permissionless version should mainly replace admission/snapshot policy,
+not redesign commitment or challenge accounts.
 
 ## Hashes
 
@@ -347,5 +374,5 @@ commitment expires.
 - Bounded vector vs Merkleized verifier snapshots.
 - No-quorum council policy.
 - Operator slash amount and challenger payout amount.
-- Whether verifier slashing for bad approvals is v1 or v2.
+- Whether verifier slashing for bad approvals is in initial DLP v2 or later.
 - Whether council lives inside DLP or a separate council program.
