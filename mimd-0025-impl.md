@@ -3,6 +3,18 @@
 Companion to `mimd-0025.md`. This file only captures low-level implementation
 choices and message shapes. Protocol rationale stays in the MIMD.
 
+## Contents
+
+- [Decisions To Review](#decisions-to-review)
+- [Hashes](#hashes)
+- [Accounts](#accounts)
+- [Instructions](#instructions)
+  - [Key Instruction Data](#key-instruction-data)
+  - [Important Instruction Rules](#important-instruction-rules)
+- [Flows](#flows)
+- [Validator Repo Responsibilities](#validator-repo-responsibilities)
+- [Open Design Points](#open-design-points)
+
 ## Decisions To Review
 
 - Use `ephemeral-vrf`; DLP requests randomness and receives a callback.
