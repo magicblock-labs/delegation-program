@@ -36,23 +36,23 @@ should start permissioned, but with the permissionless account shape:
 
 - `Permissioned` means the protocol uses the same accounts and state machine,
   but bootstrap actions such as operator admission, verifier admission, verifier
-  snapshot creation, and dispute resolution are controlled by configured
-  signers.
+  registry updates, and dispute resolution are controlled by configured signers.
 - `Permissionless` means any participant can become an operator, verifier, or
-  challenger by satisfying on-chain bond/stake rules. Eligibility, withdrawals,
-  slashing, verifier snapshots, and payouts are enforced without admin curation.
+  challenger by satisfying on-chain bond/stake rules. Registration, withdrawals,
+  slashing, verifier registry updates, and payouts are enforced without admin
+  curation.
 
 So our DLP v2 "permissioned" means: 
 
-- use `OperatorBond`, `VerifierBond`, `VerifierSetSnapshot`,
+- use `OperatorBond`, `VerifierBond`, `VerifierRegistry`,
   `PendingCommitment`, `Challenge`, and payout accounts from the start;
 - do not treat legacy fee vaults or whitelists as slashable protocol stake;
-- allow controlled authorities to admit operators/verifiers and create
-  snapshots during bootstrap;
+- allow controlled authorities to admit operators/verifiers and update the
+  verifier registry during bootstrap;
 - keep commitment, approval, challenge, reveal, resolution, and finalization logic
   independent of whether actor admission is permissioned or permissionless.
 
-The later permissionless version should mainly replace admission/snapshot policy,
+The later permissionless version should mainly replace admission/registry policy,
 not redesign commitment or challenge accounts.
 
 ## Hashes
@@ -77,8 +77,8 @@ state_commitment_hash = H(
   delegation_record,
   da_pointer_hash,
   account_state_hash,
-  verifier_snapshot,
-  verifier_snapshot_hash,
+  verifier_registry,
+  verifier_registry_hash,
   challenge_window_id
 )
 
@@ -105,8 +105,8 @@ Seed strings are placeholders until frozen.
 | --- | --- | --- |
 | `ProtocolConfig` | `["mimd-protocol-config"]` | Global params, VRF config, resolver signer, protocol fee vault. |
 | `OperatorBond` | `["mimd-operator-bond", operator]` | Slashable operator stake and lifecycle. |
-| `VerifierBond` | `["mimd-verifier-bond", verifier]` | Slashable verifier stake and eligibility. |
-| `VerifierSetSnapshot` | `["mimd-verifier-snapshot", snapshot_id]` | Bounded list of eligible verifiers for a commitment round. |
+| `VerifierBond` | `["mimd-verifier-bond", verifier]` | Slashable verifier stake. |
+| `VerifierRegistry` | `["mimd-verifier-registry"]` | All registered verifiers. |
 | `PendingCommitment` | `["mimd-pending-commitment", account, commit_id]` | Main commitment state machine. |
 | `StateBuffer` | `["mimd-state-buffer", account, commit_id, role, authority]` | Chunked full account data opened for finalize/reveal. |
 | `Challenge` | `["mimd-challenge", account, commit_id, challenger]` | One challenge against one pending commitment. |
@@ -144,10 +144,8 @@ VerifierBond {
   withdraw_requested_slot: Option<u64>,
 }
 
-VerifierSetSnapshot {
-  snapshot_id,
-  created_slot,
-  snapshot_hash,
+VerifierRegistry {
+  registry_hash,
   entries: Vec<{ verifier_identity, verifier_bond, weight }>,
 }
 
@@ -157,10 +155,10 @@ PendingCommitment {
   account_pubkey, commit_id, delegation_record,
   da_pointer_hash, account_state_hash, data_hash,
   lamports, owner, state_commitment_hash,
-  verifier_snapshot, verifier_snapshot_hash,
+  verifier_registry, verifier_registry_hash,
   challenge_window_id,
   posted_slot, activation_slot: Option<u64>, challenge_window_end_slot: Option<u64>,
-  selected_verifier_indices: Vec<u32>,
+  selected_verifiers: Vec<Pubkey>,
   approval_bitmap: Vec<u8>, approval_count, approval_threshold,
   active_challenge: Option<Pubkey>,
   vrf_request_id: Option<Hash32>, vrf_randomness: Option<Hash32>,
@@ -221,10 +219,10 @@ accounts where account creation or lamport movement requires them.
 | `RegisterVerifier` | `amount_lamports` | verifier signer, verifier bond, config | Deposits slashable verifier stake. |
 | `RequestStakeWithdrawal` | actor kind | actor signer, bond, config | Marks actor exiting after delay. |
 | `WithdrawStake` | actor kind | actor signer, bond, config | Withdraws unlocked unslashed stake. |
-| `CreateVerifierSetSnapshot` | `snapshot_id` | cranker, config, snapshot, verifier bonds | Stores bounded active verifier list and hash. |
-| `PostCommitment` | commit data below | operator, operator bond, pending commitment, delegated account, delegation record, config, verifier snapshot, DLP identity PDA, VRF queue/program | Creates `AwaitingRandomness` commitment and CPIs to VRF. |
-| `ConsumeCommitmentRandomness` | randomness, pending commitment | VRF identity signer, pending commitment, config, snapshot | Selects verifiers and starts challenge window. |
-| `ApproveCommitment` | `verifier_snapshot_index` | verifier signer, verifier bond, pending commitment, snapshot | Records selected verifier approval bit. |
+| `UpdateVerifierRegistry` | registry update | authority, verifier registry, verifier bonds | Adds/removes registered verifiers. |
+| `PostCommitment` | commit data below | operator, operator bond, pending commitment, delegated account, delegation record, config, verifier registry, DLP identity PDA, VRF queue/program | Creates `AwaitingRandomness` commitment and CPIs to VRF. |
+| `ConsumeCommitmentRandomness` | randomness, pending commitment | VRF identity signer, pending commitment, config, verifier registry | Selects verifiers and starts challenge window. |
+| `ApproveCommitment` | `selected_verifier_index` | verifier signer, verifier bond, pending commitment | Records selected verifier approval bit. |
 | `WriteStateBuffer` | role, offset, total len, expected hash, chunk | authority signer, state buffer, pending commitment | Writes opened full-state data. |
 | `FinalizeStateBuffer` | role | authority signer, state buffer, pending commitment | Freezes buffer after hash check. |
 | `RaiseChallenge` | challenge hash, stake | challenger signer, challenge, pending commitment, config | Locks stake and blocks finalization. |
@@ -256,7 +254,7 @@ ConsumeCommitmentRandomness {
 }
 
 ApproveCommitment {
-  verifier_snapshot_index: u32,
+  selected_verifier_index: u32,
 }
 
 RaiseChallenge {
@@ -296,12 +294,13 @@ FinalizeCommitment {
 - `PostCommitment` computes `state_commitment_hash`, stores the pending record,
   and requests VRF. `dlp_program_identity_pda` is signed by DLP with
   `invoke_signed`.
-- `ConsumeCommitmentRandomness` verifies the VRF identity signer, derives unique
-  selected verifier indices from randomness and `verifier_snapshot_hash`, and
-  starts the challenge window.
-- `ApproveCommitment` requires the verifier to be bonded, in the snapshot,
-  selected, and still inside the challenge window. Duplicate approvals do not
-  increment `approval_count`.
+- `ConsumeCommitmentRandomness` verifies the VRF identity signer, verifies the
+  current `VerifierRegistry` matches the stored `verifier_registry_hash`,
+  derives `selected_verifiers` from randomness, and starts the challenge window.
+- `ApproveCommitment` requires the verifier to be bonded, registered, selected
+  for this commitment, and still inside the challenge window. The instruction
+  data points to the verifier's index in `selected_verifiers`. Duplicate
+  approvals do not increment `approval_count`.
 - `ChallengerReveal` has four terminal branches:
   invalid hash, matching state, mismatch after operator response, valid reveal
   after operator timeout.
@@ -383,7 +382,7 @@ commitment expires.
 - Hash function and byte serialization.
 - DA pointer wire format.
 - Uniform vs stake-weighted verifier selection.
-- Bounded vector vs Merkleized verifier snapshots.
+- Bounded vector vs Merkleized verifier registry.
 - Resolver no-decision policy.
 - DA-unavailable or replay-insufficient policy.
 - Operator slash amount and challenger payout amount.
