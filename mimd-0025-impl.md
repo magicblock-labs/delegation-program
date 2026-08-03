@@ -10,6 +10,8 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 - [Hashes](#hashes)
 - [Accounts](#accounts)
 - [Instructions](#instructions)
+  - [Bootstrap Instructions](#bootstrap-instructions)
+  - [Runtime Instructions](#runtime-instructions)
   - [Key Instruction Data](#key-instruction-data)
   - [Important Instruction Rules](#important-instruction-rules)
   - [Failure Scenarios](#failure-scenarios)
@@ -308,15 +310,27 @@ pub struct PayoutTimelock {
 Account lists include only protocol-relevant accounts. Add payer/system/rent
 accounts where account creation or lamport movement requires them.
 
+### Bootstrap Instructions
+
+Authority-gated setup and admission instructions for permissioned v2.
+
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
 | `InitProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority, config</strong></li></ul> | Protocol authority | Creates the global config account and stores bootstrap params such as VRF config, resolver, fees, thresholds, and timeouts. |
 | `UpdateProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority, config</strong></li></ul> | Protocol authority | Updates params used by future commitments. Existing pending commitments keep the values copied into their accounts. |
 | `RegisterOperator`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>operator signer, protocol authority, operator bond, config</strong></li></ul> | Operator, protocol authority | Creates an operator bond and deposits slashable stake. Permissioned v2 requires configured approval before the operator can post commitments. |
 | `RegisterVerifier`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>verifier signer, protocol authority, verifier bond, config</strong></li></ul> | Verifier, protocol authority | Creates a verifier bond and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter the registry. |
+| `UpdateVerifierRegistry`<ul><li>ix-data: <code>update</code></li><li>accounts: <strong>authority, verifier registry, verifier bonds</strong></li></ul> | Protocol authority | Adds or removes registered verifiers and increments `registry_revision`. Invalid, duplicate, unbonded, or inactive verifiers are rejected. |
+
+### Runtime Instructions
+
+Normal actor lifecycle, commitment, challenge, resolution, and cleanup
+instructions.
+
+| Instruction | Expected invoker | Description |
+| --- | --- | --- |
 | `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, bond, config</strong></li></ul> | Operator or verifier | Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
 | `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, bond, config</strong></li></ul> | Operator or verifier | Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
-| `UpdateVerifierRegistry`<ul><li>ix-data: <code>update</code></li><li>accounts: <strong>authority, verifier registry, verifier bonds</strong></li></ul> | Protocol authority | Adds or removes registered verifiers and increments `registry_revision`. Invalid, duplicate, unbonded, or inactive verifiers are rejected. |
 | `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator, operator bond, pending commitment, delegated account, delegation record, config, verifier registry, DLP identity PDA, VRF queue/program</strong></li></ul> | Operator | Creates an `AwaitingRandomness` commitment, stores the current `registry_revision`, locks any commitment-local stake if needed, and requests VRF. |
 | `ConsumeCommitmentRandomness`<ul><li>ix-data: <code>randomness</code></li><li>accounts: <strong>VRF identity signer, pending commitment, config, verifier registry</strong></li></ul> | VRF callback | Verifies the VRF caller and registry revision, selects verifiers from the registry, and starts the challenge window. |
 | `CancelUnactivatedCommitment`<ul><li>ix-data: <code>reason</code></li><li>accounts: <strong>cranker/operator, pending commitment, config, verifier registry</strong></li></ul> | Operator or cranker | Cancels a commitment that is still waiting for randomness but can no longer activate, such as after registry change or VRF timeout. |
