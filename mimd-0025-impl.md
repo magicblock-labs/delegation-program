@@ -308,31 +308,31 @@ pub struct PayoutTimelock {
 Account lists include only protocol-relevant accounts. Add payer/system/rent
 accounts where account creation or lamport movement requires them.
 
-| Instruction | Expected invoker | Data | Key accounts | Description |
-| --- | --- | --- | --- | --- |
-| `InitializeProtocolConfig` | Protocol authority | initial params | authority, config | Creates the global config account and stores bootstrap params such as VRF config, resolver, fees, thresholds, and timeouts. |
-| `UpdateProtocolConfig` | Protocol authority | changed params | authority, config | Updates params used by future commitments. Existing pending commitments keep the values copied into their accounts. |
-| `RegisterOperator` | Operator plus protocol authority in permissioned v2 | `amount_lamports` | operator signer, protocol authority, operator bond, config | Creates an operator bond and deposits slashable stake. Permissioned v2 requires configured approval before the operator can post commitments. |
-| `RegisterVerifier` | Verifier plus protocol authority in permissioned v2 | `amount_lamports` | verifier signer, protocol authority, verifier bond, config | Creates a verifier bond and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter the registry. |
-| `RequestStakeWithdrawal` | Operator or verifier | actor kind | actor signer, bond, config | Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
-| `WithdrawStake` | Operator or verifier | actor kind | actor signer, bond, config | Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
-| `UpdateVerifierRegistry` | Protocol authority | registry update | authority, verifier registry, verifier bonds | Adds or removes registered verifiers and increments `registry_revision`. Invalid, duplicate, unbonded, or inactive verifiers are rejected. |
-| `PostCommitment` | Operator | commit data below | operator, operator bond, pending commitment, delegated account, delegation record, config, verifier registry, DLP identity PDA, VRF queue/program | Creates an `AwaitingRandomness` commitment, stores the current `registry_revision`, locks any commitment-local stake if needed, and requests VRF. |
-| `ConsumeCommitmentRandomness` | VRF callback | randomness, pending commitment | VRF identity signer, pending commitment, config, verifier registry | Verifies the VRF caller and registry revision, selects verifiers from the registry, and starts the challenge window. |
-| `CancelUnactivatedCommitment` | Operator or cranker | reason | cranker/operator, pending commitment, config, verifier registry | Cancels a commitment that is still waiting for randomness but can no longer activate, such as after registry change or VRF timeout. |
-| `ApproveCommitment` | Selected verifier | `selected_verifier_index` | verifier signer, verifier bond, pending commitment | Records approval from one selected verifier. Duplicate approvals do not increase the count. |
-| `WriteStateBuffer` | Buffer authority | role, offset, total len, expected hash, chunk | authority signer, state buffer, pending commitment | Writes a chunk of opened account data for finalize, operator response, or challenger reveal. |
-| `FinalizeStateBuffer` | Buffer authority | role | authority signer, state buffer, pending commitment | Freezes a completed buffer after length and hash checks. Frozen buffers can be used by later instructions. |
-| `RaiseChallenge` | Challenger | challenge hash, stake | challenger signer, challenge, pending commitment, config | Locks challenger stake, records the hidden challenge hash, and blocks normal finalization until the challenge is resolved. |
-| `OperatorChallengeResponse` | Operator | opened state metadata | operator signer, pending commitment, challenge, optional state buffer | Opens the operator's claimed state for the challenged commitment and starts the challenger reveal timeout. |
-| `MarkOperatorTimeout` | Cranker | none | cranker, pending commitment, challenge | Records that the operator missed the response deadline. The challenger must still reveal the challenge preimage. |
-| `ChallengerReveal` | Challenger | opened state metadata, salt | challenger signer, pending commitment, challenge, optional buffer, fee vault | Verifies the challenge preimage and opened state. It slashes invalid reveals, penalizes matching reveals, or moves mismatches to resolver decision. |
-| `MarkChallengerRevealTimeout` | Cranker | none | cranker, pending commitment, challenge, fee vault | Slashes challenger stake when the reveal deadline passes without a valid reveal. |
-| `ResolveDispute` | Resolver multisig | decision | resolver signer, challenge, pending commitment, operator bond, fee vault, optional payout timelock | Applies the multisig decision for a valid mismatch: operator correct or challenger correct. |
-| `FinalizeCommitment` | Finalizer or cranker | state source | finalizer, pending commitment, delegated account, delegation record/metadata, state buffer, optional challenge, config | Applies the final state after the happy path or after dispute resolution. |
-| `ExtendChallengeWindow` | Cranker | none | cranker, pending commitment, config | Extends an under-approved commitment according to config, or expires it after the maximum extensions. |
-| `ClaimPayout` | Beneficiary | none | beneficiary signer, payout timelock | Pays the challenger reward after the timelock for a challenger-correct dispute. |
-| `CloseTerminalAccounts` | Cranker or recipient | close kind | recipient, account to close, terminal parent account | Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
+| Instruction | Expected invoker | Key accounts | Description |
+| --- | --- | --- | --- |
+| `InitProtocolConfig(params)` | Protocol authority | authority, config | Creates the global config account and stores bootstrap params such as VRF config, resolver, fees, thresholds, and timeouts. |
+| `UpdateProtocolConfig(params)` | Protocol authority | authority, config | Updates params used by future commitments. Existing pending commitments keep the values copied into their accounts. |
+| `RegisterOperator(amount_lamports)` | Operator, protocol authority | operator signer, protocol authority, operator bond, config | Creates an operator bond and deposits slashable stake. Permissioned v2 requires configured approval before the operator can post commitments. |
+| `RegisterVerifier(amount_lamports)` | Verifier, protocol authority | verifier signer, protocol authority, verifier bond, config | Creates a verifier bond and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter the registry. |
+| `RequestStakeWithdrawal(actor_kind)` | Operator or verifier | actor signer, bond, config | Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
+| `WithdrawStake(actor_kind)` | Operator or verifier | actor signer, bond, config | Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
+| `UpdateVerifierRegistry(update)` | Protocol authority | authority, verifier registry, verifier bonds | Adds or removes registered verifiers and increments `registry_revision`. Invalid, duplicate, unbonded, or inactive verifiers are rejected. |
+| `PostCommitment(commitment)` | Operator | operator, operator bond, pending commitment, delegated account, delegation record, config, verifier registry, DLP identity PDA, VRF queue/program | Creates an `AwaitingRandomness` commitment, stores the current `registry_revision`, locks any commitment-local stake if needed, and requests VRF. |
+| `ConsumeCommitmentRandomness(randomness)` | VRF callback | VRF identity signer, pending commitment, config, verifier registry | Verifies the VRF caller and registry revision, selects verifiers from the registry, and starts the challenge window. |
+| `CancelUnactivatedCommitment(reason)` | Operator or cranker | cranker/operator, pending commitment, config, verifier registry | Cancels a commitment that is still waiting for randomness but can no longer activate, such as after registry change or VRF timeout. |
+| `ApproveCommitment(selected_verifier_index)` | Selected verifier | verifier signer, verifier bond, pending commitment | Records approval from one selected verifier. Duplicate approvals do not increase the count. |
+| `WriteStateBuffer(chunk)` | Buffer authority | authority signer, state buffer, pending commitment | Writes a chunk of opened account data for finalize, operator response, or challenger reveal. |
+| `FinalizeStateBuffer(role)` | Buffer authority | authority signer, state buffer, pending commitment | Freezes a completed buffer after length and hash checks. Frozen buffers can be used by later instructions. |
+| `RaiseChallenge(challenge)` | Challenger | challenger signer, challenge, pending commitment, config | Locks challenger stake, records the hidden challenge hash, and blocks normal finalization until the challenge is resolved. |
+| `OperatorChallengeResponse(state)` | Operator | operator signer, pending commitment, challenge, optional state buffer | Opens the operator's claimed state for the challenged commitment and starts the challenger reveal timeout. |
+| `MarkOperatorTimeout()` | Cranker | cranker, pending commitment, challenge | Records that the operator missed the response deadline. The challenger must still reveal the challenge preimage. |
+| `ChallengerReveal(state, salt)` | Challenger | challenger signer, pending commitment, challenge, optional buffer, fee vault | Verifies the challenge preimage and opened state. It slashes invalid reveals, penalizes matching reveals, or moves mismatches to resolver decision. |
+| `MarkChallengerRevealTimeout()` | Cranker | cranker, pending commitment, challenge, fee vault | Slashes challenger stake when the reveal deadline passes without a valid reveal. |
+| `ResolveDispute(decision)` | Resolver multisig | resolver signer, challenge, pending commitment, operator bond, fee vault, optional payout timelock | Applies the multisig decision for a valid mismatch: operator correct or challenger correct. |
+| `FinalizeCommitment(state_source)` | Finalizer or cranker | finalizer, pending commitment, delegated account, delegation record/metadata, state buffer, optional challenge, config | Applies the final state after the happy path or after dispute resolution. |
+| `ExtendChallengeWindow()` | Cranker | cranker, pending commitment, config | Extends an under-approved commitment according to config, or expires it after the maximum extensions. |
+| `ClaimPayout()` | Beneficiary | beneficiary signer, payout timelock | Pays the challenger reward after the timelock for a challenger-correct dispute. |
+| `CloseTerminalAccounts(close_kind)` | Cranker or recipient | recipient, account to close, terminal parent account | Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
 
 ### Key Instruction Data
 
