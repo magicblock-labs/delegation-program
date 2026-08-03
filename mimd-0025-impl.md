@@ -328,7 +328,7 @@ accounts where account creation or lamport movement requires them.
 | `MarkOperatorTimeout` | none | cranker, pending commitment, challenge | Records non-response and waits for challenger reveal. |
 | `ChallengerReveal` | opened state metadata, salt | challenger signer, pending commitment, challenge, optional buffer, fee vault | Validates challenge preimage and either penalizes, dismisses, or waits for resolver. |
 | `MarkChallengerRevealTimeout` | none | cranker, pending commitment, challenge, fee vault | Slashes challenger for no reveal. |
-| `ResolveDispute` | outcome | resolver signer, challenge, pending commitment, operator bond, fee vault, optional payout timelock | Applies operator-correct or challenger-correct outcome. |
+| `ResolveDispute` | decision | resolver signer, challenge, pending commitment, operator bond, fee vault, optional payout timelock | Applies operator-correct or challenger-correct decision. |
 | `FinalizeCommitment` | state source | finalizer, pending commitment, delegated account, delegation record/metadata, state buffer, optional challenge, config | Applies happy-path or resolved state. |
 | `ExtendChallengeWindow` | none | cranker, pending commitment, config | Extends or expires under-approved commitment. |
 | `ClaimPayout` | none | beneficiary signer, payout timelock | Pays correct challenger after timelock. |
@@ -336,60 +336,73 @@ accounts where account creation or lamport movement requires them.
 
 ### Key Instruction Data
 
-```text
-PostCommitment {
-  commit_id: u64,
-  lamports: u64,
-  owner: Pubkey,
-  data_hash: [u8; 32],
-  da_pointer_hash: [u8; 32],
-  er_slot: Option<u64>,
+```rust
+pub struct PostCommitmentData {
+    pub commit_id: u64,
+    pub lamports: u64,
+    pub owner: Pubkey,
+    pub data_hash: [u8; 32],
+    pub da_pointer_hash: [u8; 32],
+    pub er_slot: Option<u64>,
 }
 
-ConsumeCommitmentRandomness {
-  // VRF output bytes used to select verifiers.
-  randomness: [u8; 32],
-  pending_commitment: Pubkey,
+pub struct ConsumeCommitmentRandomnessData {
+    /// VRF output bytes used to select verifiers.
+    pub randomness: [u8; 32],
+    pub pending_commitment: Pubkey,
 }
 
-CancelUnactivatedCommitment {
-  reason: RegistryRevisionChanged | VrfTimeout,
+pub enum CancelUnactivatedReason {
+    RegistryRevisionChanged,
+    VrfTimeout,
 }
 
-ApproveCommitment {
-  selected_verifier_index: u32,
+pub struct CancelUnactivatedCommitmentData {
+    pub reason: CancelUnactivatedReason,
 }
 
-RaiseChallenge {
-  challenge_hash: [u8; 32],
-  stake_lamports: u64,
+pub struct ApproveCommitmentData {
+    pub selected_verifier_index: u32,
 }
 
-OperatorChallengeResponse {
-  lamports: u64,
-  owner: Pubkey,
-  data_hash: [u8; 32],
-  state_buffer: Option<Pubkey>,
+pub struct RaiseChallengeData {
+    pub challenge_hash: [u8; 32],
+    pub stake_lamports: u64,
 }
 
-ChallengerReveal {
-  lamports: u64,
-  owner: Pubkey,
-  data_hash: [u8; 32],
-  // Salt used by the challenger when computing challenge_hash.
-  salt: [u8; 32],
-  state_buffer: Option<Pubkey>,
+pub struct OperatorChallengeResponseData {
+    pub lamports: u64,
+    pub owner: Pubkey,
+    pub data_hash: [u8; 32],
+    pub state_buffer: Option<Pubkey>,
 }
 
-ResolveDispute {
-  outcome: OperatorCorrect | ChallengerCorrect,
+pub struct ChallengerRevealData {
+    pub lamports: u64,
+    pub owner: Pubkey,
+    pub data_hash: [u8; 32],
+    /// Salt used by the challenger when computing challenge_hash.
+    pub salt: [u8; 32],
+    pub state_buffer: Option<Pubkey>,
 }
 
-FinalizeCommitment {
-  state_source:
-    PendingOperatorState |
-    ResolvedOperatorState |
+pub enum DisputeDecision {
+    OperatorCorrect,
+    ChallengerCorrect,
+}
+
+pub struct ResolveDisputeData {
+    pub decision: DisputeDecision,
+}
+
+pub enum FinalizeCommitmentStateSource {
+    PendingOperatorState,
+    ResolvedOperatorState,
     ResolvedChallengerState,
+}
+
+pub struct FinalizeCommitmentData {
+    pub state_source: FinalizeCommitmentStateSource,
 }
 ```
 
