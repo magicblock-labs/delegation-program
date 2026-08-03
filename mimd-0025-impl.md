@@ -35,14 +35,14 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 Our implementation target is **DLP v2**. DLP v1 is the current program. DLP v2
 should start permissioned, but with the permissionless account shape:
 
-- `Permissioned` means the protocol uses the same accounts and state machine,
-  but bootstrap actions such as operator admission, verifier admission,
-  verifier registry changes, and dispute resolution are controlled by configured
-  signers.
 - `Permissionless` means any participant can become an operator, verifier, or
   challenger by satisfying on-chain bond/stake rules. Registration, withdrawals,
   slashing, verifier registry updates, and payouts are enforced without admin
   curation.
+- `Permissioned` means the protocol uses the same accounts and state machine,
+  but bootstrap actions such as operator admission, verifier admission,
+  verifier registry changes, and dispute resolution are controlled by configured
+  signers.
 
 So our DLP v2 "permissioned" means: 
 
@@ -116,9 +116,6 @@ Seed strings are placeholders until frozen.
 ### Essential Fields
 
 ```rust
-type Hash32 = [u8; 32];
-type Pubkey = [u8; 32];
-
 pub enum ActorStatus {
     Active,
     Exiting,
@@ -208,12 +205,12 @@ pub struct PendingCommitment {
     pub account_pubkey: Pubkey,
     pub commit_id: u64,
     pub delegation_record: Pubkey,
-    pub da_pointer_hash: Hash32,
-    pub account_state_hash: Hash32,
-    pub data_hash: Hash32,
+    pub da_pointer_hash: [u8; 32],
+    pub account_state_hash: [u8; 32],
+    pub data_hash: [u8; 32],
     pub lamports: u64,
     pub owner: Pubkey,
-    pub state_commitment_hash: Hash32,
+    pub state_commitment_hash: [u8; 32],
     /// Registry account used when this commitment was posted.
     pub verifier_registry: Pubkey,
     /// Copy of `VerifierRegistry.registry_revision` at post time.
@@ -233,8 +230,10 @@ pub struct PendingCommitment {
     pub approval_count: u16,
     pub approval_threshold: u16,
     pub active_challenge: Option<Pubkey>,
-    pub vrf_request_id: Option<Hash32>,
-    pub vrf_randomness: Option<Hash32>,
+    /// VRF request id returned when DLP asks for randomness.
+    pub vrf_request_id: Option<[u8; 32]>,
+    /// VRF output bytes used to select verifiers.
+    pub vrf_randomness: Option<[u8; 32]>,
     pub resolved_state_source: Option<ResolvedStateSource>,
 }
 
@@ -249,7 +248,7 @@ pub struct StateBuffer {
     pub authority: Pubkey,
     pub account_pubkey: Pubkey,
     pub commit_id: u64,
-    pub expected_data_hash: Hash32,
+    pub expected_data_hash: [u8; 32],
     pub total_len: u32,
     pub written_len: u32,
     pub finalized: bool,
@@ -267,8 +266,8 @@ pub enum ChallengeStatus {
 pub struct OpenedState {
     pub lamports: u64,
     pub owner: Pubkey,
-    pub data_hash: Hash32,
-    pub account_state_hash: Hash32,
+    pub data_hash: [u8; 32],
+    pub account_state_hash: [u8; 32],
     /// Finalized buffer containing the full account data, when needed.
     pub state_buffer: Option<Pubkey>,
 }
@@ -286,7 +285,7 @@ pub struct Challenge {
     pub pending_commitment: Pubkey,
     pub challenger_identity: Pubkey,
     pub challenger_stake_lamports: u64,
-    pub challenge_hash: Hash32,
+    pub challenge_hash: [u8; 32],
     pub raised_slot: u64,
     pub operator_response_deadline_slot: u64,
     pub challenger_reveal_deadline_slot: Option<u64>,
@@ -342,13 +341,14 @@ PostCommitment {
   commit_id: u64,
   lamports: u64,
   owner: Pubkey,
-  data_hash: Hash32,
-  da_pointer_hash: Hash32,
+  data_hash: [u8; 32],
+  da_pointer_hash: [u8; 32],
   er_slot: Option<u64>,
 }
 
 ConsumeCommitmentRandomness {
-  randomness: Hash32,
+  // VRF output bytes used to select verifiers.
+  randomness: [u8; 32],
   pending_commitment: Pubkey,
 }
 
@@ -361,21 +361,22 @@ ApproveCommitment {
 }
 
 RaiseChallenge {
-  challenge_hash: Hash32,
+  challenge_hash: [u8; 32],
   stake_lamports: u64,
 }
 
 OperatorChallengeResponse {
   lamports: u64,
   owner: Pubkey,
-  data_hash: Hash32,
+  data_hash: [u8; 32],
   state_buffer: Option<Pubkey>,
 }
 
 ChallengerReveal {
   lamports: u64,
   owner: Pubkey,
-  data_hash: Hash32,
+  data_hash: [u8; 32],
+  // Salt used by the challenger when computing challenge_hash.
   salt: [u8; 32],
   state_buffer: Option<Pubkey>,
 }
