@@ -24,7 +24,7 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 - DLP v2 verifier approvals are normal Solana signer transactions.
 - `PendingCommitment` stores hashes/metadata; full data is opened via
   `StateBuffer` for finalize or dispute resolution.
-- A multisig (Council) resolves disputes. DLP only checks that the configured resolver
+- A multisig resolves disputes. DLP only checks that the configured resolver
   signed `ResolveDispute`, then applies the chosen outcome.
 - DLP v2 supports one active challenge per pending commitment.
 - Operator timeout is evidence only. Challenger must still reveal state+salt.
@@ -114,95 +114,186 @@ Seed strings are placeholders until frozen.
 
 ### Essential Fields
 
-```text
-ProtocolConfig {
-  authority, paused,
-  vrf_program, vrf_oracle_queue,
-  resolver, protocol_fee_vault,
-  min_operator_bond, min_verifier_bond, min_challenger_stake,
-  challenge_window_slots,
-  operator_response_timeout_slots,
-  challenger_reveal_timeout_slots,
-  payout_timelock_slots,
-  selected_verifier_count, approval_threshold, max_window_extensions,
-  match_penalty_bps,
+```rust
+type Hash32 = [u8; 32];
+type Pubkey = [u8; 32];
+
+pub enum ActorStatus {
+    Active,
+    Exiting,
+    Slashed,
+    Jailed,
 }
 
-OperatorBond {
-  operator_identity,
-  stake_lamports,
-  locked_lamports,
-  status: Active | Exiting | Slashed | Jailed,
-  withdraw_requested_slot: Option<u64>,
+pub struct ProtocolConfig {
+    pub authority: Pubkey,
+    pub paused: bool,
+    pub vrf_program: Pubkey,
+    pub vrf_oracle_queue: Pubkey,
+    /// Multisig-controlled signer allowed to call ResolveDispute.
+    pub resolver: Pubkey,
+    pub protocol_fee_vault: Pubkey,
+    pub min_operator_bond: u64,
+    pub min_verifier_bond: u64,
+    pub min_challenger_stake: u64,
+    pub challenge_window_slots: u64,
+    pub operator_response_timeout_slots: u64,
+    pub challenger_reveal_timeout_slots: u64,
+    pub payout_timelock_slots: u64,
+    /// Number of verifiers randomly picked from VerifierRegistry.
+    pub selected_verifier_count: u16,
+    pub approval_threshold: u16,
+    pub max_window_extensions: u16,
+    pub match_penalty_bps: u16,
 }
 
-VerifierBond {
-  verifier_identity,
-  stake_lamports,
-  status: Active | Exiting | Slashed | Jailed,
-  registered_slot,
-  withdraw_requested_slot: Option<u64>,
+pub struct OperatorBond {
+    pub operator_identity: Pubkey,
+    pub stake_lamports: u64,
+    /// Stake temporarily unavailable for withdrawal.
+    pub locked_lamports: u64,
+    pub status: ActorStatus,
+    pub withdraw_requested_slot: Option<u64>,
 }
 
-VerifierRegistry {
-  registry_hash,
-  entries: Vec<{ verifier_identity, verifier_bond, weight }>,
+pub struct VerifierBond {
+    pub verifier_identity: Pubkey,
+    pub stake_lamports: u64,
+    pub status: ActorStatus,
+    pub registered_slot: u64,
+    pub withdraw_requested_slot: Option<u64>,
 }
 
-PendingCommitment {
-  status,
-  operator_identity, operator_bond,
-  account_pubkey, commit_id, delegation_record,
-  da_pointer_hash, account_state_hash, data_hash,
-  lamports, owner, state_commitment_hash,
-  verifier_registry, verifier_registry_hash,
-  challenge_window_id,
-  posted_slot, activation_slot: Option<u64>, challenge_window_end_slot: Option<u64>,
-  selected_verifiers: Vec<Pubkey>,
-  approval_bitmap: Vec<u8>, approval_count, approval_threshold,
-  active_challenge: Option<Pubkey>,
-  vrf_request_id: Option<Hash32>, vrf_randomness: Option<Hash32>,
-  resolved_state_source: Option<OperatorCommitment | ChallengerReveal>,
+pub struct VerifierRegistry {
+    /// Increments whenever registered verifiers change.
+    pub epoch: u64,
+    /// Hash of entries for this epoch. Commitments bind to this value.
+    pub registry_hash: Hash32,
+    pub entries: Vec<VerifierRegistryEntry>,
 }
 
-PendingCommitmentStatus =
-  AwaitingRandomness | Active |
-  AwaitingOperatorResponse | AwaitingChallengerReveal |
-  AwaitingChallengerRevealAfterOperatorTimeout | AwaitingDisputeResolution |
-  ResolvedOperator | ResolvedChallenger |
-  Finalized | Expired | Cancelled
-
-StateBuffer {
-  role: OperatorFinalize | OperatorChallengeResponse | ChallengerReveal,
-  authority, account_pubkey, commit_id,
-  expected_data_hash, total_len, written_len, finalized,
-  data: Vec<u8>,
+pub struct VerifierRegistryEntry {
+    pub verifier_identity: Pubkey,
+    pub verifier_bond: Pubkey,
+    /// Keep as 1 for equal-weight selection.
+    pub weight: u64,
 }
 
-Challenge {
-  status,
-  pending_commitment, challenger_identity,
-  challenger_stake_lamports, challenge_hash,
-  raised_slot,
-  operator_response_deadline_slot,
-  challenger_reveal_deadline_slot: Option<u64>,
-  operator_state: Option<OpenedState>,
-  challenger_state: Option<OpenedState>,
-  outcome: Option<ChallengeOutcome>,
+pub enum PendingCommitmentStatus {
+    AwaitingRandomness,
+    Active,
+    AwaitingOperatorResponse,
+    AwaitingChallengerReveal,
+    AwaitingChallengerRevealAfterOperatorTimeout,
+    AwaitingDisputeResolution,
+    ResolvedOperator,
+    ResolvedChallenger,
+    Finalized,
+    Expired,
+    Cancelled,
 }
 
-OpenedState {
-  lamports, owner, data_hash, account_state_hash,
-  state_buffer: Option<Pubkey>,
+pub enum ResolvedStateSource {
+    OperatorCommitment,
+    ChallengerReveal,
 }
 
-ChallengeStatus =
-  AwaitingOperatorResponse | AwaitingChallengerReveal |
-  AwaitingChallengerRevealAfterOperatorTimeout |
-  AwaitingDisputeResolution | Terminal
+pub struct PendingCommitment {
+    pub status: PendingCommitmentStatus,
+    pub operator_identity: Pubkey,
+    pub operator_bond: Pubkey,
+    pub account_pubkey: Pubkey,
+    pub commit_id: u64,
+    pub delegation_record: Pubkey,
+    pub da_pointer_hash: Hash32,
+    pub account_state_hash: Hash32,
+    pub data_hash: Hash32,
+    pub lamports: u64,
+    pub owner: Pubkey,
+    pub state_commitment_hash: Hash32,
+    pub verifier_registry: Pubkey,
+    /// Registry epoch/hash used when the commitment was posted.
+    pub verifier_registry_epoch: u64,
+    pub verifier_registry_hash: Hash32,
+    pub challenge_window_id: u64,
+    pub posted_slot: u64,
+    /// Set by the VRF callback.
+    pub activation_slot: Option<u64>,
+    pub challenge_window_end_slot: Option<u64>,
+    /// Actual verifier pubkeys selected for this commitment.
+    pub selected_verifiers: Vec<Pubkey>,
+    pub approval_bitmap: Vec<u8>,
+    pub approval_count: u16,
+    pub approval_threshold: u16,
+    pub active_challenge: Option<Pubkey>,
+    pub vrf_request_id: Option<Hash32>,
+    pub vrf_randomness: Option<Hash32>,
+    pub resolved_state_source: Option<ResolvedStateSource>,
+}
 
-PayoutTimelock {
-  challenge, beneficiary, amount_lamports, unlock_slot, claimed,
+pub enum StateBufferRole {
+    OperatorFinalize,
+    OperatorChallengeResponse,
+    ChallengerReveal,
+}
+
+pub struct StateBuffer {
+    pub role: StateBufferRole,
+    pub authority: Pubkey,
+    pub account_pubkey: Pubkey,
+    pub commit_id: u64,
+    pub expected_data_hash: Hash32,
+    pub total_len: u32,
+    pub written_len: u32,
+    pub finalized: bool,
+    pub data: Vec<u8>,
+}
+
+pub enum ChallengeStatus {
+    AwaitingOperatorResponse,
+    AwaitingChallengerReveal,
+    AwaitingChallengerRevealAfterOperatorTimeout,
+    AwaitingDisputeResolution,
+    Terminal,
+}
+
+pub struct OpenedState {
+    pub lamports: u64,
+    pub owner: Pubkey,
+    pub data_hash: Hash32,
+    pub account_state_hash: Hash32,
+    /// Finalized buffer containing the full account data, when needed.
+    pub state_buffer: Option<Pubkey>,
+}
+
+pub enum ChallengeOutcome {
+    InvalidRevealChallengerSlashed,
+    MatchingStateChallengerPenalized,
+    OperatorCorrectChallengerSlashed,
+    ChallengerCorrectOperatorSlashed,
+    ChallengerRevealTimeout,
+}
+
+pub struct Challenge {
+    pub status: ChallengeStatus,
+    pub pending_commitment: Pubkey,
+    pub challenger_identity: Pubkey,
+    pub challenger_stake_lamports: u64,
+    pub challenge_hash: Hash32,
+    pub raised_slot: u64,
+    pub operator_response_deadline_slot: u64,
+    pub challenger_reveal_deadline_slot: Option<u64>,
+    pub operator_state: Option<OpenedState>,
+    pub challenger_state: Option<OpenedState>,
+    pub outcome: Option<ChallengeOutcome>,
+}
+
+pub struct PayoutTimelock {
+    pub challenge: Pubkey,
+    pub beneficiary: Pubkey,
+    pub amount_lamports: u64,
+    pub unlock_slot: u64,
+    pub claimed: bool,
 }
 ```
 
