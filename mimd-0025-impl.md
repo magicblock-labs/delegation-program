@@ -13,6 +13,7 @@ choices and message shapes. Protocol rationale stays in the MIMD.
   - [Key Instruction Data](#key-instruction-data)
   - [Important Instruction Rules](#important-instruction-rules)
 - [Flows](#flows)
+  - [Dispute Resolution](#dispute-resolution)
 - [Validator Repo Responsibilities](#validator-repo-responsibilities)
 - [Open Design Points](#open-design-points)
 
@@ -23,31 +24,32 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 - DLP v2 verifier approvals are normal Solana signer transactions.
 - `PendingCommitment` stores hashes/metadata; full data is opened via
   `StateBuffer` for finalize or dispute resolution.
-- Council voting is on-chain; off-chain council services are clients.
+- A multisig (Council) resolves disputes. DLP only checks that the configured resolver
+  signed `ResolveDispute`, then applies the chosen outcome.
 - DLP v2 supports one active challenge per pending commitment.
 - Operator timeout is evidence only. Challenger must still reveal state+salt.
 
 ## Permissioned vs Permissionless
 
-In this document:
-
-- `Permissionless` means any participant can become an operator, verifier, or
-  challenger by satisfying on-chain bond/stake rules. Eligibility, withdrawals,
-  slashing, verifier snapshots, and payouts are enforced without admin curation.
-- `Permissioned` means the protocol uses the same accounts and state machine,
-  but bootstrap actions such as operator admission, verifier admission, verifier
-  snapshot creation, and council membership are controlled by configured
-  authorities.
-
 Our implementation target is **DLP v2**. DLP v1 is the current program. DLP v2
 should start permissioned, but with the permissionless account shape:
 
+- `Permissioned` means the protocol uses the same accounts and state machine,
+  but bootstrap actions such as operator admission, verifier admission, verifier
+  snapshot creation, and dispute resolution are controlled by configured
+  signers.
+- `Permissionless` means any participant can become an operator, verifier, or
+  challenger by satisfying on-chain bond/stake rules. Eligibility, withdrawals,
+  slashing, verifier snapshots, and payouts are enforced without admin curation.
+
+So our DLP v2 "permissioned" means: 
+
 - use `OperatorBond`, `VerifierBond`, `VerifierSetSnapshot`,
-  `PendingCommitment`, `Challenge`, and council accounts from the start;
+  `PendingCommitment`, `Challenge`, and payout accounts from the start;
 - do not treat legacy fee vaults or whitelists as slashable protocol stake;
 - allow controlled authorities to admit operators/verifiers and create
   snapshots during bootstrap;
-- keep commitment, approval, challenge, reveal, council, and finalization logic
+- keep commitment, approval, challenge, reveal, resolution, and finalization logic
   independent of whether actor admission is permissioned or permissionless.
 
 The later permissionless version should mainly replace admission/snapshot policy,
@@ -101,15 +103,13 @@ Seed strings are placeholders until frozen.
 
 | Account | PDA seeds | Purpose |
 | --- | --- | --- |
-| `ProtocolConfig` | `["mimd-protocol-config"]` | Global params, VRF config, council config, protocol fee vault. |
+| `ProtocolConfig` | `["mimd-protocol-config"]` | Global params, VRF config, resolver signer, protocol fee vault. |
 | `OperatorBond` | `["mimd-operator-bond", operator]` | Slashable operator stake and lifecycle. |
 | `VerifierBond` | `["mimd-verifier-bond", verifier]` | Slashable verifier stake and eligibility. |
 | `VerifierSetSnapshot` | `["mimd-verifier-snapshot", snapshot_id]` | Bounded list of eligible verifiers for a commitment round. |
 | `PendingCommitment` | `["mimd-pending-commitment", account, commit_id]` | Main commitment state machine. |
 | `StateBuffer` | `["mimd-state-buffer", account, commit_id, role, authority]` | Chunked full account data opened for finalize/reveal. |
 | `Challenge` | `["mimd-challenge", account, commit_id, challenger]` | One challenge against one pending commitment. |
-| `CouncilConfig` | `["mimd-council-config"]` | Council members, weights, quorum, voting timeout. |
-| `CouncilCase` | `["mimd-council-case", challenge]` | Vote state for one challenged commitment. |
 | `PayoutTimelock` | `["mimd-payout-timelock", challenge]` | Delayed payout for correct challenger. |
 
 ### Essential Fields
@@ -118,15 +118,14 @@ Seed strings are placeholders until frozen.
 ProtocolConfig {
   authority, paused,
   vrf_program, vrf_oracle_queue,
-  council_config, protocol_fee_vault,
+  resolver, protocol_fee_vault,
   min_operator_bond, min_verifier_bond, min_challenger_stake,
   challenge_window_slots,
   operator_response_timeout_slots,
   challenger_reveal_timeout_slots,
-  council_voting_timeout_slots,
   payout_timelock_slots,
   selected_verifier_count, approval_threshold, max_window_extensions,
-  match_penalty_bps, council_quorum_bps, council_supermajority_bps,
+  match_penalty_bps,
 }
 
 OperatorBond {
@@ -171,7 +170,7 @@ PendingCommitment {
 PendingCommitmentStatus =
   AwaitingRandomness | Active |
   AwaitingOperatorResponse | AwaitingChallengerReveal |
-  AwaitingChallengerRevealAfterOperatorTimeout | AwaitingCouncil |
+  AwaitingChallengerRevealAfterOperatorTimeout | AwaitingDisputeResolution |
   ResolvedOperator | ResolvedChallenger |
   Finalized | Expired | Cancelled
 
@@ -191,7 +190,6 @@ Challenge {
   challenger_reveal_deadline_slot: Option<u64>,
   operator_state: Option<OpenedState>,
   challenger_state: Option<OpenedState>,
-  council_case: Option<Pubkey>,
   outcome: Option<ChallengeOutcome>,
 }
 
@@ -203,21 +201,7 @@ OpenedState {
 ChallengeStatus =
   AwaitingOperatorResponse | AwaitingChallengerReveal |
   AwaitingChallengerRevealAfterOperatorTimeout |
-  AwaitingCouncil | Terminal
-
-CouncilConfig {
-  authority, epoch, quorum_bps, supermajority_bps, voting_timeout_slots,
-  members: Vec<{ identity, weight, active }>,
-}
-
-CouncilCase {
-  challenge, council_epoch, opened_slot, voting_deadline_slot,
-  operator_votes, challenger_votes, abstain_votes,
-  vote_bitmap: Vec<u8>,
-  member_identities: Vec<Pubkey>,
-  member_weights: Vec<u64>,
-  outcome: Option<OperatorCorrect | ChallengerCorrect | NoQuorum>,
-}
+  AwaitingDisputeResolution | Terminal
 
 PayoutTimelock {
   challenge, beneficiary, amount_lamports, unlock_slot, claimed,
@@ -246,10 +230,9 @@ accounts where account creation or lamport movement requires them.
 | `RaiseChallenge` | challenge hash, stake | challenger signer, challenge, pending commitment, config | Locks stake and blocks finalization. |
 | `OperatorChallengeResponse` | opened state metadata | operator signer, pending commitment, challenge, optional state buffer | Opens operator state and starts challenger reveal timeout. |
 | `MarkOperatorTimeout` | none | cranker, pending commitment, challenge | Records non-response and waits for challenger reveal. |
-| `ChallengerReveal` | opened state metadata, salt | challenger signer, pending commitment, challenge, optional buffer, fee vault, optional council case/config | Validates challenge preimage and either penalizes, dismisses, or opens council case. |
+| `ChallengerReveal` | opened state metadata, salt | challenger signer, pending commitment, challenge, optional buffer, fee vault | Validates challenge preimage and either penalizes, dismisses, or waits for resolver. |
 | `MarkChallengerRevealTimeout` | none | cranker, pending commitment, challenge, fee vault | Slashes challenger for no reveal. |
-| `CouncilVote` | member index, vote | council member signer, council case, challenge | Adds one weighted vote. |
-| `ResolveCouncilCase` | none | cranker, council case, challenge, pending commitment, operator bond, fee vault, optional payout timelock | Resolves operator-correct, challenger-correct, or no-quorum. |
+| `ResolveDispute` | outcome | resolver signer, challenge, pending commitment, operator bond, fee vault, optional payout timelock | Applies operator-correct or challenger-correct outcome. |
 | `FinalizeCommitment` | state source | finalizer, pending commitment, delegated account, delegation record/metadata, state buffer, optional challenge, config | Applies happy-path or resolved state. |
 | `ExtendChallengeWindow` | none | cranker, pending commitment, config | Extends or expires under-approved commitment. |
 | `ClaimPayout` | none | beneficiary signer, payout timelock | Pays correct challenger after timelock. |
@@ -296,9 +279,8 @@ ChallengerReveal {
   state_buffer: Option<Pubkey>,
 }
 
-CouncilVote {
-  member_index: u32,
-  vote: Operator | Challenger | Abstain,
+ResolveDispute {
+  outcome: OperatorCorrect | ChallengerCorrect,
 }
 
 FinalizeCommitment {
@@ -323,6 +305,9 @@ FinalizeCommitment {
 - `ChallengerReveal` has four terminal branches:
   invalid hash, matching state, mismatch after operator response, valid reveal
   after operator timeout.
+- `ResolveDispute` requires the configured `resolver` signer from
+  `ProtocolConfig`. In DLP v2 this signer is expected to be a multisig-controlled
+  account.
 - `FinalizeCommitment` on the happy path requires closed window, approval
   threshold, no unresolved challenge, and full-state hash match.
 - `ResolvedOperator` finalizes operator-opened state.
@@ -345,9 +330,35 @@ FinalizeCommitment {
 | --- | --- |
 | Invalid reveal | Challenger raises, operator responds, challenger preimage fails, challenger stake slashed, commitment returns to normal finalization. |
 | Matching state | Challenger raises, operator responds, challenger reveals same state, challenger pays match penalty, commitment returns to normal finalization. |
-| Mismatch | Challenger raises, operator responds, challenger reveals different valid state, council resolves, winning state finalizes. |
-| Operator timeout | Challenger raises, operator misses deadline, timeout recorded, challenger reveals, council resolves with non-response evidence. |
+| Mismatch | Challenger raises, operator responds, challenger reveals different valid state, resolver multisig decides, winning state finalizes. |
+| Operator timeout | Challenger raises, operator misses deadline, timeout recorded, challenger reveals, resolver multisig decides with non-response evidence. |
 | Challenger timeout | Challenger raises, operator responds, challenger misses reveal deadline, challenger stake slashed, commitment returns to normal finalization. |
+
+### Dispute Resolution
+
+DLP v2 uses a multisig as the resolver. DLP does not know which state is correct
+by itself. The people behind the multisig must verify the dispute before signing
+`ResolveDispute`.
+
+For each mismatch case, the resolver process should:
+
+1. Fetch the DA record referenced by the commitment.
+2. Verify the DA bytes match the committed `da_pointer_hash`.
+3. Reconstruct the pre-commit state from the last finalized base-layer state.
+4. Replay the ER transactions/events with the deterministic runtime and config.
+5. Produce canonical `lamports`, `owner`, and `data_hash`.
+6. Compare the replay result with the operator-opened and challenger-opened
+   states.
+7. Submit a multisig transaction that calls `ResolveDispute`.
+
+The multisig is where voting/approval happens. DLP only sees the final multisig
+signature. If the configured `resolver` signed, DLP applies the outcome:
+`OperatorCorrect` or `ChallengerCorrect`.
+
+If DA is unavailable or replay inputs are insufficient, the resolver should not
+guess. The protocol needs a deterministic policy for that case. The likely
+policy is operator fault when the operator's own committed DA pointer cannot
+support replay, but this remains an open design point.
 
 ### Under-Approval
 
@@ -362,7 +373,8 @@ commitment expires.
 - Verifier: watch selections, fetch DA, replay execution, approve or challenge.
 - Challenger: detect divergence, generate salted challenge hash, write reveal
   buffer, reveal before timeout.
-- Council tooling: present opened states/evidence and submit votes.
+- Resolver tooling: fetch DA, run deterministic replay, present opened states and
+  replay result, prepare the multisig transaction.
 - Cranker: call timeout, extension, resolution, finalization, payout, and close
   instructions.
 
@@ -372,7 +384,8 @@ commitment expires.
 - DA pointer wire format.
 - Uniform vs stake-weighted verifier selection.
 - Bounded vector vs Merkleized verifier snapshots.
-- No-quorum council policy.
+- Resolver no-decision policy.
+- DA-unavailable or replay-insufficient policy.
 - Operator slash amount and challenger payout amount.
 - Whether verifier slashing for bad approvals is in initial DLP v2 or later.
-- Whether council lives inside DLP or a separate council program.
+- Which multisig program/account signs as `resolver`.
