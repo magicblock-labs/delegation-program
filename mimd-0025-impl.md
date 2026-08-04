@@ -106,14 +106,14 @@ Seed strings are placeholders until frozen.
 
 | Account | PDA seeds | Purpose |
 | --- | --- | --- |
-| `ProtocolConfig` | `["mimd-protocol-config"]` | Global params, VRF config, resolver signer, protocol fee vault. |
-| `OperatorBond` | `["mimd-operator-bond", operator]` | Slashable operator stake and lifecycle. |
-| `VerifierBond` | `["mimd-verifier-bond", verifier]` | Slashable verifier stake. |
-| `VerifierRegistry` | `["mimd-verifier-registry"]` | All registered verifiers. |
-| `PendingCommitment` | `["mimd-pending-commitment", account, commit_id]` | Main commitment state machine. |
-| `StateBuffer` | `["mimd-state-buffer", account, commit_id, role, authority]` | Chunked full account data opened for finalize/reveal. |
-| `Challenge` | `["mimd-challenge", account, commit_id, challenger]` | One challenge against one pending commitment. |
-| `PayoutTimelock` | `["mimd-payout-timelock", challenge]` | Delayed payout for correct challenger. |
+| `ProtocolConfig` | `["protocol-config"]` | Global params, VRF config, resolver signer, protocol fee vault. |
+| `OperatorBond` | `["operator-bond", operator]` | Slashable operator stake and lifecycle. |
+| `VerifierBond` | `["verifier-bond", verifier]` | Slashable verifier stake. |
+| `VerifierRegistry` | `["verifier-registry"]` | All registered verifiers. |
+| `PendingCommitment` | `["pending-commitment", account, commit_id]` | Main commitment state machine. |
+| `StateBuffer` | `["state-buffer", account, commit_id, role, authority]` | Chunked full account data opened for finalize/reveal. |
+| `Challenge` | `["challenge", account, commit_id, challenger]` | One challenge against one pending commitment. |
+| `PayoutTimelock` | `["payout-timelock", challenge]` | Delayed payout for correct challenger. |
 
 ### Essential Fields
 
@@ -125,7 +125,7 @@ pub enum ActorStatus {
     Jailed,
 }
 
-/// PDA: `["mimd-protocol-config"]`
+/// PDA: `["protocol-config"]`
 /// Created by: `InitProtocolConfig`.
 /// Closed by: not normally closed.
 pub struct ProtocolConfig {
@@ -150,7 +150,7 @@ pub struct ProtocolConfig {
     pub match_penalty_bps: u16,
 }
 
-/// PDA: `["mimd-operator-bond", operator]`
+/// PDA: `["operator-bond", operator]`
 /// Created by: `RegisterOperator`.
 /// Closed by: `WithdrawStake` after exit, zero stake, and no locks.
 ///
@@ -164,7 +164,7 @@ pub struct OperatorBond {
     pub withdraw_requested_slot: Option<u64>,
 }
 
-/// PDA: `["mimd-verifier-bond", verifier]`
+/// PDA: `["verifier-bond", verifier]`
 /// Created by: `RegisterVerifier`.
 /// Closed by: `WithdrawStake` after exit, zero stake, no locks, and registry removal.
 ///
@@ -177,7 +177,7 @@ pub struct VerifierBond {
     pub withdraw_requested_slot: Option<u64>,
 }
 
-/// PDA: `["mimd-verifier-registry"]`
+/// PDA: `["verifier-registry"]`
 /// Created by: `InitProtocolConfig` as an empty registry.
 /// Updated by: `UpdateVerifierRegistry`.
 /// Closed by: not normally closed.
@@ -219,7 +219,7 @@ pub enum ResolvedStateSource {
     ChallengerReveal,
 }
 
-/// PDA: `["mimd-pending-commitment", account, commit_id]`
+/// PDA: `["pending-commitment", account, commit_id]`
 /// Created by: `PostCommitment`.
 /// Closed by: `CloseTerminalAccounts` after finalize, cancel, or expiry.
 ///
@@ -269,7 +269,7 @@ pub enum StateBufferRole {
     ChallengerReveal,
 }
 
-/// PDA: `["mimd-state-buffer", account, commit_id, role, authority]`
+/// PDA: `["state-buffer", account, commit_id, role, authority]`
 /// Created by: first `WriteStateBuffer`.
 /// Frozen by: `FinalizeStateBuffer`.
 /// Closed by: `CloseTerminalAccounts`.
@@ -312,7 +312,7 @@ pub enum ChallengeOutcome {
     ChallengerRevealTimeout,
 }
 
-/// PDA: `["mimd-challenge", account, commit_id, challenger]`
+/// PDA: `["challenge", account, commit_id, challenger]`
 /// Created by: `RaiseChallenge`.
 /// Closed by: `CloseTerminalAccounts` after a terminal challenge outcome.
 ///
@@ -331,7 +331,7 @@ pub struct Challenge {
     pub outcome: Option<ChallengeOutcome>,
 }
 
-/// PDA: `["mimd-payout-timelock", challenge]`
+/// PDA: `["payout-timelock", challenge]`
 /// Created by: `ResolveDispute` when challenger payout is delayed.
 /// Closed by: `ClaimPayout` after payout.
 pub struct PayoutTimelock {
@@ -356,8 +356,8 @@ Authority-gated setup and admission instructions for permissioned v2.
 | --- | --- | --- |
 | `InitProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority signer, ProtocolConfig, VerifierRegistry</strong></li></ul> | Protocol authority | Creates the global config account and empty verifier registry. Stores bootstrap params such as VRF config, resolver, fees, thresholds, and timeouts. |
 | `UpdateProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority signer, ProtocolConfig</strong></li></ul> | Protocol authority | Updates params used by future commitments. Existing pending commitments keep the values copied into their accounts. |
-| `RegisterOperator`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>operator signer, protocol authority signer, OperatorBond, ProtocolConfig</strong></li></ul> | Operator, protocol authority | Creates the per-operator `OperatorBond` PDA at `["mimd-operator-bond", operator]` and deposits slashable stake. Permissioned v2 requires configured approval before the operator can post commitments. |
-| `RegisterVerifier`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>verifier signer, protocol authority signer, VerifierBond, ProtocolConfig</strong></li></ul> | Verifier, protocol authority | Creates the per-verifier `VerifierBond` PDA at `["mimd-verifier-bond", verifier]` and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter the registry. |
+| `RegisterOperator`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>operator signer, protocol authority signer, OperatorBond, ProtocolConfig</strong></li></ul> | Operator, protocol authority | Creates the per-operator `OperatorBond` PDA at `["operator-bond", operator]` and deposits slashable stake. Permissioned v2 requires configured approval before the operator can post commitments. |
+| `RegisterVerifier`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>verifier signer, protocol authority signer, VerifierBond, ProtocolConfig</strong></li></ul> | Verifier, protocol authority | Creates the per-verifier `VerifierBond` PDA at `["verifier-bond", verifier]` and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter the registry. |
 | `UpdateVerifierRegistry`<ul><li>ix-data: <code>update</code></li><li>accounts: <strong>authority signer, VerifierRegistry, VerifierBond accounts</strong></li></ul> | Protocol authority | Adds or removes verifier pubkeys in the single `VerifierRegistry` account and increments `registry_revision`. Invalid, duplicate, unbonded, or inactive verifiers are rejected. |
 
 ### Runtime Instructions
@@ -370,7 +370,7 @@ instructions.
 | `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
 | `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
 | `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator signer, OperatorBond, PendingCommitment, delegated account, DelegationRecord, ProtocolConfig, VerifierRegistry, DLP identity PDA, VRF queue/program</strong></li></ul> | Operator | Creates an `AwaitingRandomness` commitment, stores the current `registry_revision`, locks any commitment-local stake if needed, and requests VRF. |
-| `ConsumeCommitmentRandomness`<ul><li>ix-data: <code>randomness</code></li><li>accounts: <strong>VRF identity signer, PendingCommitment, ProtocolConfig, VerifierRegistry</strong></li></ul> | VRF callback | Verifies the VRF caller and registry revision, selects verifiers from the registry, and starts the challenge window. |
+| `ConsumeCommitmentRandomness`<ul><li>ix-data: <code>randomness</code></li><li>accounts: <strong>VRF identity signer, PendingCommitment, ProtocolConfig, VerifierRegistry</strong></li></ul> | VRF callback | Verifies the VRF caller and registry revision, selects verifiers from the registry excluding the commitment operator, and starts the challenge window. |
 | `CancelUnactivatedCommitment`<ul><li>ix-data: <code>reason</code></li><li>accounts: <strong>cranker/operator signer, PendingCommitment, ProtocolConfig, VerifierRegistry</strong></li></ul> | Operator or cranker | Cancels a commitment that is still waiting for randomness but can no longer activate, such as after registry change or VRF timeout. |
 | `ApproveCommitment`<ul><li>ix-data: <code>selected_verifier_index</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from one selected verifier. Duplicate approvals do not increase the count. |
 | `WriteStateBuffer`<ul><li>ix-data: <code>chunk</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Writes a chunk of opened account data for finalize, operator response, or challenger reveal. |
@@ -466,7 +466,9 @@ pub struct FinalizeCommitmentData {
 - `ConsumeCommitmentRandomness` verifies the VRF identity signer, reads the
   `VerifierRegistry`, and requires its `registry_revision` to match the value
   stored on the pending commitment. If it matches, DLP derives
-  `selected_verifiers` from randomness and starts the challenge window.
+  `selected_verifiers` from randomness and starts the challenge window. The
+  operator identity for this commitment must be excluded from selection, even if
+  the same pubkey is also registered as a verifier.
 - `CancelUnactivatedCommitment` handles commitments that are still
   `AwaitingRandomness` but can no longer activate. The common reasons are:
   registry changed before the VRF callback, or the VRF callback did not arrive
