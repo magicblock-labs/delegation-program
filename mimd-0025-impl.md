@@ -120,9 +120,13 @@ Seed strings are placeholders until frozen.
 
 ```rust
 pub enum ActorStatus {
+    /// Actor can participate normally.
     Active,
+    /// Actor has requested withdrawal and cannot take on new work.
     Exiting,
+    /// Actor lost stake for protocol fault.
     Slashed,
+    /// Actor is temporarily blocked without necessarily losing all stake.
     Jailed,
 }
 
@@ -130,26 +134,48 @@ pub enum ActorStatus {
 /// Created by: `InitProtocolConfig`.
 /// Closed by: not normally closed.
 pub struct ProtocolConfig {
+    /// Signer allowed to update config and permissioned-v2 bootstrap state.
     pub authority: Pubkey,
+    /// Emergency stop for new commitments and other non-exit activity.
     pub paused: bool,
+    /// VRF program DLP trusts for randomness callbacks.
     pub vrf_program: Pubkey,
+    /// VRF-specific queue/config account. Rename if ephemeral-vrf uses a
+    /// different term.
     pub vrf_oracle_queue: Pubkey,
     /// Multisig-controlled signer allowed to call ResolveDispute.
     pub resolver: Pubkey,
+    /// Vault receiving protocol fees, penalties, or slashed funds.
     pub protocol_fee_vault: Pubkey,
+    /// Minimum stake required for an operator to register and stay active.
     pub min_operator_bond: u64,
+    /// Minimum stake required for a verifier to register and stay active.
     pub min_verifier_bond: u64,
+    /// Minimum stake locked by RaiseChallenge to prevent cheap spam.
     pub min_challenger_stake: u64,
+    /// Slots available for approval/challenge after VRF activation.
     pub challenge_window_slots: u64,
+    /// Slots the operator gets to open state after a challenge.
     pub operator_response_timeout_slots: u64,
+    /// Slots the challenger gets to reveal after operator response or timeout.
     pub challenger_reveal_timeout_slots: u64,
+    /// Delay before a winning challenger can claim payout.
     pub payout_timelock_slots: u64,
     /// Number of verifiers randomly picked from VerifierRegistry.
     pub selected_verifier_count: u16,
+    /// Approvals required for happy-path finalization.
     pub approval_threshold: u16,
+    /// Maximum under-approval extensions before the commitment expires.
     pub max_window_extensions: u16,
+    /// Penalty for a valid reveal that matches the operator state.
     pub match_penalty_bps: u16,
 }
+// Review: `vrf_oracle_queue` should be renamed if ephemeral-vrf does not use
+// queue terminology.
+// Review: `protocol_fee_vault` may be too vague if it also holds slashed funds
+// and penalties.
+// Review: fields copied into PendingCommitment or Challenge must not be read
+// from ProtocolConfig later for already-open records.
 
 /// PDA: `["operator-bond", operator]`
 /// Created by: `RegisterOperator`.
@@ -157,13 +183,19 @@ pub struct ProtocolConfig {
 ///
 /// One account per operator. `PostCommitment` checks this account.
 pub struct OperatorBond {
+    /// Operator identity this bond belongs to.
     pub operator_identity: Pubkey,
+    /// Slashable stake currently credited to this operator.
     pub stake_lamports: u64,
     /// Stake temporarily unavailable for withdrawal.
     pub locked_lamports: u64,
+    /// Whether this operator can post new commitments.
     pub status: ActorStatus,
+    /// Slot when exit was requested; None means no pending withdrawal.
     pub withdraw_requested_slot: Option<u64>,
 }
+// Review: `locked_lamports` needs exact lock/unlock rules when one operator has
+// multiple pending commitments or disputes.
 
 /// PDA: `["verifier-bond", verifier]`
 /// Created by: `RegisterVerifier`.
@@ -171,12 +203,19 @@ pub struct OperatorBond {
 ///
 /// One account per verifier. Selection also requires presence in VerifierRegistry.
 pub struct VerifierBond {
+    /// Verifier identity this bond belongs to.
     pub verifier_identity: Pubkey,
+    /// Slashable stake currently credited to this verifier.
     pub stake_lamports: u64,
+    /// Whether this verifier can be selected and approve commitments.
     pub status: ActorStatus,
+    /// Slot when the verifier bond was created.
     pub registered_slot: u64,
+    /// Slot when exit was requested; None means no pending withdrawal.
     pub withdraw_requested_slot: Option<u64>,
 }
+// Review: `registered_slot` is only useful if verifier warm-up/cooldown rules
+// exist. Remove it if no such rule is planned.
 
 /// PDA: `["verifier-registry"]`
 /// Created by: `InitProtocolConfig` as an empty registry.
@@ -192,31 +231,52 @@ pub struct VerifierRegistry {
     /// All registered verifiers DLP can select from.
     pub entries: Vec<VerifierRegistryEntry>,
 }
+// Review: account size must be bounded before implementation. If the verifier
+// set can grow large, replace this Vec with a Merkleized or paged registry.
 
 pub struct VerifierRegistryEntry {
+    /// Verifier identity selectable by VRF.
     pub verifier_identity: Pubkey,
     /// Bond account proving this verifier has active stake.
     pub verifier_bond: Pubkey,
     /// Keep as 1 for equal-weight selection.
     pub weight: u64,
 }
+// Review: keep `weight` only if weighted selection is in scope. For equal
+// selection, removing it makes selection easier to review.
 
 pub enum PendingCommitmentStatus {
+    /// Posted and waiting for VRF callback.
     AwaitingRandomness,
+    /// VRF selected verifiers and the challenge window is open.
     Active,
+    /// Challenge raised and waiting for operator state.
     AwaitingOperatorResponse,
+    /// Operator responded and challenger must reveal.
     AwaitingChallengerReveal,
+    /// Operator timed out and challenger must still reveal.
     AwaitingChallengerRevealAfterOperatorTimeout,
+    /// Operator/challenger states differ and resolver must decide.
     AwaitingDisputeResolution,
+    /// Resolver chose operator-opened state.
     ResolvedOperator,
+    /// Resolver chose challenger-opened state.
     ResolvedChallenger,
+    /// Final state was applied to the base layer.
     Finalized,
+    /// Commitment can no longer finalize.
     Expired,
+    /// Commitment was cancelled before activation.
     Cancelled,
 }
+// Review: `ResolvedOperator` and `ResolvedChallenger` overlap with
+// ResolvedStateSource. Keep both only if status and finalization source need to
+// evolve independently.
 
 pub enum ResolvedStateSource {
+    /// Finalize using the operator commitment/happy-path state.
     OperatorCommitment,
+    /// Finalize using challenger-opened state after resolution.
     ChallengerReveal,
 }
 
@@ -226,17 +286,29 @@ pub enum ResolvedStateSource {
 ///
 /// One account per delegated account and commit id.
 pub struct PendingCommitment {
+    /// Current state-machine state for this commitment.
     pub status: PendingCommitmentStatus,
+    /// Operator identity that posted the commitment.
     pub operator_identity: Pubkey,
+    /// OperatorBond checked when the commitment was posted.
     pub operator_bond: Pubkey,
+    /// Delegated account whose base-layer state will be finalized.
     pub account_pubkey: Pubkey,
+    /// Operator-chosen nonce for this account commitment.
     pub commit_id: u64,
+    /// Delegation metadata tying this account to the ER context.
     pub delegation_record: Pubkey,
+    /// Hash of replay/data-availability pointer bytes.
     pub da_pointer_hash: [u8; 32],
+    /// Hash of lamports, owner, and data_hash.
     pub account_state_hash: [u8; 32],
+    /// Hash of full account data.
     pub data_hash: [u8; 32],
+    /// Lamports committed by the operator.
     pub lamports: u64,
+    /// Owner committed by the operator.
     pub owner: Pubkey,
+    /// Hash binding operator, account, commit id, delegation, DA, and state.
     pub state_commitment_hash: [u8; 32],
     /// Registry account used when this commitment was posted.
     pub verifier_registry: Pubkey,
@@ -244,29 +316,43 @@ pub struct PendingCommitment {
     /// If the registry changes before VRF activation, this commitment is
     /// cancelled and the operator must repost against the latest registry.
     pub verifier_registry_revision: u64,
+    /// Monotonic id for this approval/challenge window.
     pub challenge_window_id: u64,
+    /// Slot when the commitment was posted.
     pub posted_slot: u64,
     /// Set by the VRF callback.
     pub activation_slot: Option<u64>,
+    /// Slot when approval/challenge window closes after VRF activation.
     pub challenge_window_end_slot: Option<u64>,
     /// Verifiers selected by VRF for this commitment.
     /// Later registry changes do not rewrite this list.
     pub selected_verifiers: Vec<Pubkey>,
     /// One bit per selected verifier.
     pub approval_bitmap: Vec<u8>,
+    /// Number of unique selected verifiers that approved.
     pub approval_count: u16,
+    /// Threshold copied from ProtocolConfig at activation time.
     pub approval_threshold: u16,
+    /// Active Challenge account, if any.
     pub active_challenge: Option<Pubkey>,
     /// VRF request id returned when DLP asks for randomness.
     pub vrf_request_id: Option<[u8; 32]>,
     /// VRF output bytes used to select verifiers.
     pub vrf_randomness: Option<[u8; 32]>,
+    /// Which opened state finalization must use after dispute resolution.
     pub resolved_state_source: Option<ResolvedStateSource>,
 }
+// Review: `da_pointer_hash` is not enough by itself. Verifiers/resolver need an
+// independent way to fetch replay inputs, not only operator-provided data.
+// Review: `challenge_window_id` should be kept only if window extensions or
+// retries need an explicit round id.
 
 pub enum StateBufferRole {
+    /// Full data opened for normal finalization.
     OperatorFinalize,
+    /// Full data opened by operator during challenge response.
     OperatorChallengeResponse,
+    /// Full data opened by challenger during reveal.
     ChallengerReveal,
 }
 
@@ -277,39 +363,64 @@ pub enum StateBufferRole {
 ///
 /// Stores opened full account data when it does not fit in one instruction.
 pub struct StateBuffer {
+    /// Why this full account data is being opened.
     pub role: StateBufferRole,
+    /// Signer allowed to write/finalize this buffer.
     pub authority: Pubkey,
+    /// Account whose data is being opened.
     pub account_pubkey: Pubkey,
+    /// Commitment this buffer belongs to.
     pub commit_id: u64,
+    /// Hash the finished buffer must match.
     pub expected_data_hash: [u8; 32],
+    /// Expected total byte length.
     pub total_len: u32,
+    /// Bytes written so far.
     pub written_len: u32,
+    /// Once true, buffer content cannot change.
     pub finalized: bool,
+    /// Chunked full account data.
     pub data: Vec<u8>,
 }
+// Review: `total_len` and account size need hard caps. An unbounded Vec is not
+// implementable safely as a Solana account.
 
 pub enum ChallengeStatus {
+    /// Challenge raised and waiting for operator state.
     AwaitingOperatorResponse,
+    /// Operator responded and challenger must reveal.
     AwaitingChallengerReveal,
+    /// Operator timed out and challenger must still reveal.
     AwaitingChallengerRevealAfterOperatorTimeout,
+    /// Opened states differ and resolver must decide.
     AwaitingDisputeResolution,
+    /// Challenge has an outcome and can be closed when allowed.
     Terminal,
 }
 
 pub struct OpenedState {
+    /// Opened lamports value.
     pub lamports: u64,
+    /// Opened owner value.
     pub owner: Pubkey,
+    /// Hash of opened account data.
     pub data_hash: [u8; 32],
+    /// Hash of opened lamports, owner, and data_hash.
     pub account_state_hash: [u8; 32],
     /// Finalized buffer containing the full account data, when needed.
     pub state_buffer: Option<Pubkey>,
 }
 
 pub enum ChallengeOutcome {
+    /// Reveal did not match challenge_hash; challenger loses stake.
     InvalidRevealChallengerSlashed,
+    /// Reveal matched operator state; challenger pays match penalty.
     MatchingStateChallengerPenalized,
+    /// Resolver or timeout path chose operator; challenger loses stake.
     OperatorCorrectChallengerSlashed,
+    /// Resolver chose challenger; operator is slashed.
     ChallengerCorrectOperatorSlashed,
+    /// Challenger failed to reveal after operator response/timeout.
     ChallengerRevealTimeout,
 }
 
@@ -319,29 +430,50 @@ pub enum ChallengeOutcome {
 ///
 /// One active challenge is allowed per pending commitment in DLP v2.
 pub struct Challenge {
+    /// Current state-machine state for this challenge.
     pub status: ChallengeStatus,
+    /// PendingCommitment being challenged.
     pub pending_commitment: Pubkey,
+    /// Challenger that posted the hidden challenge hash.
     pub challenger_identity: Pubkey,
+    /// Stake locked by this challenge.
     pub challenger_stake_lamports: u64,
+    /// Salted hash binding the challenger reveal to this commitment.
     pub challenge_hash: [u8; 32],
+    /// Slot when challenge was raised.
     pub raised_slot: u64,
+    /// Last slot for operator to open state.
     pub operator_response_deadline_slot: u64,
+    /// Last slot for challenger reveal; set after operator response/timeout.
     pub challenger_reveal_deadline_slot: Option<u64>,
+    /// Operator-opened state after response, if any.
     pub operator_state: Option<OpenedState>,
+    /// Challenger-opened state after reveal, if any.
     pub challenger_state: Option<OpenedState>,
+    /// Terminal outcome once challenge can no longer change.
     pub outcome: Option<ChallengeOutcome>,
 }
+// Review: PDA includes `challenger`, but DLP v2 allows only one active
+// challenge per PendingCommitment. Either enforce `active_challenge` strictly or
+// remove `challenger` from the PDA seeds.
 
 /// PDA: `["payout-timelock", challenge]`
 /// Created by: `ResolveDispute` when challenger payout is delayed.
 /// Closed by: `ClaimPayout` after payout.
 pub struct PayoutTimelock {
+    /// Challenge that created this payout.
     pub challenge: Pubkey,
+    /// Account allowed to claim payout.
     pub beneficiary: Pubkey,
+    /// Payout amount.
     pub amount_lamports: u64,
+    /// First slot where ClaimPayout can succeed.
     pub unlock_slot: u64,
+    /// Prevents double payout.
     pub claimed: bool,
 }
+// Review: keep this account only if payout delay is required. Otherwise
+// ResolveDispute can pay immediately and avoid another account.
 ```
 
 ## Instructions
