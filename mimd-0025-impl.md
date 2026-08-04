@@ -18,6 +18,7 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 - [Flows](#flows)
   - [Dispute Resolution](#dispute-resolution)
 - [Validator Repo Responsibilities](#validator-repo-responsibilities)
+- [Design FAQ](#design-faq)
 - [Open Design Points](#open-design-points)
 
 ## Decisions To Review
@@ -569,6 +570,30 @@ commitment expires.
   replay result, prepare the multisig transaction.
 - Cranker: call timeout, extension, resolution, finalization, payout, and close
   instructions.
+
+## Design FAQ
+
+**Why is there a VerifierRegistry but no OperatorRegistry?**
+
+DLP randomly selects verifiers, so it needs a selectable verifier list.
+Operators are not selected by DLP. Operators submit commitments themselves, so
+DLP only needs to derive and check the operator's `OperatorBond` PDA.
+
+**Can the same identity be both operator and verifier?**
+
+Yes. The same pubkey can register for both roles, but it must register each role
+separately: `RegisterOperator` creates `OperatorBond`, and `RegisterVerifier`
+creates `VerifierBond`.
+
+**Can an operator verify its own commitment?**
+
+No. `ConsumeCommitmentRandomness` must exclude the commitment operator from
+`selected_verifiers`, even if the same pubkey is registered as a verifier.
+
+**Why keep VerifierBond separate from VerifierRegistry?**
+
+`VerifierBond` owns verifier stake and lifecycle. `VerifierRegistry` is only the
+selectable verifier list used during verifier selection.
 
 ## Open Design Points
 
