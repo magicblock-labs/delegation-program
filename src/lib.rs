@@ -44,6 +44,9 @@ use {
 #[cfg(feature = "processor")]
 mod processor;
 
+#[cfg(feature = "processor")]
+mod v2;
+
 #[allow(unused_imports)]
 pub(crate) use diff::*;
 
@@ -83,6 +86,10 @@ pub fn fast_process_instruction(
     }
 
     let (discriminator_bytes, data) = data.split_at(8);
+
+    if dlp_api::v2::DlpV2Instruction::try_from(discriminator_bytes[0]).is_ok() {
+        return None;
+    }
 
     let discriminator = match DlpDiscriminator::try_from(discriminator_bytes[0])
     {
@@ -174,6 +181,11 @@ pub fn slow_process_instruction(
     }
 
     let (tag, data) = data.split_at(8);
+
+    if let Ok(ix) = dlp_api::v2::DlpV2Instruction::try_from(tag[0]) {
+        return v2::process_instruction(program_id, accounts, data, ix);
+    }
+
     let ix = DlpDiscriminator::try_from(tag[0])
         .or(Err(ProgramError::InvalidInstructionData))?;
 
