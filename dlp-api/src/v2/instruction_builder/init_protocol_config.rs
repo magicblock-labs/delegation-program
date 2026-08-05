@@ -3,9 +3,10 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_sdk_ids::system_program;
+use wheels::layout::Encodable;
 
 use crate::{
-    compat::{borsh::to_vec, Modernize},
+    compat::Modernize,
     v2::{
         pda::{protocol_config_pda, verifier_registry_pda},
         DlpV2Instruction, InitProtocolConfigArgs,
@@ -27,7 +28,7 @@ pub fn init_protocol_config(
         ],
         data: [
             DlpV2Instruction::InitProtocolConfig.to_vec(),
-            to_vec(&args).unwrap(),
+            args.encode().unwrap(),
         ]
         .concat(),
     }

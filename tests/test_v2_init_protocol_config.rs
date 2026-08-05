@@ -5,6 +5,7 @@ use dlp_api::{
         instruction_builder::init_protocol_config,
         pda::{protocol_config_pda, verifier_registry_pda},
         InitProtocolConfigArgs, ProtocolConfig, VerifierRegistry,
+        VerifierRegistryEntry,
     },
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
@@ -18,6 +19,35 @@ use solana_sdk::{
 use solana_sdk_ids::system_program;
 
 mod fixtures;
+
+#[test]
+fn test_v2_verifier_registry_layout_round_trip() {
+    let registry = VerifierRegistry {
+        registry_revision: 7,
+        entries: vec![
+            VerifierRegistryEntry {
+                verifier_identity: Pubkey::new_unique(),
+                verifier_bond: Pubkey::new_unique(),
+                weight: 11,
+            },
+            VerifierRegistryEntry {
+                verifier_identity: Pubkey::new_unique(),
+                verifier_bond: Pubkey::new_unique(),
+                weight: 13,
+            },
+        ],
+    };
+    let mut data = vec![0; registry.size_with_discriminator()];
+
+    registry
+        .to_bytes_with_discriminator(data.as_mut_slice())
+        .unwrap();
+    let decoded =
+        VerifierRegistry::try_from_bytes_with_discriminator(data.as_slice())
+            .unwrap();
+
+    assert_eq!(decoded, registry);
+}
 
 #[tokio::test]
 async fn test_v2_init_protocol_config() {
