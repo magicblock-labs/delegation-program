@@ -1,30 +1,15 @@
-use crate::{
-    compat::borsh::{BorshDeserialize, BorshSerialize},
-    error::DlpError,
-    solana_program::program_error::ProgramError,
-};
+use wheels::DataLayoutError;
 
-pub(crate) fn write_with_discriminator<T, W>(
-    discriminator: &[u8; 8],
-    value: &T,
-    writer: &mut W,
-) -> Result<(), ProgramError>
-where
-    T: BorshSerialize,
-    W: std::io::Write,
-{
-    writer.write_all(discriminator)?;
-    value.serialize(writer)?;
-    Ok(())
+use crate::{error::DlpError, solana_program::program_error::ProgramError};
+
+pub fn layout_error_to_program_error(error: DataLayoutError) -> ProgramError {
+    ProgramError::Custom(error.code())
 }
 
-pub(crate) fn try_from_bytes_with_discriminator<T>(
+pub(crate) fn payload_with_discriminator<'a>(
     discriminator: &[u8; 8],
-    data: &[u8],
-) -> Result<T, ProgramError>
-where
-    T: BorshDeserialize,
-{
+    data: &'a [u8],
+) -> Result<&'a [u8], ProgramError> {
     if data.len() < 8 {
         return Err(DlpError::InvalidDataLength.into());
     }
@@ -33,6 +18,17 @@ where
         return Err(DlpError::InvalidDiscriminator.into());
     }
 
-    T::try_from_slice(&data[8..])
-        .or(Err(DlpError::InvalidDelegationRecordData.into()))
+    Ok(&data[8..])
+}
+
+pub(crate) fn payload_with_discriminator_mut<'a>(
+    discriminator: &[u8; 8],
+    data: &'a mut [u8],
+) -> Result<&'a mut [u8], ProgramError> {
+    if data.len() < 8 {
+        return Err(DlpError::InvalidDataLength.into());
+    }
+
+    data[..8].copy_from_slice(discriminator);
+    Ok(&mut data[8..])
 }

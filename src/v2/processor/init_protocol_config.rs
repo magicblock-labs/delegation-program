@@ -1,5 +1,4 @@
 use dlp_api::{
-    compat::borsh::BorshDeserialize,
     pda::fees_vault_pda,
     v2::{
         pda::{PROTOCOL_CONFIG_SEED, VERIFIER_REGISTRY_SEED},
@@ -31,7 +30,7 @@ pub fn process_init_protocol_config(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
-    let args = InitProtocolConfigArgs::try_from_slice(data)?;
+    let args = InitProtocolConfigArgs::try_from_bytes(data)?;
     validate_args(&args)?;
 
     let [authority, protocol_config, verifier_registry, system_program] =
@@ -101,11 +100,11 @@ pub fn process_init_protocol_config(
 
     let mut protocol_config_data = protocol_config.try_borrow_mut_data()?;
     protocol_config_state
-        .to_bytes_with_discriminator(&mut protocol_config_data.as_mut())?;
+        .to_bytes_with_discriminator(protocol_config_data.as_mut())?;
 
     let mut verifier_registry_data = verifier_registry.try_borrow_mut_data()?;
     verifier_registry_state
-        .to_bytes_with_discriminator(&mut verifier_registry_data.as_mut())?;
+        .to_bytes_with_discriminator(verifier_registry_data.as_mut())?;
 
     Ok(())
 }

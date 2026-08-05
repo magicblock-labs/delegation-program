@@ -3204,6 +3204,7 @@ dependencies = [
  "static_assertions",
  "strum 0.28.0",
  "thiserror 1.0.69",
+ "wheels",
 ]
 
 [[package]]
@@ -9627,6 +9628,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52f5ee44c96cf55f1b349600768e3ece3a8f26010c05265ab73f945bb1a2eb9d"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "wheels"
+version = "0.1.0"
+source = "git+https://github.com/magicblock-labs/magicblock-wheels.git?rev=5b83b5610ccbd58fb0eec79700c322d09594e951#5b83b5610ccbd58fb0eec79700c322d09594e951"
+dependencies = [
+ "bytemuck",
+ "pinocchio 0.10.2",
+ "pinocchio-log",
+ "solana-address 2.0.0",
+ "wheels-macros",
+]
+
+[[package]]
+name = "wheels-macros"
+version = "0.1.0"
+source = "git+https://github.com/magicblock-labs/magicblock-wheels.git?rev=5b83b5610ccbd58fb0eec79700c322d09594e951#5b83b5610ccbd58fb0eec79700c322d09594e951"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]

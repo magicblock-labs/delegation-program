@@ -49,6 +49,7 @@ static_assertions = "1.1.0"
 strum = { version = ">=0.27", features = ["derive"] }
 thiserror = { version = ">=1" }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+wheels = { git = "https://github.com/magicblock-labs/magicblock-wheels.git", rev = "5b83b5610ccbd58fb0eec79700c322d09594e951", package = "wheels" }
 
 solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = ["borsh", "bytemuck", "curve25519"] } 
 
