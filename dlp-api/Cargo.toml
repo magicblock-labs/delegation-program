@@ -63,6 +63,7 @@ solana-sdk-ids = "3.1.0"
 solana-sha256-hasher = "3.1.0"
 solana-signer = { version = "3.0.0", optional = true }
 solana-system-interface = { version = "3.0.0", features = ["bincode"] }
+wheels = { git = "https://github.com/magicblock-labs/magicblock-wheels.git", rev = "5b83b5610ccbd58fb0eec79700c322d09594e951", package = "wheels" }
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["small_rng"] }
