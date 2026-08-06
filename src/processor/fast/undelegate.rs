@@ -20,7 +20,9 @@ use crate::{
     },
     error::DlpError,
     pda,
-    processor::fast::utils::pda::{close_pda, close_pda_with_fees, create_pda},
+    processor::fast::utils::pda::{
+        close_pda, close_pda_with_fees, create_or_verify_preallocated_pda,
+    },
     require_n_accounts_with_optionals,
     requires::{
         require_initialized_delegation_metadata,
@@ -241,28 +243,18 @@ pub fn process_undelegate(
         return Ok(());
     }
 
-    // Initialize the undelegation buffer PDA
-    let undelegate_buffer_bump: u8 = require_uninitialized_pda(
+    // Handle undelegate buffer account
+    let undelegate_buffer_size = delegated_account.data_len();
+    let undelegate_buffer_bump = create_or_verify_preallocated_pda(
         undelegate_buffer_account,
         &[
             pda::UNDELEGATE_BUFFER_TAG,
             delegated_account.address().as_ref(),
         ],
-        &crate::fast::ID,
-        true,
-        UndelegateBufferCtx,
-    )?;
-
-    create_pda(
-        undelegate_buffer_account,
-        &crate::fast::ID,
-        delegated_account.data_len(),
-        &[Signer::from(&seeds!(
-            pda::UNDELEGATE_BUFFER_TAG,
-            delegated_account.address().as_ref(),
-            &[undelegate_buffer_bump]
-        ))],
+        undelegate_buffer_size,
         validator,
+        UndelegateBufferCtx,
+        "undelegate buffer",
     )?;
 
     // Copy data in the undelegation buffer PDA

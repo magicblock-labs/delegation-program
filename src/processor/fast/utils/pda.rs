@@ -1,11 +1,21 @@
 use pinocchio::{
+    account::MAX_PERMITTED_DATA_INCREASE,
     cpi::Signer,
+    error::ProgramError,
+    instruction::seeds,
     sysvars::{rent::Rent, Sysvar},
     AccountView, Address, ProgramResult,
 };
 use pinocchio_system::instructions as system;
 
-use crate::consts::PROTOCOL_FEES_PERCENTAGE;
+use crate::{
+    consts::PROTOCOL_FEES_PERCENTAGE,
+    error::DlpError,
+    requires::{
+        require_initialized_pda, require_uninitialized_pda,
+        RequireUninitializedAccountCtx,
+    },
+};
 
 /// Creates a new pda
 #[inline(always)]
@@ -58,6 +68,52 @@ pub(crate) fn create_pda(
             owner,
         }
         .invoke_signed(pda_signers)
+    }
+}
+
+/// Prepares `buffer_account` to hold exactly `state_size` bytes, seeded by
+/// `seeds_arr` under this program. Returns the PDA's bump seed.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn create_or_verify_preallocated_pda(
+    target_account: &AccountView,
+    seeds_arr: &[&[u8]; 2],
+    state_size: usize,
+    payer: &AccountView,
+    ctx: impl RequireUninitializedAccountCtx,
+    label: &str,
+) -> Result<u8, ProgramError> {
+    if state_size > MAX_PERMITTED_DATA_INCREASE {
+        // Account must be initialized by PreallocateBuffer instructions dues to `MAX_PERMITTED_DATA_INCREASE`.
+        let bump = require_initialized_pda(
+            target_account,
+            seeds_arr,
+            &crate::fast::ID,
+            true,
+            label,
+        )?;
+
+        if target_account.data_len() != state_size {
+            Err(DlpError::BufferNotPreallocatedToExactSize.into())
+        } else {
+            Ok(bump)
+        }
+    } else {
+        // As the account is small enough we initialize here
+        let bump = require_uninitialized_pda(
+            target_account,
+            seeds_arr,
+            &crate::fast::ID,
+            true,
+            ctx,
+        )?;
+        create_pda(
+            target_account,
+            &crate::fast::ID,
+            state_size,
+            &[Signer::from(&seeds!(seeds_arr[0], seeds_arr[1], &[bump]))],
+            payer,
+        )?;
+        Ok(bump)
     }
 }
 
@@ -114,4 +170,25 @@ pub(crate) fn close_pda_with_fees(
     }
 
     target_account.resize(0)
+}
+
+pub(crate) fn resize_pda(
+    payer: &AccountView,
+    pda: &AccountView,
+    _system_program: &AccountView,
+    new_size: usize,
+) -> ProgramResult {
+    let rent = Rent::get()?;
+    let rent_exempt_balance = rent
+        .try_minimum_balance(new_size)?
+        .saturating_sub(pda.lamports());
+    if rent_exempt_balance > 0 {
+        system::Transfer {
+            from: payer,
+            to: pda,
+            lamports: rent_exempt_balance,
+        }
+        .invoke()?;
+    }
+    pda.resize(new_size)
 }

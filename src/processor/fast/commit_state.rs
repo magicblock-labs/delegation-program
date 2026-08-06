@@ -11,7 +11,9 @@ use crate::{
     args::CommitStateArgs,
     error::DlpError,
     merge_diff_copy, pda,
-    processor::fast::utils::pda::create_pda,
+    processor::fast::utils::pda::{
+        create_or_verify_preallocated_pda, create_pda,
+    },
     requires::{
         require_initialized_delegation_metadata,
         require_initialized_delegation_record,
@@ -257,17 +259,21 @@ pub(crate) fn process_commit_state_internal(
         }
     }
 
-    // Load the uninitialized PDAs
-    let commit_state_bump = require_uninitialized_pda(
+    // Handle commit state account
+    let commit_state_len = args.commit_state_bytes.data_len();
+    create_or_verify_preallocated_pda(
         args.commit_state_account,
         &[
             pda::COMMIT_STATE_TAG,
             args.delegated_account.address().as_ref(),
         ],
-        &crate::fast::ID,
-        true,
+        commit_state_len,
+        args.validator,
         CommitStateAccountCtx,
+        "commit state",
     )?;
+
+    // Ensure commit record isn't initialized
     let commit_record_bump = require_uninitialized_pda(
         args.commit_record_account,
         &[
@@ -277,19 +283,6 @@ pub(crate) fn process_commit_state_internal(
         &crate::fast::ID,
         true,
         CommitRecordCtx,
-    )?;
-
-    // Initialize the PDA containing the new committed state
-    create_pda(
-        args.commit_state_account,
-        &crate::fast::ID,
-        args.commit_state_bytes.data_len(),
-        &[Signer::from(&seeds!(
-            pda::COMMIT_STATE_TAG,
-            args.delegated_account.address().as_ref(),
-            &[commit_state_bump]
-        ))],
-        args.validator,
     )?;
 
     // Initialize the PDA containing the record of the committed state
