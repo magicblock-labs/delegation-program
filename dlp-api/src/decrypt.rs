@@ -5,14 +5,14 @@ use dlp::{
     },
     compact,
 };
-use crate::solana_program::{
-    instruction::{AccountMeta, Instruction},
-};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
 use thiserror::Error;
 
-use crate::encryption::{self, EncryptionError, KEY_LEN};
+use crate::{
+    encryption::{self, EncryptionError, KEY_LEN},
+    solana_program::instruction::{AccountMeta, Instruction},
+};
 
 #[derive(Debug, Error)]
 pub enum DecryptError {
