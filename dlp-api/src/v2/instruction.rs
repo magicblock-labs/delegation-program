@@ -7,6 +7,8 @@ use strum::IntoStaticStr;
 pub enum DlpV2Instruction {
     /// Creates the global v2 protocol config and verifier registry accounts.
     InitProtocolConfig = 100,
+    /// Registers one operator and deposits its initial stake.
+    RegisterOperator = 101,
 }
 
 impl DlpV2Instruction {
