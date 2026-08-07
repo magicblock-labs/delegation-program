@@ -1,4 +1,3 @@
-use dlp::solana_program;
 use dlp_api::{
     pda::fees_vault_pda,
     v2::{
@@ -7,27 +6,21 @@ use dlp_api::{
             protocol_config_pda, verifier_registry_pda, PROTOCOL_CONFIG_SEED,
             VERIFIER_REGISTRY_SEED,
         },
-        InitProtocolConfigArgs, ProtocolConfig, VerifierRegistry,
+        ProtocolConfig, VerifierRegistry,
     },
 };
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
-use solana_program_test::{BanksClient, ProgramTest};
-use solana_sdk::{
-    account::Account,
-    pubkey::Pubkey,
-    signature::{Keypair, Signer},
-    transaction::Transaction,
-};
-use solana_sdk_ids::system_program;
+use solana_sdk::{pubkey::Pubkey, signature::Signer, transaction::Transaction};
 use wheels::layout::Decodable;
 
 mod fixtures;
+
+use crate::fixtures::v2::{setup_program_test_env, valid_args};
 
 #[tokio::test]
 async fn test_init_protocol_config() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let args = valid_protocol_config_args();
+    let args = valid_args();
     let ix = init_protocol_config(authority.pubkey(), args.clone());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -116,8 +109,7 @@ async fn test_init_protocol_config() {
 async fn test_init_protocol_config_fails_twice() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let ix =
-        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
+    let ix = init_protocol_config(authority.pubkey(), valid_args());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -127,8 +119,7 @@ async fn test_init_protocol_config_fails_twice() {
     banks.process_transaction(tx).await.unwrap();
 
     let blockhash = banks.get_latest_blockhash().await.unwrap();
-    let ix =
-        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
+    let ix = init_protocol_config(authority.pubkey(), valid_args());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -143,9 +134,7 @@ async fn test_init_protocol_config_fails_twice() {
 async fn test_init_protocol_config_fails_with_wrong_protocol_config_pda() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut ix =
-        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
-
+    let mut ix = init_protocol_config(authority.pubkey(), valid_args());
     ix.accounts[1].pubkey = Pubkey::new_unique();
 
     let tx = Transaction::new_signed_with_payer(
@@ -162,9 +151,7 @@ async fn test_init_protocol_config_fails_with_wrong_protocol_config_pda() {
 async fn test_init_protocol_config_fails_with_wrong_verifier_registry_pda() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut ix =
-        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
-
+    let mut ix = init_protocol_config(authority.pubkey(), valid_args());
     ix.accounts[2].pubkey = Pubkey::new_unique();
 
     let tx = Transaction::new_signed_with_payer(
@@ -181,9 +168,7 @@ async fn test_init_protocol_config_fails_with_wrong_verifier_registry_pda() {
 async fn test_init_protocol_config_fails_without_authority_signature() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut ix =
-        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
-
+    let mut ix = init_protocol_config(authority.pubkey(), valid_args());
     ix.accounts[0].is_signer = false;
 
     let tx = Transaction::new_signed_with_payer(
@@ -200,8 +185,7 @@ async fn test_init_protocol_config_fails_without_authority_signature() {
 async fn test_init_protocol_config_fails_with_invalid_args() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut args = valid_protocol_config_args();
-
+    let mut args = valid_args();
     args.approval_threshold = args.verifiers_per_commitment + 1;
 
     let ix = init_protocol_config(authority.pubkey(), args);
@@ -219,8 +203,7 @@ async fn test_init_protocol_config_fails_with_invalid_args() {
 async fn test_init_protocol_config_fails_with_zero_verifier_cap() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut args = valid_protocol_config_args();
-
+    let mut args = valid_args();
     args.verifiers_per_commitment = 0;
 
     let ix = init_protocol_config(authority.pubkey(), args);
@@ -238,8 +221,7 @@ async fn test_init_protocol_config_fails_with_zero_verifier_cap() {
 async fn test_init_protocol_config_fails_with_zero_approval_threshold() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut args = valid_protocol_config_args();
-
+    let mut args = valid_args();
     args.approval_threshold = 0;
 
     let ix = init_protocol_config(authority.pubkey(), args);
@@ -251,41 +233,4 @@ async fn test_init_protocol_config_fails_with_zero_approval_threshold() {
     );
 
     assert!(banks.process_transaction(tx).await.is_err());
-}
-
-fn valid_protocol_config_args() -> InitProtocolConfigArgs {
-    InitProtocolConfigArgs {
-        resolver: Pubkey::new_unique(),
-        min_operator_bond: 1,
-        min_verifier_bond: 1,
-        min_challenger_stake: 1,
-        challenge_window_slots: 10,
-        operator_response_timeout_slots: 10,
-        challenger_reveal_timeout_slots: 10,
-        payout_timelock_slots: 10,
-        verifiers_per_commitment: 1,
-        approval_threshold: 1,
-        max_window_extensions: 1,
-        match_penalty_bps: 500,
-    }
-}
-
-async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
-    program_test.prefer_bpf(true);
-
-    let authority = Keypair::new();
-    program_test.add_account(
-        authority.pubkey(),
-        Account {
-            lamports: LAMPORTS_PER_SOL,
-            data: vec![],
-            owner: system_program::id(),
-            executable: false,
-            rent_epoch: 0,
-        },
-    );
-
-    let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, authority, blockhash)
 }

@@ -2,5 +2,7 @@
 // instruction tag, so v2 instruction args use `buffer_offset = 1`.
 
 mod init_protocol_config;
+mod register_operator;
 
 pub use init_protocol_config::*;
+pub use register_operator::*;
