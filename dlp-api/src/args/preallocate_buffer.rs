@@ -13,8 +13,7 @@ pub enum PreallocateBufferKind {
     CommitState,
     /// The `undelegate_buffer` PDA (seeds: `[UNDELEGATE_BUFFER_TAG, delegated_account]`).
     UndelegateBuffer,
-    /// The delegated account itself. Only usable by the delegation's authority,
-    /// since it mutates observable base-layer state ahead of a commit/finalize.
+    /// Pre-allocating delegated account itself
     DelegatedAccount,
 }
 
@@ -22,9 +21,6 @@ pub enum PreallocateBufferKind {
 pub struct PreallocateBufferArgs {
     /// Which buffer to grow.
     pub kind: PreallocateBufferKind,
-    /// The final size the buffer should reach. A single call grows the buffer
-    /// towards this size by at most `MAX_PERMITTED_DATA_INCREASE` bytes, so
-    /// callers send the same args repeatedly (once per top-level instruction)
-    /// until the buffer reaches `target_size`.
+    /// The final size the buffer should reach
     pub target_size: u32,
 }
