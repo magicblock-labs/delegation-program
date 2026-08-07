@@ -1,5 +1,5 @@
+mod bootstrap;
 mod fraud_proofs;
-mod init_protocol_config;
 
 use dlp_api::v2::DlpV2Instruction;
 
@@ -7,7 +7,7 @@ use crate::solana_program::{
     account_info::AccountInfo, entrypoint::ProgramResult, pubkey::Pubkey,
 };
 
-pub use init_protocol_config::*;
+pub use bootstrap::*;
 
 pub fn process_instruction(
     program_id: &Pubkey,
