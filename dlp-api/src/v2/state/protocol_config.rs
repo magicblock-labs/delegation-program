@@ -1,12 +1,12 @@
 use wheels::{
+    fixed_offset_layout,
     layout::{Decodable, Encodable},
-    variable_offset_layout,
 };
 
 use crate::{compat::Pubkey, solana_program::program_error::ProgramError};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[variable_offset_layout(buffer_offset = unaligned)]
+#[fixed_offset_layout(buffer_offset = 0)]
 pub struct ProtocolConfig {
     pub authority: Pubkey,
     pub paused: bool,

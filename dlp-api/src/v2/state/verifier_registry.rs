@@ -1,13 +1,12 @@
 use wheels::{
     fixed_offset_layout,
     layout::{Decodable, Encodable},
-    variable_offset_layout,
 };
 
 use crate::{compat::Pubkey, solana_program::program_error::ProgramError};
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout]
+#[fixed_offset_layout(buffer_offset = 2)]
 pub struct VerifierRegistryEntry {
     pub verifier_identity: Pubkey,
     pub verifier_bond: Pubkey,
@@ -20,19 +19,24 @@ pub struct VerifierRegistry {
     pub entries: Vec<VerifierRegistryEntry>,
 }
 
-#[variable_offset_layout(buffer_offset = unaligned)]
+#[fixed_offset_layout(buffer_offset = 0)]
 struct VerifierRegistryLayout {
     registry_revision: u64,
-    #[flexible = 4]
+    #[flexible = 2]
     entries: Vec<VerifierRegistryEntry>,
 }
 
 impl VerifierRegistry {
     pub const DISCRIMINATOR: [u8; 8] = *b"v2vreg00";
-    pub const EMPTY_SPACE: usize = 8 + VerifierRegistryLayout::DATA_LEN_RANGE.0;
+    pub const EMPTY_SPACE: usize = 8 + VerifierRegistryLayout::MIN_DATA_LEN;
 
     pub fn size_with_discriminator(&self) -> usize {
-        Self::EMPTY_SPACE + self.entries.len() * VerifierRegistryEntry::DATA_LEN
+        8 + VerifierRegistryLayout {
+            registry_revision: self.registry_revision,
+            entries: self.entries.clone(),
+        }
+        .encoded_len()
+        .expect("validated verifier registry size")
     }
 
     pub fn to_bytes_with_discriminator(
