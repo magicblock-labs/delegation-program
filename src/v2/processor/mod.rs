@@ -1,3 +1,4 @@
+mod fraud_proofs;
 mod init_protocol_config;
 
 use dlp_api::v2::DlpV2Instruction;
