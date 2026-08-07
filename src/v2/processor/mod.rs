@@ -19,5 +19,8 @@ pub fn process_instruction(
         DlpV2Instruction::RegisterOperator => {
             process_register_operator(accounts, data)
         }
+        DlpV2Instruction::RegisterVerifier => {
+            process_register_verifier(program_id, accounts, data)
+        }
     }
 }
