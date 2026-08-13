@@ -17,6 +17,7 @@
 /// converted back at the boundary.
 ///
 
+#[cfg(feature = "backward-compat")]
 mod backward_compat {
     pub use borsh_compat as borsh;
     pub use solana_pubkey_compat::{declare_id, pubkey, Pubkey};
@@ -42,6 +43,7 @@ pub(crate) trait Compatize {
     fn compatize(self) -> Self::Compat;
 }
 
+#[cfg(feature = "backward-compat")]
 impl Modernize for backward_compat::Pubkey {
     type Modern = latest::Pubkey;
     fn modernize(self) -> latest::Pubkey {
@@ -56,6 +58,7 @@ impl Modernize for latest::Pubkey {
     }
 }
 
+#[cfg(feature = "backward-compat")]
 impl Compatize for backward_compat::Pubkey {
     type Compat = backward_compat::Pubkey;
     fn compatize(self) -> backward_compat::Pubkey {

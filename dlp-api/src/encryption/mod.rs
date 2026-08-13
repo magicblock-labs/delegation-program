@@ -57,7 +57,7 @@ pub fn ed25519_secret_to_x25519(
 
 /// Convenience helper for SDK usage: derive X25519 secret key bytes from a Solana Keypair.
 pub fn keypair_to_x25519_secret(
-    keypair: &solana_sdk::signature::Keypair,
+    keypair: &solana_keypair::Keypair,
 ) -> Result<[u8; KEY_LEN], EncryptionError> {
     let keypair_bytes = keypair.to_bytes();
     ed25519_secret_to_x25519(&keypair_bytes)
@@ -93,13 +93,14 @@ pub fn decrypt(
 
 #[cfg(test)]
 mod tests {
-    use solana_sdk::signer::Signer;
+    use solana_keypair::Keypair;
+    use solana_signer::Signer;
 
     use super::*;
 
     #[test]
     fn test_encrypt_decrypt_roundtrip() {
-        let validator = solana_sdk::signature::Keypair::new();
+        let validator = Keypair::new();
         let validator_x25519_secret =
             keypair_to_x25519_secret(&validator).unwrap();
         let validator_x25519_pubkey =
@@ -120,7 +121,7 @@ mod tests {
 
     #[test]
     fn test_random_ephemeral_changes_ciphertext() {
-        let validator = solana_sdk::signature::Keypair::new();
+        let validator = Keypair::new();
         let plaintext = b"same bytes";
 
         let c1 =
