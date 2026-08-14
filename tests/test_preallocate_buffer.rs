@@ -305,7 +305,7 @@ async fn test_preallocate_rejects_wrong_authority() {
 
 #[tokio::test]
 async fn test_preallocate_rejects_unregistered_validator() {
-    let (banks, _, _validator, blockhash) =
+    let (banks, _, validator, blockhash) =
         setup_program_test_env(false, None).await;
 
     // Fresh validator with no validator_fees_vault PDA set up at all.
@@ -318,12 +318,23 @@ async fn test_preallocate_rejects_unregistered_validator() {
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
-        Some(&_validator.pubkey()),
-        &[&_validator, &unregistered],
+        Some(&validator.pubkey()),
+        &[&validator, &unregistered],
         blockhash,
     );
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_err(), "expected failure for unregistered validator");
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidAccountOwner,
+                )
+            )
+        ),
+        "expected InvalidAccountOwner, got {err:?}"
+    );
 }
 
 async fn setup_program_test_env(
