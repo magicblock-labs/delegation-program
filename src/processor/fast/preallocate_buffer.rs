@@ -48,14 +48,17 @@ use crate::{
 /// - delegation record is initialized
 /// - validator is a registered validator (has an initialized fees vault) and
 ///   is the delegation's authority
-/// - for `kind = CommitState` / `UndelegateBuffer`, no commit is currently in
-///   flight for the delegated account (commit record must be uninitialized),
-///   mirroring the precondition `commit_state`/`commit_diff` and `undelegate`
-///   themselves enforce before they'll create these buffers.
-/// - `kind = DelegatedAccount` has no such restriction: it's meant to run
-///   *between* `commit_state` and `finalize`, i.e. exactly while a commit
-///   record is initialized, to pre-grow the account before finalize's
-///   single-shot resize.
+/// - for `kind = CommitState`, no commit is currently in flight for the
+///   delegated account (commit record must be uninitialized), mirroring the
+///   precondition `commit_state`/`commit_diff` themselves enforce before
+///   they'll create this buffer.
+/// - `kind = DelegatedAccount` / `UndelegateBuffer` have no such
+///   restriction: both are meant to run precisely *while* a commit record is
+///   initialized -- `DelegatedAccount` between `commit_state` and `finalize`,
+///   to pre-grow the account before finalize's single-shot resize; and
+///   `UndelegateBuffer` alongside finalize in a two-stage commit-and-undelegate,
+///   ahead of `undelegate`'s own check (which requires the commit record to be
+///   uninitialized by the time *it* runs, not by the time it's preallocated).
 pub fn process_preallocate_buffer(
     _program_id: &Address,
     accounts: &[AccountView],
@@ -103,10 +106,6 @@ pub fn process_preallocate_buffer(
             )
         }
         PreallocateBufferKind::UndelegateBuffer => {
-            require_no_commit_in_flight(
-                delegated_account,
-                commit_record_account,
-            )?;
             let seeds_arr = [
                 pda::UNDELEGATE_BUFFER_TAG,
                 delegated_account.address().as_ref(),

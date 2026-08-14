@@ -1,6 +1,8 @@
 use dlp::solana_program;
 use dlp_api::{
-    args::CommitStateFromBufferArgs,
+    args::{CommitStateFromBufferArgs, PreallocateBufferKind},
+    diff::compute_diff,
+    error::DlpError,
     pda::{
         commit_record_pda_from_delegated_account,
         commit_state_pda_from_delegated_account,
@@ -10,13 +12,17 @@ use dlp_api::{
     },
     state::{CommitRecord, DelegationMetadata},
 };
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
-use solana_program_test::{BanksClient, ProgramTest};
+use solana_program::{
+    account_info::MAX_PERMITTED_DATA_INCREASE, hash::Hash,
+    native_token::LAMPORTS_PER_SOL, rent::Rent,
+};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use solana_sdk_ids::system_program;
 
@@ -32,7 +38,8 @@ const NEW_STATE: [u8; 10] = [0, 1, 2, 9, 9, 9, 6, 7, 8, 9];
 #[tokio::test]
 async fn test_commit_new_state_from_buffer() {
     // Setup
-    let (banks, _, authority, blockhash) = setup_program_test_env().await;
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![], NEW_STATE.to_vec()).await;
     let new_account_balance = 1_000_000;
     let state_buffer_pda =
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
@@ -107,7 +114,274 @@ async fn test_commit_new_state_from_buffer() {
     );
 }
 
-async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
+/// A commit_state target past `MAX_PERMITTED_DATA_INCREASE` needs the
+/// commit_state PDA preallocated first via `PreallocateBufferKind::CommitState`.
+#[tokio::test]
+async fn test_commit_new_state_from_buffer_large_with_preallocation() {
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let new_state = vec![7u8; target_size];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![], new_state.clone()).await;
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    let mut ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        0,
+        target_size as u32,
+    );
+    ixs.push(dlp_api::instruction_builder::commit_state_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        state_buffer_pda,
+        CommitStateFromBufferArgs {
+            nonce: 1,
+            lamports: 1_000_000,
+            allow_undelegation: true,
+        },
+    ));
+
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_state_account =
+        banks.get_account(commit_state_pda).await.unwrap().unwrap();
+    assert_eq!(commit_state_account.data, new_state);
+}
+
+#[tokio::test]
+async fn test_commit_new_state_from_buffer_large_without_preallocation_fails() {
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let new_state = vec![7u8; target_size];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![], new_state).await;
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    let ix = dlp_api::instruction_builder::commit_state_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        state_buffer_pda,
+        CommitStateFromBufferArgs {
+            nonce: 1,
+            lamports: 1_000_000,
+            allow_undelegation: true,
+        },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    // commit_state has no PDA to grow yet at all -- create_or_verify_preallocated_pda
+    // requires it to already exist (initialized by PreallocateBuffer) once
+    // the target exceeds MAX_PERMITTED_DATA_INCREASE, so this fails the
+    // ownership check before it can even get to the size comparison.
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidAccountOwner,
+                )
+            )
+        ),
+        "expected InvalidAccountOwner, got {err:?}"
+    );
+}
+
+/// Distinct from "no preallocation at all": the commit_state PDA *was*
+/// preallocated, but not to the exact target size -- `commit_state_from_buffer`
+/// (unlike `finalize`/`commit_finalize_from_buffer`) enforces an exact match
+/// via `create_or_verify_preallocated_pda`, since it never resizes on its own.
+#[tokio::test]
+async fn test_commit_new_state_from_buffer_large_wrong_preallocated_size_fails()
+{
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let new_state = vec![7u8; target_size];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![], new_state).await;
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    // Preallocate to a size other than the actual target.
+    let mut ixs = vec![dlp_api::instruction_builder::preallocate_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        target_size as u32 - 1,
+    )];
+    ixs.push(dlp_api::instruction_builder::commit_state_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        state_buffer_pda,
+        CommitStateFromBufferArgs {
+            nonce: 1,
+            lamports: 1_000_000,
+            allow_undelegation: true,
+        },
+    ));
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::BufferNotPreallocatedToExactSize);
+}
+
+/// Builds a large, mostly-matching (base, changed) pair so their diff is
+/// genuinely small despite the resulting state being large -- unlike diffing
+/// against an empty account, where every byte is "new" and the diff ends up
+/// roughly as big as the target itself.
+fn large_base_and_small_diff_change(target_size: usize) -> (Vec<u8>, Vec<u8>) {
+    let base = vec![1u8; target_size];
+    let mut changed = base.clone();
+    changed[0..50].fill(9);
+    (base, changed)
+}
+
+/// The diff-based sibling of `commit_state_from_buffer`. The concern this
+/// directly guards against: `create_or_verify_preallocated_pda`'s exact-size
+/// check must compare against the *full* post-diff state length
+/// (`DiffSet::changed_len()`), never the diff payload's own byte length --
+/// those two are very different numbers here (a small diff producing a large
+/// resulting state).
+#[tokio::test]
+async fn test_commit_diff_from_buffer_large_with_preallocation() {
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let (base, new_state) = large_base_and_small_diff_change(target_size);
+    let diff = compute_diff(&base, &new_state);
+    assert!(
+        diff.len() < 1_000,
+        "test setup expects a small diff payload despite the large target"
+    );
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(base, diff.to_vec()).await;
+    let diff_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    let mut ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        0,
+        target_size as u32,
+    );
+    ixs.push(dlp_api::instruction_builder::commit_diff_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        diff_buffer_pda,
+        CommitStateFromBufferArgs {
+            nonce: 1,
+            lamports: 1_000_000,
+            allow_undelegation: true,
+        },
+    ));
+
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_state_account =
+        banks.get_account(commit_state_pda).await.unwrap().unwrap();
+    assert_eq!(commit_state_account.data, new_state);
+}
+
+/// Preallocating to the *diff's* length instead of the full post-diff state
+/// length must be rejected -- if this ever passed, it would mean the exact-
+/// size check regressed to comparing against the wrong number.
+#[tokio::test]
+async fn test_commit_diff_from_buffer_preallocated_to_diff_len_fails() {
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let (base, new_state) = large_base_and_small_diff_change(target_size);
+    let diff = compute_diff(&base, &new_state);
+    assert!(
+        diff.len() < MAX_PERMITTED_DATA_INCREASE,
+        "test setup expects a diff payload that fits in one prealloc step"
+    );
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(base, diff.to_vec()).await;
+    let diff_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    // Preallocate to the diff's own length, not the full target -- wrong on
+    // purpose.
+    let mut ixs = vec![dlp_api::instruction_builder::preallocate_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        diff.len() as u32,
+    )];
+    ixs.push(dlp_api::instruction_builder::commit_diff_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        diff_buffer_pda,
+        CommitStateFromBufferArgs {
+            nonce: 1,
+            lamports: 1_000_000,
+            allow_undelegation: true,
+        },
+    ));
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::BufferNotPreallocatedToExactSize);
+}
+
+fn assert_custom_error(err: BanksClientError, expected: DlpError) {
+    match err {
+        BanksClientError::TransactionError(
+            TransactionError::InstructionError(
+                _,
+                InstructionError::Custom(code),
+            ),
+        ) => {
+            assert_eq!(code, expected as u32, "unexpected error code");
+        }
+        other => panic!("expected custom error {expected:?}, got {other:?}"),
+    }
+}
+
+async fn setup_program_test_env(
+    delegated_pda_data: Vec<u8>,
+    state_buffer_data: Vec<u8>,
+) -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
@@ -130,7 +404,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         DELEGATED_PDA_ID,
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![],
+            data: delegated_pda_data,
             owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
@@ -188,7 +462,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         .0,
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: NEW_STATE.to_vec(),
+            data: state_buffer_data,
             owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,

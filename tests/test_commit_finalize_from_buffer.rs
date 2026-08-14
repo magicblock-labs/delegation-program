@@ -1,6 +1,6 @@
 use dlp::solana_program;
 use dlp_api::{
-    args::CommitFinalizeArgs,
+    args::{CommitFinalizeArgs, PreallocateBufferKind},
     pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account,
@@ -8,15 +8,20 @@ use dlp_api::{
     },
     state::DelegationMetadata,
 };
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
+use solana_program::{
+    account_info::MAX_PERMITTED_DATA_INCREASE, hash::Hash,
+    native_token::LAMPORTS_PER_SOL, rent::Rent,
+};
 use solana_program_test::{
-    BanksClient, BanksTransactionResultWithMetadata, ProgramTest,
+    BanksClient, BanksClientError, BanksTransactionResultWithMetadata,
+    ProgramTest,
 };
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     pubkey::Pubkey,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use solana_sdk_ids::system_program;
 
@@ -159,6 +164,176 @@ async fn test_commit_finalize_from_buffer_out_of_order() {
     assert_eq!(
         result.unwrap_err().to_string(),
         "Error processing Instruction 0: custom program error: 0xc"
+    );
+}
+
+/// CommitFinalize writes the new state straight into the delegated account
+/// (no intermediate `commit_state` PDA), so a target past
+/// `MAX_PERMITTED_DATA_INCREASE` needs the delegated account itself grown
+/// beforehand via `PreallocateBufferKind::DelegatedAccount`.
+#[tokio::test]
+async fn test_commit_finalize_from_buffer_large_with_preallocation() {
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let new_state = vec![7u8; target_size];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![], new_state.clone()).await;
+
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    let mut ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::DelegatedAccount,
+        0,
+        target_size as u32,
+    );
+    let (ix, _pdas) = dlp_api::instruction_builder::commit_finalize_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        state_buffer_pda,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: true.into(),
+            data_is_diff: false.into(),
+            lamports: 1_000_000,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+    );
+    ixs.push(ix);
+
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert_eq!(delegated_account.data, new_state);
+}
+
+#[tokio::test]
+async fn test_commit_finalize_from_buffer_large_without_preallocation_fails() {
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let new_state = vec![7u8; target_size];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![], new_state).await;
+
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    let (ix, _pdas) = dlp_api::instruction_builder::commit_finalize_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        state_buffer_pda,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: true.into(),
+            data_is_diff: false.into(),
+            lamports: 1_000_000,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    // The un-preallocated delegated account starts at 0 bytes; CommitFinalize
+    // writes directly into it, so its own `resize()` to the full 15_000-byte
+    // target exceeds MAX_PERMITTED_DATA_INCREASE in a single instruction.
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidRealloc,
+                )
+            )
+        ),
+        "expected InvalidRealloc, got {err:?}"
+    );
+}
+
+/// Distinct from the "no preallocation at all" case above: here the
+/// delegated account *was* preallocated, just not far enough -- the gap left
+/// to the actual target still exceeds `MAX_PERMITTED_DATA_INCREASE`.
+/// CommitFinalize (unlike `commit_state_from_buffer`) has no "must be
+/// preallocated to the exact size" check of its own -- it just resizes
+/// directly -- so this is exercising the same native realloc cap, not a
+/// dedicated dlp error.
+#[tokio::test]
+async fn test_commit_finalize_from_buffer_large_wrong_preallocated_size_fails()
+{
+    let target_size = 25_000usize;
+    let new_state = vec![7u8; target_size];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(vec![], new_state).await;
+
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    // Only send the first growth step (10_240 bytes) toward the 25_000
+    // target, leaving a 14_760-byte gap -- still short of the target by more
+    // than one instruction can bridge.
+    let all_steps = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::DelegatedAccount,
+        0,
+        target_size as u32,
+    );
+    assert!(
+        all_steps.len() > 1,
+        "test setup expects the full growth to require multiple steps"
+    );
+    let mut ixs = vec![all_steps[0].clone()];
+
+    let (ix, _pdas) = dlp_api::instruction_builder::commit_finalize_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        state_buffer_pda,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: true.into(),
+            data_is_diff: false.into(),
+            lamports: 1_000_000,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+    );
+    ixs.push(ix);
+
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidRealloc,
+                )
+            )
+        ),
+        "expected InvalidRealloc, got {err:?}"
     );
 }
 

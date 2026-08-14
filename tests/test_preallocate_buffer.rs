@@ -1,6 +1,6 @@
 use dlp::solana_program;
 use dlp_api::{
-    args::{CommitStateFromBufferArgs, PreallocateBufferKind},
+    args::PreallocateBufferKind,
     error::DlpError,
     pda::{
         commit_record_pda_from_delegated_account,
@@ -36,10 +36,12 @@ mod fixtures;
 
 fn assert_custom_error(err: BanksClientError, expected: DlpError) {
     match err {
-        BanksClientError::TransactionError(TransactionError::InstructionError(
-            _,
-            InstructionError::Custom(code),
-        )) => {
+        BanksClientError::TransactionError(
+            TransactionError::InstructionError(
+                _,
+                InstructionError::Custom(code),
+            ),
+        ) => {
             assert_eq!(code, expected as u32, "unexpected error code");
         }
         other => panic!("expected custom error {expected:?}, got {other:?}"),
@@ -242,15 +244,21 @@ async fn test_preallocate_commit_state_rejects_when_commit_in_flight() {
 }
 
 #[tokio::test]
-async fn test_preallocate_undelegate_buffer_rejects_when_commit_in_flight() {
+async fn test_preallocate_undelegate_buffer_ignores_commit_in_flight() {
+    // Unlike CommitState, UndelegateBuffer isn't gated on "no commit in
+    // flight": in a two-stage commit-and-undelegate, the undelegate buffer
+    // is prepared alongside finalize -- i.e. precisely while the prior
+    // stage's commit record is still initialized -- so it must not be
+    // blocked by it, same reasoning as DelegatedAccount.
     let (banks, _, validator, blockhash) =
         setup_program_test_env(true, None).await;
 
+    let target_size: u32 = 500;
     let ix = dlp_api::instruction_builder::preallocate_buffer(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         PreallocateBufferKind::UndelegateBuffer,
-        500,
+        target_size,
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -258,8 +266,17 @@ async fn test_preallocate_undelegate_buffer_rejects_when_commit_in_flight() {
         &[&validator],
         blockhash,
     );
-    let err = banks.process_transaction(tx).await.unwrap_err();
-    assert_custom_error(err, DlpError::PreallocateBufferCommitInFlight);
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let undelegate_buffer_pda =
+        undelegate_buffer_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let undelegate_buffer_account = banks
+        .get_account(undelegate_buffer_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(undelegate_buffer_account.data.len(), target_size as usize);
 }
 
 #[tokio::test]
@@ -307,154 +324,6 @@ async fn test_preallocate_rejects_unregistered_validator() {
     );
     let res = banks.process_transaction(tx).await;
     assert!(res.is_err(), "expected failure for unregistered validator");
-}
-
-/// End-to-end: a commit larger than `MAX_PERMITTED_DATA_INCREASE` is
-/// preallocated across multiple `PreallocateBuffer` instructions packed into
-/// the same transaction as `commit_state_from_buffer`, which then succeeds
-/// because the buffer is already at the exact target size.
-#[tokio::test]
-async fn test_preallocate_then_commit_state_from_buffer_large_succeeds() {
-    let (banks, _, validator, blockhash) =
-        setup_program_test_env(false, None).await;
-
-    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
-    let new_state = vec![7u8; target_size as usize];
-
-    let state_buffer_pda =
-        Pubkey::find_program_address(&[b"state_buffer"], &validator.pubkey())
-            .0;
-
-    let mut ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
-        validator.pubkey(),
-        DELEGATED_PDA_ID,
-        PreallocateBufferKind::CommitState,
-        0,
-        target_size,
-    );
-    ixs.push(dlp_api::instruction_builder::commit_state_from_buffer(
-        validator.pubkey(),
-        DELEGATED_PDA_ID,
-        DELEGATED_PDA_OWNER_ID,
-        state_buffer_pda,
-        CommitStateFromBufferArgs {
-            nonce: 1,
-            lamports: Rent::default().minimum_balance(500),
-            allow_undelegation: true,
-        },
-    ));
-
-    let tx = Transaction::new_signed_with_payer(
-        &ixs,
-        Some(&validator.pubkey()),
-        &[&validator],
-        blockhash,
-    );
-
-    // The buffer holding the new state must itself exist on-chain (its
-    // content is read directly by `commit_state_from_buffer`, no size limit
-    // applies to it since it's not created within this transaction).
-    let banks = seed_state_buffer(banks, state_buffer_pda, new_state.clone())
-        .await;
-
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_ok(), "{:?}", res);
-
-    let commit_state_pda =
-        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
-    let commit_state_account =
-        banks.get_account(commit_state_pda).await.unwrap().unwrap();
-    assert_eq!(commit_state_account.data, new_state);
-}
-
-#[tokio::test]
-async fn test_commit_state_from_buffer_large_without_preallocation_fails() {
-    let (banks, _, validator, blockhash) =
-        setup_program_test_env(false, None).await;
-
-    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760;
-    let new_state = vec![7u8; target_size as usize];
-    let state_buffer_pda =
-        Pubkey::find_program_address(&[b"state_buffer"], &validator.pubkey())
-            .0;
-    let banks = seed_state_buffer(banks, state_buffer_pda, new_state).await;
-
-    let ix = dlp_api::instruction_builder::commit_state_from_buffer(
-        validator.pubkey(),
-        DELEGATED_PDA_ID,
-        DELEGATED_PDA_OWNER_ID,
-        state_buffer_pda,
-        CommitStateFromBufferArgs {
-            nonce: 1,
-            lamports: Rent::default().minimum_balance(500),
-            allow_undelegation: true,
-        },
-    );
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&validator.pubkey()),
-        &[&validator],
-        blockhash,
-    );
-    let res = banks.process_transaction(tx).await;
-    assert!(
-        res.is_err(),
-        "large commit without any preallocation must fail"
-    );
-}
-
-#[tokio::test]
-async fn test_commit_state_from_buffer_large_wrong_preallocated_size_fails() {
-    let (banks, _, validator, blockhash) =
-        setup_program_test_env(false, None).await;
-
-    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
-    let new_state = vec![7u8; target_size as usize];
-    let state_buffer_pda =
-        Pubkey::find_program_address(&[b"state_buffer"], &validator.pubkey())
-            .0;
-    let banks = seed_state_buffer(banks, state_buffer_pda, new_state).await;
-
-    // Only preallocate one chunk (10_240), short of the 15_000 target.
-    let mut ixs = vec![dlp_api::instruction_builder::preallocate_buffer(
-        validator.pubkey(),
-        DELEGATED_PDA_ID,
-        PreallocateBufferKind::CommitState,
-        target_size,
-    )];
-    ixs.push(dlp_api::instruction_builder::commit_state_from_buffer(
-        validator.pubkey(),
-        DELEGATED_PDA_ID,
-        DELEGATED_PDA_OWNER_ID,
-        state_buffer_pda,
-        CommitStateFromBufferArgs {
-            nonce: 1,
-            lamports: Rent::default().minimum_balance(500),
-            allow_undelegation: true,
-        },
-    ));
-    let tx = Transaction::new_signed_with_payer(
-        &ixs,
-        Some(&validator.pubkey()),
-        &[&validator],
-        blockhash,
-    );
-    let err = banks.process_transaction(tx).await.unwrap_err();
-    assert_custom_error(err, DlpError::BufferNotPreallocatedToExactSize);
-}
-
-/// Adds the state-buffer account holding the not-yet-committed data. Since
-/// `ProgramTest` only accepts new accounts before `.start()`, tests that
-/// need this alongside the standard fixture rebuild the environment with it
-/// included rather than mutating a running `BanksClient`.
-async fn seed_state_buffer(
-    _banks: BanksClient,
-    _state_buffer_pda: Pubkey,
-    _data: Vec<u8>,
-) -> BanksClient {
-    unreachable!(
-        "placeholder replaced by setup_program_test_env_with_state_buffer"
-    )
 }
 
 #[allow(clippy::too_many_arguments)]
