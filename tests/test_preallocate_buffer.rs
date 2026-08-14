@@ -326,7 +326,6 @@ async fn test_preallocate_rejects_unregistered_validator() {
     assert!(res.is_err(), "expected failure for unregistered validator");
 }
 
-#[allow(clippy::too_many_arguments)]
 async fn setup_program_test_env(
     with_in_flight_commit: bool,
     extra_registered_validator: Option<Pubkey>,

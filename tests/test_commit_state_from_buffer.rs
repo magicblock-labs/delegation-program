@@ -222,13 +222,14 @@ async fn test_commit_new_state_from_buffer_large_wrong_preallocated_size_fails()
     let state_buffer_pda =
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
 
-    // Preallocate to a size other than the actual target.
-    let mut ixs = vec![dlp_api::instruction_builder::preallocate_buffer(
+    // Preallocate to a size other than the actual target
+    let mut ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         PreallocateBufferKind::CommitState,
+        0,
         target_size as u32 - 1,
-    )];
+    );
     ixs.push(dlp_api::instruction_builder::commit_state_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
