@@ -14,7 +14,7 @@ use pinocchio::{
 
 use crate::{
     processor::fast::utils::pda::create_pda,
-    requires::{require_uninitialized_pda, ProgramCtx},
+    requires::{require_uninitialized_pda, StandardCtx},
     solana_program::pubkey::Pubkey,
 };
 use wheels::{
@@ -52,14 +52,14 @@ pub fn process_init_protocol_config(
         &[PROTOCOL_CONFIG_SEED],
         &crate::fast::ID,
         true,
-        ProgramCtx::new("protocol config"),
+        StandardCtx::new("protocol config"),
     )?;
     let verifier_registry_bump = require_uninitialized_pda(
         verifier_registry,
         &[VERIFIER_REGISTRY_SEED],
         &crate::fast::ID,
         true,
-        ProgramCtx::new("verifier registry"),
+        StandardCtx::new("verifier registry"),
     )?;
 
     create_pda(
