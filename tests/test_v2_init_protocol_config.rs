@@ -17,12 +17,14 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk_ids::system_program;
+use wheels::layout::{Decodable, Encodable};
 
 mod fixtures;
 
 #[test]
 fn test_v2_verifier_registry_layout_round_trip() {
     let registry = VerifierRegistry {
+        discriminator: VerifierRegistry::DISCRIMINATOR,
         registry_revision: 7,
         entries: vec![
             VerifierRegistryEntry {
@@ -37,16 +39,28 @@ fn test_v2_verifier_registry_layout_round_trip() {
             },
         ],
     };
-    let mut data = vec![0; registry.size_with_discriminator()];
+    let mut data = vec![0; registry.encoded_len().unwrap()];
 
-    registry
-        .to_bytes_with_discriminator(data.as_mut_slice())
-        .unwrap();
+    registry.encode_to(data.as_mut_slice()).unwrap();
     let decoded =
-        VerifierRegistry::try_from_bytes_with_discriminator(data.as_slice())
-            .unwrap();
+        <VerifierRegistry as Decodable>::decode(data.as_slice()).unwrap();
 
-    assert_eq!(decoded, registry);
+    assert_eq!(decoded.discriminator(), VerifierRegistry::DISCRIMINATOR);
+    assert_eq!(decoded.registry_revision(), registry.registry_revision);
+    assert_eq!(decoded.entries().len(), registry.entries.len());
+    for (decoded_entry, registry_entry) in
+        decoded.entries().iter().zip(registry.entries.iter())
+    {
+        assert_eq!(
+            *decoded_entry.verifier_identity(),
+            registry_entry.verifier_identity
+        );
+        assert_eq!(
+            *decoded_entry.verifier_bond(),
+            registry_entry.verifier_bond
+        );
+        assert_eq!(decoded_entry.weight(), registry_entry.weight);
+    }
 }
 
 #[tokio::test]
@@ -70,63 +84,72 @@ async fn test_v2_init_protocol_config() {
         .await
         .unwrap()
         .unwrap();
-    let protocol_config = ProtocolConfig::try_from_bytes_with_discriminator(
-        &protocol_config_account.data,
-    )
-    .unwrap();
+    let protocol_config =
+        <ProtocolConfig as Decodable>::decode(&protocol_config_account.data)
+            .unwrap();
 
-    assert_eq!(protocol_config.authority, authority.pubkey());
-    assert!(!protocol_config.paused);
-    assert_eq!(protocol_config.vrf_program, args.vrf_program);
-    assert_eq!(protocol_config.vrf_config, args.vrf_config);
-    assert_eq!(protocol_config.resolver, args.resolver);
-    assert_eq!(protocol_config.protocol_fee_vault, fees_vault_pda());
-    assert_eq!(protocol_config.min_operator_bond, args.min_operator_bond);
-    assert_eq!(protocol_config.min_verifier_bond, args.min_verifier_bond);
     assert_eq!(
-        protocol_config.min_challenger_stake,
+        protocol_config.discriminator(),
+        ProtocolConfig::DISCRIMINATOR
+    );
+    assert_eq!(*protocol_config.authority(), authority.pubkey());
+    assert!(!protocol_config.paused());
+    assert_eq!(*protocol_config.vrf_program(), args.vrf_program);
+    assert_eq!(*protocol_config.vrf_config(), args.vrf_config);
+    assert_eq!(*protocol_config.resolver(), args.resolver);
+    assert_eq!(*protocol_config.protocol_fee_vault(), fees_vault_pda());
+    assert_eq!(protocol_config.min_operator_bond(), args.min_operator_bond);
+    assert_eq!(protocol_config.min_verifier_bond(), args.min_verifier_bond);
+    assert_eq!(
+        protocol_config.min_challenger_stake(),
         args.min_challenger_stake
     );
     assert_eq!(
-        protocol_config.challenge_window_slots,
+        protocol_config.challenge_window_slots(),
         args.challenge_window_slots
     );
     assert_eq!(
-        protocol_config.operator_response_timeout_slots,
+        protocol_config.operator_response_timeout_slots(),
         args.operator_response_timeout_slots
     );
     assert_eq!(
-        protocol_config.challenger_reveal_timeout_slots,
+        protocol_config.challenger_reveal_timeout_slots(),
         args.challenger_reveal_timeout_slots
     );
     assert_eq!(
-        protocol_config.payout_timelock_slots,
+        protocol_config.payout_timelock_slots(),
         args.payout_timelock_slots
     );
     assert_eq!(
-        protocol_config.selected_verifier_count,
+        protocol_config.selected_verifier_count(),
         args.selected_verifier_count
     );
-    assert_eq!(protocol_config.approval_threshold, args.approval_threshold);
     assert_eq!(
-        protocol_config.max_window_extensions,
+        protocol_config.approval_threshold(),
+        args.approval_threshold
+    );
+    assert_eq!(
+        protocol_config.max_window_extensions(),
         args.max_window_extensions
     );
-    assert_eq!(protocol_config.match_penalty_bps, args.match_penalty_bps);
+    assert_eq!(protocol_config.match_penalty_bps(), args.match_penalty_bps);
 
     let verifier_registry_account = banks
         .get_account(verifier_registry_pda())
         .await
         .unwrap()
         .unwrap();
-    let verifier_registry =
-        VerifierRegistry::try_from_bytes_with_discriminator(
-            &verifier_registry_account.data,
-        )
-        .unwrap();
+    let verifier_registry = <VerifierRegistry as Decodable>::decode(
+        &verifier_registry_account.data,
+    )
+    .unwrap();
 
-    assert_eq!(verifier_registry.registry_revision, 0);
-    assert!(verifier_registry.entries.is_empty());
+    assert_eq!(
+        verifier_registry.discriminator(),
+        VerifierRegistry::DISCRIMINATOR
+    );
+    assert_eq!(verifier_registry.registry_revision(), 0);
+    assert!(verifier_registry.entries().is_empty());
 }
 
 #[tokio::test]

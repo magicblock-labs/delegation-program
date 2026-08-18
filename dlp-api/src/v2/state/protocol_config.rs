@@ -1,13 +1,11 @@
-use wheels::{
-    fixed_offset_layout,
-    layout::{Decodable, Encodable},
-};
+use wheels::fixed_offset_layout;
 
-use crate::{compat::Pubkey, solana_program::program_error::ProgramError};
+use crate::compat::Pubkey;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[fixed_offset_layout(buffer_offset = 0)]
 pub struct ProtocolConfig {
+    pub discriminator: [u8; 8],
     pub authority: Pubkey,
     pub paused: bool,
 
@@ -33,51 +31,5 @@ pub struct ProtocolConfig {
 
 impl ProtocolConfig {
     pub const DISCRIMINATOR: [u8; 8] = *b"v2cfg000";
-    pub const SPACE: usize = 8 + Self::DATA_LEN;
-
-    pub fn to_bytes_with_discriminator(
-        &self,
-        data: &mut [u8],
-    ) -> Result<(), ProgramError> {
-        let payload = super::utils::payload_with_discriminator_mut(
-            &Self::DISCRIMINATOR,
-            data,
-        )?;
-        self.encode_to(payload)
-            .map_err(super::utils::layout_error_to_program_error)?;
-        Ok(())
-    }
-
-    pub fn try_from_bytes_with_discriminator(
-        data: &[u8],
-    ) -> Result<Self, ProgramError> {
-        let payload = super::utils::payload_with_discriminator(
-            &Self::DISCRIMINATOR,
-            data,
-        )?;
-        let view = <Self as Decodable>::decode(payload)
-            .map_err(super::utils::layout_error_to_program_error)?;
-
-        Ok(Self {
-            authority: *view.authority(),
-            paused: view.paused(),
-            vrf_program: *view.vrf_program(),
-            vrf_config: *view.vrf_config(),
-            resolver: *view.resolver(),
-            protocol_fee_vault: *view.protocol_fee_vault(),
-            min_operator_bond: view.min_operator_bond(),
-            min_verifier_bond: view.min_verifier_bond(),
-            min_challenger_stake: view.min_challenger_stake(),
-            challenge_window_slots: view.challenge_window_slots(),
-            operator_response_timeout_slots: view
-                .operator_response_timeout_slots(),
-            challenger_reveal_timeout_slots: view
-                .challenger_reveal_timeout_slots(),
-            payout_timelock_slots: view.payout_timelock_slots(),
-            selected_verifier_count: view.selected_verifier_count(),
-            approval_threshold: view.approval_threshold(),
-            max_window_extensions: view.max_window_extensions(),
-            match_penalty_bps: view.match_penalty_bps(),
-        })
-    }
+    pub const SPACE: usize = Self::DATA_LEN;
 }

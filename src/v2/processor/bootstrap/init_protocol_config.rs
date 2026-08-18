@@ -2,8 +2,10 @@ use dlp_api::{
     pda::fees_vault_pda,
     requires::RequireUninitializedAccountCtx,
     v2::{
+        layout_error_to_program_error,
         pda::{PROTOCOL_CONFIG_SEED, VERIFIER_REGISTRY_SEED},
-        InitProtocolConfigArgs, ProtocolConfig, VerifierRegistry,
+        InitProtocolConfigArgs, InitProtocolConfigArgsView, ProtocolConfig,
+        VerifierRegistry,
     },
 };
 use pinocchio::{
@@ -17,6 +19,7 @@ use crate::{
     requires::{require_program, require_signer, require_uninitialized_pda},
     solana_program::pubkey::Pubkey,
 };
+use wheels::layout::{Decodable, Encodable};
 
 struct ProtocolConfigCtx;
 
@@ -77,7 +80,8 @@ pub fn process_init_protocol_config(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    let args = InitProtocolConfigArgs::try_from_bytes(data)
+    let args = <InitProtocolConfigArgs as Decodable>::decode(data)
+        .map_err(layout_error_to_program_error)
         .map_err(to_pinocchio_program_error)?;
     validate_args(&args)?;
 
@@ -120,7 +124,10 @@ pub fn process_init_protocol_config(
     create_pda(
         verifier_registry,
         &crate::fast::ID,
-        verifier_registry_state.size_with_discriminator(),
+        verifier_registry_state
+            .encoded_len()
+            .map_err(layout_error_to_program_error)
+            .map_err(to_pinocchio_program_error)?,
         &[Signer::from(&[
             Seed::from(VERIFIER_REGISTRY_SEED),
             Seed::from(&[verifier_registry_bump]),
@@ -129,53 +136,56 @@ pub fn process_init_protocol_config(
     )?;
 
     let protocol_config_state = ProtocolConfig {
+        discriminator: ProtocolConfig::DISCRIMINATOR,
         authority: authority.address().to_bytes().into(),
         paused: false,
-        vrf_program: args.vrf_program,
-        vrf_config: args.vrf_config,
-        resolver: args.resolver,
+        vrf_program: *args.vrf_program(),
+        vrf_config: *args.vrf_config(),
+        resolver: *args.resolver(),
         protocol_fee_vault: fees_vault_pda(),
-        min_operator_bond: args.min_operator_bond,
-        min_verifier_bond: args.min_verifier_bond,
-        min_challenger_stake: args.min_challenger_stake,
-        challenge_window_slots: args.challenge_window_slots,
-        operator_response_timeout_slots: args.operator_response_timeout_slots,
-        challenger_reveal_timeout_slots: args.challenger_reveal_timeout_slots,
-        payout_timelock_slots: args.payout_timelock_slots,
-        selected_verifier_count: args.selected_verifier_count,
-        approval_threshold: args.approval_threshold,
-        max_window_extensions: args.max_window_extensions,
-        match_penalty_bps: args.match_penalty_bps,
+        min_operator_bond: args.min_operator_bond(),
+        min_verifier_bond: args.min_verifier_bond(),
+        min_challenger_stake: args.min_challenger_stake(),
+        challenge_window_slots: args.challenge_window_slots(),
+        operator_response_timeout_slots: args.operator_response_timeout_slots(),
+        challenger_reveal_timeout_slots: args.challenger_reveal_timeout_slots(),
+        payout_timelock_slots: args.payout_timelock_slots(),
+        selected_verifier_count: args.selected_verifier_count(),
+        approval_threshold: args.approval_threshold(),
+        max_window_extensions: args.max_window_extensions(),
+        match_penalty_bps: args.match_penalty_bps(),
     };
 
     let mut protocol_config_data = protocol_config.try_borrow_mut()?;
     protocol_config_state
-        .to_bytes_with_discriminator(protocol_config_data.as_mut())
+        .encode_to(protocol_config_data.as_mut())
+        .map_err(layout_error_to_program_error)
         .map_err(to_pinocchio_program_error)?;
 
     let mut verifier_registry_data = verifier_registry.try_borrow_mut()?;
     verifier_registry_state
-        .to_bytes_with_discriminator(verifier_registry_data.as_mut())
+        .encode_to(verifier_registry_data.as_mut())
+        .map_err(layout_error_to_program_error)
         .map_err(to_pinocchio_program_error)?;
 
     Ok(())
 }
 
-fn validate_args(args: &InitProtocolConfigArgs) -> ProgramResult {
-    if args.vrf_program == Pubkey::default()
-        || args.vrf_config == Pubkey::default()
-        || args.resolver == Pubkey::default()
-        || args.min_operator_bond == 0
-        || args.min_verifier_bond == 0
-        || args.min_challenger_stake == 0
-        || args.challenge_window_slots == 0
-        || args.operator_response_timeout_slots == 0
-        || args.challenger_reveal_timeout_slots == 0
-        || args.payout_timelock_slots == 0
-        || args.selected_verifier_count == 0
-        || args.approval_threshold == 0
-        || args.approval_threshold > args.selected_verifier_count
-        || args.match_penalty_bps > 10_000
+fn validate_args(args: &InitProtocolConfigArgsView<'_>) -> ProgramResult {
+    if args.vrf_program() == &Pubkey::default()
+        || args.vrf_config() == &Pubkey::default()
+        || args.resolver() == &Pubkey::default()
+        || args.min_operator_bond() == 0
+        || args.min_verifier_bond() == 0
+        || args.min_challenger_stake() == 0
+        || args.challenge_window_slots() == 0
+        || args.operator_response_timeout_slots() == 0
+        || args.challenger_reveal_timeout_slots() == 0
+        || args.payout_timelock_slots() == 0
+        || args.selected_verifier_count() == 0
+        || args.approval_threshold() == 0
+        || args.approval_threshold() > args.selected_verifier_count()
+        || args.match_penalty_bps() > 10_000
     {
         return Err(ProgramError::InvalidInstructionData);
     }
