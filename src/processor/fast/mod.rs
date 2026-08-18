@@ -11,7 +11,7 @@ mod request_undelegation;
 mod undelegate;
 mod undelegate_confined_account;
 mod undelegate_with_rollback_after_timeout;
-mod utils;
+pub(crate) mod utils;
 
 pub(crate) mod internal;
 
