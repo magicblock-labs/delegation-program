@@ -488,6 +488,39 @@ pub trait RequireUninitializedAccountCtx {
     fn immutable(&self) -> ProgramError;
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct ProgramCtx {
+    label: &'static str,
+}
+
+impl ProgramCtx {
+    pub const fn new(label: &'static str) -> Self {
+        Self { label }
+    }
+}
+
+impl RequireUninitializedAccountCtx for ProgramCtx {
+    fn label(&self) -> &str {
+        self.label
+    }
+
+    fn invalid_seeds(&self) -> ProgramError {
+        ProgramError::InvalidSeeds
+    }
+
+    fn invalid_account_owner(&self) -> ProgramError {
+        ProgramError::InvalidAccountOwner
+    }
+
+    fn account_already_initialized(&self) -> ProgramError {
+        ProgramError::AccountAlreadyInitialized
+    }
+
+    fn immutable(&self) -> ProgramError {
+        ProgramError::Immutable
+    }
+}
+
 macro_rules! define_uninitialized_ctx {
     (
         $name:ident,

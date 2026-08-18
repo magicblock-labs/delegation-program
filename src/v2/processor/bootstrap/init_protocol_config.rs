@@ -1,6 +1,5 @@
 use dlp_api::{
     pda::fees_vault_pda,
-    requires::RequireUninitializedAccountCtx,
     v2::{
         layout_error_to_program_error,
         pda::{PROTOCOL_CONFIG_SEED, VERIFIER_REGISTRY_SEED},
@@ -16,58 +15,12 @@ use pinocchio::{
 
 use crate::{
     processor::fast::{to_pinocchio_program_error, utils::pda::create_pda},
-    requires::{require_program, require_signer, require_uninitialized_pda},
+    requires::{
+        require_program, require_signer, require_uninitialized_pda, ProgramCtx,
+    },
     solana_program::pubkey::Pubkey,
 };
 use wheels::layout::{Decodable, Encodable};
-
-struct ProtocolConfigCtx;
-
-impl RequireUninitializedAccountCtx for ProtocolConfigCtx {
-    fn label(&self) -> &str {
-        "protocol config"
-    }
-
-    fn invalid_seeds(&self) -> ProgramError {
-        ProgramError::InvalidSeeds
-    }
-
-    fn invalid_account_owner(&self) -> ProgramError {
-        ProgramError::InvalidAccountOwner
-    }
-
-    fn account_already_initialized(&self) -> ProgramError {
-        ProgramError::AccountAlreadyInitialized
-    }
-
-    fn immutable(&self) -> ProgramError {
-        ProgramError::Immutable
-    }
-}
-
-struct VerifierRegistryCtx;
-
-impl RequireUninitializedAccountCtx for VerifierRegistryCtx {
-    fn label(&self) -> &str {
-        "verifier registry"
-    }
-
-    fn invalid_seeds(&self) -> ProgramError {
-        ProgramError::InvalidSeeds
-    }
-
-    fn invalid_account_owner(&self) -> ProgramError {
-        ProgramError::InvalidAccountOwner
-    }
-
-    fn account_already_initialized(&self) -> ProgramError {
-        ProgramError::AccountAlreadyInitialized
-    }
-
-    fn immutable(&self) -> ProgramError {
-        ProgramError::Immutable
-    }
-}
 
 /// Initialize the global v2 protocol config accounts.
 ///
@@ -99,14 +52,14 @@ pub fn process_init_protocol_config(
         &[PROTOCOL_CONFIG_SEED],
         &crate::fast::ID,
         true,
-        ProtocolConfigCtx,
+        ProgramCtx::new("protocol config"),
     )?;
     let verifier_registry_bump = require_uninitialized_pda(
         verifier_registry,
         &[VERIFIER_REGISTRY_SEED],
         &crate::fast::ID,
         true,
-        VerifierRegistryCtx,
+        ProgramCtx::new("verifier registry"),
     )?;
 
     create_pda(
