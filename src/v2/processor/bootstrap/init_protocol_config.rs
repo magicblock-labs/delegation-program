@@ -15,37 +15,40 @@ use pinocchio::{
 
 use crate::{
     processor::fast::{to_pinocchio_program_error, utils::pda::create_pda},
-    requires::{
-        require_program, require_signer, require_uninitialized_pda, ProgramCtx,
-    },
+    requires::{require_uninitialized_pda, ProgramCtx},
     solana_program::pubkey::Pubkey,
 };
-use wheels::layout::{Decodable, Encodable};
+use wheels::{
+    layout::{Decodable, Encodable},
+    require_le, require_n_accounts, require_ne, require_ne_keys,
+    require_signer,
+};
 
-/// Initialize the global v2 protocol config accounts.
+/// Initialize the global protocol config accounts.
 ///
 /// Accounts:
 /// 0: `[signer, writable]` authority that pays rent and controls v2 config
 /// 1: `[writable]`         ProtocolConfig PDA
 /// 2: `[writable]`         VerifierRegistry PDA
-/// 3: `[]`                 system program
+/// 3: `[]`                 system program, required by system CPI
 pub fn process_init_protocol_config(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    let args = <InitProtocolConfigArgs as Decodable>::decode(data)
+    let [
+        authority, // force multi-line
+        protocol_config,
+        verifier_registry,
+        _system_program,
+    ] = require_n_accounts!(accounts, 4);
+
+    let args = InitProtocolConfigArgs::decode(data)
         .map_err(layout_error_to_program_error)
         .map_err(to_pinocchio_program_error)?;
+
     validate_args(&args)?;
 
-    let [authority, protocol_config, verifier_registry, system_program] =
-        accounts
-    else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
-
-    require_signer(authority, "authority")?;
-    require_program(system_program, &pinocchio_system::ID, "system program")?;
+    require_signer!(authority);
 
     let protocol_config_bump = require_uninitialized_pda(
         protocol_config,
@@ -125,23 +128,78 @@ pub fn process_init_protocol_config(
 }
 
 fn validate_args(args: &InitProtocolConfigArgsView<'_>) -> ProgramResult {
-    if args.vrf_program() == &Pubkey::default()
-        || args.vrf_config() == &Pubkey::default()
-        || args.resolver() == &Pubkey::default()
-        || args.min_operator_bond() == 0
-        || args.min_verifier_bond() == 0
-        || args.min_challenger_stake() == 0
-        || args.challenge_window_slots() == 0
-        || args.operator_response_timeout_slots() == 0
-        || args.challenger_reveal_timeout_slots() == 0
-        || args.payout_timelock_slots() == 0
-        || args.selected_verifier_count() == 0
-        || args.approval_threshold() == 0
-        || args.approval_threshold() > args.selected_verifier_count()
-        || args.match_penalty_bps() > 10_000
-    {
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    let default_pubkey = Pubkey::default();
+
+    require_ne_keys!(
+        args.vrf_program(),
+        &default_pubkey,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne_keys!(
+        args.vrf_config(),
+        &default_pubkey,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne_keys!(
+        args.resolver(),
+        &default_pubkey,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.min_operator_bond(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.min_verifier_bond(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.min_challenger_stake(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.challenge_window_slots(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.operator_response_timeout_slots(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.challenger_reveal_timeout_slots(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.payout_timelock_slots(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.selected_verifier_count(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ne!(
+        args.approval_threshold(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_le!(
+        args.approval_threshold(),
+        args.selected_verifier_count(),
+        ProgramError::InvalidInstructionData
+    );
+    require_le!(
+        args.match_penalty_bps(),
+        10_000,
+        ProgramError::InvalidInstructionData
+    );
 
     Ok(())
 }
