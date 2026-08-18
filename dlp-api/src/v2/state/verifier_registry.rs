@@ -21,7 +21,6 @@ pub struct VerifierRegistry {
 
 impl VerifierRegistry {
     pub const DISCRIMINATOR: [u8; 8] = *b"v2vreg00";
-    pub const EMPTY_SPACE: usize = Self::MIN_DATA_LEN;
 }
 
 impl Default for VerifierRegistry {
