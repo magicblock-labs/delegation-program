@@ -1,7 +1,6 @@
 use dlp_api::{
     pda::fees_vault_pda,
     v2::{
-        layout_error_to_program_error,
         pda::{PROTOCOL_CONFIG_SEED, VERIFIER_REGISTRY_SEED},
         InitProtocolConfigArgs, InitProtocolConfigArgsView, ProtocolConfig,
         VerifierRegistry,
@@ -14,7 +13,7 @@ use pinocchio::{
 };
 
 use crate::{
-    processor::fast::{to_pinocchio_program_error, utils::pda::create_pda},
+    processor::fast::utils::pda::create_pda,
     requires::{require_uninitialized_pda, ProgramCtx},
     solana_program::pubkey::Pubkey,
 };
@@ -42,9 +41,7 @@ pub fn process_init_protocol_config(
         _system_program,
     ] = require_n_accounts!(accounts, 4);
 
-    let args = InitProtocolConfigArgs::decode(data)
-        .map_err(layout_error_to_program_error)
-        .map_err(to_pinocchio_program_error)?;
+    let args = InitProtocolConfigArgs::decode(data)?;
 
     validate_args(&args)?;
 
@@ -80,10 +77,7 @@ pub fn process_init_protocol_config(
     create_pda(
         verifier_registry,
         &crate::fast::ID,
-        verifier_registry_state
-            .encoded_len()
-            .map_err(layout_error_to_program_error)
-            .map_err(to_pinocchio_program_error)?,
+        verifier_registry_state.encoded_len()?,
         &[Signer::from(&[
             Seed::from(VERIFIER_REGISTRY_SEED),
             Seed::from(&[verifier_registry_bump]),
@@ -113,16 +107,10 @@ pub fn process_init_protocol_config(
     };
 
     let mut protocol_config_data = protocol_config.try_borrow_mut()?;
-    protocol_config_state
-        .encode_to(protocol_config_data.as_mut())
-        .map_err(layout_error_to_program_error)
-        .map_err(to_pinocchio_program_error)?;
+    protocol_config_state.encode_to(protocol_config_data.as_mut())?;
 
     let mut verifier_registry_data = verifier_registry.try_borrow_mut()?;
-    verifier_registry_state
-        .encode_to(verifier_registry_data.as_mut())
-        .map_err(layout_error_to_program_error)
-        .map_err(to_pinocchio_program_error)?;
+    verifier_registry_state.encode_to(verifier_registry_data.as_mut())?;
 
     Ok(())
 }
