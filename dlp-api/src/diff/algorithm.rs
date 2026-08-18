@@ -7,7 +7,9 @@ use super::{
     DiffSet, OffsetInData, SizeChanged, SIZE_OF_CHANGED_LEN,
     SIZE_OF_NUM_OFFSET_PAIRS, SIZE_OF_SINGLE_OFFSET_PAIR,
 };
-use crate::{error::DlpError, require_eq, require_le};
+use wheels::{require_eq, require_le};
+
+use crate::error::DlpError;
 
 ///
 /// Compute diff between original and changed.
