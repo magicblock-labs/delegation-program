@@ -65,7 +65,7 @@ pub fn process_init_protocol_config(
     create_pda(
         protocol_config,
         &crate::fast::ID,
-        ProtocolConfig::SPACE,
+        ProtocolConfig::DATA_LEN,
         &[Signer::from(&[
             Seed::from(PROTOCOL_CONFIG_SEED),
             Seed::from(&[protocol_config_bump]),
@@ -73,11 +73,10 @@ pub fn process_init_protocol_config(
         authority,
     )?;
 
-    let verifier_registry_state = VerifierRegistry::default();
     create_pda(
         verifier_registry,
         &crate::fast::ID,
-        verifier_registry_state.encoded_len()?,
+        VerifierRegistry::MIN_DATA_LEN,
         &[Signer::from(&[
             Seed::from(VERIFIER_REGISTRY_SEED),
             Seed::from(&[verifier_registry_bump]),
@@ -85,7 +84,7 @@ pub fn process_init_protocol_config(
         authority,
     )?;
 
-    let protocol_config_state = ProtocolConfig {
+    ProtocolConfig {
         discriminator: ProtocolConfig::DISCRIMINATOR,
         authority: authority.address().to_bytes().into(),
         paused: false,
@@ -104,13 +103,11 @@ pub fn process_init_protocol_config(
         approval_threshold: args.approval_threshold(),
         max_window_extensions: args.max_window_extensions(),
         match_penalty_bps: args.match_penalty_bps(),
-    };
+    }
+    .encode_to(protocol_config.try_borrow_mut()?.as_mut())?;
 
-    let mut protocol_config_data = protocol_config.try_borrow_mut()?;
-    protocol_config_state.encode_to(protocol_config_data.as_mut())?;
-
-    let mut verifier_registry_data = verifier_registry.try_borrow_mut()?;
-    verifier_registry_state.encode_to(verifier_registry_data.as_mut())?;
+    VerifierRegistry::default()
+        .encode_to(verifier_registry.try_borrow_mut()?.as_mut())?;
 
     Ok(())
 }

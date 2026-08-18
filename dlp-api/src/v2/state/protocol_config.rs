@@ -31,5 +31,4 @@ pub struct ProtocolConfig {
 
 impl ProtocolConfig {
     pub const DISCRIMINATOR: [u8; 8] = *b"v2cfg000";
-    pub const SPACE: usize = Self::DATA_LEN;
 }
