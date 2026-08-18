@@ -87,8 +87,10 @@ pub fn fast_process_instruction(
 
     let (discriminator_bytes, data) = data.split_at(8);
 
-    if dlp_api::v2::DlpV2Instruction::try_from(discriminator_bytes[0]).is_ok() {
-        return None;
+    if let Ok(ix) =
+        dlp_api::v2::DlpV2Instruction::try_from(discriminator_bytes[0])
+    {
+        return Some(v2::process_instruction(accounts, data, ix));
     }
 
     let discriminator = match DlpDiscriminator::try_from(discriminator_bytes[0])
@@ -105,6 +107,17 @@ pub fn fast_process_instruction(
     #[cfg(feature = "logging")]
     msg!("Processing instruction: {:?}", discriminator);
 
+    process_v1_fast_instruction(discriminator, program_id, accounts, data)
+}
+
+#[cfg(feature = "processor")]
+#[inline(never)]
+fn process_v1_fast_instruction(
+    discriminator: DlpDiscriminator,
+    program_id: &pinocchio::Address,
+    accounts: &[pinocchio::AccountView],
+    data: &[u8],
+) -> Option<pinocchio::ProgramResult> {
     match discriminator {
         DlpDiscriminator::Delegate => Some(processor::fast::process_delegate(
             program_id, accounts, data,
@@ -182,8 +195,8 @@ pub fn slow_process_instruction(
 
     let (tag, data) = data.split_at(8);
 
-    if let Ok(ix) = dlp_api::v2::DlpV2Instruction::try_from(tag[0]) {
-        return v2::process_instruction(program_id, accounts, data, ix);
+    if dlp_api::v2::DlpV2Instruction::try_from(tag[0]).is_ok() {
+        return Err(ProgramError::InvalidInstructionData);
     }
 
     let ix = DlpDiscriminator::try_from(tag[0])
