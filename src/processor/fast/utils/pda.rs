@@ -172,12 +172,15 @@ pub(crate) fn close_pda_with_fees(
     target_account.resize(0)
 }
 
+/// Resizes `pda` to `new_size`, topping it up with rent from `payer` if
+/// needed. Returns the amount of lamports actually transferred (0 if the
+/// account was already rent-exempt for `new_size`).
 pub(crate) fn resize_pda(
     payer: &AccountView,
     pda: &AccountView,
     _system_program: &AccountView,
     new_size: usize,
-) -> ProgramResult {
+) -> Result<u64, ProgramError> {
     let rent = Rent::get()?;
     let rent_exempt_balance = rent
         .try_minimum_balance(new_size)?
@@ -190,5 +193,6 @@ pub(crate) fn resize_pda(
         }
         .invoke()?;
     }
-    pda.resize(new_size)
+    pda.resize(new_size)?;
+    Ok(rent_exempt_balance)
 }

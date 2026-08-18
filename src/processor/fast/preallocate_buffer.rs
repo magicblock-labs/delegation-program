@@ -36,7 +36,8 @@ use crate::{
 ///
 /// 0: `[signer, writable]` the payer funding rent for the growth
 /// 1: `[]`                 the delegated account
-/// 2: `[]`                 the delegation record account
+/// 2: `[writable]`         the delegation record account (only actually
+///                         written for `kind = DelegatedAccount`, see below)
 /// 3: `[writable]`         the buffer PDA to grow (unused for `DelegatedAccount`)
 /// 4: `[]`                 the commit record account
 /// 5: `[]`                 the validator fees vault
@@ -59,6 +60,11 @@ use crate::{
 ///   `UndelegateBuffer` alongside finalize in a two-stage commit-and-undelegate,
 ///   ahead of `undelegate`'s own check (which requires the commit record to be
 ///   uninitialized by the time *it* runs, not by the time it's preallocated).
+/// - for `kind = DelegatedAccount`, rent transferred to fund the growth is
+///   also added to `delegation_record.lamports`, keeping the ledger in sync
+///   with the account's actual balance -- otherwise finalize/commit_finalize's
+///   settlement (which diffs against `delegation_record.lamports`) would fund
+///   the same growth a second time.
 pub fn process_preallocate_buffer(
     _program_id: &Address,
     accounts: &[AccountView],
@@ -70,12 +76,25 @@ pub fn process_preallocate_buffer(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
+    require_initialized_delegation_record(
+        delegated_account,
+        delegation_record_account,
+        true,
+    )?;
+    let mut delegation_record_data =
+        delegation_record_account.try_borrow_mut()?;
+    let delegation_record =
+        DelegationRecord::try_from_bytes_with_discriminator_mut(
+            &mut delegation_record_data,
+        )
+        .map_err(to_pinocchio_program_error)?;
+
     // Validate common requirements
     validate_common(
         validator,
         delegated_account,
-        delegation_record_account,
         validator_fees_vault,
+        &delegation_record,
     )?;
 
     let args = PreallocateBufferArgs::try_from_slice(data)
@@ -126,12 +145,22 @@ pub fn process_preallocate_buffer(
                 system_program,
             )
         }
-        PreallocateBufferKind::DelegatedAccount => resize_towards(
-            delegated_account,
-            target_size,
-            validator,
-            system_program,
-        ),
+        PreallocateBufferKind::DelegatedAccount => {
+            let transferred = resize_towards(
+                delegated_account,
+                target_size,
+                validator,
+                system_program,
+            )?;
+            // The delegated account's balance persists across cycles and is
+            // tracked by `delegation_record.lamports`; finalize/commit_finalize
+            // settlement later diffs the ER's reported balance against that
+            // value, so it must reflect rent this instruction already funded --
+            // otherwise settlement re-funds the same growth again.
+            delegation_record.lamports =
+                delegation_record.lamports.saturating_add(transferred);
+            Ok(())
+        }
     }
 }
 
@@ -141,8 +170,8 @@ pub fn process_preallocate_buffer(
 fn validate_common(
     validator: &AccountView,
     delegated_account: &AccountView,
-    delegation_record_account: &AccountView,
     validator_fees_vault: &AccountView,
+    delegation_record: &DelegationRecord,
 ) -> ProgramResult {
     // Ensure validator is signer and is whitelisted
     require_signer(validator, "validator")?;
@@ -158,19 +187,8 @@ fn validate_common(
         &crate::fast::ID,
         "delegated account",
     )?;
-    require_initialized_delegation_record(
-        delegated_account,
-        delegation_record_account,
-        false,
-    )?;
 
     // Ensure validator doesn't intervene in other validator's accounts
-    let delegation_record_data = delegation_record_account.try_borrow()?;
-    let delegation_record =
-        DelegationRecord::try_from_bytes_with_discriminator(
-            &delegation_record_data,
-        )
-        .map_err(to_pinocchio_program_error)?;
     if !address_eq(
         &delegation_record.authority.to_bytes().into(),
         validator.address(),
@@ -224,26 +242,29 @@ fn grow_target(
             payer,
         )
     } else {
-        resize_towards(target_account, target_size, payer, system_program)
+        resize_towards(target_account, target_size, payer, system_program)?;
+        Ok(())
     }
 }
 
 /// Resizes `account` towards `target_size` by at most
 /// `MAX_PERMITTED_DATA_INCREASE` bytes; a no-op if it's already at or past
 /// `target_size` (shrinking is never growth-capped, so it's left to whichever
-/// instruction actually performs the exact-size write).
+/// instruction actually performs the exact-size write). Returns the amount
+/// of lamports transferred to fund the growth (0 if none was needed).
 fn resize_towards(
     account: &AccountView,
     target_size: usize,
     payer: &AccountView,
     system_program: &AccountView,
-) -> ProgramResult {
+) -> Result<u64, ProgramError> {
     let current = account.data_len();
     if current < target_size {
         let realloc_size =
             core::cmp::min(target_size - current, MAX_PERMITTED_DATA_INCREASE);
         let new_size = current + realloc_size;
-        resize_pda(payer, account, system_program, new_size)?;
+        resize_pda(payer, account, system_program, new_size)
+    } else {
+        Ok(0)
     }
-    Ok(())
 }

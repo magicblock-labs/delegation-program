@@ -56,7 +56,7 @@ pub fn preallocate_buffer(
         accounts: vec![
             AccountMeta::new(validator, true),
             AccountMeta::new_readonly(delegated_account, false),
-            AccountMeta::new_readonly(delegation_record_pda, false),
+            AccountMeta::new(delegation_record_pda, false),
             AccountMeta::new(buffer_pda, false),
             AccountMeta::new_readonly(commit_record_pda, false),
             AccountMeta::new_readonly(validator_fees_vault_pda, false),

@@ -218,6 +218,96 @@ async fn test_commit_finalize_from_buffer_large_with_preallocation() {
     assert_eq!(delegated_account.data, new_state);
 }
 
+/// Regression test: `PreallocateBuffer(DelegatedAccount)` funds rent to grow
+/// the delegated account ahead of CommitFinalize. CommitFinalize's own
+/// settlement independently diffs `commit_lamports` (mirrored from the ER,
+/// which already paid its own rent for the same growth) against
+/// `delegation_record.lamports`. If preallocate doesn't keep that ledger
+/// value in sync with what it actually transferred, settlement re-funds the
+/// same growth a second time, and the delegated account ends up holding
+/// roughly double the correct rent. Assert the final balance is exactly
+/// `commit_lamports`, not double it.
+#[tokio::test]
+async fn test_commit_finalize_from_buffer_large_growth_does_not_double_pay_rent(
+) {
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let new_state = vec![7u8; target_size];
+
+    // Delegated account starts empty, with lamports exactly matching the
+    // delegation record's ledger, so the settlement math below is exact.
+    let initial_lamports = Rent::default().minimum_balance(0);
+    let min_rent_target = Rent::default().minimum_balance(target_size);
+    // Lamports the ER holds beyond bare rent-exemption for the new size --
+    // settlement must add exactly this much, no more.
+    let extra_on_er = 12_345u64;
+    let commit_lamports = min_rent_target + extra_on_er;
+
+    let (banks, _, authority, blockhash) = setup_program_test_env_with_lamports(
+        vec![],
+        new_state.clone(),
+        initial_lamports,
+    )
+    .await;
+
+    let state_buffer_pda =
+        Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
+
+    let mut ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::DelegatedAccount,
+        0,
+        target_size as u32,
+    );
+    let (ix, _pdas) = dlp_api::instruction_builder::commit_finalize_from_buffer(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        state_buffer_pda,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: true.into(),
+            data_is_diff: false.into(),
+            lamports: commit_lamports,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+    );
+    ixs.push(ix);
+
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert_eq!(delegated_account.data, new_state);
+    assert_eq!(
+        delegated_account.lamports, commit_lamports,
+        "delegated account should hold exactly commit_lamports -- \
+         preallocate's rent top-up and settlement's delta must not both \
+         fund the same growth"
+    );
+
+    let delegation_record_account = banks
+        .get_account(delegation_record_pda_from_delegated_account(
+            &DELEGATED_PDA_ID,
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let delegation_record =
+        dlp_api::state::DelegationRecord::try_from_bytes_with_discriminator(
+            &delegation_record_account.data,
+        )
+        .unwrap();
+    assert_eq!(delegation_record.lamports, commit_lamports);
+}
+
 #[tokio::test]
 async fn test_commit_finalize_from_buffer_large_without_preallocation_fails() {
     let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
@@ -388,6 +478,109 @@ async fn setup_program_test_env(
     // Setup the delegated record PDA
     let delegation_record_data =
         get_delegation_record_data(validator_keypair.pubkey(), None);
+    program_test.add_account(
+        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        Account {
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
+            data: delegation_record_data,
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the validator fees vault
+    program_test.add_account(
+        validator_fees_vault_pda_from_validator(&validator_keypair.pubkey()),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    program_test.add_account(
+        Pubkey::find_program_address(
+            &[b"state_buffer"],
+            &validator_keypair.pubkey(),
+        )
+        .0,
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: pda_new_state,
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    let (banks, payer, blockhash) = program_test.start().await;
+    (banks, payer, validator_keypair, blockhash)
+}
+
+/// Like `setup_program_test_env`, but with the delegated account's lamports
+/// (and matching delegation record ledger value) both set to
+/// `delegated_lamports` -- needed to test settlement math precisely, where
+/// the two must start in sync for the invariants being tested to mean
+/// anything (unlike the fixed, unrelated values `setup_program_test_env`
+/// uses, which are fine for tests that don't assert exact final lamports).
+async fn setup_program_test_env_with_lamports(
+    pda_data: Vec<u8>,
+    pda_new_state: Vec<u8>,
+    delegated_lamports: u64,
+) -> (BanksClient, Keypair, Keypair, Hash) {
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
+    program_test.prefer_bpf(true);
+
+    let validator_keypair =
+        crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
+
+    program_test.add_account(
+        validator_keypair.pubkey(),
+        Account {
+            lamports: 10 * LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup a delegated PDA
+    program_test.add_account(
+        DELEGATED_PDA_ID,
+        Account {
+            lamports: delegated_lamports,
+            data: pda_data,
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the delegated account metadata PDA
+    let delegation_metadata_data =
+        get_delegation_metadata_data(validator_keypair.pubkey(), None);
+    program_test.add_account(
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        Account {
+            lamports: Rent::default()
+                .minimum_balance(delegation_metadata_data.len()),
+            data: delegation_metadata_data,
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the delegated record PDA
+    let delegation_record_data = get_delegation_record_data(
+        validator_keypair.pubkey(),
+        Some(delegated_lamports),
+    );
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
