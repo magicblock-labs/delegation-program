@@ -1,22 +1,70 @@
 use dlp_api::{
     pda::fees_vault_pda,
+    requires::RequireUninitializedAccountCtx,
     v2::{
         pda::{PROTOCOL_CONFIG_SEED, VERIFIER_REGISTRY_SEED},
         InitProtocolConfigArgs, ProtocolConfig, VerifierRegistry,
     },
 };
-use solana_sdk_ids::system_program;
+use pinocchio::{
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    AccountView, ProgramResult,
+};
 
 use crate::{
-    processor::utils::{
-        loaders::{load_program, load_signer, load_uninitialized_pda},
-        pda::create_pda,
-    },
-    solana_program::{
-        account_info::AccountInfo, entrypoint::ProgramResult,
-        program_error::ProgramError, pubkey::Pubkey,
-    },
+    processor::fast::{to_pinocchio_program_error, utils::pda::create_pda},
+    requires::{require_program, require_signer, require_uninitialized_pda},
+    solana_program::pubkey::Pubkey,
 };
+
+struct ProtocolConfigCtx;
+
+impl RequireUninitializedAccountCtx for ProtocolConfigCtx {
+    fn label(&self) -> &str {
+        "protocol config"
+    }
+
+    fn invalid_seeds(&self) -> ProgramError {
+        ProgramError::InvalidSeeds
+    }
+
+    fn invalid_account_owner(&self) -> ProgramError {
+        ProgramError::InvalidAccountOwner
+    }
+
+    fn account_already_initialized(&self) -> ProgramError {
+        ProgramError::AccountAlreadyInitialized
+    }
+
+    fn immutable(&self) -> ProgramError {
+        ProgramError::Immutable
+    }
+}
+
+struct VerifierRegistryCtx;
+
+impl RequireUninitializedAccountCtx for VerifierRegistryCtx {
+    fn label(&self) -> &str {
+        "verifier registry"
+    }
+
+    fn invalid_seeds(&self) -> ProgramError {
+        ProgramError::InvalidSeeds
+    }
+
+    fn invalid_account_owner(&self) -> ProgramError {
+        ProgramError::InvalidAccountOwner
+    }
+
+    fn account_already_initialized(&self) -> ProgramError {
+        ProgramError::AccountAlreadyInitialized
+    }
+
+    fn immutable(&self) -> ProgramError {
+        ProgramError::Immutable
+    }
+}
 
 /// Initialize the global v2 protocol config accounts.
 ///
@@ -26,11 +74,11 @@ use crate::{
 /// 2: `[writable]`         VerifierRegistry PDA
 /// 3: `[]`                 system program
 pub fn process_init_protocol_config(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    let args = InitProtocolConfigArgs::try_from_bytes(data)?;
+    let args = InitProtocolConfigArgs::try_from_bytes(data)
+        .map_err(to_pinocchio_program_error)?;
     validate_args(&args)?;
 
     let [authority, protocol_config, verifier_registry, system_program] =
@@ -39,47 +87,49 @@ pub fn process_init_protocol_config(
         return Err(ProgramError::NotEnoughAccountKeys);
     };
 
-    load_signer(authority, "authority")?;
-    load_program(system_program, system_program::id(), "system program")?;
+    require_signer(authority, "authority")?;
+    require_program(system_program, &pinocchio_system::ID, "system program")?;
 
-    let protocol_config_bump = load_uninitialized_pda(
+    let protocol_config_bump = require_uninitialized_pda(
         protocol_config,
         &[PROTOCOL_CONFIG_SEED],
-        &crate::id(),
+        &crate::fast::ID,
         true,
-        "protocol config",
+        ProtocolConfigCtx,
     )?;
-    let verifier_registry_bump = load_uninitialized_pda(
+    let verifier_registry_bump = require_uninitialized_pda(
         verifier_registry,
         &[VERIFIER_REGISTRY_SEED],
-        &crate::id(),
+        &crate::fast::ID,
         true,
-        "verifier registry",
+        VerifierRegistryCtx,
     )?;
 
     create_pda(
         protocol_config,
-        &crate::id(),
+        &crate::fast::ID,
         ProtocolConfig::SPACE,
-        &[PROTOCOL_CONFIG_SEED],
-        protocol_config_bump,
-        system_program,
+        &[Signer::from(&[
+            Seed::from(PROTOCOL_CONFIG_SEED),
+            Seed::from(&[protocol_config_bump]),
+        ])],
         authority,
     )?;
 
     let verifier_registry_state = VerifierRegistry::default();
     create_pda(
         verifier_registry,
-        &crate::id(),
+        &crate::fast::ID,
         verifier_registry_state.size_with_discriminator(),
-        &[VERIFIER_REGISTRY_SEED],
-        verifier_registry_bump,
-        system_program,
+        &[Signer::from(&[
+            Seed::from(VERIFIER_REGISTRY_SEED),
+            Seed::from(&[verifier_registry_bump]),
+        ])],
         authority,
     )?;
 
     let protocol_config_state = ProtocolConfig {
-        authority: *authority.key,
+        authority: authority.address().to_bytes().into(),
         paused: false,
         vrf_program: args.vrf_program,
         vrf_config: args.vrf_config,
@@ -98,13 +148,15 @@ pub fn process_init_protocol_config(
         match_penalty_bps: args.match_penalty_bps,
     };
 
-    let mut protocol_config_data = protocol_config.try_borrow_mut_data()?;
+    let mut protocol_config_data = protocol_config.try_borrow_mut()?;
     protocol_config_state
-        .to_bytes_with_discriminator(protocol_config_data.as_mut())?;
+        .to_bytes_with_discriminator(protocol_config_data.as_mut())
+        .map_err(to_pinocchio_program_error)?;
 
-    let mut verifier_registry_data = verifier_registry.try_borrow_mut_data()?;
+    let mut verifier_registry_data = verifier_registry.try_borrow_mut()?;
     verifier_registry_state
-        .to_bytes_with_discriminator(verifier_registry_data.as_mut())?;
+        .to_bytes_with_discriminator(verifier_registry_data.as_mut())
+        .map_err(to_pinocchio_program_error)?;
 
     Ok(())
 }
