@@ -489,17 +489,17 @@ pub trait RequireUninitializedAccountCtx {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub struct ProgramCtx {
+pub struct StandardCtx {
     label: &'static str,
 }
 
-impl ProgramCtx {
+impl StandardCtx {
     pub const fn new(label: &'static str) -> Self {
         Self { label }
     }
 }
 
-impl RequireUninitializedAccountCtx for ProgramCtx {
+impl RequireUninitializedAccountCtx for StandardCtx {
     fn label(&self) -> &str {
         self.label
     }
