@@ -2,6 +2,9 @@
 
 extern crate dlp_api;
 pub use ::solana_program;
+
+pub type RequireError = dlp_api::error::DlpError;
+
 #[allow(unused_imports)]
 pub(crate) use dlp_api::diff;
 #[allow(unused_imports)]
@@ -25,13 +28,16 @@ pub(crate) use dlp_api::{
 pub use dlp_api::{id, ID};
 #[allow(unused_imports)]
 pub(crate) use dlp_api::{
-    require, require_eq, require_eq_keys, require_ge, require_gt,
-    require_initialized_pda, require_initialized_pda_fast, require_le,
-    require_lt, require_n_accounts, require_n_accounts_with_optionals,
-    require_owned_by, require_pda, require_signer, require_some,
+    require_initialized_pda, require_initialized_pda_fast, require_pda,
 };
 #[cfg(feature = "logging")]
 use solana_program::msg;
+#[allow(unused_imports)]
+pub(crate) use wheels::{
+    require, require_eq, require_eq_keys, require_ge, require_gt, require_le,
+    require_lt, require_n_accounts, require_n_accounts_with_optionals,
+    require_owned_by, require_signer, require_some,
+};
 #[cfg(feature = "processor")]
 use {
     dlp_api::discriminator::DlpDiscriminator,
