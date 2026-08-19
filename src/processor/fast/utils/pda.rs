@@ -1,30 +1,66 @@
 use pinocchio::{
     cpi::Signer,
+    error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
     AccountView, Address, ProgramResult,
 };
 use pinocchio_system::instructions as system;
 
-use crate::consts::PROTOCOL_FEES_PERCENTAGE;
+use crate::{consts::PROTOCOL_FEES_PERCENTAGE, error::DlpError};
+
+const LEGACY_RENT_EXEMPT_LAMPORTS_PER_BYTE: u64 = 6_960;
+const LEGACY_RENT_ACCOUNT_STORAGE_OVERHEAD: u64 = 128;
+
+pub(crate) enum AccountFunding {
+    Current(usize),
+    Legacy(usize),
+}
+
+impl AccountFunding {
+    fn space(&self) -> usize {
+        match self {
+            Self::Current(space) | Self::Legacy(space) => *space,
+        }
+    }
+
+    fn minimum_balance(&self) -> Result<u64, ProgramError> {
+        let current_rent = Rent::get()?.try_minimum_balance(self.space())?;
+        match self {
+            Self::Current(_) => Ok(current_rent),
+            Self::Legacy(_) => Ok(current_rent.max(legacy_rent(self.space())?)),
+        }
+    }
+}
+
+fn legacy_rent(space: usize) -> Result<u64, ProgramError> {
+    let space = u64::try_from(space).map_err(|_| DlpError::Overflow)?;
+    space
+        .checked_add(LEGACY_RENT_ACCOUNT_STORAGE_OVERHEAD)
+        .and_then(|bytes| {
+            bytes.checked_mul(LEGACY_RENT_EXEMPT_LAMPORTS_PER_BYTE)
+        })
+        .ok_or(DlpError::Overflow.into())
+}
 
 /// Creates a new pda
 #[inline(always)]
 pub(crate) fn create_pda(
     target_account: &AccountView,
     owner: &Address,
-    space: usize,
+    funding: AccountFunding,
     pda_signers: &[Signer],
     payer: &AccountView,
 ) -> ProgramResult {
     // Create the account manually or using the create instruction
 
-    let rent = Rent::get()?;
+    let space = funding.space();
+    let minimum_balance = funding.minimum_balance()?;
     if target_account.lamports().eq(&0) {
         // If balance is zero, create account
         system::CreateAccount {
             from: payer,
             to: target_account,
-            lamports: rent.try_minimum_balance(space)?,
+            lamports: minimum_balance,
             space: space as u64,
             owner,
         }
@@ -33,9 +69,8 @@ pub(crate) fn create_pda(
         // Otherwise, if balance is nonzero:
 
         // 1) transfer sufficient lamports for rent exemption
-        let rent_exempt_balance = rent
-            .try_minimum_balance(space)?
-            .saturating_sub(target_account.lamports());
+        let rent_exempt_balance =
+            minimum_balance.saturating_sub(target_account.lamports());
         if rent_exempt_balance > 0 {
             system::Transfer {
                 from: payer,
@@ -114,4 +149,16 @@ pub(crate) fn close_pda_with_fees(
     }
 
     target_account.resize(0)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::legacy_rent;
+
+    #[test]
+    fn legacy_rent_uses_pre_reduction_rent_exempt_formula() {
+        assert_eq!(legacy_rent(96).unwrap(), 1_559_040);
+        assert_eq!(legacy_rent(53).unwrap(), 1_259_760);
+        assert_eq!(legacy_rent(65).unwrap(), 1_343_280);
+    }
 }

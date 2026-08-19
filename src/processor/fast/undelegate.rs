@@ -20,7 +20,9 @@ use crate::{
     },
     error::DlpError,
     pda,
-    processor::fast::utils::pda::{close_pda, close_pda_with_fees, create_pda},
+    processor::fast::utils::pda::{
+        close_pda, close_pda_with_fees, create_pda, AccountFunding,
+    },
     require_n_accounts_with_optionals,
     requires::{
         require_initialized_delegation_metadata,
@@ -256,7 +258,7 @@ pub fn process_undelegate(
     create_pda(
         undelegate_buffer_account,
         &crate::fast::ID,
-        delegated_account.data_len(),
+        AccountFunding::Current(delegated_account.data_len()),
         &[Signer::from(&seeds!(
             pda::UNDELEGATE_BUFFER_TAG,
             delegated_account.address().as_ref(),

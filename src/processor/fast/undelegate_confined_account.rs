@@ -7,7 +7,7 @@ use super::{process_undelegation_with_cpi, to_pinocchio_program_error};
 use crate::{
     error::DlpError,
     pda,
-    processor::fast::utils::pda::{close_pda, create_pda},
+    processor::fast::utils::pda::{close_pda, create_pda, AccountFunding},
     require_eq_keys,
     requires::{
         require_authorization, require_initialized_delegation_metadata,
@@ -116,7 +116,7 @@ pub fn process_undelegate_confined_account(
     create_pda(
         undelegate_buffer_account,
         &crate::fast::ID,
-        delegated_account.data_len(),
+        AccountFunding::Current(delegated_account.data_len()),
         &[Signer::from(&seeds!(
             pda::UNDELEGATE_BUFFER_TAG,
             delegated_account.address().as_ref(),

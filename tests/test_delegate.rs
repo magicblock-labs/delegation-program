@@ -76,21 +76,33 @@ async fn test_delegate() {
         .unwrap()
         .unwrap();
     assert!(delegation_metadata_account.owner.eq(&dlp_api::id()));
+    assert_eq!(
+        delegation_metadata_account.lamports,
+        legacy_rent(delegation_metadata_account.data.len())
+    );
 
     // Assert that the delegation record exists and can be parsed
-    let delegation_record = banks
+    let delegation_record_account = banks
         .get_account(delegation_record_pda_from_delegated_account(
             &DELEGATED_PDA_ID,
         ))
         .await
         .unwrap()
         .unwrap();
+    assert_eq!(
+        delegation_record_account.lamports,
+        legacy_rent(delegation_record_account.data.len())
+    );
     let delegation_record =
         DelegationRecord::try_from_bytes_with_discriminator(
-            &delegation_record.data,
+            &delegation_record_account.data,
         )
         .unwrap();
     assert_eq!(delegation_record.owner, DELEGATED_PDA_OWNER_ID);
+}
+
+fn legacy_rent(space: usize) -> u64 {
+    (space as u64 + 128) * 6_960
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

@@ -15,7 +15,10 @@ use crate::{
     error::DlpError,
     pda,
     processor::{
-        fast::{to_pinocchio_program_error, utils::pda::create_pda},
+        fast::{
+            to_pinocchio_program_error,
+            utils::pda::{create_pda, AccountFunding},
+        },
         utils::curve::is_on_curve_fast,
     },
     require_n_accounts_with_optionals,
@@ -217,7 +220,9 @@ pub fn process_delegate_with_actions(
     create_pda(
         delegation_record_account,
         &crate::fast::ID,
-        DelegationRecord::size_with_discriminator() + action_data.len(),
+        AccountFunding::Legacy(
+            DelegationRecord::size_with_discriminator() + action_data.len(),
+        ),
         &[Signer::from(&[
             Seed::from(pda::DELEGATION_RECORD_TAG),
             Seed::from(delegated_account.address().as_ref()),
@@ -262,7 +267,7 @@ pub fn process_delegate_with_actions(
     create_pda(
         delegation_metadata_account,
         &crate::fast::ID,
-        delegation_metadata.serialized_size(),
+        AccountFunding::Legacy(delegation_metadata.serialized_size()),
         &[Signer::from(&[
             Seed::from(pda::DELEGATION_METADATA_TAG),
             Seed::from(delegated_account.address().as_ref()),

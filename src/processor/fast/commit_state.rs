@@ -11,7 +11,7 @@ use crate::{
     args::CommitStateArgs,
     error::DlpError,
     merge_diff_copy, pda,
-    processor::fast::utils::pda::create_pda,
+    processor::fast::utils::pda::{create_pda, AccountFunding},
     requires::{
         require_initialized_delegation_metadata,
         require_initialized_delegation_record,
@@ -283,7 +283,7 @@ pub(crate) fn process_commit_state_internal(
     create_pda(
         args.commit_state_account,
         &crate::fast::ID,
-        args.commit_state_bytes.data_len(),
+        AccountFunding::Current(args.commit_state_bytes.data_len()),
         &[Signer::from(&seeds!(
             pda::COMMIT_STATE_TAG,
             args.delegated_account.address().as_ref(),
@@ -296,7 +296,7 @@ pub(crate) fn process_commit_state_internal(
     create_pda(
         args.commit_record_account,
         &crate::fast::ID,
-        CommitRecord::size_with_discriminator(),
+        AccountFunding::Current(CommitRecord::size_with_discriminator()),
         &[Signer::from(&seeds!(
             pda::COMMIT_RECORD_TAG,
             args.delegated_account.address().as_ref(),

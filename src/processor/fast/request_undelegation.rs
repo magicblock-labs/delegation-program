@@ -12,7 +12,10 @@ use super::to_pinocchio_program_error;
 use crate::{
     error::DlpError,
     pda,
-    processor::{fast::utils::pda::create_pda, utils::curve::is_on_curve_fast},
+    processor::{
+        fast::utils::pda::{create_pda, AccountFunding},
+        utils::curve::is_on_curve_fast,
+    },
     require, require_eq_keys, require_n_accounts,
     requires::{
         is_uninitialized_account, require_initialized_delegation_metadata,
@@ -125,7 +128,9 @@ pub fn process_request_undelegation(
         create_pda(
             undelegation_request_account,
             &crate::fast::ID,
-            UndelegationRequest::size_with_discriminator(),
+            AccountFunding::Current(
+                UndelegationRequest::size_with_discriminator(),
+            ),
             &[Signer::from(&seeds!(
                 pda::UNDELEGATION_REQUEST_TAG,
                 delegated_account.address().as_ref(),
