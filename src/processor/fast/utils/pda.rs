@@ -16,24 +16,26 @@ use crate::{consts::PROTOCOL_FEES_PERCENTAGE, error::DlpError};
 const LEGACY_RENT_EXEMPT_LAMPORTS_PER_BYTE: u64 = 6960;
 const LEGACY_RENT_ACCOUNT_STORAGE_OVERHEAD: u64 = 128;
 
-// usize stores the space required by an account
-pub(crate) enum AccountFunding {
-    Current(usize),
-    Legacy(usize),
+// usize stores the space required by an account.
+pub(crate) enum AccountSpace {
+    CurrentRent(usize),
+    LegacyRent(usize),
 }
 
-impl AccountFunding {
+impl AccountSpace {
     fn space(&self) -> usize {
         match self {
-            Self::Current(space) | Self::Legacy(space) => *space,
+            Self::CurrentRent(space) | Self::LegacyRent(space) => *space,
         }
     }
 
     fn minimum_balance(&self) -> Result<u64, ProgramError> {
         let current_rent = Rent::get()?.try_minimum_balance(self.space())?;
         match self {
-            Self::Current(_) => Ok(current_rent),
-            Self::Legacy(_) => Ok(current_rent.max(legacy_rent(self.space())?)),
+            Self::CurrentRent(_) => Ok(current_rent),
+            Self::LegacyRent(_) => {
+                Ok(current_rent.max(legacy_rent(self.space())?))
+            }
         }
     }
 }
@@ -55,14 +57,14 @@ fn legacy_rent(space: usize) -> Result<u64, ProgramError> {
 pub(crate) fn create_pda(
     target_account: &AccountView,
     owner: &Address,
-    funding: AccountFunding,
+    account_space: AccountSpace,
     pda_signers: &[Signer],
     payer: &AccountView,
 ) -> ProgramResult {
     // Create the account manually or using the create instruction
 
-    let space = funding.space();
-    let minimum_balance = funding.minimum_balance()?;
+    let space = account_space.space();
+    let minimum_balance = account_space.minimum_balance()?;
     if target_account.lamports().eq(&0) {
         // If balance is zero, create account
         system::CreateAccount {

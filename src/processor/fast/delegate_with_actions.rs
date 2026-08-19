@@ -17,7 +17,7 @@ use crate::{
     processor::{
         fast::{
             to_pinocchio_program_error,
-            utils::pda::{create_pda, AccountFunding},
+            utils::pda::{create_pda, AccountSpace},
         },
         utils::curve::is_on_curve_fast,
     },
@@ -220,7 +220,7 @@ pub fn process_delegate_with_actions(
     create_pda(
         delegation_record_account,
         &crate::fast::ID,
-        AccountFunding::Legacy(
+        AccountSpace::LegacyRent(
             DelegationRecord::size_with_discriminator() + action_data.len(),
         ),
         &[Signer::from(&[
@@ -267,7 +267,7 @@ pub fn process_delegate_with_actions(
     create_pda(
         delegation_metadata_account,
         &crate::fast::ID,
-        AccountFunding::Legacy(delegation_metadata.serialized_size()),
+        AccountSpace::LegacyRent(delegation_metadata.serialized_size()),
         &[Signer::from(&[
             Seed::from(pda::DELEGATION_METADATA_TAG),
             Seed::from(delegated_account.address().as_ref()),

@@ -13,7 +13,7 @@ use crate::{
     error::DlpError,
     pda,
     processor::{
-        fast::utils::pda::{create_pda, AccountFunding},
+        fast::utils::pda::{create_pda, AccountSpace},
         utils::curve::is_on_curve_fast,
     },
     require, require_eq_keys, require_n_accounts,
@@ -128,7 +128,7 @@ pub fn process_request_undelegation(
         create_pda(
             undelegation_request_account,
             &crate::fast::ID,
-            AccountFunding::Current(
+            AccountSpace::CurrentRent(
                 UndelegationRequest::size_with_discriminator(),
             ),
             &[Signer::from(&seeds!(
