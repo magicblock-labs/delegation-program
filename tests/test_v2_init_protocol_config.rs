@@ -94,8 +94,7 @@ async fn test_v2_init_protocol_config() {
     );
     assert_eq!(*protocol_config.authority(), authority.pubkey());
     assert!(!protocol_config.paused());
-    assert_eq!(*protocol_config.vrf_program(), args.vrf_program);
-    assert_eq!(*protocol_config.vrf_config(), args.vrf_config);
+    assert_eq!(*protocol_config.vrf_oracle_queue(), args.vrf_oracle_queue);
     assert_eq!(*protocol_config.resolver(), args.resolver);
     assert_eq!(*protocol_config.protocol_fee_vault(), fees_vault_pda());
     assert_eq!(protocol_config.min_operator_bond(), args.min_operator_bond);
@@ -247,6 +246,24 @@ async fn test_v2_init_protocol_config_fails_with_invalid_args() {
 }
 
 #[tokio::test]
+async fn test_v2_init_protocol_config_fails_with_default_vrf_oracle_queue() {
+    let (banks, payer, authority, blockhash) = setup_program_test_env().await;
+
+    let mut args = valid_args();
+    args.vrf_oracle_queue = Pubkey::default();
+
+    let ix = init_protocol_config(authority.pubkey(), args);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &authority],
+        blockhash,
+    );
+
+    assert!(banks.process_transaction(tx).await.is_err());
+}
+
+#[tokio::test]
 async fn test_v1_dispatch_still_works_after_v2_routing() {
     let (banks, payer, _authority, blockhash) = setup_program_test_env().await;
 
@@ -264,8 +281,7 @@ async fn test_v1_dispatch_still_works_after_v2_routing() {
 
 fn valid_args() -> InitProtocolConfigArgs {
     InitProtocolConfigArgs {
-        vrf_program: Pubkey::new_unique(),
-        vrf_config: Pubkey::new_unique(),
+        vrf_oracle_queue: Pubkey::new_unique(),
         resolver: Pubkey::new_unique(),
         min_operator_bond: 1,
         min_verifier_bond: 1,
