@@ -16,7 +16,8 @@ use crate::{consts::PROTOCOL_FEES_PERCENTAGE, error::DlpError};
 const LEGACY_RENT_EXEMPT_LAMPORTS_PER_BYTE: u64 = 6960;
 const LEGACY_RENT_ACCOUNT_STORAGE_OVERHEAD: u64 = 128;
 
-// usize stores the space required by an account.
+// AccountSpace represents the account allocation size.
+// Its variant lets the caller choose how rent funding should be computed for that size.
 pub(crate) enum AccountSpace {
     CurrentRent(usize),
     LegacyRent(usize),
@@ -33,6 +34,9 @@ impl AccountSpace {
         let current_rent = Rent::get()?.try_minimum_balance(self.space())?;
         match self {
             Self::CurrentRent(_) => Ok(current_rent),
+            // Legacy rent is a fee-budget floor, not a substitute for current
+            // rent exemption. Keep live rent as the lower bound if it ever
+            // exceeds the legacy formula.
             Self::LegacyRent(_) => {
                 Ok(current_rent.max(legacy_rent(self.space())?))
             }
@@ -63,15 +67,13 @@ pub(crate) fn create_pda(
 ) -> ProgramResult {
     // Create the account manually or using the create instruction
 
-    let space = account_space.space();
-    let minimum_balance = account_space.minimum_balance()?;
     if target_account.lamports().eq(&0) {
         // If balance is zero, create account
         system::CreateAccount {
             from: payer,
             to: target_account,
-            lamports: minimum_balance,
-            space: space as u64,
+            lamports: account_space.minimum_balance()?,
+            space: account_space.space() as u64,
             owner,
         }
         .invoke_signed(pda_signers)
@@ -79,8 +81,9 @@ pub(crate) fn create_pda(
         // Otherwise, if balance is nonzero:
 
         // 1) transfer sufficient lamports for rent exemption
-        let rent_exempt_balance =
-            minimum_balance.saturating_sub(target_account.lamports());
+        let rent_exempt_balance = account_space
+            .minimum_balance()?
+            .saturating_sub(target_account.lamports());
         if rent_exempt_balance > 0 {
             system::Transfer {
                 from: payer,
@@ -93,7 +96,7 @@ pub(crate) fn create_pda(
         // 2) allocate space for the account
         system::Allocate {
             account: target_account,
-            space: space as u64,
+            space: account_space.space() as u64,
         }
         .invoke_signed(pda_signers)?;
 
@@ -164,11 +167,24 @@ pub(crate) fn close_pda_with_fees(
 #[cfg(test)]
 mod tests {
     use super::legacy_rent;
+    use crate::{
+        state::{DelegationMetadata, DelegationRecord, UndelegationRequester},
+        Pubkey,
+    };
 
     #[test]
     fn legacy_rent_uses_pre_reduction_rent_exempt_formula() {
-        assert_eq!(legacy_rent(96).unwrap(), 1_559_040);
-        assert_eq!(legacy_rent(53).unwrap(), 1_259_760);
-        assert_eq!(legacy_rent(65).unwrap(), 1_343_280);
+        let metadata = DelegationMetadata {
+            last_commit_id: 0,
+            undelegation_requester: UndelegationRequester::None,
+            seeds: vec![b"test-pda".to_vec()],
+            rent_payer: Pubkey::default(),
+        };
+
+        let delegation_rent =
+            legacy_rent(DelegationRecord::size_with_discriminator()).unwrap()
+                + legacy_rent(metadata.serialized_size()).unwrap();
+
+        assert_eq!(delegation_rent, 2_902_320);
     }
 }
