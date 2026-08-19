@@ -88,8 +88,7 @@ pub fn process_init_protocol_config(
         discriminator: ProtocolConfig::DISCRIMINATOR,
         authority: authority.address().to_bytes().into(),
         paused: false,
-        vrf_program: *args.vrf_program(),
-        vrf_config: *args.vrf_config(),
+        vrf_oracle_queue: *args.vrf_oracle_queue(),
         resolver: *args.resolver(),
         protocol_fee_vault: fees_vault_pda(),
         min_operator_bond: args.min_operator_bond(),
@@ -116,12 +115,7 @@ fn validate_args(args: &InitProtocolConfigArgsView<'_>) -> ProgramResult {
     let default_pubkey = Pubkey::default();
 
     require_ne_keys!(
-        args.vrf_program(),
-        &default_pubkey,
-        ProgramError::InvalidInstructionData
-    );
-    require_ne_keys!(
-        args.vrf_config(),
+        args.vrf_oracle_queue(),
         &default_pubkey,
         ProgramError::InvalidInstructionData
     );

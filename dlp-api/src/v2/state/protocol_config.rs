@@ -16,11 +16,8 @@ pub struct ProtocolConfig {
     /// Emergency stop for new commitments and other non-exit activity.
     pub paused: bool,
 
-    /// VRF program DLP trusts for randomness callbacks.
-    pub vrf_program: Pubkey,
-
-    /// VRF-specific config account.
-    pub vrf_config: Pubkey,
+    /// Oracle queue DLP uses when requesting randomness.
+    pub vrf_oracle_queue: Pubkey,
 
     /// Multisig-controlled signer allowed to resolve disputes.
     pub resolver: Pubkey,
