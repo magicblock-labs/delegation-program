@@ -8,9 +8,15 @@ use pinocchio_system::instructions as system;
 
 use crate::{consts::PROTOCOL_FEES_PERCENTAGE, error::DlpError};
 
-const LEGACY_RENT_EXEMPT_LAMPORTS_PER_BYTE: u64 = 6_960;
+// Legacy rent math follows SIMD-0194, which defines the 6,960
+// lamports-per-byte value used by the simplified rent-exemption formula.
+//
+// ref:
+// https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0194-deprecate-rent-exemption-threshold.md
+const LEGACY_RENT_EXEMPT_LAMPORTS_PER_BYTE: u64 = 6960;
 const LEGACY_RENT_ACCOUNT_STORAGE_OVERHEAD: u64 = 128;
 
+// usize stores the space required by an account
 pub(crate) enum AccountFunding {
     Current(usize),
     Legacy(usize),
@@ -32,6 +38,8 @@ impl AccountFunding {
     }
 }
 
+// ref:
+// https://github.com/solana-foundation/solana-improvement-documents/blob/main/proposals/0194-deprecate-rent-exemption-threshold.md
 fn legacy_rent(space: usize) -> Result<u64, ProgramError> {
     let space = u64::try_from(space).map_err(|_| DlpError::Overflow)?;
     space
