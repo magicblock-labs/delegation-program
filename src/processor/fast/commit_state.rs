@@ -19,7 +19,7 @@ use crate::{
         require_initialized_delegation_record,
         require_initialized_validator_fees_vault, require_owned_pda,
         require_program_config, require_signer, require_uninitialized_pda,
-        CommitRecordCtx, CommitStateAccountCtx,
+        CommitRecordCtx,
     },
     state::{
         CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,
@@ -269,7 +269,6 @@ pub(crate) fn process_commit_state_internal(
         ],
         commit_state_len,
         args.validator,
-        CommitStateAccountCtx,
         "commit state",
     )?;
 

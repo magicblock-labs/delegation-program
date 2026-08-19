@@ -1,20 +1,13 @@
 use pinocchio::{
-    account::MAX_PERMITTED_DATA_INCREASE,
-    cpi::Signer,
-    error::ProgramError,
-    instruction::seeds,
-    sysvars::{rent::Rent, Sysvar},
-    AccountView, Address, ProgramResult,
+    cpi::Signer, error::ProgramError, instruction::seeds,
+    sysvars::{rent::Rent, Sysvar}, AccountView, Address, ProgramResult,
 };
 use pinocchio_system::instructions as system;
 
 use crate::{
     consts::PROTOCOL_FEES_PERCENTAGE,
     error::DlpError,
-    requires::{
-        require_initialized_pda, require_uninitialized_pda,
-        RequireUninitializedAccountCtx,
-    },
+    requires::{is_uninitialized_account, require_owned_pda, require_pda},
 };
 
 /// Creates a new pda
@@ -73,39 +66,18 @@ pub(crate) fn create_pda(
 
 /// Prepares `buffer_account` to hold exactly `state_size` bytes, seeded by
 /// `seeds_arr` under this program. Returns the PDA's bump seed.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn create_or_verify_preallocated_pda(
     target_account: &AccountView,
     seeds_arr: &[&[u8]; 2],
     state_size: usize,
     payer: &AccountView,
-    ctx: impl RequireUninitializedAccountCtx,
     label: &str,
 ) -> Result<u8, ProgramError> {
-    if state_size > MAX_PERMITTED_DATA_INCREASE {
-        // Account must be initialized by PreallocateBuffer instructions dues to `MAX_PERMITTED_DATA_INCREASE`.
-        let bump = require_initialized_pda(
-            target_account,
-            seeds_arr,
-            &crate::fast::ID,
-            true,
-            label,
-        )?;
+    let bump =
+        require_pda(target_account, seeds_arr, &crate::fast::ID, true, label)?;
 
-        if target_account.data_len() != state_size {
-            Err(DlpError::BufferNotPreallocatedToExactSize.into())
-        } else {
-            Ok(bump)
-        }
-    } else {
-        // As the account is small enough we initialize here
-        let bump = require_uninitialized_pda(
-            target_account,
-            seeds_arr,
-            &crate::fast::ID,
-            true,
-            ctx,
-        )?;
+    if is_uninitialized_account(target_account) {
+        // Not preallocated - initialize it here directly.
         create_pda(
             target_account,
             &crate::fast::ID,
@@ -114,6 +86,15 @@ pub(crate) fn create_or_verify_preallocated_pda(
             payer,
         )?;
         Ok(bump)
+    } else {
+        // Already preallocated by PreallocateBuffer -- must match exactly.
+        require_owned_pda(target_account, &crate::fast::ID, label)?;
+
+        if target_account.data_len() != state_size {
+            Err(DlpError::BufferNotPreallocatedToExactSize.into())
+        } else {
+            Ok(bump)
+        }
     }
 }
 

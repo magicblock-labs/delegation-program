@@ -30,7 +30,7 @@ use crate::{
         require_initialized_protocol_fees_vault,
         require_initialized_validator_fees_vault, require_owned_pda,
         require_signer, require_uninitialized_pda, CommitRecordCtx,
-        CommitStateAccountCtx, UndelegateBufferCtx,
+        CommitStateAccountCtx,
     },
     state::{
         DelegationMetadata, DelegationRecord, UndelegationRequest,
@@ -253,7 +253,6 @@ pub fn process_undelegate(
         ],
         undelegate_buffer_size,
         validator,
-        UndelegateBufferCtx,
         "undelegate buffer",
     )?;
 

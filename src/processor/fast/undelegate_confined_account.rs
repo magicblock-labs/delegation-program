@@ -14,7 +14,7 @@ use crate::{
     requires::{
         require_authorization, require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_owned_pda,
-        require_signer, UndelegateBufferCtx,
+        require_signer,
     },
     state::{DelegationMetadata, DelegationRecord},
 };
@@ -113,7 +113,6 @@ pub fn process_undelegate_confined_account(
         ],
         undelegate_buffer_size,
         admin,
-        UndelegateBufferCtx,
         "undelegate buffer",
     )?;
 
