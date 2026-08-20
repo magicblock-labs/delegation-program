@@ -23,8 +23,8 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 
 ## Decisions To Review
 
-- Use `ephemeral-vrf`; DLP requests randomness and receives a callback.
-- Start the challenge window after VRF activation, not at initial post.
+- Select verifiers with round-robin for DLP v2 bootstrap.
+- Start the challenge window when the commitment is posted.
 - DLP v2 verifier approvals are normal Solana signer transactions.
 - `PendingCommitment` stores hashes/metadata; full data is opened via
   `StateBuffer` for finalize or dispute resolution.
@@ -107,7 +107,7 @@ Seed strings are placeholders until frozen.
 
 | Account | PDA seeds | Purpose |
 | --- | --- | --- |
-| `ProtocolConfig` | `["protocol-config"]` | Global params, VRF config, resolver signer, protocol fee vault. |
+| `ProtocolConfig` | `["protocol-config"]` | Global params, resolver signer, protocol fee vault. |
 | `OperatorBond` | `["operator-bond", operator]` | Slashable operator stake and lifecycle. |
 | `VerifierBond` | `["verifier-bond", verifier]` | Slashable verifier stake. |
 | `VerifierRegistry` | `["verifier-registry"]` | All registered verifiers. |
@@ -138,8 +138,6 @@ pub struct ProtocolConfig {
     pub authority: Pubkey,
     /// Emergency stop for new commitments and other non-exit activity.
     pub paused: bool,
-    /// Oracle queue DLP uses when requesting randomness.
-    pub vrf_oracle_queue: Pubkey,
     /// Multisig-controlled signer allowed to call ResolveDispute.
     pub resolver: Pubkey,
     /// Vault receiving protocol fees, penalties, or slashed funds.
@@ -150,7 +148,7 @@ pub struct ProtocolConfig {
     pub min_verifier_bond: u64,
     /// Minimum stake locked by RaiseChallenge to prevent cheap spam.
     pub min_challenger_stake: u64,
-    /// Slots available for approval/challenge after VRF activation.
+    /// Slots available for approval/challenge after commitment post.
     pub challenge_window_slots: u64,
     /// Slots the operator gets to open state after a challenge.
     pub operator_response_timeout_slots: u64,
@@ -158,8 +156,8 @@ pub struct ProtocolConfig {
     pub challenger_reveal_timeout_slots: u64,
     /// Delay before a winning challenger can claim payout.
     pub payout_timelock_slots: u64,
-    /// Number of verifiers randomly picked from VerifierRegistry.
-    pub selected_verifier_count: u16,
+    /// Maximum number of verifiers selected for one commitment.
+    pub verifiers_per_commitment: u16,
     /// Approvals required for happy-path finalization.
     pub approval_threshold: u16,
     /// Maximum under-approval extensions before the commitment expires.
@@ -220,9 +218,11 @@ pub struct VerifierBond {
 /// Single registry containing all verifiers that can be selected.
 pub struct VerifierRegistry {
     /// Increments every time `entries` changes.
-    /// A pending commitment stores this value before requesting VRF. The VRF
-    /// callback must see the same value before it can select verifiers.
+    /// Pending commitments store this value when selected verifiers are copied
+    /// from this registry.
     pub registry_revision: u64,
+    /// Round-robin start cursor used by the next commitment selection.
+    pub next_selection_index: u64,
     /// All registered verifiers DLP can select from.
     pub entries: Vec<VerifierRegistryEntry>,
 }
@@ -230,7 +230,7 @@ pub struct VerifierRegistry {
 // set can grow large, replace this Vec with a Merkleized or paged registry.
 
 pub struct VerifierRegistryEntry {
-    /// Verifier identity selectable by VRF.
+    /// Verifier identity selectable by DLP.
     pub verifier_identity: Pubkey,
     /// Bond account proving this verifier has active stake.
     pub verifier_bond: Pubkey,
@@ -241,9 +241,7 @@ pub struct VerifierRegistryEntry {
 // selection, removing it makes selection easier to review.
 
 pub enum PendingCommitmentStatus {
-    /// Posted and waiting for VRF callback.
-    AwaitingRandomness,
-    /// VRF selected verifiers and the challenge window is open.
+    /// Verifiers were selected and the challenge window is open.
     Active,
     /// Challenge raised and waiting for operator state.
     AwaitingOperatorResponse,
@@ -261,7 +259,7 @@ pub enum PendingCommitmentStatus {
     Finalized,
     /// Commitment can no longer finalize.
     Expired,
-    /// Commitment was cancelled before activation.
+    /// Commitment was cancelled before finalization.
     Cancelled,
 }
 // Review: `ResolvedOperator` and `ResolvedChallenger` overlap with
@@ -308,32 +306,26 @@ pub struct PendingCommitment {
     /// Registry account used when this commitment was posted.
     pub verifier_registry: Pubkey,
     /// Copy of `VerifierRegistry.registry_revision` at post time.
-    /// If the registry changes before VRF activation, this commitment is
-    /// cancelled and the operator must repost against the latest registry.
     pub verifier_registry_revision: u64,
     /// Monotonic id for this approval/challenge window.
     pub challenge_window_id: u64,
     /// Slot when the commitment was posted.
     pub posted_slot: u64,
-    /// Set by the VRF callback.
-    pub activation_slot: Option<u64>,
-    /// Slot when approval/challenge window closes after VRF activation.
-    pub challenge_window_end_slot: Option<u64>,
-    /// Verifiers selected by VRF for this commitment.
+    /// Slot when verifier selection and the challenge window started.
+    pub activation_slot: u64,
+    /// Slot when approval/challenge window closes.
+    pub challenge_window_end_slot: u64,
+    /// Verifiers selected by round-robin for this commitment.
     /// Later registry changes do not rewrite this list.
     pub selected_verifiers: Vec<Pubkey>,
     /// One bit per selected verifier.
     pub approval_bitmap: Vec<u8>,
     /// Number of unique selected verifiers that approved.
     pub approval_count: u16,
-    /// Threshold copied from ProtocolConfig at activation time.
+    /// Threshold copied from ProtocolConfig when the commitment is posted.
     pub approval_threshold: u16,
     /// Active Challenge account, if any.
     pub active_challenge: Option<Pubkey>,
-    /// VRF request id returned when DLP asks for randomness.
-    pub vrf_request_id: Option<[u8; 32]>,
-    /// VRF output bytes used to select verifiers.
-    pub vrf_randomness: Option<[u8; 32]>,
     /// Which opened state finalization must use after dispute resolution.
     pub resolved_state_source: Option<ResolvedStateSource>,
 }
@@ -482,7 +474,7 @@ Authority-gated setup and admission instructions for permissioned v2.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `InitProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority signer, ProtocolConfig, VerifierRegistry</strong></li></ul> | Protocol authority | Creates the global config account and empty verifier registry. Stores bootstrap params such as VRF oracle queue, resolver, fees, thresholds, and timeouts. |
+| `InitProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority signer, ProtocolConfig, VerifierRegistry</strong></li></ul> | Protocol authority | Creates the global config account and empty verifier registry. Stores bootstrap params such as resolver, fees, thresholds, and timeouts. |
 | `UpdateProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority signer, ProtocolConfig</strong></li></ul> | Protocol authority | Updates params used by future commitments. Existing pending commitments keep the values copied into their accounts. |
 | `RegisterOperator`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>operator signer, protocol authority signer, OperatorBond, ProtocolConfig</strong></li></ul> | Operator, protocol authority | Creates the per-operator `OperatorBond` PDA at `["operator-bond", operator]` and deposits slashable stake. Permissioned v2 requires configured approval before the operator can post commitments. |
 | `RegisterVerifier`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>verifier signer, protocol authority signer, VerifierBond, ProtocolConfig</strong></li></ul> | Verifier, protocol authority | Creates the per-verifier `VerifierBond` PDA at `["verifier-bond", verifier]` and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter the registry. |
@@ -497,9 +489,7 @@ instructions.
 | --- | --- | --- |
 | `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
 | `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
-| `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator signer, OperatorBond, PendingCommitment, delegated account, DelegationRecord, ProtocolConfig, VerifierRegistry, DLP identity PDA, VRF oracle queue, VRF program</strong></li></ul> | Operator | Creates an `AwaitingRandomness` commitment, stores the current `registry_revision`, locks any commitment-local stake if needed, and requests VRF. |
-| `ConsumeCommitmentRandomness`<ul><li>ix-data: <code>randomness</code></li><li>accounts: <strong>VRF program identity signer, PendingCommitment, ProtocolConfig, VerifierRegistry</strong></li></ul> | VRF callback | Verifies the VRF callback signer and registry revision, selects verifiers from the registry excluding the commitment operator, and starts the challenge window. |
-| `CancelUnactivatedCommitment`<ul><li>ix-data: <code>reason</code></li><li>accounts: <strong>cranker/operator signer, PendingCommitment, ProtocolConfig, VerifierRegistry</strong></li></ul> | Operator or cranker | Cancels a commitment that is still waiting for randomness but can no longer activate, such as after registry change or VRF timeout. |
+| `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator signer, OperatorBond, PendingCommitment, delegated account, DelegationRecord, ProtocolConfig, VerifierRegistry</strong></li></ul> | Operator | Selects verifiers with round-robin, creates an active commitment, stores the current `registry_revision`, starts the challenge window, and locks any commitment-local stake if needed. |
 | `ApproveCommitment`<ul><li>ix-data: <code>selected_verifier_index</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from one selected verifier. Duplicate approvals do not increase the count. |
 | `WriteStateBuffer`<ul><li>ix-data: <code>chunk</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Writes a chunk of opened account data for finalize, operator response, or challenger reveal. |
 | `FinalizeStateBuffer`<ul><li>ix-data: <code>role</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Freezes a completed buffer after length and hash checks. Frozen buffers can be used by later instructions. |
@@ -524,21 +514,6 @@ pub struct PostCommitmentData {
     pub data_hash: [u8; 32],
     pub da_pointer_hash: [u8; 32],
     pub er_slot: Option<u64>,
-}
-
-pub struct ConsumeCommitmentRandomnessData {
-    /// VRF output bytes used to select verifiers.
-    pub randomness: [u8; 32],
-    pub pending_commitment: Pubkey,
-}
-
-pub enum CancelUnactivatedReason {
-    RegistryRevisionChanged,
-    VrfTimeout,
-}
-
-pub struct CancelUnactivatedCommitmentData {
-    pub reason: CancelUnactivatedReason,
 }
 
 pub struct ApproveCommitmentData {
@@ -589,28 +564,17 @@ pub struct FinalizeCommitmentData {
 ### Important Instruction Rules
 
 - `PostCommitment` computes `state_commitment_hash`, stores the pending record,
-  stores the current `VerifierRegistry.registry_revision`, and requests VRF.
-  `dlp_program_identity_pda` is signed by DLP with `invoke_signed`.
-  The VRF program id and DLP identity seed are fixed constants used by this
-  instruction, not fields in `ProtocolConfig`.
-- `ConsumeCommitmentRandomness` verifies the VRF identity signer, reads the
-  `VerifierRegistry`, and requires its `registry_revision` to match the value
-  stored on the pending commitment. If it matches, DLP derives
-  `selected_verifiers` from randomness and starts the challenge window. The
-  operator identity for this commitment must be excluded from selection, even if
-  the same pubkey is also registered as a verifier.
-  The VRF program identity is a fixed constant used by this instruction, not a
-  field in `ProtocolConfig`.
-- `CancelUnactivatedCommitment` handles commitments that are still
-  `AwaitingRandomness` but can no longer activate. The common reasons are:
-  registry changed before the VRF callback, or the VRF callback did not arrive
-  before timeout. DLP verifies the reason on-chain before cancellation.
-  Cancellation releases commitment-local locks, if any, and the operator must
-  repost.
+  stores the current `VerifierRegistry.registry_revision`, selects verifiers
+  with round-robin, increments `VerifierRegistry.next_selection_index` by the
+  number of selected verifiers, and starts the challenge window.
+- Verifier selection uses all registered verifiers except the commitment
+  operator. If no verifier remains, `PostCommitment` rejects.
+- `PostCommitment` selects at most
+  `ProtocolConfig.verifiers_per_commitment` verifiers. If fewer eligible
+  verifiers exist, it selects all eligible verifiers.
 - `UpdateVerifierRegistry` mutates the registry and increments
-  `registry_revision`. It affects future commitments and unactivated
-  commitments only; it does not change `selected_verifiers` already stored on an
-  active commitment.
+  `registry_revision`. It affects future commitments only; it does not change
+  `selected_verifiers` already stored on a pending commitment.
 - `ApproveCommitment` requires the verifier to have an active bond, be selected
   for this commitment, and still be inside the challenge window. The instruction
   data points to the verifier's index in `selected_verifiers`. Duplicate
@@ -630,11 +594,10 @@ pub struct FinalizeCommitmentData {
 
 | Scenario | DLP behavior |
 | --- | --- |
-| Registry changes after `PostCommitment` but before VRF activation | `CancelUnactivatedCommitment` cancels the pending record. The operator reposts against the latest `registry_revision`. |
-| VRF callback never arrives | `CancelUnactivatedCommitment` cancels after timeout. No verifier selection happens. |
 | Wrong registry account is passed | Reject. The registry account must match `PendingCommitment.verifier_registry`. |
 | Registry update includes duplicate, unbonded, or inactive verifiers | Reject. `registry_revision` changes only after a valid update. |
-| Registry changes after VRF activation | No effect on this commitment. Approvals use stored `selected_verifiers`. |
+| No eligible verifier exists at `PostCommitment` | Reject. At least one verifier other than the operator must be selectable. |
+| Registry changes after `PostCommitment` | No effect on this commitment. Approvals use stored `selected_verifiers`. |
 | Selected verifier is slashed or exits before approval | Reject that approval. Under-approval handling decides whether to extend or expire. |
 
 ## Flows
@@ -642,11 +605,10 @@ pub struct FinalizeCommitmentData {
 ### Happy Path
 
 1. Operator posts commitment.
-2. DLP requests VRF.
-3. VRF callback selects verifiers and starts the challenge window.
-4. Selected verifiers approve.
-5. Window closes without challenge.
-6. Finalizer opens full state and finalizes.
+2. DLP selects verifiers with round-robin and starts the challenge window.
+3. Selected verifiers approve.
+4. Window closes without challenge.
+5. Finalizer opens full state and finalizes.
 
 ### Challenge Paths
 
@@ -718,7 +680,7 @@ creates `VerifierBond`.
 
 **Can an operator verify its own commitment?**
 
-No. `ConsumeCommitmentRandomness` must exclude the commitment operator from
+No. `PostCommitment` must exclude the commitment operator from
 `selected_verifiers`, even if the same pubkey is registered as a verifier.
 
 **Why keep VerifierBond separate from VerifierRegistry?**
@@ -730,7 +692,7 @@ selectable verifier list used during verifier selection.
 
 - Hash function and byte serialization.
 - DA pointer wire format.
-- Uniform vs stake-weighted verifier selection.
+- Round-robin vs future random or stake-weighted verifier selection.
 - Bounded vector vs Merkleized verifier registry.
 - Resolver no-decision policy.
 - DA-unavailable or replay-insufficient policy.
