@@ -16,9 +16,6 @@ pub struct ProtocolConfig {
     /// Emergency stop for new commitments and other non-exit activity.
     pub paused: bool,
 
-    /// Oracle queue DLP uses when requesting randomness.
-    pub vrf_oracle_queue: Pubkey,
-
     /// Multisig-controlled signer allowed to resolve disputes.
     pub resolver: Pubkey,
 
@@ -34,7 +31,7 @@ pub struct ProtocolConfig {
     /// Minimum stake locked by a challenge to prevent cheap spam.
     pub min_challenger_stake: u64,
 
-    /// Slots available for approval/challenge after VRF activation.
+    /// Slots available for approval/challenge after commitment post.
     pub challenge_window_slots: u64,
 
     /// Slots the operator gets to open state after a challenge.
@@ -46,8 +43,8 @@ pub struct ProtocolConfig {
     /// Delay before a winning challenger can claim payout.
     pub payout_timelock_slots: u64,
 
-    /// Number of verifiers randomly picked from VerifierRegistry.
-    pub selected_verifier_count: u16,
+    /// Maximum number of verifiers selected for one commitment.
+    pub verifiers_per_commitment: u16,
 
     /// Approvals required for happy-path finalization.
     pub approval_threshold: u16,

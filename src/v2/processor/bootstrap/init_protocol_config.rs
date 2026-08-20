@@ -1,4 +1,5 @@
 use dlp_api::{
+    compat::Pubkey,
     pda::fees_vault_pda,
     v2::{
         pda::{PROTOCOL_CONFIG_SEED, VERIFIER_REGISTRY_SEED},
@@ -15,7 +16,6 @@ use pinocchio::{
 use crate::{
     processor::fast::utils::pda::create_pda,
     requires::{require_uninitialized_pda, StandardCtx},
-    solana_program::pubkey::Pubkey,
 };
 use wheels::{
     layout::{Decodable, Encodable},
@@ -88,7 +88,6 @@ pub fn process_init_protocol_config(
         discriminator: ProtocolConfig::DISCRIMINATOR,
         authority: authority.address().to_bytes().into(),
         paused: false,
-        vrf_oracle_queue: *args.vrf_oracle_queue(),
         resolver: *args.resolver(),
         protocol_fee_vault: fees_vault_pda(),
         min_operator_bond: args.min_operator_bond(),
@@ -98,7 +97,7 @@ pub fn process_init_protocol_config(
         operator_response_timeout_slots: args.operator_response_timeout_slots(),
         challenger_reveal_timeout_slots: args.challenger_reveal_timeout_slots(),
         payout_timelock_slots: args.payout_timelock_slots(),
-        selected_verifier_count: args.selected_verifier_count(),
+        verifiers_per_commitment: args.verifiers_per_commitment(),
         approval_threshold: args.approval_threshold(),
         max_window_extensions: args.max_window_extensions(),
         match_penalty_bps: args.match_penalty_bps(),
@@ -114,11 +113,6 @@ pub fn process_init_protocol_config(
 fn validate_args(args: &InitProtocolConfigArgsView<'_>) -> ProgramResult {
     let default_pubkey = Pubkey::default();
 
-    require_ne_keys!(
-        args.vrf_oracle_queue(),
-        &default_pubkey,
-        ProgramError::InvalidInstructionData
-    );
     require_ne_keys!(
         args.resolver(),
         &default_pubkey,
@@ -160,7 +154,7 @@ fn validate_args(args: &InitProtocolConfigArgsView<'_>) -> ProgramResult {
         ProgramError::InvalidInstructionData
     );
     require_ne!(
-        args.selected_verifier_count(),
+        args.verifiers_per_commitment(),
         0,
         ProgramError::InvalidInstructionData
     );
@@ -171,7 +165,7 @@ fn validate_args(args: &InitProtocolConfigArgsView<'_>) -> ProgramResult {
     );
     require_le!(
         args.approval_threshold(),
-        args.selected_verifier_count(),
+        args.verifiers_per_commitment(),
         ProgramError::InvalidInstructionData
     );
     require_le!(

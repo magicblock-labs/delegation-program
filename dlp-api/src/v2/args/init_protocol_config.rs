@@ -5,7 +5,6 @@ use crate::compat::Pubkey;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[variable_offset_layout(buffer_offset = 0)]
 pub struct InitProtocolConfigArgs {
-    pub vrf_oracle_queue: Pubkey,
     pub resolver: Pubkey,
 
     pub min_operator_bond: u64,
@@ -17,7 +16,7 @@ pub struct InitProtocolConfigArgs {
     pub challenger_reveal_timeout_slots: u64,
     pub payout_timelock_slots: u64,
 
-    pub selected_verifier_count: u16,
+    pub verifiers_per_commitment: u16,
     pub approval_threshold: u16,
     pub max_window_extensions: u16,
     pub match_penalty_bps: u16,
