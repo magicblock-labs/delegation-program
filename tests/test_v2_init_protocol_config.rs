@@ -26,6 +26,7 @@ fn test_v2_verifier_registry_layout_round_trip() {
     let registry = VerifierRegistry {
         discriminator: VerifierRegistry::DISCRIMINATOR,
         registry_revision: 7,
+        next_selection_index: 5,
         entries: vec![
             VerifierRegistryEntry {
                 verifier_identity: Pubkey::new_unique(),
@@ -47,6 +48,10 @@ fn test_v2_verifier_registry_layout_round_trip() {
 
     assert_eq!(decoded.discriminator(), VerifierRegistry::DISCRIMINATOR);
     assert_eq!(decoded.registry_revision(), registry.registry_revision);
+    assert_eq!(
+        decoded.next_selection_index(),
+        registry.next_selection_index
+    );
     assert_eq!(decoded.entries().len(), registry.entries.len());
     for (decoded_entry, registry_entry) in
         decoded.entries().iter().zip(registry.entries.iter())
@@ -94,7 +99,6 @@ async fn test_v2_init_protocol_config() {
     );
     assert_eq!(*protocol_config.authority(), authority.pubkey());
     assert!(!protocol_config.paused());
-    assert_eq!(*protocol_config.vrf_oracle_queue(), args.vrf_oracle_queue);
     assert_eq!(*protocol_config.resolver(), args.resolver);
     assert_eq!(*protocol_config.protocol_fee_vault(), fees_vault_pda());
     assert_eq!(protocol_config.min_operator_bond(), args.min_operator_bond);
@@ -120,8 +124,8 @@ async fn test_v2_init_protocol_config() {
         args.payout_timelock_slots
     );
     assert_eq!(
-        protocol_config.selected_verifier_count(),
-        args.selected_verifier_count
+        protocol_config.verifiers_per_commitment(),
+        args.verifiers_per_commitment
     );
     assert_eq!(
         protocol_config.approval_threshold(),
@@ -148,6 +152,7 @@ async fn test_v2_init_protocol_config() {
         VerifierRegistry::DISCRIMINATOR
     );
     assert_eq!(verifier_registry.registry_revision(), 0);
+    assert_eq!(verifier_registry.next_selection_index(), 0);
     assert!(verifier_registry.entries().is_empty());
 }
 
@@ -232,7 +237,7 @@ async fn test_v2_init_protocol_config_fails_with_invalid_args() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
     let mut args = valid_args();
-    args.approval_threshold = args.selected_verifier_count + 1;
+    args.approval_threshold = args.verifiers_per_commitment + 1;
 
     let ix = init_protocol_config(authority.pubkey(), args);
     let tx = Transaction::new_signed_with_payer(
@@ -246,11 +251,29 @@ async fn test_v2_init_protocol_config_fails_with_invalid_args() {
 }
 
 #[tokio::test]
-async fn test_v2_init_protocol_config_fails_with_default_vrf_oracle_queue() {
+async fn test_v2_init_protocol_config_fails_with_zero_verifier_cap() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
     let mut args = valid_args();
-    args.vrf_oracle_queue = Pubkey::default();
+    args.verifiers_per_commitment = 0;
+
+    let ix = init_protocol_config(authority.pubkey(), args);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &authority],
+        blockhash,
+    );
+
+    assert!(banks.process_transaction(tx).await.is_err());
+}
+
+#[tokio::test]
+async fn test_v2_init_protocol_config_fails_with_zero_approval_threshold() {
+    let (banks, payer, authority, blockhash) = setup_program_test_env().await;
+
+    let mut args = valid_args();
+    args.approval_threshold = 0;
 
     let ix = init_protocol_config(authority.pubkey(), args);
     let tx = Transaction::new_signed_with_payer(
@@ -281,7 +304,6 @@ async fn test_v1_dispatch_still_works_after_v2_routing() {
 
 fn valid_args() -> InitProtocolConfigArgs {
     InitProtocolConfigArgs {
-        vrf_oracle_queue: Pubkey::new_unique(),
         resolver: Pubkey::new_unique(),
         min_operator_bond: 1,
         min_verifier_bond: 1,
@@ -290,7 +312,7 @@ fn valid_args() -> InitProtocolConfigArgs {
         operator_response_timeout_slots: 10,
         challenger_reveal_timeout_slots: 10,
         payout_timelock_slots: 10,
-        selected_verifier_count: 3,
+        verifiers_per_commitment: 3,
         approval_threshold: 2,
         max_window_extensions: 1,
         match_penalty_bps: 500,
