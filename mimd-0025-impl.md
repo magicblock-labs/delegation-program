@@ -11,7 +11,8 @@ choices and message shapes. Protocol rationale stays in the MIMD.
 - [Accounts](#accounts)
 - [Instructions](#instructions)
   - [Bootstrap Instructions](#bootstrap-instructions)
-  - [Runtime Instructions](#runtime-instructions)
+  - [Core Runtime Instructions](#core-runtime-instructions)
+  - [Deferred Or Merge Candidate Instructions](#deferred-or-merge-candidate-instructions)
   - [Key Instruction Data](#key-instruction-data)
   - [Important Instruction Rules](#important-instruction-rules)
   - [Failure Scenarios](#failure-scenarios)
@@ -480,29 +481,35 @@ Authority-gated setup and admission instructions for permissioned v2.
 | `RegisterVerifier`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>verifier signer, protocol authority signer, VerifierBond, ProtocolConfig</strong></li></ul> | Verifier, protocol authority | Creates the per-verifier `VerifierBond` PDA at `["verifier-bond", verifier]` and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter the registry. |
 | `UpdateVerifierRegistry`<ul><li>ix-data: <code>update</code></li><li>accounts: <strong>authority signer, VerifierRegistry, VerifierBond accounts</strong></li></ul> | Protocol authority | Adds or removes verifier pubkeys in the single `VerifierRegistry` account and increments `registry_revision`. Invalid, duplicate, unbonded, or inactive verifiers are rejected. |
 
-### Runtime Instructions
+### Core Runtime Instructions
 
-Normal actor lifecycle, commitment, challenge, resolution, and cleanup
-instructions.
+Commitment, approval, challenge, resolution, and finalization instructions.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
-| `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
 | `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator signer, OperatorBond, PendingCommitment, delegated account, DelegationRecord, ProtocolConfig, VerifierRegistry</strong></li></ul> | Operator | Selects verifiers with round-robin, creates an active commitment, stores the current `registry_revision`, starts the challenge window, and locks any commitment-local stake if needed. |
 | `ApproveCommitment`<ul><li>ix-data: <code>selected_verifier_index</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from one selected verifier. Duplicate approvals do not increase the count. |
 | `WriteStateBuffer`<ul><li>ix-data: <code>chunk</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Writes a chunk of opened account data for finalize, operator response, or challenger reveal. |
-| `FinalizeStateBuffer`<ul><li>ix-data: <code>role</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Freezes a completed buffer after length and hash checks. Frozen buffers can be used by later instructions. |
 | `RaiseChallenge`<ul><li>ix-data: <code>challenge</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, ProtocolConfig</strong></li></ul> | Challenger | Locks challenger stake, records the hidden challenge hash, and blocks normal finalization until the challenge is resolved. |
 | `OperatorChallengeResponse`<ul><li>ix-data: <code>state</code></li><li>accounts: <strong>operator signer, PendingCommitment, Challenge, optional StateBuffer</strong></li></ul> | Operator | Opens the operator's claimed state for the challenged commitment and starts the challenger reveal timeout. |
-| `MarkOperatorTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge</strong></li></ul> | Cranker | Records that the operator missed the response deadline. The challenger must still reveal the challenge preimage. |
 | `ChallengerReveal`<ul><li>ix-data: <code>state, salt</code></li><li>accounts: <strong>challenger signer, PendingCommitment, Challenge, optional StateBuffer, fee vault</strong></li></ul> | Challenger | Verifies the challenge preimage and opened state. It slashes invalid reveals, penalizes matching reveals, or moves mismatches to resolver decision. |
 | `MarkChallengerRevealTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge, fee vault</strong></li></ul> | Cranker | Slashes challenger stake when the reveal deadline passes without a valid reveal. |
 | `ResolveDispute`<ul><li>ix-data: <code>decision</code></li><li>accounts: <strong>resolver signer, Challenge, PendingCommitment, OperatorBond, fee vault, optional PayoutTimelock</strong></li></ul> | Resolver multisig | Applies the multisig decision for a valid mismatch: operator correct or challenger correct. |
 | `FinalizeCommitment`<ul><li>ix-data: <code>state_source</code></li><li>accounts: <strong>finalizer, PendingCommitment, delegated account, DelegationRecord/metadata, StateBuffer, optional Challenge, ProtocolConfig</strong></li></ul> | Finalizer or cranker | Applies the final state after the happy path or after dispute resolution. |
-| `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, ProtocolConfig</strong></li></ul> | Cranker | Extends an under-approved commitment according to config, or expires it after the maximum extensions. |
-| `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Pays the challenger reward after the timelock for a challenger-correct dispute. |
-| `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
+
+### Deferred Or Merge Candidate Instructions
+
+These instructions can be skipped while implementing the first usable v2 flow.
+
+| Instruction | Expected invoker | Description |
+| --- | --- | --- |
+| `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
+| `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
+| `FinalizeStateBuffer`<ul><li>ix-data: <code>role</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Merge candidate. Could be folded into `WriteStateBuffer` with final chunk metadata, or replaced by validation in the instruction that consumes the buffer. |
+| `MarkOperatorTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge</strong></li></ul> | Cranker | Remove candidate. `ChallengerReveal` can check the operator response deadline and handle the operator-timeout branch directly. |
+| `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, ProtocolConfig</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to config, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
+| `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Remove candidate. If payout delay is not required, `ResolveDispute` can pay immediately and `PayoutTimelock` can be removed. |
+| `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Low priority. Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
 
 ### Key Instruction Data
 
