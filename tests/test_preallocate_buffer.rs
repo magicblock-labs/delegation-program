@@ -53,15 +53,19 @@ async fn test_preallocate_commit_state_creates_fresh() {
     let (banks, _, validator, blockhash) =
         setup_program_test_env(false, None).await;
 
-    let target_size: u32 = 500;
-    let ix = dlp_api::instruction_builder::preallocate_buffer(
+    // Must exceed MAX_PERMITTED_DATA_INCREASE (see
+    // test_preallocate_commit_state_rejects_target_at_or_below_cap below),
+    // so this needs two growth steps to actually reach the target.
+    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         PreallocateBufferKind::CommitState,
+        0,
         target_size,
     );
     let tx = Transaction::new_signed_with_payer(
-        &[ix],
+        &ixs,
         Some(&validator.pubkey()),
         &[&validator],
         blockhash,
@@ -83,15 +87,17 @@ async fn test_preallocate_undelegate_buffer_creates_fresh() {
     let (banks, _, validator, blockhash) =
         setup_program_test_env(false, None).await;
 
-    let target_size: u32 = 500;
-    let ix = dlp_api::instruction_builder::preallocate_buffer(
+    // Same reasoning as test_preallocate_commit_state_creates_fresh above.
+    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         PreallocateBufferKind::UndelegateBuffer,
+        0,
         target_size,
     );
     let tx = Transaction::new_signed_with_payer(
-        &[ix],
+        &ixs,
         Some(&validator.pubkey()),
         &[&validator],
         blockhash,
@@ -147,27 +153,31 @@ async fn test_preallocate_commit_state_idempotent_past_target() {
     let (banks, _, validator, blockhash) =
         setup_program_test_env(false, None).await;
 
-    // Grow to 5_000 bytes first.
-    let ix = dlp_api::instruction_builder::preallocate_buffer(
+    // Grow to 15_000 bytes first (must exceed MAX_PERMITTED_DATA_INCREASE,
+    // see test_preallocate_commit_state_rejects_target_at_or_below_cap --
+    // hence two growth steps to actually reach it).
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         PreallocateBufferKind::CommitState,
-        5_000,
+        0,
+        15_000,
     );
     let tx = Transaction::new_signed_with_payer(
-        &[ix],
+        &ixs,
         Some(&validator.pubkey()),
         &[&validator],
         blockhash,
     );
     assert!(banks.process_transaction(tx).await.is_ok());
 
-    // Calling again with a smaller target must be a no-op (never shrinks).
+    // Calling again with a smaller (but still > cap) target must be a no-op
+    // (never shrinks).
     let ix = dlp_api::instruction_builder::preallocate_buffer(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         PreallocateBufferKind::CommitState,
-        3_000,
+        12_000,
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -182,7 +192,7 @@ async fn test_preallocate_commit_state_idempotent_past_target() {
         commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let commit_state_account =
         banks.get_account(commit_state_pda).await.unwrap().unwrap();
-    assert_eq!(commit_state_account.data.len(), 5_000);
+    assert_eq!(commit_state_account.data.len(), 15_000);
 }
 
 #[tokio::test]
@@ -227,11 +237,14 @@ async fn test_preallocate_commit_state_rejects_when_commit_in_flight() {
     let (banks, _, validator, blockhash) =
         setup_program_test_env(true, None).await;
 
+    // Must exceed MAX_PERMITTED_DATA_INCREASE, or this trips
+    // PreallocateBufferTargetTooSmall before ever reaching the
+    // commit-in-flight check this test means to exercise.
     let ix = dlp_api::instruction_builder::preallocate_buffer(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         PreallocateBufferKind::CommitState,
-        500,
+        MAX_PERMITTED_DATA_INCREASE as u32 + 4_760, // 15_000
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -241,6 +254,100 @@ async fn test_preallocate_commit_state_rejects_when_commit_in_flight() {
     );
     let err = banks.process_transaction(tx).await.unwrap_err();
     assert_custom_error(err, DlpError::PreallocateBufferCommitInFlight);
+}
+
+/// `CommitState`/`UndelegateBuffer` buffers are always closed and recreated
+/// fresh each cycle, so a target at or below the cap can always be created
+/// directly, in one shot, by the consuming instruction itself -- there's
+/// never a legitimate reason to preallocate one this small, and doing so
+/// would leave `create_or_verify_preallocated_pda` unable to tell a genuine
+/// preallocation apart from a stray leftover account.
+#[tokio::test]
+async fn test_preallocate_commit_state_rejects_target_at_or_below_cap() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    // Exactly at the cap must also be rejected (the check is strictly `>`).
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        MAX_PERMITTED_DATA_INCREASE as u32,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::PreallocateBufferTargetTooSmall);
+
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    assert!(
+        banks.get_account(commit_state_pda).await.unwrap().is_none(),
+        "rejected preallocation must not create the buffer"
+    );
+}
+
+/// Same reasoning as test_preallocate_commit_state_rejects_target_at_or_below_cap.
+#[tokio::test]
+async fn test_preallocate_undelegate_buffer_rejects_target_at_or_below_cap() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::UndelegateBuffer,
+        500,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::PreallocateBufferTargetTooSmall);
+
+    let undelegate_buffer_pda =
+        undelegate_buffer_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    assert!(
+        banks.get_account(undelegate_buffer_pda).await.unwrap().is_none(),
+        "rejected preallocation must not create the buffer"
+    );
+}
+
+/// `DelegatedAccount` targets the delegated account itself, which isn't
+/// closed/recreated each cycle the way `CommitState`/`UndelegateBuffer`
+/// buffers are -- so it's exempt from the above guard, and small targets are
+/// legitimate (e.g. growing a small account by a few bytes).
+#[tokio::test]
+async fn test_preallocate_delegated_account_allows_target_at_or_below_cap() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    let target_size: u32 = 500;
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::DelegatedAccount,
+        target_size,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert_eq!(delegated_account.data.len(), target_size as usize);
 }
 
 #[tokio::test]
@@ -253,15 +360,17 @@ async fn test_preallocate_undelegate_buffer_ignores_commit_in_flight() {
     let (banks, _, validator, blockhash) =
         setup_program_test_env(true, None).await;
 
-    let target_size: u32 = 500;
-    let ix = dlp_api::instruction_builder::preallocate_buffer(
+    // Must exceed MAX_PERMITTED_DATA_INCREASE, hence two growth steps.
+    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         PreallocateBufferKind::UndelegateBuffer,
+        0,
         target_size,
     );
     let tx = Transaction::new_signed_with_payer(
-        &[ix],
+        &ixs,
         Some(&validator.pubkey()),
         &[&validator],
         blockhash,

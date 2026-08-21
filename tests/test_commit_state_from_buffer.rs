@@ -190,20 +190,19 @@ async fn test_commit_new_state_from_buffer_large_without_preallocation_fails() {
     );
     let err = banks.process_transaction(tx).await.unwrap_err();
     // commit_state has no PDA to grow yet at all -- create_or_verify_preallocated_pda
-    // requires it to already exist (initialized by PreallocateBuffer) once
-    // the target exceeds MAX_PERMITTED_DATA_INCREASE, so this fails the
-    // ownership check before it can even get to the size comparison.
+    // tries to create it directly at the full 15_000-byte target, which
+    // exceeds MAX_PERMITTED_DATA_INCREASE in a single instruction.
     assert!(
         matches!(
             err,
             BanksClientError::TransactionError(
                 TransactionError::InstructionError(
                     _,
-                    InstructionError::InvalidAccountOwner,
+                    InstructionError::InvalidRealloc,
                 )
             )
         ),
-        "expected InvalidAccountOwner, got {err:?}"
+        "expected InvalidRealloc, got {err:?}"
     );
 }
 
@@ -362,7 +361,9 @@ async fn test_commit_diff_from_buffer_preallocated_to_diff_len_fails() {
         blockhash,
     );
     let err = banks.process_transaction(tx).await.unwrap_err();
-    assert_custom_error(err, DlpError::BufferNotPreallocatedToExactSize);
+    // The diff's length is below MAX_PERMITTED_DATA_INCREASE, so PreallocateBuffer
+    // itself now rejects this target before commit_diff_from_buffer even runs.
+    assert_custom_error(err, DlpError::PreallocateBufferTargetTooSmall);
 }
 
 fn assert_custom_error(err: BanksClientError, expected: DlpError) {

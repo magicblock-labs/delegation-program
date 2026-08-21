@@ -14,6 +14,7 @@ use crate::{
     args::{PreallocateBufferArgs, PreallocateBufferKind},
     error::DlpError,
     pda,
+    require_gt,
     processor::fast::utils::pda::{create_pda, resize_pda},
     requires::{
         is_uninitialized_account, require_initialized_delegation_record,
@@ -60,6 +61,10 @@ use crate::{
 ///   `UndelegateBuffer` alongside finalize in a two-stage commit-and-undelegate,
 ///   ahead of `undelegate`'s own check (which requires the commit record to be
 ///   uninitialized by the time *it* runs, not by the time it's preallocated).
+/// - for `kind = CommitState` / `UndelegateBuffer`, `target_size` must exceed
+///   `MAX_PERMITTED_DATA_INCREASE` -- those buffer PDAs are always closed and
+///   recreated fresh each cycle, so a smaller target can always be created
+///   directly, in one shot, by the consuming instruction itself.
 /// - for `kind = DelegatedAccount`, rent transferred to fund the growth is
 ///   also added to `delegation_record.lamports`, keeping the ledger in sync
 ///   with the account's actual balance -- otherwise finalize/commit_finalize's
@@ -102,6 +107,17 @@ pub fn process_preallocate_buffer(
     let target_size = args.target_size as usize;
     match args.kind {
         PreallocateBufferKind::CommitState => {
+            // Buffer is closed and recreated fresh every cycle, so a target
+            // this small can always be created directly, in one shot, by
+            // the consuming instruction itself -- there's never a
+            // legitimate reason to preallocate one. Rejecting it keeps
+            // "buffer PDA is DLP-owned" synonymous with "it had to be
+            // preallocated", which consumers rely on.
+            require_gt!(
+                target_size,
+                MAX_PERMITTED_DATA_INCREASE,
+                DlpError::PreallocateBufferTargetTooSmall
+            );
             require_no_commit_in_flight(
                 delegated_account,
                 commit_record_account,
@@ -125,6 +141,12 @@ pub fn process_preallocate_buffer(
             )
         }
         PreallocateBufferKind::UndelegateBuffer => {
+            // Same reasoning as the `CommitState` arm above.
+            require_gt!(
+                target_size,
+                MAX_PERMITTED_DATA_INCREASE,
+                DlpError::PreallocateBufferTargetTooSmall
+            );
             let seeds_arr = [
                 pda::UNDELEGATE_BUFFER_TAG,
                 delegated_account.address().as_ref(),
