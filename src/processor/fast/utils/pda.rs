@@ -1,6 +1,9 @@
 use pinocchio::{
-    cpi::Signer, error::ProgramError, instruction::seeds,
-    sysvars::{rent::Rent, Sysvar}, AccountView, Address, ProgramResult,
+    cpi::Signer,
+    error::ProgramError,
+    instruction::seeds,
+    sysvars::{rent::Rent, Sysvar},
+    AccountView, Address, ProgramResult,
 };
 use pinocchio_system::instructions as system;
 

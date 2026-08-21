@@ -242,12 +242,13 @@ async fn test_commit_finalize_from_buffer_large_growth_does_not_double_pay_rent(
     let extra_on_er = 12_345u64;
     let commit_lamports = min_rent_target + extra_on_er;
 
-    let (banks, _, authority, blockhash) = setup_program_test_env_with_lamports(
-        vec![],
-        new_state.clone(),
-        initial_lamports,
-    )
-    .await;
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env_with_lamports(
+            vec![],
+            new_state.clone(),
+            initial_lamports,
+        )
+        .await;
 
     let state_buffer_pda =
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;

@@ -315,7 +315,11 @@ async fn test_preallocate_undelegate_buffer_rejects_target_at_or_below_cap() {
     let undelegate_buffer_pda =
         undelegate_buffer_pda_from_delegated_account(&DELEGATED_PDA_ID);
     assert!(
-        banks.get_account(undelegate_buffer_pda).await.unwrap().is_none(),
+        banks
+            .get_account(undelegate_buffer_pda)
+            .await
+            .unwrap()
+            .is_none(),
         "rejected preallocation must not create the buffer"
     );
 }

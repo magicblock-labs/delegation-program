@@ -14,8 +14,8 @@ use crate::{
     args::{PreallocateBufferArgs, PreallocateBufferKind},
     error::DlpError,
     pda,
-    require_gt,
     processor::fast::utils::pda::{create_pda, resize_pda},
+    require_gt,
     requires::{
         is_uninitialized_account, require_initialized_delegation_record,
         require_initialized_validator_fees_vault, require_owned_pda,
@@ -99,7 +99,7 @@ pub fn process_preallocate_buffer(
         validator,
         delegated_account,
         validator_fees_vault,
-        &delegation_record,
+        delegation_record,
     )?;
 
     let args = PreallocateBufferArgs::try_from_slice(data)
