@@ -5,11 +5,13 @@ use dlp_api::v2::{
     VERIFIER_REGISTRY_ACTION_ADD, VERIFIER_REGISTRY_ACTION_REMOVE,
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_program_test::ProgramTestBanksClientExt;
 use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
 use solana_system_interface::instruction as system_instruction;
+use wheels::layout::Decodable;
 
 mod fixtures;
 
@@ -54,28 +56,30 @@ async fn test_v2_update_verifier_registry_adds_verifier() {
         .await
         .unwrap()
         .unwrap();
-    let verifier_registry =
-        VerifierRegistry::try_from_bytes_with_discriminator(
-            &verifier_registry_account.data,
-        )
-        .unwrap();
+    let verifier_registry = <VerifierRegistry as Decodable>::decode(
+        &verifier_registry_account.data,
+    )
+    .unwrap();
 
-    assert_eq!(verifier_registry.registry_revision, 1);
-    assert_eq!(verifier_registry.entries.len(), 1);
     assert_eq!(
-        verifier_registry.entries[0].verifier_identity,
-        verifier.pubkey()
+        verifier_registry.discriminator(),
+        VerifierRegistry::DISCRIMINATOR
     );
+    assert_eq!(verifier_registry.registry_revision(), 1);
+    assert_eq!(verifier_registry.entries().len(), 1);
+    let entry = verifier_registry.entries().iter().next().unwrap();
+    assert_eq!(*entry.verifier_identity(), verifier.pubkey());
     assert_eq!(
-        verifier_registry.entries[0].verifier_bond,
+        *entry.verifier_bond(),
         verifier_bond_pda(&verifier.pubkey())
     );
-    assert_eq!(verifier_registry.entries[0].weight, 1);
+    assert_eq!(entry.weight(), 1);
 }
 
 #[tokio::test]
 async fn test_v2_update_verifier_registry_fails_twice() {
-    let (banks, payer, authority, blockhash) = setup_program_test_env().await;
+    let (mut banks, payer, authority, blockhash) =
+        setup_program_test_env().await;
     let config_args = valid_args();
     let verifier = Keypair::new();
 
@@ -90,7 +94,11 @@ async fn test_v2_update_verifier_registry_fails_twice() {
     .await;
     add_verifier_to_registry(&banks, &payer, &verifier, &authority, 1).await;
 
-    let blockhash = banks.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
+    let blockhash = banks
+        .get_new_latest_blockhash(&latest_blockhash)
+        .await
+        .unwrap();
     let ix = update_verifier_registry(
         authority.pubkey(),
         verifier.pubkey(),
