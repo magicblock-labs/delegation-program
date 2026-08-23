@@ -80,6 +80,30 @@ pub(crate) fn close_pda(
     target_account.resize(0)
 }
 
+/// Resizes an existing PDA and tops up rent when the account grows.
+#[inline(always)]
+pub(crate) fn resize_pda(
+    payer: &AccountView,
+    target_account: &AccountView,
+    space: usize,
+) -> ProgramResult {
+    let rent = Rent::get()?;
+    let rent_exempt_balance = rent
+        .try_minimum_balance(space)?
+        .saturating_sub(target_account.lamports());
+
+    if rent_exempt_balance > 0 {
+        system::Transfer {
+            from: payer,
+            to: target_account,
+            lamports: rent_exempt_balance,
+        }
+        .invoke()?;
+    }
+
+    target_account.resize(space)
+}
+
 /// Close PDA with fees, distributing the fees to the specified addresses in sequence
 /// The total fees are calculated as `fee_percentage` of the total lamports in the PDA
 /// Each fee address receives fee_percentage % of the previous fee address's amount
