@@ -1,20 +1,7 @@
-use wheels::{layout::Decodable, variable_offset_layout};
-
-use crate::solana_program::program_error::ProgramError;
+use wheels::variable_offset_layout;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[variable_offset_layout(buffer_offset = unaligned)]
+#[variable_offset_layout(buffer_offset = 0)]
 pub struct RegisterVerifierArgs {
     pub amount_lamports: u64,
-}
-
-impl RegisterVerifierArgs {
-    pub fn try_from_bytes(data: &[u8]) -> Result<Self, ProgramError> {
-        let view = <Self as Decodable>::decode(data)
-            .map_err(super::super::state::layout_error_to_program_error)?;
-
-        Ok(Self {
-            amount_lamports: view.amount_lamports(),
-        })
-    }
 }
