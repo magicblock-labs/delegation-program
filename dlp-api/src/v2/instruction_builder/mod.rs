@@ -1,4 +1,5 @@
 mod init_delegation_cluster;
+mod post_commitment;
 mod register_operator;
 mod register_verifier;
 mod update_delegation_cluster;
@@ -6,6 +7,7 @@ mod update_verifier_registry;
 mod write_state_buffer;
 
 pub use init_delegation_cluster::*;
+pub use post_commitment::*;
 pub use register_operator::*;
 pub use register_verifier::*;
 pub use update_delegation_cluster::*;
