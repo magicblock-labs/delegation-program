@@ -3,6 +3,7 @@ use dlp_api::v2::{
     OperatorBond, RegisterOperatorArgs, OPERATOR_STATUS_ACTIVE,
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_program_test::ProgramTestBanksClientExt;
 use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
@@ -119,7 +120,8 @@ async fn test_v2_register_operator_fails_with_low_stake() {
 
 #[tokio::test]
 async fn test_v2_register_operator_fails_twice() {
-    let (banks, payer, authority, blockhash) = setup_program_test_env().await;
+    let (mut banks, payer, authority, blockhash) =
+        setup_program_test_env().await;
     let config_args = valid_args();
     let operator = Keypair::new();
 
@@ -133,7 +135,11 @@ async fn test_v2_register_operator_fails_twice() {
             amount_lamports: config_args.min_operator_bond,
         },
     );
-    let blockhash = banks.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
+    let blockhash = banks
+        .get_new_latest_blockhash(&latest_blockhash)
+        .await
+        .unwrap();
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -149,7 +155,11 @@ async fn test_v2_register_operator_fails_twice() {
             amount_lamports: config_args.min_operator_bond,
         },
     );
-    let blockhash = banks.get_latest_blockhash().await.unwrap();
+    let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
+    let blockhash = banks
+        .get_new_latest_blockhash(&latest_blockhash)
+        .await
+        .unwrap();
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
