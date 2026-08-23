@@ -17,7 +17,7 @@ pub fn process_instruction(
             process_init_protocol_config(accounts, data)
         }
         DlpV2Instruction::RegisterOperator => {
-            process_register_operator(program_id, accounts, data)
+            process_register_operator(accounts, data)
         }
     }
 }
