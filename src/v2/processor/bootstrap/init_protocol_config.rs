@@ -30,6 +30,7 @@ use wheels::{
 /// 1: `[writable]`         ProtocolConfig PDA
 /// 2: `[writable]`         VerifierRegistry PDA
 /// 3: `[]`                 system program, required by system CPI
+#[inline(never)]
 pub fn process_init_protocol_config(
     accounts: &[AccountView],
     data: &[u8],
@@ -43,7 +44,7 @@ pub fn process_init_protocol_config(
 
     let args = InitProtocolConfigArgs::decode(data)?;
 
-    validate_args(&args)?;
+    validate_protocol_config_args(&args)?;
 
     require_signer!(authority);
 
@@ -110,7 +111,9 @@ pub fn process_init_protocol_config(
     Ok(())
 }
 
-fn validate_args(args: &InitProtocolConfigArgsView<'_>) -> ProgramResult {
+pub(super) fn validate_protocol_config_args(
+    args: &InitProtocolConfigArgsView<'_>,
+) -> ProgramResult {
     let default_pubkey = Pubkey::default();
 
     require_ne_keys!(
