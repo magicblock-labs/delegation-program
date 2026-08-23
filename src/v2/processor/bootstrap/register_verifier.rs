@@ -6,21 +6,24 @@ use dlp_api::{
         VERIFIER_STATUS_ACTIVE,
     },
 };
-use solana_sdk_ids::system_program;
-use solana_system_interface::instruction as system_instruction;
+use pinocchio::{
+    address::Address,
+    cpi::{Seed, Signer},
+    error::ProgramError,
+    sysvars::{clock::Clock, Sysvar},
+    AccountView, ProgramResult,
+};
+use pinocchio_system::instructions as system;
+use wheels::{
+    layout::{Decodable, Encodable},
+    require_eq_keys, require_ge, require_n_accounts, require_ne,
+    require_signer,
+};
 
 use crate::{
-    processor::utils::{
-        loaders::{
-            load_initialized_pda, load_program, load_signer,
-            load_uninitialized_pda,
-        },
-        pda::create_pda,
-    },
-    solana_program::{
-        account_info::AccountInfo, clock::Clock, entrypoint::ProgramResult,
-        program::invoke, program_error::ProgramError, pubkey::Pubkey,
-        sysvar::Sysvar,
+    processor::fast::utils::pda::create_pda,
+    requires::{
+        require_initialized_pda, require_uninitialized_pda, StandardCtx,
     },
 };
 
@@ -31,90 +34,91 @@ use crate::{
 /// 1: `[signer]`           protocol authority that admits the verifier
 /// 2: `[writable]`         VerifierBond PDA
 /// 3: `[]`                 ProtocolConfig PDA
-/// 4: `[]`                 system program
+/// 4: `[]`                 system program, required by system CPI
+#[inline(never)]
 pub fn process_register_verifier(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    let args = RegisterVerifierArgs::try_from_bytes(data)?;
+    let [
+        verifier, // force multi-line
+        authority,
+        verifier_bond,
+        protocol_config,
+        _system_program,
+    ] = require_n_accounts!(accounts, 5);
 
-    let [verifier, authority, verifier_bond, protocol_config, system_program] =
-        accounts
-    else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
+    let args = RegisterVerifierArgs::decode(data)?;
 
-    load_signer(verifier, "verifier")?;
-    load_signer(authority, "authority")?;
-    load_program(system_program, system_program::id(), "system program")?;
+    require_signer!(verifier);
+    require_signer!(authority);
 
-    load_initialized_pda(
+    require_initialized_pda(
         protocol_config,
         &[PROTOCOL_CONFIG_SEED],
-        &crate::id(),
+        &crate::fast::ID,
         false,
         "protocol config",
     )?;
-
-    let protocol_config_data = protocol_config.try_borrow_data()?;
+    let protocol_config_data = protocol_config.try_borrow()?;
     let protocol_config_state =
-        ProtocolConfig::try_from_bytes_with_discriminator(
-            protocol_config_data.as_ref(),
-        )?;
-
-    if protocol_config_state.authority != *authority.key {
-        return Err(DlpError::InvalidAuthority.into());
+        ProtocolConfig::decode(protocol_config_data.as_ref())?;
+    if protocol_config_state.discriminator() != ProtocolConfig::DISCRIMINATOR {
+        return Err(ProgramError::InvalidAccountData);
     }
+    require_eq_keys!(
+        &Address::from(protocol_config_state.authority().to_bytes()),
+        authority.address(),
+        DlpError::InvalidAuthority
+    );
+    require_ne!(
+        args.amount_lamports(),
+        0,
+        ProgramError::InvalidInstructionData
+    );
+    require_ge!(
+        args.amount_lamports(),
+        protocol_config_state.min_verifier_bond(),
+        ProgramError::InvalidInstructionData
+    );
+    drop(protocol_config_data);
 
-    if *verifier.key == Pubkey::default()
-        || args.amount_lamports < protocol_config_state.min_verifier_bond
-    {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    let verifier_bond_bump = load_uninitialized_pda(
+    let verifier_bond_bump = require_uninitialized_pda(
         verifier_bond,
-        &[VERIFIER_BOND_SEED, verifier.key.as_ref()],
-        &crate::id(),
+        &[VERIFIER_BOND_SEED, verifier.address().as_ref()],
+        &crate::fast::ID,
         true,
-        "verifier bond",
+        StandardCtx::new("verifier bond"),
     )?;
 
     create_pda(
         verifier_bond,
-        &crate::id(),
-        VerifierBond::SPACE,
-        &[VERIFIER_BOND_SEED, verifier.key.as_ref()],
-        verifier_bond_bump,
-        system_program,
+        &crate::fast::ID,
+        VerifierBond::DATA_LEN,
+        &[Signer::from(&[
+            Seed::from(VERIFIER_BOND_SEED),
+            Seed::from(verifier.address().as_ref()),
+            Seed::from(&[verifier_bond_bump]),
+        ])],
         verifier,
     )?;
 
-    invoke(
-        &system_instruction::transfer(
-            verifier.key,
-            verifier_bond.key,
-            args.amount_lamports,
-        ),
-        &[
-            verifier.clone(),
-            verifier_bond.clone(),
-            system_program.clone(),
-        ],
-    )?;
+    system::Transfer {
+        from: verifier,
+        to: verifier_bond,
+        lamports: args.amount_lamports(),
+    }
+    .invoke()?;
 
-    let verifier_bond_state = VerifierBond {
-        verifier_identity: *verifier.key,
-        stake_lamports: args.amount_lamports,
+    VerifierBond {
+        discriminator: VerifierBond::DISCRIMINATOR,
+        verifier_identity: verifier.address().to_bytes().into(),
+        stake_lamports: args.amount_lamports(),
         status: VERIFIER_STATUS_ACTIVE,
         registered_slot: Clock::get()?.slot,
         withdraw_requested_slot: None,
-    };
-
-    let mut verifier_bond_data = verifier_bond.try_borrow_mut_data()?;
-    verifier_bond_state
-        .to_bytes_with_discriminator(verifier_bond_data.as_mut())?;
+    }
+    .encode_to(verifier_bond.try_borrow_mut()?.as_mut())?;
 
     Ok(())
 }
