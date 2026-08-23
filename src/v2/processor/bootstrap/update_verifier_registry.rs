@@ -4,24 +4,24 @@ use dlp_api::{
         pda::{
             PROTOCOL_CONFIG_SEED, VERIFIER_BOND_SEED, VERIFIER_REGISTRY_SEED,
         },
-        ProtocolConfig, UpdateVerifierRegistryArgs, VerifierBond,
+        ProtocolConfig, ProtocolConfigView, UpdateVerifierRegistryArgs,
+        UpdateVerifierRegistryArgsView, VerifierBond, VerifierBondView,
         VerifierRegistry, VerifierRegistryEntry, VERIFIER_REGISTRY_ACTION_ADD,
         VERIFIER_STATUS_ACTIVE,
     },
 };
-use solana_sdk_ids::system_program;
+use pinocchio::{
+    address::Address, error::ProgramError, AccountView, ProgramResult,
+};
+use wheels::{
+    layout::{Decodable, Encodable},
+    require_eq, require_eq_keys, require_ge, require_n_accounts, require_ne,
+    require_signer,
+};
 
 use crate::{
-    processor::utils::{
-        loaders::{
-            load_initialized_pda, load_owned_pda, load_program, load_signer,
-        },
-        pda::resize_pda,
-    },
-    solana_program::{
-        account_info::AccountInfo, entrypoint::ProgramResult,
-        program_error::ProgramError, pubkey::Pubkey,
-    },
+    processor::fast::utils::pda::resize_pda,
+    requires::{require_initialized_pda, require_owned_pda},
 };
 
 /// Update the verifier registry used by v2 verifier selection.
@@ -31,125 +31,174 @@ use crate::{
 /// 1: `[]`                 ProtocolConfig PDA
 /// 2: `[writable]`         VerifierRegistry PDA
 /// 3: `[]`                 VerifierBond PDA
-/// 4: `[]`                 system program
+/// 4: `[]`                 system program, required by system CPI
+#[inline(never)]
 pub fn process_update_verifier_registry(
-    _program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
-    let args = UpdateVerifierRegistryArgs::try_from_bytes(data)?;
+    let [
+        authority, // force multi-line
+        protocol_config,
+        verifier_registry,
+        verifier_bond,
+        _system_program,
+    ] = require_n_accounts!(accounts, 5);
 
-    let [authority, protocol_config, verifier_registry, verifier_bond, system_program] =
-        accounts
-    else {
-        return Err(ProgramError::NotEnoughAccountKeys);
-    };
+    let args = UpdateVerifierRegistryArgs::decode(data)?;
 
-    load_signer(authority, "authority")?;
-    load_program(system_program, system_program::id(), "system program")?;
+    require_signer!(authority);
 
-    load_initialized_pda(
+    require_initialized_pda(
         protocol_config,
         &[PROTOCOL_CONFIG_SEED],
-        &crate::id(),
+        &crate::fast::ID,
         false,
         "protocol config",
     )?;
-    load_initialized_pda(
+    require_initialized_pda(
         verifier_registry,
         &[VERIFIER_REGISTRY_SEED],
-        &crate::id(),
+        &crate::fast::ID,
         true,
         "verifier registry",
     )?;
-    load_owned_pda(verifier_bond, &crate::id(), "verifier bond")?;
+    require_owned_pda(verifier_bond, &crate::fast::ID, "verifier bond")?;
 
-    let protocol_config_data = protocol_config.try_borrow_data()?;
+    let protocol_config_data = protocol_config.try_borrow()?;
     let protocol_config_state =
-        ProtocolConfig::try_from_bytes_with_discriminator(
-            protocol_config_data.as_ref(),
-        )?;
-    if protocol_config_state.authority != *authority.key {
-        return Err(DlpError::InvalidAuthority.into());
-    }
+        ProtocolConfig::decode(protocol_config_data.as_ref())?;
+    validate_protocol_config(&protocol_config_state, authority)?;
 
-    let verifier_bond_data = verifier_bond.try_borrow_data()?;
-    let verifier_bond_state = VerifierBond::try_from_bytes_with_discriminator(
-        verifier_bond_data.as_ref(),
-    )?;
-    drop(verifier_bond_data);
+    let verifier_bond_data = verifier_bond.try_borrow()?;
+    let verifier_bond_state =
+        VerifierBond::decode(verifier_bond_data.as_ref())?;
+    validate_verifier_bond(&verifier_bond_state, verifier_bond)?;
 
-    load_initialized_pda(
-        verifier_bond,
-        &[
-            VERIFIER_BOND_SEED,
-            verifier_bond_state.verifier_identity.as_ref(),
-        ],
-        &crate::id(),
-        false,
-        "verifier bond",
-    )?;
-
-    if args.action != VERIFIER_REGISTRY_ACTION_ADD {
+    if args.action() != VERIFIER_REGISTRY_ACTION_ADD {
         // CHECKPOINT: implement `VERIFIER_REGISTRY_ACTION_REMOVE` when
         // withdrawal/removal rules are finalized.
         return Err(ProgramError::InvalidInstructionData);
     }
 
     validate_add_args(&args, &protocol_config_state, &verifier_bond_state)?;
+    drop(protocol_config_data);
 
-    let verifier_registry_data = verifier_registry.try_borrow_data()?;
-    let mut verifier_registry_state =
-        VerifierRegistry::try_from_bytes_with_discriminator(
-            verifier_registry_data.as_ref(),
-        )?;
-    drop(verifier_registry_data);
+    let verifier_identity = *verifier_bond_state.verifier_identity();
+    drop(verifier_bond_data);
 
-    if verifier_registry_state.entries.iter().any(|entry| {
-        entry.verifier_identity == verifier_bond_state.verifier_identity
-            || entry.verifier_bond == *verifier_bond.key
-    }) {
-        return Err(ProgramError::AccountAlreadyInitialized);
+    let verifier_registry_data = verifier_registry.try_borrow()?;
+    let verifier_registry_view =
+        VerifierRegistry::decode(verifier_registry_data.as_ref())?;
+    if verifier_registry_view.discriminator() != VerifierRegistry::DISCRIMINATOR
+    {
+        return Err(ProgramError::InvalidAccountData);
     }
 
-    verifier_registry_state.entries.push(VerifierRegistryEntry {
-        verifier_identity: verifier_bond_state.verifier_identity,
-        verifier_bond: *verifier_bond.key,
-        weight: args.weight,
+    let verifier_bond_key = verifier_bond.address().to_bytes().into();
+    let mut entries =
+        Vec::with_capacity(verifier_registry_view.entries().len() + 1);
+    for entry in verifier_registry_view.entries().iter() {
+        if *entry.verifier_identity() == verifier_identity
+            || *entry.verifier_bond() == verifier_bond_key
+        {
+            return Err(ProgramError::AccountAlreadyInitialized);
+        }
+
+        entries.push(VerifierRegistryEntry {
+            verifier_identity: *entry.verifier_identity(),
+            verifier_bond: *entry.verifier_bond(),
+            weight: entry.weight(),
+        });
+    }
+
+    entries.push(VerifierRegistryEntry {
+        verifier_identity,
+        verifier_bond: verifier_bond_key,
+        weight: args.weight(),
     });
-    verifier_registry_state.registry_revision = verifier_registry_state
-        .registry_revision
-        .checked_add(1)
-        .ok_or(DlpError::Overflow)?;
+
+    let updated_registry = VerifierRegistry {
+        discriminator: VerifierRegistry::DISCRIMINATOR,
+        registry_revision: verifier_registry_view
+            .registry_revision()
+            .checked_add(1)
+            .ok_or(DlpError::Overflow)?,
+        next_selection_index: verifier_registry_view.next_selection_index(),
+        entries,
+    };
+    drop(verifier_registry_data);
 
     // CHECKPOINT: before registry size grows beyond bootstrap needs, define a
     // max entry count or switch to a paged/Merkle registry.
     resize_pda(
         authority,
         verifier_registry,
-        system_program,
-        verifier_registry_state.size_with_discriminator(),
+        updated_registry.encoded_len()?,
     )?;
+    updated_registry.encode_to(verifier_registry.try_borrow_mut()?.as_mut())?;
 
-    let mut verifier_registry_data = verifier_registry.try_borrow_mut_data()?;
-    verifier_registry_state
-        .to_bytes_with_discriminator(verifier_registry_data.as_mut())?;
+    Ok(())
+}
+
+fn validate_protocol_config(
+    protocol_config: &ProtocolConfigView<'_>,
+    authority: &AccountView,
+) -> ProgramResult {
+    if protocol_config.discriminator() != ProtocolConfig::DISCRIMINATOR {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    require_eq_keys!(
+        &Address::from(protocol_config.authority().to_bytes()),
+        authority.address(),
+        DlpError::InvalidAuthority
+    );
+
+    Ok(())
+}
+
+fn validate_verifier_bond(
+    verifier_bond: &VerifierBondView<'_>,
+    verifier_bond_account: &AccountView,
+) -> ProgramResult {
+    if verifier_bond.discriminator() != VerifierBond::DISCRIMINATOR {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    require_initialized_pda(
+        verifier_bond_account,
+        &[
+            VERIFIER_BOND_SEED,
+            verifier_bond.verifier_identity().as_ref(),
+        ],
+        &crate::fast::ID,
+        false,
+        "verifier bond",
+    )?;
 
     Ok(())
 }
 
 fn validate_add_args(
-    args: &UpdateVerifierRegistryArgs,
-    protocol_config: &ProtocolConfig,
-    verifier_bond: &VerifierBond,
+    args: &UpdateVerifierRegistryArgsView<'_>,
+    protocol_config: &ProtocolConfigView<'_>,
+    verifier_bond: &VerifierBondView<'_>,
 ) -> ProgramResult {
-    if args.weight == 0
-        || verifier_bond.status != VERIFIER_STATUS_ACTIVE
-        || verifier_bond.stake_lamports < protocol_config.min_verifier_bond
-        || verifier_bond.withdraw_requested_slot.is_some()
-    {
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    require_ne!(args.weight(), 0, ProgramError::InvalidInstructionData);
+    require_eq!(
+        verifier_bond.status(),
+        VERIFIER_STATUS_ACTIVE,
+        ProgramError::InvalidInstructionData
+    );
+    require_ge!(
+        verifier_bond.stake_lamports(),
+        protocol_config.min_verifier_bond(),
+        ProgramError::InvalidInstructionData
+    );
+    require_eq!(
+        verifier_bond.withdraw_requested_slot().is_none(),
+        true,
+        ProgramError::InvalidInstructionData
+    );
 
     Ok(())
 }
