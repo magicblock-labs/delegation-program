@@ -23,7 +23,7 @@ pub fn process_instruction(
             process_register_verifier(accounts, data)
         }
         DlpV2Instruction::UpdateVerifierRegistry => {
-            process_update_verifier_registry(program_id, accounts, data)
+            process_update_verifier_registry(accounts, data)
         }
     }
 }
