@@ -10,6 +10,7 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
+use wheels::layout::Decodable;
 
 mod fixtures;
 
@@ -23,8 +24,6 @@ async fn test_v2_update_protocol_config() {
     init_v2(&banks, &payer, &authority, blockhash, initial_args).await;
 
     let mut update_args = valid_args();
-    update_args.vrf_program = Pubkey::new_unique();
-    update_args.vrf_config = Pubkey::new_unique();
     update_args.resolver = Pubkey::new_unique();
     update_args.min_operator_bond = 11;
     update_args.min_verifier_bond = 13;
@@ -33,7 +32,7 @@ async fn test_v2_update_protocol_config() {
     update_args.operator_response_timeout_slots = 23;
     update_args.challenger_reveal_timeout_slots = 29;
     update_args.payout_timelock_slots = 31;
-    update_args.selected_verifier_count = 5;
+    update_args.verifiers_per_commitment = 5;
     update_args.approval_threshold = 3;
     update_args.max_window_extensions = 2;
     update_args.match_penalty_bps = 700;
@@ -54,59 +53,60 @@ async fn test_v2_update_protocol_config() {
         .await
         .unwrap()
         .unwrap();
-    let protocol_config = ProtocolConfig::try_from_bytes_with_discriminator(
-        &protocol_config_account.data,
-    )
-    .unwrap();
+    let protocol_config =
+        <ProtocolConfig as Decodable>::decode(&protocol_config_account.data)
+            .unwrap();
 
-    assert_eq!(protocol_config.authority, authority.pubkey());
-    assert!(!protocol_config.paused);
-    assert_eq!(protocol_config.vrf_program, update_args.vrf_program);
-    assert_eq!(protocol_config.vrf_config, update_args.vrf_config);
-    assert_eq!(protocol_config.resolver, update_args.resolver);
-    assert_eq!(protocol_config.protocol_fee_vault, fees_vault_pda());
     assert_eq!(
-        protocol_config.min_operator_bond,
+        protocol_config.discriminator(),
+        ProtocolConfig::DISCRIMINATOR
+    );
+    assert_eq!(*protocol_config.authority(), authority.pubkey());
+    assert!(!protocol_config.paused());
+    assert_eq!(*protocol_config.resolver(), update_args.resolver);
+    assert_eq!(*protocol_config.protocol_fee_vault(), fees_vault_pda());
+    assert_eq!(
+        protocol_config.min_operator_bond(),
         update_args.min_operator_bond
     );
     assert_eq!(
-        protocol_config.min_verifier_bond,
+        protocol_config.min_verifier_bond(),
         update_args.min_verifier_bond
     );
     assert_eq!(
-        protocol_config.min_challenger_stake,
+        protocol_config.min_challenger_stake(),
         update_args.min_challenger_stake
     );
     assert_eq!(
-        protocol_config.challenge_window_slots,
+        protocol_config.challenge_window_slots(),
         update_args.challenge_window_slots
     );
     assert_eq!(
-        protocol_config.operator_response_timeout_slots,
+        protocol_config.operator_response_timeout_slots(),
         update_args.operator_response_timeout_slots
     );
     assert_eq!(
-        protocol_config.challenger_reveal_timeout_slots,
+        protocol_config.challenger_reveal_timeout_slots(),
         update_args.challenger_reveal_timeout_slots
     );
     assert_eq!(
-        protocol_config.payout_timelock_slots,
+        protocol_config.payout_timelock_slots(),
         update_args.payout_timelock_slots
     );
     assert_eq!(
-        protocol_config.selected_verifier_count,
-        update_args.selected_verifier_count
+        protocol_config.verifiers_per_commitment(),
+        update_args.verifiers_per_commitment
     );
     assert_eq!(
-        protocol_config.approval_threshold,
+        protocol_config.approval_threshold(),
         update_args.approval_threshold
     );
     assert_eq!(
-        protocol_config.max_window_extensions,
+        protocol_config.max_window_extensions(),
         update_args.max_window_extensions
     );
     assert_eq!(
-        protocol_config.match_penalty_bps,
+        protocol_config.match_penalty_bps(),
         update_args.match_penalty_bps
     );
 }
@@ -137,7 +137,7 @@ async fn test_v2_update_protocol_config_fails_with_invalid_args() {
     init_v2(&banks, &payer, &authority, blockhash, valid_args()).await;
 
     let mut args = valid_args();
-    args.approval_threshold = args.selected_verifier_count + 1;
+    args.approval_threshold = args.verifiers_per_commitment + 1;
 
     let blockhash = banks.get_latest_blockhash().await.unwrap();
     let ix = update_protocol_config(authority.pubkey(), args);

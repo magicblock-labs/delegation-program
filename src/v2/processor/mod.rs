@@ -26,7 +26,7 @@ pub fn process_instruction(
             process_update_verifier_registry(accounts, data)
         }
         DlpV2Instruction::UpdateProtocolConfig => {
-            process_update_protocol_config(program_id, accounts, data)
+            process_update_protocol_config(accounts, data)
         }
     }
 }
