@@ -12,7 +12,9 @@ use dlp_api::{
     },
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
-use solana_program_test::{BanksClient, ProgramTest};
+use solana_program_test::{
+    BanksClient, ProgramTest, ProgramTestBanksClientExt,
+};
 use solana_sdk::{
     account::Account,
     hash::Hash,
@@ -32,10 +34,10 @@ use crate::fixtures::{
 
 #[tokio::test]
 async fn test_v2_post_commitment() {
-    let env = setup_post_commitment_env(2, true, false).await;
+    let mut env = setup_post_commitment_env(2, true, false).await;
     let args = valid_post_commitment_args();
 
-    post_v2_commitment(&env, args.clone()).await.unwrap();
+    post_v2_commitment(&mut env, args.clone()).await.unwrap();
 
     let pending_commitment_account = env
         .banks
@@ -108,12 +110,12 @@ async fn test_v2_post_commitment() {
 
 #[tokio::test]
 async fn test_v2_post_commitment_fails_twice() {
-    let env = setup_post_commitment_env(2, true, false).await;
+    let mut env = setup_post_commitment_env(2, true, false).await;
     let args = valid_post_commitment_args();
 
-    post_v2_commitment(&env, args.clone()).await.unwrap();
+    post_v2_commitment(&mut env, args.clone()).await.unwrap();
 
-    assert!(post_v2_commitment(&env, args).await.is_err());
+    assert!(post_v2_commitment(&mut env, args).await.is_err());
 }
 
 #[tokio::test]
@@ -137,18 +139,18 @@ async fn test_v2_post_commitment_fails_without_operator_signature() {
 
 #[tokio::test]
 async fn test_v2_post_commitment_fails_without_enough_verifiers() {
-    let env = setup_post_commitment_env(0, true, false).await;
+    let mut env = setup_post_commitment_env(0, true, false).await;
 
-    assert!(post_v2_commitment(&env, valid_post_commitment_args())
+    assert!(post_v2_commitment(&mut env, valid_post_commitment_args())
         .await
         .is_err());
 }
 
 #[tokio::test]
 async fn test_v2_post_commitment_fails_with_wrong_delegation_authority() {
-    let env = setup_post_commitment_env(2, true, true).await;
+    let mut env = setup_post_commitment_env(2, true, true).await;
 
-    assert!(post_v2_commitment(&env, valid_post_commitment_args())
+    assert!(post_v2_commitment(&mut env, valid_post_commitment_args())
         .await
         .is_err());
 }
@@ -346,10 +348,16 @@ fn valid_post_commitment_args() -> PostCommitmentArgs {
 }
 
 async fn post_v2_commitment(
-    env: &PostCommitmentEnv,
+    env: &mut PostCommitmentEnv,
     args: PostCommitmentArgs,
 ) -> Result<(), solana_program_test::BanksClientError> {
-    let blockhash: Hash = env.banks.get_latest_blockhash().await.unwrap();
+    let latest_blockhash: Hash =
+        env.banks.get_latest_blockhash().await.unwrap();
+    let blockhash = env
+        .banks
+        .get_new_latest_blockhash(&latest_blockhash)
+        .await
+        .unwrap();
     let ix =
         post_commitment(env.operator.pubkey(), env.delegated_account, args);
     let tx = Transaction::new_signed_with_payer(
