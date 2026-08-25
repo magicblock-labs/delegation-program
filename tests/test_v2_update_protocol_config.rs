@@ -32,8 +32,8 @@ async fn test_v2_update_protocol_config() {
     update_args.operator_response_timeout_slots = 23;
     update_args.challenger_reveal_timeout_slots = 29;
     update_args.payout_timelock_slots = 31;
-    update_args.verifiers_per_commitment = 5;
-    update_args.approval_threshold = 3;
+    update_args.verifiers_per_commitment = 1;
+    update_args.approval_threshold = 1;
     update_args.max_window_extensions = 2;
     update_args.match_penalty_bps = 700;
 
