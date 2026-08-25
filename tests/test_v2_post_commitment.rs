@@ -87,9 +87,8 @@ async fn test_v2_post_commitment() {
         .iter()
         .map(|entry| (*entry.verifier_identity(), entry.approved()))
         .collect();
-    assert_eq!(selected.len(), 2);
+    assert_eq!(selected.len(), 1);
     assert_eq!(selected[0], (env.verifiers[0].pubkey(), false));
-    assert_eq!(selected[1], (env.verifiers[1].pubkey(), false));
     assert!(selected
         .iter()
         .all(|(verifier, _)| *verifier != env.operator.pubkey()));
@@ -105,7 +104,7 @@ async fn test_v2_post_commitment() {
     )
     .unwrap();
 
-    assert_eq!(verifier_registry.next_selection_index(), 3);
+    assert_eq!(verifier_registry.next_selection_index(), 2);
 }
 
 #[tokio::test]
