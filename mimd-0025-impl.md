@@ -488,7 +488,7 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
 | `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator signer, OperatorBond, PendingCommitment, delegated account, DelegationRecord, ProtocolConfig, VerifierRegistry</strong></li></ul> | Operator | Selects verifiers with round-robin, creates an active commitment, stores the current `registry_revision`, starts the challenge window, and locks any commitment-local stake if needed. |
-| `ApproveCommitment`<ul><li>ix-data: <code>selected_verifier_index</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from one selected verifier. Duplicate approvals do not increase the count. |
+| `ApproveCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from the selected verifier. v2 MVP requires exactly one selected verifier, so no verifier index is needed. Duplicate approvals do not increase the count. |
 | `WriteStateBuffer`<ul><li>ix-data: <code>chunk</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Writes a chunk of opened account data for finalize, operator response, or challenger reveal. |
 | `RaiseChallenge`<ul><li>ix-data: <code>challenge</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, ProtocolConfig</strong></li></ul> | Challenger | Locks challenger stake, records the hidden challenge hash, and blocks normal finalization until the challenge is resolved. |
 | `OperatorChallengeResponse`<ul><li>ix-data: <code>state</code></li><li>accounts: <strong>operator signer, PendingCommitment, Challenge, optional StateBuffer</strong></li></ul> | Operator | Opens the operator's claimed state for the challenged commitment and starts the challenger reveal timeout. |
@@ -521,10 +521,6 @@ pub struct PostCommitmentData {
     pub data_hash: [u8; 32],
     pub da_pointer_hash: [u8; 32],
     pub er_slot: Option<u64>,
-}
-
-pub struct ApproveCommitmentData {
-    pub selected_verifier_index: u32,
 }
 
 pub struct RaiseChallengeData {
@@ -573,19 +569,20 @@ pub struct FinalizeCommitmentData {
 - `PostCommitment` computes `state_commitment_hash`, stores the pending record,
   stores the current `VerifierRegistry.registry_revision`, selects verifiers
   with round-robin, increments `VerifierRegistry.next_selection_index` by the
-  number of selected verifiers, and starts the challenge window.
+  number of scanned registry entries, and starts the challenge window.
 - Verifier selection uses all registered verifiers except the commitment
   operator. If no verifier remains, `PostCommitment` rejects.
-- `PostCommitment` selects at most
-  `ProtocolConfig.verifiers_per_commitment` verifiers. If fewer eligible
-  verifiers exist, it selects all eligible verifiers.
+- v2 MVP requires `ProtocolConfig.verifiers_per_commitment == 1` and
+  `ProtocolConfig.approval_threshold == 1`. `PostCommitment` therefore selects
+  exactly one verifier; if no verifier other than the operator exists, it
+  rejects. Multi-verifier approval can be added later by relaxing config
+  validation and adding an index or bitmap to `ApproveCommitment`.
 - `UpdateVerifierRegistry` mutates the registry and increments
   `registry_revision`. It affects future commitments only; it does not change
   `selected_verifiers` already stored on a pending commitment.
-- `ApproveCommitment` requires the verifier to have an active bond, be selected
-  for this commitment, and still be inside the challenge window. The instruction
-  data points to the verifier's index in `selected_verifiers`. Duplicate
-  approvals do not increment `approval_count`.
+- `ApproveCommitment` requires the verifier to have an active bond, be the only
+  selected verifier for this commitment, and still be inside the challenge
+  window. Duplicate approvals do not increment `approval_count`.
 - `ChallengerReveal` has four terminal branches:
   invalid hash, matching state, mismatch after operator response, valid reveal
   after operator timeout.
