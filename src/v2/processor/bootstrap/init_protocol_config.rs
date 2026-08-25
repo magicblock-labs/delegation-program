@@ -19,7 +19,7 @@ use crate::{
 };
 use wheels::{
     layout::{Decodable, Encodable},
-    require_le, require_n_accounts, require_ne, require_ne_keys,
+    require_eq, require_le, require_n_accounts, require_ne, require_ne_keys,
     require_signer,
 };
 
@@ -169,6 +169,16 @@ pub(super) fn validate_protocol_config_args(
     require_le!(
         args.approval_threshold(),
         args.verifiers_per_commitment(),
+        ProgramError::InvalidInstructionData
+    );
+    require_eq!(
+        args.verifiers_per_commitment(),
+        1,
+        ProgramError::InvalidInstructionData
+    );
+    require_eq!(
+        args.approval_threshold(),
+        1,
         ProgramError::InvalidInstructionData
     );
     require_le!(
