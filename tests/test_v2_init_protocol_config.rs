@@ -312,8 +312,8 @@ fn valid_args() -> InitProtocolConfigArgs {
         operator_response_timeout_slots: 10,
         challenger_reveal_timeout_slots: 10,
         payout_timelock_slots: 10,
-        verifiers_per_commitment: 3,
-        approval_threshold: 2,
+        verifiers_per_commitment: 1,
+        approval_threshold: 1,
         max_window_extensions: 1,
         match_penalty_bps: 500,
     }
