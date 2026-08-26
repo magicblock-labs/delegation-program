@@ -11,9 +11,6 @@ pub struct PostCommitmentArgs {
 
     pub owner: Pubkey,
 
-    /// Hash of full account data.
-    pub data_hash: [u8; 32],
-
     /// Hash of replay/data-availability pointer bytes.
     pub da_pointer_hash: [u8; 32],
 

@@ -4,10 +4,10 @@ use dlp_api::{
     v2::{
         pda::{
             OPERATOR_BOND_SEED, PENDING_COMMITMENT_SEED, PROTOCOL_CONFIG_SEED,
-            VERIFIER_REGISTRY_SEED,
+            STATE_BUFFER_SEED, VERIFIER_REGISTRY_SEED,
         },
         OperatorBond, PendingCommitment, PostCommitmentArgs, ProtocolConfig,
-        SelectedVerifier, VerifierRegistry, VerifierRegistryEntry,
+        SelectedVerifier, StateBuffer, VerifierRegistry, VerifierRegistryEntry,
         OPERATOR_STATUS_ACTIVE, PENDING_COMMITMENT_STATUS_ACTIVE,
     },
 };
@@ -38,11 +38,12 @@ use crate::{
 /// 0: `[signer, writable]` operator identity and pending account rent payer
 /// 1: `[]`                 OperatorBond PDA
 /// 2: `[writable]`         PendingCommitment PDA
-/// 3: `[]`                 delegated account
-/// 4: `[]`                 DelegationRecord PDA
-/// 5: `[]`                 ProtocolConfig PDA
-/// 6: `[writable]`         VerifierRegistry PDA
-/// 7: `[]`                 system program, required by system CPI
+/// 3: `[]`                 finalized StateBuffer PDA
+/// 4: `[]`                 delegated account
+/// 5: `[]`                 DelegationRecord PDA
+/// 6: `[]`                 ProtocolConfig PDA
+/// 7: `[writable]`         VerifierRegistry PDA
+/// 8: `[]`                 system program, required by system CPI
 #[inline(never)]
 pub fn process_post_commitment(
     accounts: &[AccountView],
@@ -52,12 +53,13 @@ pub fn process_post_commitment(
         operator, // force multi-line
         operator_bond,
         pending_commitment,
+        state_buffer,
         delegated_account,
         delegation_record,
         protocol_config,
         verifier_registry,
         _system_program,
-    ] = require_n_accounts!(accounts, 8);
+    ] = require_n_accounts!(accounts, 9);
 
     let args = PostCommitmentArgs::decode(data)?;
 
@@ -74,6 +76,19 @@ pub fn process_post_commitment(
         &crate::fast::ID,
         false,
         "operator bond",
+    )?;
+    let commit_id_bytes = args.commit_id().to_le_bytes();
+    require_initialized_pda(
+        state_buffer,
+        &[
+            STATE_BUFFER_SEED,
+            delegated_account.address().as_ref(),
+            &commit_id_bytes,
+            operator.address().as_ref(),
+        ],
+        &crate::fast::ID,
+        false,
+        "state buffer",
     )?;
     require_initialized_delegation_record(
         delegated_account,
@@ -111,6 +126,21 @@ pub fn process_post_commitment(
         ProgramError::InvalidInstructionData
     );
     drop(operator_bond_data);
+
+    let state_buffer_data = state_buffer.try_borrow()?;
+    if state_buffer_data.len() < StateBuffer::DATA_LEN {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    let state_buffer_state = StateBuffer::decode(
+        &state_buffer_data.as_ref()[..StateBuffer::DATA_LEN],
+    )?;
+    let data_hash = validate_state_buffer(
+        &state_buffer_state,
+        operator,
+        delegated_account,
+        args.commit_id(),
+    )?;
+    drop(state_buffer_data);
 
     let delegation_record_data = delegation_record.try_borrow()?;
     let delegation_record_state =
@@ -161,7 +191,7 @@ pub fn process_post_commitment(
     let clock = Clock::get()?;
     let challenge_window_id = 0;
     let account_state_hash =
-        account_state_hash(args.lamports(), args.owner(), args.data_hash());
+        account_state_hash(args.lamports(), args.owner(), &data_hash);
     let state_commitment_hash =
         state_commitment_hash(StateCommitmentHashInput {
             operator_identity: operator.address(),
@@ -184,7 +214,7 @@ pub fn process_post_commitment(
         delegation_record: delegation_record.address().to_bytes().into(),
         da_pointer_hash: *args.da_pointer_hash(),
         account_state_hash,
-        data_hash: *args.data_hash(),
+        data_hash,
         lamports: args.lamports(),
         owner: *args.owner(),
         state_commitment_hash,
@@ -208,7 +238,6 @@ pub fn process_post_commitment(
 
     drop(protocol_config_data);
 
-    let commit_id_bytes = args.commit_id().to_le_bytes();
     let pending_commitment_bump = require_uninitialized_pda(
         pending_commitment,
         &[
@@ -280,6 +309,44 @@ fn validate_protocol_config(
     );
 
     Ok(())
+}
+
+fn validate_state_buffer(
+    state_buffer: &dlp_api::v2::StateBufferView<'_>,
+    operator: &AccountView,
+    delegated_account: &AccountView,
+    commit_id: u64,
+) -> Result<[u8; 32], ProgramError> {
+    if state_buffer.discriminator() != StateBuffer::DISCRIMINATOR {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    require_eq_keys!(
+        &Address::from(state_buffer.operator_identity().to_bytes()),
+        operator.address(),
+        DlpError::InvalidAuthority
+    );
+    require_eq_keys!(
+        &Address::from(state_buffer.account_pubkey().to_bytes()),
+        delegated_account.address(),
+        ProgramError::InvalidAccountData
+    );
+    require_eq!(
+        state_buffer.commit_id(),
+        commit_id,
+        ProgramError::InvalidInstructionData
+    );
+    require_eq!(
+        state_buffer.finalized(),
+        true,
+        ProgramError::InvalidInstructionData
+    );
+    require_eq!(
+        state_buffer.written_len(),
+        state_buffer.total_len(),
+        ProgramError::InvalidInstructionData
+    );
+
+    Ok(*state_buffer.data_hash())
 }
 
 fn copy_verifier_entries(
