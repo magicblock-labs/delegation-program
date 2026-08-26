@@ -14,7 +14,8 @@ Protocol rationale stays in the MIMD.
 - [Instructions](#instructions)
   - [Bootstrap Instructions](#bootstrap-instructions)
   - [Core Runtime Instructions](#core-runtime-instructions)
-  - [Deferred Or Merge Candidate Instructions](#deferred-or-merge-candidate-instructions)
+  - [Low-Priority Instructions](#low-priority-instructions)
+  - [Obsolete Or Remove-Candidate Instructions](#obsolete-or-remove-candidate-instructions)
   - [State Buffer Plan](#state-buffer-plan)
   - [Key Instruction Data](#key-instruction-data)
   - [Important Instruction Rules](#important-instruction-rules)
@@ -464,7 +465,7 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 | `ResolveDispute`<ul><li>ix-data: <code>decision</code></li><li>accounts: <strong>resolver signer, Challenge, PendingCommitment, OperatorBond, fee vault, optional PayoutTimelock</strong></li></ul> | Resolver multisig | Applies the multisig decision for a valid mismatch: operator state correct or challenger state correct. |
 | `FinalizeCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>operator or cranker, PendingCommitment, delegated account, DelegationRecord/metadata, selected StateBuffer, optional Challenge</strong></li></ul> | Operator or cranker | Applies the operator state on the happy path, or the resolver-selected state after dispute resolution. |
 
-### Deferred Or Merge Candidate Instructions
+### Low-Priority Instructions
 
 These instructions can be skipped while implementing the first usable v2 flow.
 
@@ -472,14 +473,21 @@ These instructions can be skipped while implementing the first usable v2 flow.
 | --- | --- | --- |
 | `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
 | `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
-| `FinalizeStateBuffer`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Remove candidate. `WriteStateBuffer` can freeze the buffer after the final chunk, and consuming instructions can require a finalized buffer. |
+| `FinalizeStateBuffer`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Low priority. Useful only if we want buffer finalization to be a separate instruction instead of the final `WriteStateBuffer` chunk freezing the buffer. |
+| `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, ProtocolConfig</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to config, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
+| `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Low priority. Needed only if dispute payouts are delayed through `PayoutTimelock`; otherwise `ResolveDispute` can pay immediately. |
+| `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Low priority. Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
+
+### Obsolete Or Remove-Candidate Instructions
+
+These instructions are not part of the current v2 MVP flow.
+
+| Instruction | Expected invoker | Description |
+| --- | --- | --- |
 | `OperatorChallengeResponse`<ul><li>ix-data: <code>state</code></li><li>accounts: <strong>operator signer, PendingCommitment, Challenge, optional StateBuffer</strong></li></ul> | Operator | Remove candidate. Operator state is already opened by `WriteStateBuffer` before `PostCommitment`. |
 | `ChallengerReveal`<ul><li>ix-data: <code>state, salt</code></li><li>accounts: <strong>challenger signer, PendingCommitment, Challenge, optional StateBuffer, fee vault</strong></li></ul> | Challenger | Remove candidate. `RaiseChallenge` can consume the finalized challenger buffer directly. |
 | `MarkOperatorTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge</strong></li></ul> | Cranker | Remove candidate. There is no post-challenge operator upload step in the simplified challenge flow. |
 | `MarkChallengerRevealTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge, fee vault</strong></li></ul> | Cranker | Remove candidate. There is no separate challenger reveal step in the simplified challenge flow. |
-| `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, ProtocolConfig</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to config, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
-| `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Remove candidate. If payout delay is not required, `ResolveDispute` can pay immediately and `PayoutTimelock` can be removed. |
-| `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Low priority. Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
 
 ### State Buffer Plan
 
