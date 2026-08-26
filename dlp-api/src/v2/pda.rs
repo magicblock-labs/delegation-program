@@ -4,6 +4,7 @@ pub const PROTOCOL_CONFIG_SEED: &[u8] = b"protocol-config";
 pub const OPERATOR_BOND_SEED: &[u8] = b"operator-bond";
 pub const VERIFIER_BOND_SEED: &[u8] = b"verifier-bond";
 pub const VERIFIER_REGISTRY_SEED: &[u8] = b"verifier-registry";
+pub const STATE_BUFFER_SEED: &[u8] = b"state-buffer";
 
 // TODO (snawaz): Precompute these addresses if PDA derivation becomes const-safe.
 
@@ -26,6 +27,23 @@ pub fn operator_bond_pda(operator: &Pubkey) -> Pubkey {
 pub fn verifier_bond_pda(verifier: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         &[VERIFIER_BOND_SEED, verifier.as_ref()],
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn state_buffer_pda(
+    account: &Pubkey,
+    commit_id: u64,
+    operator: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[
+            STATE_BUFFER_SEED,
+            account.as_ref(),
+            &commit_id.to_le_bytes(),
+            operator.as_ref(),
+        ],
         &crate::id(),
     )
     .0
