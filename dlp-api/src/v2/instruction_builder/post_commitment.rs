@@ -11,7 +11,7 @@ use crate::{
     v2::{
         pda::{
             operator_bond_pda, pending_commitment_pda, protocol_config_pda,
-            verifier_registry_pda,
+            state_buffer_pda, verifier_registry_pda,
         },
         DlpV2Instruction, PostCommitmentArgs,
     },
@@ -34,6 +34,15 @@ pub fn post_commitment(
             AccountMeta::new(
                 pending_commitment_pda(&account.compatize(), args.commit_id)
                     .modernize(),
+                false,
+            ),
+            AccountMeta::new_readonly(
+                state_buffer_pda(
+                    &account.compatize(),
+                    args.commit_id,
+                    &operator.compatize(),
+                )
+                .modernize(),
                 false,
             ),
             AccountMeta::new_readonly(account, false),
