@@ -3,11 +3,12 @@ use dlp_api::{
     v2::{
         instruction_builder::{
             approve_commitment, post_commitment, register_operator,
-            register_verifier, update_verifier_registry,
+            register_verifier, update_verifier_registry, write_state_buffer,
         },
         pda::pending_commitment_pda,
         PendingCommitment, PostCommitmentArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, VERIFIER_REGISTRY_ACTION_ADD,
+        RegisterVerifierArgs, WriteStateBufferArgs,
+        VERIFIER_REGISTRY_ACTION_ADD,
     },
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -249,7 +250,7 @@ async fn setup_approve_commitment_env(
         delegated_account,
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: vec![1, 2, 3, 4],
+            data: state_data(),
             owner: dlp_api::ID,
             executable: false,
             rent_epoch: 0,
@@ -270,7 +271,7 @@ async fn setup_approve_commitment_env(
         },
     );
 
-    let (banks, payer, blockhash) = program_test.start().await;
+    let (mut banks, payer, blockhash) = program_test.start().await;
     let config_args = valid_args();
     init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
 
@@ -301,6 +302,20 @@ async fn setup_approve_commitment_env(
         )
         .await;
     }
+
+    write_v2_state_buffer(
+        &mut banks,
+        &payer,
+        &operator,
+        delegated_account,
+        WriteStateBufferArgs {
+            commit_id: valid_post_commitment_args().commit_id,
+            total_len: state_data().len() as u32,
+            offset: 0,
+            chunk: state_data(),
+        },
+    )
+    .await;
 
     ApproveCommitmentEnv {
         banks,
@@ -392,10 +407,37 @@ fn valid_post_commitment_args() -> PostCommitmentArgs {
         commit_id: 1,
         lamports: 1_000,
         owner: Pubkey::new_unique(),
-        data_hash: [7; 32],
         da_pointer_hash: [9; 32],
         er_slot: Some(42),
     }
+}
+
+async fn write_v2_state_buffer(
+    banks: &mut BanksClient,
+    payer: &Keypair,
+    operator: &Keypair,
+    account: Pubkey,
+    args: WriteStateBufferArgs,
+) {
+    let latest_blockhash: Hash = banks.get_latest_blockhash().await.unwrap();
+    let blockhash = banks
+        .get_new_latest_blockhash(&latest_blockhash)
+        .await
+        .unwrap();
+    let ix =
+        write_state_buffer(payer.pubkey(), operator.pubkey(), account, args);
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[payer, operator],
+        blockhash,
+    );
+
+    banks.process_transaction(tx).await.unwrap();
+}
+
+fn state_data() -> Vec<u8> {
+    vec![1, 2, 3, 4]
 }
 
 async fn post_v2_commitment(
