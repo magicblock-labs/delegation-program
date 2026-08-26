@@ -13,6 +13,7 @@ choices and message shapes. Protocol rationale stays in the MIMD.
   - [Bootstrap Instructions](#bootstrap-instructions)
   - [Core Runtime Instructions](#core-runtime-instructions)
   - [Deferred Or Merge Candidate Instructions](#deferred-or-merge-candidate-instructions)
+  - [State Buffer Plan](#state-buffer-plan)
   - [Key Instruction Data](#key-instruction-data)
   - [Important Instruction Rules](#important-instruction-rules)
   - [Failure Scenarios](#failure-scenarios)
@@ -346,32 +347,38 @@ pub enum StateBufferRole {
 
 /// PDA: `["state-buffer", account, commit_id, role, authority]`
 /// Created by: first `WriteStateBuffer`.
-/// Frozen by: `FinalizeStateBuffer`.
+/// Frozen by: final `WriteStateBuffer` chunk.
 /// Closed by: `CloseTerminalAccounts`.
 ///
-/// Stores opened full account data when it does not fit in one instruction.
+/// Fixed header for opened full account data.
+///
+/// Raw account data starts immediately after this header in the same account.
 pub struct StateBuffer {
     /// Why this full account data is being opened.
     pub role: StateBufferRole,
+
     /// Signer allowed to write/finalize this buffer.
     pub authority: Pubkey,
+
     /// Account whose data is being opened.
     pub account_pubkey: Pubkey,
+
     /// Commitment this buffer belongs to.
     pub commit_id: u64,
+
     /// Hash the finished buffer must match.
     pub expected_data_hash: [u8; 32],
+
     /// Expected total byte length.
     pub total_len: u32,
+
     /// Bytes written so far.
     pub written_len: u32,
-    /// Once true, buffer content cannot change.
+
+    /// Set only after the full buffer hashes to expected_data_hash.
     pub finalized: bool,
-    /// Chunked full account data.
-    pub data: Vec<u8>,
 }
-// Review: `total_len` and account size need hard caps. An unbounded Vec is not
-// implementable safely as a Solana account.
+// Review: `total_len` and account size need hard caps.
 
 pub enum ChallengeStatus {
     /// Challenge raised and waiting for operator state.
@@ -469,6 +476,10 @@ pub struct PayoutTimelock {
 Account lists include only protocol-relevant accounts. Add payer/system/rent
 accounts where account creation or lamport movement requires them.
 
+Some instructions are system-level instructions. They are still normal public
+Solana instructions, but they are expected to be called by operator, verifier,
+challenger, resolver, or cranker services rather than directly by end users.
+
 ### Bootstrap Instructions
 
 Authority-gated setup and admission instructions for permissioned v2.
@@ -489,7 +500,7 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 | --- | --- | --- |
 | `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator signer, OperatorBond, PendingCommitment, delegated account, DelegationRecord, ProtocolConfig, VerifierRegistry</strong></li></ul> | Operator | Selects verifiers with round-robin, creates an active commitment, stores the current `registry_revision`, starts the challenge window, and locks any commitment-local stake if needed. |
 | `ApproveCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from the selected verifier. v2 MVP requires exactly one selected verifier, so no verifier index is needed. Duplicate approvals do not increase the count. |
-| `WriteStateBuffer`<ul><li>ix-data: <code>chunk</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Writes a chunk of opened account data for finalize, operator response, or challenger reveal. |
+| `WriteStateBuffer`<ul><li>ix-data: <code>buffer_write</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, PendingCommitment, optional Challenge, ProtocolConfig, system program</strong></li></ul> | Operator or challenger service | System-level instruction. Creates, grows, and writes a DLP-owned state buffer for finalize, operator response, or challenger reveal. |
 | `RaiseChallenge`<ul><li>ix-data: <code>challenge</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, ProtocolConfig</strong></li></ul> | Challenger | Locks challenger stake, records the hidden challenge hash, and blocks normal finalization until the challenge is resolved. |
 | `OperatorChallengeResponse`<ul><li>ix-data: <code>state</code></li><li>accounts: <strong>operator signer, PendingCommitment, Challenge, optional StateBuffer</strong></li></ul> | Operator | Opens the operator's claimed state for the challenged commitment and starts the challenger reveal timeout. |
 | `ChallengerReveal`<ul><li>ix-data: <code>state, salt</code></li><li>accounts: <strong>challenger signer, PendingCommitment, Challenge, optional StateBuffer, fee vault</strong></li></ul> | Challenger | Verifies the challenge preimage and opened state. It slashes invalid reveals, penalizes matching reveals, or moves mismatches to resolver decision. |
@@ -505,15 +516,66 @@ These instructions can be skipped while implementing the first usable v2 flow.
 | --- | --- | --- |
 | `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
 | `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
-| `FinalizeStateBuffer`<ul><li>ix-data: <code>role</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Merge candidate. Could be folded into `WriteStateBuffer` with final chunk metadata, or replaced by validation in the instruction that consumes the buffer. |
+| `FinalizeStateBuffer`<ul><li>ix-data: <code>role</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Remove candidate. `WriteStateBuffer` can freeze the buffer after the final chunk, and consuming instructions can require a finalized buffer. |
 | `MarkOperatorTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge</strong></li></ul> | Cranker | Remove candidate. `ChallengerReveal` can check the operator response deadline and handle the operator-timeout branch directly. |
 | `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, ProtocolConfig</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to config, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
 | `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Remove candidate. If payout delay is not required, `ResolveDispute` can pay immediately and `PayoutTimelock` can be removed. |
 | `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Low priority. Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
 
+### State Buffer Plan
+
+`WriteStateBuffer` replaces the v1-style committor buffer for DLP v2 flows.
+DLP owns the buffer account because the buffer is part of the fraud-proof state
+machine, not only temporary transport.
+
+The first write creates the `StateBuffer` PDA, writes the fixed header, and
+allocates enough space for the first chunk. Later writes grow the same PDA as
+needed and append more bytes. Each write must use `offset == written_len`; this
+keeps the MVP simple and avoids a separate chunks bitmap account. Retries can
+repeat the same offset if the previous transaction failed.
+
+The account layout is:
+
+```text
+StateBuffer header
+raw opened account data bytes
+```
+
+The writer is role-specific:
+
+- `OperatorFinalize`: operator writes final state for happy-path finalization.
+- `OperatorChallengeResponse`: operator writes opened state for a challenge.
+- `ChallengerReveal`: challenger writes opened state for reveal.
+
+When `written_len == total_len`, `WriteStateBuffer` hashes the raw data. It sets
+`finalized = true` only if the hash equals `expected_data_hash`. After that, the
+buffer cannot be changed.
+
+Consuming instructions must check:
+
+- buffer PDA seeds match `account_pubkey`, `commit_id`, `role`, and `authority`;
+- buffer is finalized;
+- buffer role matches the consuming path;
+- buffer commitment matches `PendingCommitment`;
+- authority matches the operator or challenger expected by that path.
+
+Future optimization: allow out-of-order or parallel chunk writes by adding a
+small bitmap inside the `StateBuffer` account. Do this only if sequential writes
+are too slow.
+
 ### Key Instruction Data
 
 ```rust
+pub struct WriteStateBufferData<'a> {
+    pub role: StateBufferRole,
+    pub total_len: u32,
+    /// Hash the completed raw data must match.
+    pub expected_data_hash: [u8; 32],
+    /// Must equal StateBuffer.written_len.
+    pub offset: u32,
+    pub chunk: &'a [u8],
+}
+
 pub struct PostCommitmentData {
     pub commit_id: u64,
     pub lamports: u64,
@@ -658,8 +720,8 @@ commitment expires.
 
 ## Validator Repo Responsibilities
 
-- Operator: compute hashes, post commitments, write state buffers, respond to
-  challenges.
+- Operator: compute hashes, post commitments, write DLP state buffers, respond
+  to challenges.
 - Verifier: watch selections, fetch DA, replay execution, approve or challenge.
 - Challenger: detect divergence, generate salted challenge hash, write reveal
   buffer, reveal before timeout.
@@ -691,6 +753,19 @@ No. `PostCommitment` must exclude the commitment operator from
 
 `VerifierBond` owns verifier stake and lifecycle. `VerifierRegistry` is only the
 selectable verifier list used during verifier selection.
+
+**Why should `magicblock-committor-program` disappear after v2 migration?**
+
+The committor program only creates, fills, and closes generic buffer accounts.
+In DLP v2, opened state buffers are protocol state: they are tied to commitment
+id, account, role, authority, expected hash, dispute status, and cleanup rules.
+DLP should own those checks directly instead of trusting a separate buffer
+program for part of the lifecycle.
+
+`magicblock-committor-service` should stay. It can still split bytes into
+chunks, retry writes, prepare ALTs, and submit transactions. For v1 it can keep
+using `magicblock-committor-program`; for v2 it should call DLP's state-buffer
+instructions.
 
 ## Open Design Points
 
