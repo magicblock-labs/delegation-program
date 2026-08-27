@@ -5,11 +5,12 @@ use crate::compat::Pubkey;
 pub const STATE_BUFFER_MAX_TOTAL_LEN: u32 = 10 * 1024 * 1024;
 pub const STATE_BUFFER_MAX_ACCOUNT_GROWTH: usize = 10_240;
 
-/// PDA: `["state-buffer", account, commit_id, operator]`.
+/// PDA: `["state-buffer", account, commit_id, authority]`.
 /// Created by `WriteStateBuffer`.
 /// Closed by `CloseTerminalAccounts` after finalize, cancel, or expiry.
 ///
-/// Fixed header for full account data uploaded before `PostCommitment`.
+/// Fixed header for full account data uploaded before `PostCommitment` or
+/// `RaiseChallenge`.
 /// Raw account bytes start immediately after this header in the same account.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[fixed_offset_layout(buffer_offset = 0)]
@@ -17,8 +18,11 @@ pub struct StateBuffer {
     /// Account type marker.
     pub discriminator: [u8; 8],
 
-    /// Operator that signs the buffer writes and later posts the commitment.
-    pub operator_identity: Pubkey,
+    /// Writer that owns this opened state.
+    ///
+    /// This is the operator identity for an operator commitment buffer, or the
+    /// challenger identity for a challenger dispute buffer.
+    pub authority: Pubkey,
 
     /// Delegated account whose state bytes are stored after this header.
     pub account_pubkey: Pubkey,
