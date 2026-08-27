@@ -321,12 +321,12 @@ fn validate_state_buffer(
         return Err(ProgramError::InvalidAccountData);
     }
     require_eq_keys!(
-        &Address::from(state_buffer.operator_identity().to_bytes()),
+        state_buffer.authority(),
         operator.address(),
         DlpError::InvalidAuthority
     );
     require_eq_keys!(
-        &Address::from(state_buffer.account_pubkey().to_bytes()),
+        state_buffer.account_pubkey(),
         delegated_account.address(),
         ProgramError::InvalidAccountData
     );
