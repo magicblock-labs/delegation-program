@@ -109,7 +109,7 @@ pub fn process_write_state_buffer(
 
         StateBuffer {
             discriminator: StateBuffer::DISCRIMINATOR,
-            operator_identity: operator.address().to_bytes().into(),
+            authority: operator.address().to_bytes().into(),
             account_pubkey: delegated_account.address().to_bytes().into(),
             commit_id: args.commit_id(),
             data_hash: [0; 32],
@@ -324,12 +324,12 @@ fn validate_state_buffer(
         return Err(ProgramError::InvalidAccountData);
     }
     require_eq_keys!(
-        &Address::from(state.operator_identity.to_bytes()),
+        &state.authority,
         operator.address(),
         DlpError::InvalidAuthority
     );
     require_eq_keys!(
-        &Address::from(state.account_pubkey.to_bytes()),
+        &state.account_pubkey,
         delegated_account.address(),
         ProgramError::InvalidAccountData
     );
@@ -389,7 +389,7 @@ fn load_state_buffer(
 
     Ok(StateBuffer {
         discriminator: state.discriminator(),
-        operator_identity: *state.operator_identity(),
+        authority: *state.authority(),
         account_pubkey: *state.account_pubkey(),
         commit_id: state.commit_id(),
         data_hash: *state.data_hash(),
