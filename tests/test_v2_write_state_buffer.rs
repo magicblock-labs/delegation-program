@@ -48,7 +48,7 @@ async fn test_v2_write_state_buffer_one_chunk_finalizes() {
     let state = decode_state_buffer(&state_buffer_account.data);
 
     assert_eq!(state.discriminator(), StateBuffer::DISCRIMINATOR);
-    assert_eq!(*state.operator_identity(), env.operator.pubkey());
+    assert_eq!(*state.authority(), env.operator.pubkey());
     assert_eq!(*state.account_pubkey(), env.delegated.pubkey());
     assert_eq!(state.commit_id(), commit_id);
     assert_eq!(state.total_len(), data.len() as u32);
