@@ -11,11 +11,20 @@ pub enum DlpV2Instruction {
 
 impl DlpV2Instruction {
     pub fn to_vec(self) -> Vec<u8> {
-        let num = self as u64;
-        num.to_le_bytes().to_vec()
+        vec![self as u8]
     }
 
     pub fn name(&self) -> &'static str {
         self.into()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_v2_instruction_tags_are_one_byte() {
+        assert_eq!(DlpV2Instruction::InitProtocolConfig.to_vec(), vec![100]);
     }
 }
