@@ -85,22 +85,25 @@ pub fn fast_process_instruction(
     accounts: &[pinocchio::AccountView],
     data: &[u8],
 ) -> Option<pinocchio::ProgramResult> {
+    let Some((&tag, v2_data)) = data.split_first() else {
+        return Some(Err(
+            pinocchio::error::ProgramError::InvalidInstructionData,
+        ));
+    };
+
+    if let Ok(ix) = dlp_api::v2::DlpV2Instruction::try_from(tag) {
+        return Some(v2::process_instruction(accounts, v2_data, ix));
+    }
+
     if data.len() < 8 {
         return Some(Err(
             pinocchio::error::ProgramError::InvalidInstructionData,
         ));
     }
 
-    let (discriminator_bytes, data) = data.split_at(8);
+    let (_, data) = data.split_at(8);
 
-    if let Ok(ix) =
-        dlp_api::v2::DlpV2Instruction::try_from(discriminator_bytes[0])
-    {
-        return Some(v2::process_instruction(accounts, data, ix));
-    }
-
-    let discriminator = match DlpDiscriminator::try_from(discriminator_bytes[0])
-    {
+    let discriminator = match DlpDiscriminator::try_from(tag) {
         Ok(discriminator) => discriminator,
         Err(_) => {
             pinocchio_log::log!("Failed to read and parse discriminator");
@@ -195,17 +198,21 @@ pub fn slow_process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+    let Some((&tag, _)) = data.split_first() else {
+        return Err(ProgramError::InvalidInstructionData);
+    };
+
+    if dlp_api::v2::DlpV2Instruction::try_from(tag).is_ok() {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
     if data.len() < 8 {
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    let (tag, data) = data.split_at(8);
+    let (_, data) = data.split_at(8);
 
-    if dlp_api::v2::DlpV2Instruction::try_from(tag[0]).is_ok() {
-        return Err(ProgramError::InvalidInstructionData);
-    }
-
-    let ix = DlpDiscriminator::try_from(tag[0])
+    let ix = DlpDiscriminator::try_from(tag)
         .or(Err(ProgramError::InvalidInstructionData))?;
 
     match ix {
