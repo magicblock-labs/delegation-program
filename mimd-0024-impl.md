@@ -436,6 +436,10 @@ pub struct PayoutTimelock {
 Account lists include only protocol-relevant accounts. Add payer/system/rent
 accounts where account creation or lamport movement requires them.
 
+Each v2 instruction starts with a single `u8` tag. The `ix-data` values below
+describe only the instruction args after that tag. Existing v1 instruction
+framing and account discriminators remain 8 bytes.
+
 Some instructions are system-level instructions. They are still normal public
 Solana instructions, but they are expected to be called by operator, verifier,
 challenger, resolver, or cranker services rather than directly by end users.
