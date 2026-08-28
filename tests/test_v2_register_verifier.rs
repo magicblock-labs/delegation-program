@@ -1,19 +1,42 @@
 use dlp_api::v2::{
     instruction_builder::register_verifier, pda::verifier_bond_pda,
-    RegisterVerifierArgs, VerifierBond, VERIFIER_STATUS_ACTIVE,
+    DlpV2Instruction, RegisterVerifierArgs, VerifierBond,
+    VERIFIER_STATUS_ACTIVE,
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program_test::ProgramTestBanksClientExt;
 use solana_sdk::{
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
 use solana_system_interface::instruction as system_instruction;
-use wheels::layout::Decodable;
+use wheels::layout::{Decodable, Encodable};
 
 mod fixtures;
 
 use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
+
+#[test]
+fn test_v2_register_verifier_instruction_data_uses_one_byte_tag() {
+    let args = RegisterVerifierArgs {
+        amount_lamports: 42,
+    };
+    let ix = register_verifier(
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        args.clone(),
+    );
+    let encoded_args = args.encode().unwrap();
+
+    assert_eq!(ix.data[0], DlpV2Instruction::RegisterVerifier as u8);
+    assert_eq!(ix.data.len(), 1 + encoded_args.len());
+    assert_eq!(&ix.data[1..], encoded_args.as_slice());
+
+    let decoded =
+        <RegisterVerifierArgs as Decodable>::decode(&ix.data[1..]).unwrap();
+    assert_eq!(decoded.amount_lamports(), args.amount_lamports);
+}
 
 #[tokio::test]
 async fn test_v2_register_verifier() {
