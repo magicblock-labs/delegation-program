@@ -1,7 +1,7 @@
 use dlp_api::v2::{
     instruction_builder::{register_operator, write_state_buffer},
     pda::state_buffer_pda,
-    RegisterOperatorArgs, StateBuffer, WriteStateBufferArgs,
+    DlpV2Instruction, RegisterOperatorArgs, StateBuffer, WriteStateBufferArgs,
     STATE_BUFFER_MAX_TOTAL_LEN,
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
@@ -15,11 +15,39 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_system_interface::instruction as system_instruction;
-use wheels::layout::Decodable;
+use wheels::layout::{Decodable, Encodable};
 
 mod fixtures;
 
 use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
+
+#[test]
+fn test_v2_write_state_buffer_instruction_data_uses_one_byte_tag() {
+    let args = WriteStateBufferArgs {
+        commit_id: 7,
+        total_len: 3,
+        offset: 0,
+        chunk: vec![1, 2, 3],
+    };
+    let ix = write_state_buffer(
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        args.clone(),
+    );
+    let encoded_args = args.encode().unwrap();
+
+    assert_eq!(ix.data[0], DlpV2Instruction::WriteStateBuffer as u8);
+    assert_eq!(ix.data.len(), 1 + encoded_args.len());
+    assert_eq!(&ix.data[1..], encoded_args.as_slice());
+
+    let decoded =
+        <WriteStateBufferArgs as Decodable>::decode(&ix.data[1..]).unwrap();
+    assert_eq!(decoded.commit_id(), args.commit_id);
+    assert_eq!(decoded.total_len(), args.total_len);
+    assert_eq!(decoded.offset(), args.offset);
+    assert_eq!(decoded.chunk(), args.chunk.as_slice());
+}
 
 #[tokio::test]
 async fn test_v2_write_state_buffer_one_chunk_finalizes() {
