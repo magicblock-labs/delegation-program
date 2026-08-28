@@ -1,22 +1,20 @@
 use dlp_api::{
     error::DlpError,
     v2::{
-        pda::{OPERATOR_BOND_SEED, PROTOCOL_CONFIG_SEED, STATE_BUFFER_SEED},
-        OperatorBond, ProtocolConfig, StateBuffer, WriteStateBufferArgs,
-        OPERATOR_STATUS_ACTIVE, STATE_BUFFER_MAX_ACCOUNT_GROWTH,
-        STATE_BUFFER_MAX_TOTAL_LEN,
+        pda::{PROTOCOL_CONFIG_SEED, STATE_BUFFER_SEED},
+        ProtocolConfig, StateBuffer, WriteStateBufferArgs,
+        STATE_BUFFER_MAX_ACCOUNT_GROWTH, STATE_BUFFER_MAX_TOTAL_LEN,
     },
 };
 use pinocchio::{
-    address::Address,
     cpi::{Seed, Signer},
     error::ProgramError,
     AccountView, ProgramResult,
 };
 use wheels::{
     layout::{Decodable, Encodable},
-    require_eq, require_eq_keys, require_ge, require_le, require_n_accounts,
-    require_ne, require_signer,
+    require_eq, require_eq_keys, require_le, require_n_accounts, require_ne,
+    require_signer,
 };
 
 use crate::{
@@ -31,12 +29,11 @@ use crate::{
 ///
 /// Accounts:
 /// 0: `[signer, writable]` payer for StateBuffer rent
-/// 1: `[signer]`           operator identity for this buffer
-/// 2: `[]`                 OperatorBond PDA proving active registration
-/// 3: `[writable]`         StateBuffer PDA
-/// 4: `[]`                 delegated account whose bytes are being uploaded
-/// 5: `[]`                 ProtocolConfig PDA
-/// 6: `[]`                 system program, required by system CPI
+/// 1: `[signer]`           authority identity for this buffer
+/// 2: `[writable]`         StateBuffer PDA
+/// 3: `[]`                 delegated account whose bytes are being uploaded
+/// 4: `[]`                 ProtocolConfig PDA
+/// 5: `[]`                 system program, required by system CPI
 #[inline(never)]
 pub fn process_write_state_buffer(
     accounts: &[AccountView],
@@ -44,19 +41,18 @@ pub fn process_write_state_buffer(
 ) -> ProgramResult {
     let [
         payer, // force multi-line
-        operator,
-        operator_bond,
+        authority,
         state_buffer,
         delegated_account,
         protocol_config,
         _system_program,
-    ] = require_n_accounts!(accounts, 7);
+    ] = require_n_accounts!(accounts, 6);
 
     let args = WriteStateBufferArgs::decode(data)?;
     let (offset, write_end) = validate_args(&args)?;
 
     require_signer!(payer);
-    require_signer!(operator);
+    require_signer!(authority);
     if !payer.is_writable() {
         return Err(ProgramError::Immutable);
     }
@@ -65,15 +61,14 @@ pub fn process_write_state_buffer(
         &crate::fast::ID,
         "delegated account",
     )?;
-    let min_operator_bond = validate_protocol_config(protocol_config)?;
-    validate_operator_bond(operator_bond, operator, min_operator_bond)?;
+    validate_protocol_config(protocol_config)?;
 
     let commit_id_bytes = args.commit_id().to_le_bytes();
     let state_buffer_seeds = [
         STATE_BUFFER_SEED,
         delegated_account.address().as_ref(),
         &commit_id_bytes,
-        operator.address().as_ref(),
+        authority.address().as_ref(),
     ];
 
     if is_uninitialized_account(state_buffer) {
@@ -101,7 +96,7 @@ pub fn process_write_state_buffer(
                 Seed::from(STATE_BUFFER_SEED),
                 Seed::from(delegated_account.address().as_ref()),
                 Seed::from(&commit_id_bytes),
-                Seed::from(operator.address().as_ref()),
+                Seed::from(authority.address().as_ref()),
                 Seed::from(&[state_buffer_bump]),
             ])],
             payer,
@@ -109,8 +104,8 @@ pub fn process_write_state_buffer(
 
         StateBuffer {
             discriminator: StateBuffer::DISCRIMINATOR,
-            authority: operator.address().to_bytes().into(),
-            account_pubkey: delegated_account.address().to_bytes().into(),
+            authority: authority.address().clone(),
+            account_pubkey: delegated_account.address().clone(),
             commit_id: args.commit_id(),
             data_hash: [0; 32],
             total_len: args.total_len(),
@@ -134,7 +129,7 @@ pub fn process_write_state_buffer(
 
     write_chunk(
         payer,
-        operator,
+        authority,
         delegated_account,
         state_buffer,
         &args,
@@ -167,9 +162,7 @@ fn validate_args(
     Ok((offset, write_end))
 }
 
-fn validate_protocol_config(
-    protocol_config: &AccountView,
-) -> Result<u64, ProgramError> {
+fn validate_protocol_config(protocol_config: &AccountView) -> ProgramResult {
     require_initialized_pda(
         protocol_config,
         &[PROTOCOL_CONFIG_SEED],
@@ -190,56 +183,13 @@ fn validate_protocol_config(
         ProgramError::InvalidAccountData
     );
 
-    Ok(protocol_config_state.min_operator_bond())
-}
-
-fn validate_operator_bond(
-    operator_bond: &AccountView,
-    operator: &AccountView,
-    min_operator_bond: u64,
-) -> ProgramResult {
-    require_initialized_pda(
-        operator_bond,
-        &[OPERATOR_BOND_SEED, operator.address().as_ref()],
-        &crate::fast::ID,
-        false,
-        "operator bond",
-    )?;
-
-    let operator_bond_data = operator_bond.try_borrow()?;
-    let operator_bond_state =
-        OperatorBond::decode(operator_bond_data.as_ref())?;
-    if operator_bond_state.discriminator() != OperatorBond::DISCRIMINATOR {
-        return Err(ProgramError::InvalidAccountData);
-    }
-    require_eq_keys!(
-        &Address::from(operator_bond_state.operator_identity().to_bytes()),
-        operator.address(),
-        DlpError::InvalidAuthority
-    );
-    require_eq!(
-        operator_bond_state.status(),
-        OPERATOR_STATUS_ACTIVE,
-        ProgramError::InvalidInstructionData
-    );
-    require_ge!(
-        operator_bond_state.stake_lamports(),
-        min_operator_bond,
-        ProgramError::InvalidInstructionData
-    );
-    require_eq!(
-        operator_bond_state.withdraw_requested_slot().is_none(),
-        true,
-        ProgramError::InvalidInstructionData
-    );
-
     Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]
 fn write_chunk(
     payer: &AccountView,
-    operator: &AccountView,
+    authority: &AccountView,
     delegated_account: &AccountView,
     state_buffer_account: &AccountView,
     args: &dlp_api::v2::WriteStateBufferArgsView<'_>,
@@ -247,7 +197,7 @@ fn write_chunk(
     write_end: usize,
 ) -> ProgramResult {
     let mut state = load_state_buffer(state_buffer_account)?;
-    validate_state_buffer(&state, operator, delegated_account, args)?;
+    validate_state_buffer(&state, authority, delegated_account, args)?;
 
     if offset < state.written_len as usize {
         return validate_duplicate_chunk(
@@ -316,7 +266,7 @@ fn write_chunk(
 
 fn validate_state_buffer(
     state: &StateBuffer,
-    operator: &AccountView,
+    authority: &AccountView,
     delegated_account: &AccountView,
     args: &dlp_api::v2::WriteStateBufferArgsView<'_>,
 ) -> ProgramResult {
@@ -325,7 +275,7 @@ fn validate_state_buffer(
     }
     require_eq_keys!(
         &state.authority,
-        operator.address(),
+        authority.address(),
         DlpError::InvalidAuthority
     );
     require_eq_keys!(

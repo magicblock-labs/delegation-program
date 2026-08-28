@@ -27,7 +27,7 @@ pub struct StateBuffer {
     /// Delegated account whose state bytes are stored after this header.
     pub account_pubkey: Pubkey,
 
-    /// Operator-chosen nonce for this account commitment.
+    /// Flow-specific nonce that identifies this opened state.
     pub commit_id: u64,
 
     /// Hash of the raw uploaded account data. Zero until finalized.

@@ -50,14 +50,14 @@ pub fn verifier_bond_pda(
 pub fn state_buffer_pda(
     account: &Pubkey,
     commit_id: u64,
-    operator: &Pubkey,
+    authority: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             STATE_BUFFER_SEED,
             account.as_ref(),
             &commit_id.to_le_bytes(),
-            operator.as_ref(),
+            authority.as_ref(),
         ],
         &crate::id(),
     )
