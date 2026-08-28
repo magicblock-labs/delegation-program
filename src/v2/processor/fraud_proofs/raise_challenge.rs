@@ -3,8 +3,8 @@ use dlp_api::{
     v2::{
         pda::{CHALLENGE_SEED, PENDING_COMMITMENT_SEED, PROTOCOL_CONFIG_SEED},
         Challenge, PendingCommitment, ProtocolConfig, RaiseChallengeArgs,
-        SelectedVerifier, CHALLENGE_STATUS_AWAITING_REVEAL,
-        PENDING_COMMITMENT_STATUS_ACTIVE,
+        SelectedVerifier, CHALLENGE_OUTCOME_NONE,
+        CHALLENGE_STATUS_AWAITING_REVEAL, PENDING_COMMITMENT_STATUS_ACTIVE,
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
     },
 };
@@ -100,10 +100,16 @@ pub fn process_raise_challenge(
     let challenge_state = Challenge {
         discriminator: Challenge::DISCRIMINATOR,
         status: CHALLENGE_STATUS_AWAITING_REVEAL,
+        outcome: CHALLENGE_OUTCOME_NONE,
+        _pad_after_outcome: [0; 6],
         pending_commitment: pending_commitment.address().clone(),
         challenger_identity: challenger.address().clone(),
         state_commitment_hash: *args.state_commitment_hash(),
         challenge_hash: *args.challenge_hash(),
+        challenger_lamports: 0,
+        challenger_owner: Default::default(),
+        challenger_data_hash: [0; 32],
+        challenger_state_buffer: Default::default(),
         challenger_stake_lamports: args.stake_lamports(),
         raised_slot: clock.slot,
         reveal_deadline_slot,
