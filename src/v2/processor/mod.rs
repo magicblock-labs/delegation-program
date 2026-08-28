@@ -45,5 +45,8 @@ pub fn process_instruction(
         DlpV2Instruction::RaiseChallenge => {
             process_raise_challenge(accounts, data)
         }
+        DlpV2Instruction::ChallengerReveal => {
+            process_challenger_reveal(accounts, data)
+        }
     }
 }

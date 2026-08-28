@@ -29,6 +29,8 @@ pub enum DlpV2Instruction {
     FinalizeCommitment = 108,
     /// Raises a hash-only challenge against a v2 pending commitment.
     RaiseChallenge = 109,
+    /// Reveals challenger state for a v2 challenge.
+    ChallengerReveal = 110,
 }
 
 impl DlpV2Instruction {
