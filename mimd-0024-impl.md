@@ -8,6 +8,7 @@ Protocol rationale stays in the MIMD.
 ## Contents
 
 - [Decisions To Review](#decisions-to-review)
+- [MIMD Drift](#mimd-drift)
 - [Permissioned vs Permissionless](#permissioned-vs-permissionless)
 - [Hashes](#hashes)
 - [Accounts](#accounts)
@@ -29,7 +30,8 @@ Protocol rationale stays in the MIMD.
 ## Decisions To Review
 
 - Select verifiers with round-robin for DLP v2 bootstrap.
-- Operator writes and finalizes the state buffer before posting a commitment.
+- Operator writes and finalizes the state buffer before posting a commitment,
+  collapsing the MIMD's later operator-response phase for the v2 MVP.
 - Start the challenge window when the commitment is posted.
 - DLP v2 verifier approvals are normal Solana signer transactions.
 - `PendingCommitment` stores hashes/metadata; full data is opened via
@@ -37,8 +39,31 @@ Protocol rationale stays in the MIMD.
 - A multisig resolves disputes. DLP only checks that the configured resolver
   signed `ResolveDispute`, then applies the chosen outcome.
 - DLP v2 supports one active challenge per pending commitment.
-- `RaiseChallenge` consumes a finalized challenger buffer; no separate
-  challenge-phase upload instruction is needed for v2 MVP.
+- Keep challenger commit/reveal from the MIMD: `RaiseChallenge` records a
+  salted challenge hash and locks stake; `ChallengerReveal` opens the
+  challenged state later.
+
+## MIMD Drift
+
+This implementation plan intentionally differs from MIMD-0024 in one major
+operator-side place.
+
+The MIMD describes an operator response after a challenge if the pending
+commitment does not already expose full state. For the v2 MVP, the operator must
+write and finalize the DLP-owned `StateBuffer` before `PostCommitment`; the
+commitment stores hashes and the buffer stays available for finalization or
+dispute review. The operator/validator already has to upload these bytes for
+finalization, so this mostly changes ordering. It also simplifies the state
+machine and avoids a separate operator-response timeout path. This does not make
+`WriteStateBuffer` operator-only; the buffer remains authority-specific, and
+each consumer validates whether that authority is valid for its flow.
+
+We should not apply the same collapse to challengers yet. `RaiseChallenge`
+should stay close to the MIMD: it records a salted `challenge_hash`, locks
+challenger stake, and blocks happy-path finalization. `ChallengerReveal` then
+opens lamports, owner, salt, and data or a buffered data hash. This preserves
+the purpose of commit/reveal and avoids forcing full challenger data upload
+before the challenge is accepted.
 
 ## Permissioned vs Permissionless
 
@@ -94,12 +119,17 @@ state_commitment_hash = H(
   challenge_window_id
 )
 
-challenge_state_hash = H(
-  "magicblock.challenge_state.v1",
+challenge_hash = H(
+  "magicblock.challenge.v1",
+  state_commitment_hash,
+  operator_identity,
   challenger_identity,
   account_pubkey,
   commit_id,
-  challenger_account_state_hash
+  challenger_lamports,
+  challenger_owner,
+  challenger_data_hash,
+  salt
 )
 ```
 
@@ -359,6 +389,8 @@ pub struct StateBuffer {
 // Review: `total_len` and account size need hard caps.
 
 pub enum ChallengeStatus {
+    /// Challenger has committed to a hash and must reveal the state.
+    AwaitingReveal,
     /// Challenger state differs from operator state and resolver must decide.
     AwaitingResolver,
     /// Challenge has an outcome and can be closed when allowed.
@@ -399,12 +431,16 @@ pub struct Challenge {
     pub pending_commitment: Pubkey,
     /// Challenger that posted the hidden challenge hash.
     pub challenger_identity: Pubkey,
+    /// Salted hash binding the challenger state to this challenge.
+    pub challenge_hash: [u8; 32],
     /// Stake locked by this challenge.
     pub challenger_stake_lamports: u64,
     /// Slot when challenge was raised.
     pub raised_slot: u64,
-    /// Challenger-opened state being compared against PendingCommitment.
-    pub challenger_state: OpenedState,
+    /// Slot after which an unrevealed challenge can be timed out.
+    pub reveal_deadline_slot: u64,
+    /// Challenger-opened state after `ChallengerReveal`.
+    pub challenger_state: Option<OpenedState>,
     /// Terminal outcome once challenge can no longer change.
     pub outcome: Option<ChallengeOutcome>,
 }
@@ -462,10 +498,11 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `WriteStateBuffer`<ul><li>ix-data: <code>buffer_write</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, ProtocolConfig, system program</strong></li></ul> | Operator or challenger service | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned state buffer. Operator buffer must be finalized before `PostCommitment`; challenger buffer must be finalized before `RaiseChallenge`. |
+| `WriteStateBuffer`<ul><li>ix-data: <code>buffer_write</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, ProtocolConfig, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_id, authority]` seed pattern. The instruction is authority-specific, not operator-specific; consuming instructions validate whether the authority is valid for their flow. |
 | `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, ProtocolConfig, VerifierRegistry</strong></li></ul> | Operator | Requires the finalized operator buffer, stores its `data_hash`, selects verifiers with round-robin, creates an active commitment, stores the current `registry_revision`, and starts the challenge window. |
 | `ApproveCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from the selected verifier. v2 MVP requires exactly one selected verifier, so no verifier index is needed. Duplicate approvals do not increase the count. |
-| `RaiseChallenge`<ul><li>ix-data: <code>challenge</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, finalized challenger StateBuffer, ProtocolConfig</strong></li></ul> | Challenger | Requires the finalized challenger buffer, locks challenger stake, compares challenger state with operator state, and either penalizes a matching challenge or blocks normal finalization until resolver decides. |
+| `RaiseChallenge`<ul><li>ix-data: <code>challenge_hash, stake_lamports</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, ProtocolConfig, system program</strong></li></ul> | Challenger | Creates the challenge account, locks challenger stake, stores the salted `challenge_hash`, and blocks normal finalization until reveal, timeout, or resolution. It does not consume challenger state bytes. |
+| `ChallengerReveal`<ul><li>ix-data: <code>revealed_state</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, optional finalized challenger StateBuffer, protocol fee vault</strong></li></ul> | Challenger | Opens the challenged state and salt, validates the stored `challenge_hash`, compares against the operator state, penalizes matching challenges, or moves mismatches to resolver decision. |
 | `ResolveDispute`<ul><li>ix-data: <code>decision</code></li><li>accounts: <strong>resolver signer, Challenge, PendingCommitment, OperatorBond, fee vault, optional PayoutTimelock</strong></li></ul> | Resolver multisig | Applies the multisig decision for a valid mismatch: operator state correct or challenger state correct. |
 | `FinalizeCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>operator or cranker, PendingCommitment, delegated account, DelegationRecord/metadata, selected StateBuffer, optional Challenge</strong></li></ul> | Operator or cranker | Applies the operator state on the happy path, or the resolver-selected state after dispute resolution. |
 
@@ -479,6 +516,7 @@ These instructions can be skipped while implementing the first usable v2 flow.
 | `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
 | `FinalizeStateBuffer`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Low priority. Useful only if we want buffer finalization to be a separate instruction instead of the final `WriteStateBuffer` chunk freezing the buffer. |
 | `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, ProtocolConfig</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to config, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
+| `MarkChallengerRevealTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge, fee vault</strong></li></ul> | Cranker | Deferred. Closes an unrevealed challenge after the reveal timeout, applies the configured challenger penalty, and unblocks or expires the pending commitment according to final policy. |
 | `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Low priority. Needed only if dispute payouts are delayed through `PayoutTimelock`; otherwise `ResolveDispute` can pay immediately. |
 | `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Low priority. Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
 
@@ -489,9 +527,7 @@ These instructions are not part of the current v2 MVP flow.
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
 | `OperatorChallengeResponse`<ul><li>ix-data: <code>state</code></li><li>accounts: <strong>operator signer, PendingCommitment, Challenge, optional StateBuffer</strong></li></ul> | Operator | Remove candidate. Operator state is already opened by `WriteStateBuffer` before `PostCommitment`. |
-| `ChallengerReveal`<ul><li>ix-data: <code>state, salt</code></li><li>accounts: <strong>challenger signer, PendingCommitment, Challenge, optional StateBuffer, fee vault</strong></li></ul> | Challenger | Remove candidate. `RaiseChallenge` can consume the finalized challenger buffer directly. |
 | `MarkOperatorTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge</strong></li></ul> | Cranker | Remove candidate. There is no post-challenge operator upload step in the simplified challenge flow. |
-| `MarkChallengerRevealTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge, fee vault</strong></li></ul> | Cranker | Remove candidate. There is no separate challenger reveal step in the simplified challenge flow. |
 
 ### State Buffer Plan
 
@@ -512,10 +548,27 @@ StateBuffer header
 raw opened account data bytes
 ```
 
-The writer is authority-specific:
+`WriteStateBuffer` is authority-specific, not operator-specific. It must only
+create and write accounts in the `StateBuffer` namespace, using the fixed seed
+pattern:
 
-- operator writes the commitment state before `PostCommitment`;
-- challenger writes the challenged state before `RaiseChallenge`.
+```text
+["state-buffer", account, commit_id, authority]
+```
+
+The header must bind the same `authority`, `account_pubkey`, and `commit_id`.
+The buffer is inert until a consuming instruction validates the authority role:
+
+- `PostCommitment` accepts a finalized buffer whose authority is the operator;
+- happy-path `FinalizeCommitment` uses the operator buffer recorded by the
+  commitment path;
+- `ChallengerReveal` accepts a challenger buffer only when large revealed data
+  needs buffered transport, and validates authority against the challenger.
+
+If future protocol flows need multiple buffer purposes for the same
+`account + commit_id + authority`, add an explicit `buffer_kind` or purpose seed
+and matching header field. Reusing the same address space for unrelated opened
+state can create collisions or confused-consumer bugs.
 
 When `written_len == total_len`, `WriteStateBuffer` hashes the raw data and sets
 `finalized = true`. After that, the buffer cannot be changed.
@@ -527,7 +580,8 @@ Consuming instructions must check:
 - buffer commitment matches the `PendingCommitment`;
 - authority matches the operator for `PostCommitment` and happy-path
   `FinalizeCommitment`;
-- authority matches the challenger for `RaiseChallenge`.
+- authority matches the challenger for `ChallengerReveal` when a challenger
+  buffer is supplied.
 
 Future optimization: allow out-of-order or parallel chunk writes by adding a
 small bitmap inside the `StateBuffer` account. Do this only if sequential writes
@@ -553,9 +607,15 @@ pub struct PostCommitmentData {
 }
 
 pub struct RaiseChallengeData {
+    pub challenge_hash: [u8; 32],
+    pub stake_lamports: u64,
+}
+
+pub struct ChallengerRevealData {
     pub lamports: u64,
     pub owner: Pubkey,
-    pub stake_lamports: u64,
+    pub data_hash: [u8; 32],
+    pub salt: [u8; 32],
 }
 
 pub enum DisputeDecision {
@@ -592,9 +652,14 @@ pub struct ResolveDisputeData {
 - `ApproveCommitment` requires the verifier to have an active bond, be the only
   selected verifier for this commitment, and still be inside the challenge
   window. Duplicate approvals do not increment `approval_count`.
-- `RaiseChallenge` requires a finalized challenger buffer. If challenger state
-  matches operator state, the challenge is terminal and the commitment can
-  return to normal finalization. If challenger state differs, the commitment is
+- `RaiseChallenge` requires an active pending commitment, an open challenge
+  window, no active challenge, and at least `min_challenger_stake`. It creates
+  the `Challenge`, stores `challenge_hash`, locks stake, sets
+  `PendingCommitment.active_challenge`, and blocks normal finalization.
+- `ChallengerReveal` validates the salted `challenge_hash` against the opened
+  challenger state. If challenger state matches operator state, the challenge is
+  terminal, the challenger pays the match penalty, and the commitment can return
+  to normal finalization. If challenger state differs, the commitment remains
   blocked until `ResolveDispute`.
 - `ResolveDispute` requires the configured `resolver` signer from
   `ProtocolConfig`. In DLP v2 this signer is expected to be a multisig-controlled
@@ -614,8 +679,8 @@ pub struct ResolveDisputeData {
 | No eligible verifier exists at `PostCommitment` | Reject. At least one verifier other than the operator must be selectable. |
 | Registry changes after `PostCommitment` | No effect on this commitment. Approvals use stored `selected_verifiers`. |
 | Selected verifier is slashed or exits before approval | Reject that approval. Under-approval handling decides whether to extend or expire. |
-| Challenger buffer matches operator buffer | Penalize the challenger and allow normal finalization. |
-| Challenger buffer differs from operator buffer | Block normal finalization until resolver chooses the state source. |
+| Revealed challenger state matches operator state | Penalize the challenger and allow normal finalization. |
+| Revealed challenger state differs from operator state | Block normal finalization until resolver chooses the state source. |
 
 ## Flows
 
@@ -632,8 +697,8 @@ pub struct ResolveDisputeData {
 
 | Case | Flow |
 | --- | --- |
-| Matching state | Challenger writes a buffer that matches operator state, calls `RaiseChallenge`, pays match penalty, and the commitment returns to normal finalization. |
-| Mismatch | Challenger writes a different valid buffer, calls `RaiseChallenge`, resolver multisig decides, and `FinalizeCommitment` applies the winning state. |
+| Matching state | Challenger calls `RaiseChallenge` with a salted hash, reveals matching state and salt, pays match penalty, and the commitment returns to normal finalization. |
+| Mismatch | Challenger calls `RaiseChallenge` with a salted hash, reveals a different valid state and salt, resolver multisig decides, and `FinalizeCommitment` applies the winning state. |
 
 ### Dispute Resolution
 
@@ -670,8 +735,9 @@ commitment expires.
 
 - Operator: write DLP state buffers, compute hashes, and post commitments.
 - Verifier: watch selections, fetch DA, replay execution, approve or challenge.
-- Challenger: detect divergence, write challenger state buffer, and raise
-  challenge.
+- Challenger: detect divergence, raise a challenge with a salted hash, then
+  reveal the challenged state and salt. Large revealed data may use a challenger
+  state buffer.
 - Resolver tooling: fetch DA, run deterministic replay, present opened states and
   replay result, prepare the multisig transaction.
 - Cranker: call extension/expiry, finalization, payout, and close instructions.
