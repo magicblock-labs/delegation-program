@@ -1,7 +1,6 @@
 use dlp_api::v2::{
-    instruction_builder::{register_operator, write_state_buffer},
-    pda::state_buffer_pda,
-    DlpV2Instruction, RegisterOperatorArgs, StateBuffer, WriteStateBufferArgs,
+    instruction_builder::write_state_buffer, pda::state_buffer_pda,
+    DlpV2Instruction, StateBuffer, WriteStateBufferArgs,
     STATE_BUFFER_MAX_TOTAL_LEN,
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
@@ -23,19 +22,34 @@ use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
 
 #[test]
 fn test_v2_write_state_buffer_instruction_data_uses_one_byte_tag() {
+    let payer = Pubkey::new_unique();
+    let authority = Pubkey::new_unique();
+    let account = Pubkey::new_unique();
     let args = WriteStateBufferArgs {
         commit_id: 7,
         total_len: 3,
         offset: 0,
         chunk: vec![1, 2, 3],
     };
-    let ix = write_state_buffer(
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-        args.clone(),
-    );
+    let ix = write_state_buffer(payer, authority, account, args.clone());
     let encoded_args = args.encode().unwrap();
+
+    assert_eq!(ix.accounts.len(), 6);
+    assert_eq!(ix.accounts[0].pubkey, payer);
+    assert!(ix.accounts[0].is_signer);
+    assert!(ix.accounts[0].is_writable);
+    assert_eq!(ix.accounts[1].pubkey, authority);
+    assert!(ix.accounts[1].is_signer);
+    assert!(!ix.accounts[1].is_writable);
+    assert_eq!(
+        ix.accounts[2].pubkey,
+        state_buffer_pda(&account, args.commit_id, &authority)
+    );
+    assert!(!ix.accounts[2].is_signer);
+    assert!(ix.accounts[2].is_writable);
+    assert_eq!(ix.accounts[3].pubkey, account);
+    assert!(!ix.accounts[3].is_signer);
+    assert!(!ix.accounts[3].is_writable);
 
     assert_eq!(ix.data[0], DlpV2Instruction::WriteStateBuffer as u8);
     assert_eq!(ix.data.len(), 1 + encoded_args.len());
@@ -50,7 +64,8 @@ fn test_v2_write_state_buffer_instruction_data_uses_one_byte_tag() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_one_chunk_finalizes() {
+async fn test_v2_write_state_buffer_unregistered_authority_one_chunk_finalizes()
+{
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 7;
     let data = vec![1, 2, 3, 4];
@@ -58,7 +73,7 @@ async fn test_v2_write_state_buffer_one_chunk_finalizes() {
     write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -76,7 +91,7 @@ async fn test_v2_write_state_buffer_one_chunk_finalizes() {
     let state = decode_state_buffer(&state_buffer_account.data);
 
     assert_eq!(state.discriminator(), StateBuffer::DISCRIMINATOR);
-    assert_eq!(*state.authority(), env.operator.pubkey());
+    assert_eq!(*state.authority(), env.writer.pubkey());
     assert_eq!(*state.account_pubkey(), env.delegated.pubkey());
     assert_eq!(state.commit_id(), commit_id);
     assert_eq!(state.total_len(), data.len() as u32);
@@ -94,7 +109,7 @@ async fn test_v2_write_state_buffer_multiple_chunks_finalize() {
     write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -117,7 +132,7 @@ async fn test_v2_write_state_buffer_multiple_chunks_finalize() {
     write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -151,7 +166,7 @@ async fn test_v2_write_state_buffer_duplicate_retry() {
     write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -166,7 +181,7 @@ async fn test_v2_write_state_buffer_duplicate_retry() {
     write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -194,7 +209,7 @@ async fn test_v2_write_state_buffer_rejects_mismatched_duplicate_retry() {
     write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -209,7 +224,7 @@ async fn test_v2_write_state_buffer_rejects_mismatched_duplicate_retry() {
     let result = write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -230,7 +245,7 @@ async fn test_v2_write_state_buffer_rejects_wrong_offset() {
     let result = write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id: 11,
@@ -251,7 +266,7 @@ async fn test_v2_write_state_buffer_rejects_oversized_total_len() {
     let result = write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id: 12,
@@ -274,7 +289,7 @@ async fn test_v2_write_state_buffer_rejects_post_finalize_mutation() {
     write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -289,7 +304,7 @@ async fn test_v2_write_state_buffer_rejects_post_finalize_mutation() {
     write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -304,7 +319,7 @@ async fn test_v2_write_state_buffer_rejects_post_finalize_mutation() {
     let result = write_buffer(
         &mut env.banks,
         &env.payer,
-        &env.operator,
+        &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -319,23 +334,15 @@ async fn test_v2_write_state_buffer_rejects_post_finalize_mutation() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_rejects_wrong_operator_for_buffer() {
+async fn test_v2_write_state_buffer_rejects_wrong_authority_for_buffer() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 14;
-    let wrong_operator = Keypair::new();
-    fund_account(&mut env.banks, &env.payer, &wrong_operator.pubkey()).await;
-    register_test_operator(
-        &mut env.banks,
-        &env.payer,
-        &env.authority,
-        &wrong_operator,
-        env.config_args.min_operator_bond,
-    )
-    .await;
+    let wrong_authority = Keypair::new();
+    fund_account(&mut env.banks, &env.payer, &wrong_authority.pubkey()).await;
 
     let mut ix = write_state_buffer(
         env.payer.pubkey(),
-        wrong_operator.pubkey(),
+        wrong_authority.pubkey(),
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -344,17 +351,17 @@ async fn test_v2_write_state_buffer_rejects_wrong_operator_for_buffer() {
             chunk: vec![1, 2],
         },
     );
-    ix.accounts[3].pubkey = state_buffer_pda(
+    ix.accounts[2].pubkey = state_buffer_pda(
         &env.delegated.pubkey(),
         commit_id,
-        &env.operator.pubkey(),
+        &env.writer.pubkey(),
     );
 
     let blockhash = fresh_blockhash(&mut env.banks).await;
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&env.payer.pubkey()),
-        &[&env.payer, &wrong_operator],
+        &[&env.payer, &wrong_authority],
         blockhash,
     );
 
@@ -364,62 +371,27 @@ async fn test_v2_write_state_buffer_rejects_wrong_operator_for_buffer() {
 struct WriteStateBufferEnv {
     banks: BanksClient,
     payer: Keypair,
-    authority: Keypair,
-    operator: Keypair,
+    writer: Keypair,
     delegated: Keypair,
-    config_args: dlp_api::v2::InitProtocolConfigArgs,
 }
 
 async fn setup_write_state_buffer_env() -> WriteStateBufferEnv {
     let (mut banks, payer, authority, blockhash) =
         setup_program_test_env().await;
-    let operator = Keypair::new();
+    let writer = Keypair::new();
     let delegated = Keypair::new();
     let config_args = valid_args();
 
-    init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
-    fund_account(&mut banks, &payer, &operator.pubkey()).await;
-    register_test_operator(
-        &mut banks,
-        &payer,
-        &authority,
-        &operator,
-        config_args.min_operator_bond,
-    )
-    .await;
+    init_v2(&banks, &payer, &authority, blockhash, config_args).await;
+    fund_account(&mut banks, &payer, &writer.pubkey()).await;
     create_delegated_account(&mut banks, &payer, &delegated).await;
 
     WriteStateBufferEnv {
         banks,
         payer,
-        authority,
-        operator,
+        writer,
         delegated,
-        config_args,
     }
-}
-
-async fn register_test_operator(
-    banks: &mut BanksClient,
-    payer: &Keypair,
-    authority: &Keypair,
-    operator: &Keypair,
-    amount_lamports: u64,
-) {
-    let ix = register_operator(
-        operator.pubkey(),
-        authority.pubkey(),
-        RegisterOperatorArgs { amount_lamports },
-    );
-    let blockhash = fresh_blockhash(banks).await;
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[payer, operator, authority],
-        blockhash,
-    );
-
-    banks.process_transaction(tx).await.unwrap();
 }
 
 async fn create_delegated_account(
@@ -470,17 +442,17 @@ async fn fund_account(
 async fn write_buffer(
     banks: &mut BanksClient,
     payer: &Keypair,
-    operator: &Keypair,
+    authority: &Keypair,
     account: Pubkey,
     args: WriteStateBufferArgs,
 ) -> Result<(), BanksClientError> {
     let ix =
-        write_state_buffer(payer.pubkey(), operator.pubkey(), account, args);
+        write_state_buffer(payer.pubkey(), authority.pubkey(), account, args);
     let blockhash = fresh_blockhash(banks).await;
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[payer, operator],
+        &[payer, authority],
         blockhash,
     );
 
@@ -495,7 +467,7 @@ async fn get_state_buffer_account(
 }
 
 fn state_buffer_address(env: &WriteStateBufferEnv, commit_id: u64) -> Pubkey {
-    state_buffer_pda(&env.delegated.pubkey(), commit_id, &env.operator.pubkey())
+    state_buffer_pda(&env.delegated.pubkey(), commit_id, &env.writer.pubkey())
 }
 
 fn decode_state_buffer(data: &[u8]) -> dlp_api::v2::StateBufferView<'_> {

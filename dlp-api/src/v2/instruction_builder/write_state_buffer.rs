@@ -8,7 +8,7 @@ use wheels::layout::Encodable;
 use crate::{
     compat::{Compatize, Modernize},
     v2::{
-        pda::{operator_bond_pda, protocol_config_pda, state_buffer_pda},
+        pda::{protocol_config_pda, state_buffer_pda},
         DlpV2Instruction, WriteStateBufferArgs,
     },
 };
@@ -16,7 +16,7 @@ use crate::{
 /// Builds the instruction that writes full account-state bytes to a v2 buffer.
 pub fn write_state_buffer(
     payer: Pubkey,
-    operator: Pubkey,
+    authority: Pubkey,
     account: Pubkey,
     args: WriteStateBufferArgs,
 ) -> Instruction {
@@ -24,16 +24,12 @@ pub fn write_state_buffer(
         program_id: crate::id().modernize(),
         accounts: vec![
             AccountMeta::new(payer, true),
-            AccountMeta::new_readonly(operator, true),
-            AccountMeta::new_readonly(
-                operator_bond_pda(&operator.compatize()).modernize(),
-                false,
-            ),
+            AccountMeta::new_readonly(authority, true),
             AccountMeta::new(
                 state_buffer_pda(
                     &account.compatize(),
                     args.commit_id,
-                    &operator.compatize(),
+                    &authority.compatize(),
                 )
                 .modernize(),
                 false,
