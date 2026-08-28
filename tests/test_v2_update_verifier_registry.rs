@@ -1,21 +1,47 @@
 use dlp_api::v2::{
     instruction_builder::{register_verifier, update_verifier_registry},
     pda::{verifier_bond_pda, verifier_registry_pda},
-    RegisterVerifierArgs, UpdateVerifierRegistryArgs, VerifierRegistry,
-    VERIFIER_REGISTRY_ACTION_ADD, VERIFIER_REGISTRY_ACTION_REMOVE,
+    DlpV2Instruction, RegisterVerifierArgs, UpdateVerifierRegistryArgs,
+    VerifierRegistry, VERIFIER_REGISTRY_ACTION_ADD,
+    VERIFIER_REGISTRY_ACTION_REMOVE,
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program_test::ProgramTestBanksClientExt;
 use solana_sdk::{
+    pubkey::Pubkey,
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
 use solana_system_interface::instruction as system_instruction;
-use wheels::layout::Decodable;
+use wheels::layout::{Decodable, Encodable};
 
 mod fixtures;
 
 use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
+
+#[test]
+fn test_v2_update_verifier_registry_instruction_data_uses_one_byte_tag() {
+    let args = UpdateVerifierRegistryArgs {
+        action: VERIFIER_REGISTRY_ACTION_ADD,
+        weight: 7,
+    };
+    let ix = update_verifier_registry(
+        Pubkey::new_unique(),
+        Pubkey::new_unique(),
+        args.clone(),
+    );
+    let encoded_args = args.encode().unwrap();
+
+    assert_eq!(ix.data[0], DlpV2Instruction::UpdateVerifierRegistry as u8);
+    assert_eq!(ix.data.len(), 1 + encoded_args.len());
+    assert_eq!(&ix.data[1..], encoded_args.as_slice());
+
+    let decoded =
+        <UpdateVerifierRegistryArgs as Decodable>::decode(&ix.data[1..])
+            .unwrap();
+    assert_eq!(decoded.action(), args.action);
+    assert_eq!(decoded.weight(), args.weight);
+}
 
 #[tokio::test]
 async fn test_v2_update_verifier_registry_adds_verifier() {
