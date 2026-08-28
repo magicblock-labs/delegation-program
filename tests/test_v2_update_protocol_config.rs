@@ -2,7 +2,7 @@ use dlp_api::{
     pda::fees_vault_pda,
     v2::{
         instruction_builder::update_protocol_config, pda::protocol_config_pda,
-        ProtocolConfig,
+        DlpV2Instruction, ProtocolConfig, UpdateProtocolConfigArgs,
     },
 };
 use solana_sdk::{
@@ -10,11 +10,28 @@ use solana_sdk::{
     signature::{Keypair, Signer},
     transaction::Transaction,
 };
-use wheels::layout::Decodable;
+use wheels::layout::{Decodable, Encodable};
 
 mod fixtures;
 
 use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
+
+#[test]
+fn test_v2_update_protocol_config_instruction_data_uses_one_byte_tag() {
+    let args = valid_args();
+    let ix = update_protocol_config(Pubkey::new_unique(), args.clone());
+    let encoded_args = args.encode().unwrap();
+
+    assert_eq!(ix.data[0], DlpV2Instruction::UpdateProtocolConfig as u8);
+    assert_eq!(ix.data.len(), 1 + encoded_args.len());
+    assert_eq!(&ix.data[1..], encoded_args.as_slice());
+
+    let decoded =
+        <UpdateProtocolConfigArgs as Decodable>::decode(&ix.data[1..]).unwrap();
+    assert_eq!(*decoded.resolver(), args.resolver);
+    assert_eq!(decoded.min_verifier_bond(), args.min_verifier_bond);
+    assert_eq!(decoded.approval_threshold(), args.approval_threshold);
+}
 
 #[tokio::test]
 async fn test_v2_update_protocol_config() {
