@@ -12,7 +12,8 @@ use dlp_api::{
         pda::{challenge_pda, pending_commitment_pda, CHALLENGE_SEED},
         Challenge, DlpV2Instruction, PendingCommitment, PostCommitmentArgs,
         RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
-        WriteStateBufferArgs, CHALLENGE_STATUS_AWAITING_REVEAL,
+        WriteStateBufferArgs, CHALLENGE_OUTCOME_NONE,
+        CHALLENGE_STATUS_AWAITING_REVEAL,
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
         VERIFIER_REGISTRY_ACTION_ADD,
     },
@@ -112,6 +113,7 @@ async fn test_v2_raise_challenge() {
 
     assert_eq!(challenge.discriminator(), Challenge::DISCRIMINATOR);
     assert_eq!(challenge.status(), CHALLENGE_STATUS_AWAITING_REVEAL);
+    assert_eq!(challenge.outcome(), CHALLENGE_OUTCOME_NONE);
     assert_eq!(
         *challenge.pending_commitment(),
         pending_commitment_pda(&env.delegated_account, env.commit_id)
@@ -122,6 +124,10 @@ async fn test_v2_raise_challenge() {
         args.state_commitment_hash
     );
     assert_eq!(*challenge.challenge_hash(), args.challenge_hash);
+    assert_eq!(challenge.challenger_lamports(), 0);
+    assert_eq!(*challenge.challenger_owner(), Pubkey::default());
+    assert_eq!(*challenge.challenger_data_hash(), [0; 32]);
+    assert_eq!(*challenge.challenger_state_buffer(), Pubkey::default());
     assert_eq!(challenge.challenger_stake_lamports(), args.stake_lamports);
     assert_eq!(
         challenge.reveal_deadline_slot(),

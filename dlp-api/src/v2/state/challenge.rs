@@ -6,6 +6,10 @@ pub const CHALLENGE_STATUS_AWAITING_REVEAL: u8 = 1;
 pub const CHALLENGE_STATUS_AWAITING_RESOLVER: u8 = 2;
 pub const CHALLENGE_STATUS_TERMINAL: u8 = 3;
 
+pub const CHALLENGE_OUTCOME_NONE: u8 = 0;
+pub const CHALLENGE_OUTCOME_INVALID_REVEAL: u8 = 1;
+pub const CHALLENGE_OUTCOME_MATCHING_STATE_CHALLENGER_PENALIZED: u8 = 2;
+
 /// PDA: `["challenge", account, commit_id, challenger]`.
 /// Created by `RaiseChallenge`.
 /// Closed by `CloseTerminalAccounts` after terminal challenge outcome.
@@ -18,6 +22,12 @@ pub struct Challenge {
     /// Current challenge lifecycle state.
     pub status: u8,
 
+    /// Terminal outcome, or `CHALLENGE_OUTCOME_NONE` before resolution.
+    pub outcome: u8,
+
+    /// Keeps the following fixed-width fields 8-byte aligned.
+    pub _pad_after_outcome: [u8; 6],
+
     /// PendingCommitment being challenged.
     pub pending_commitment: Pubkey,
 
@@ -29,6 +39,18 @@ pub struct Challenge {
 
     /// Salted hash binding the challenger state to this challenge.
     pub challenge_hash: [u8; 32],
+
+    /// Challenger-revealed account lamports. Zero until reveal.
+    pub challenger_lamports: u64,
+
+    /// Challenger-revealed account owner. Default pubkey until reveal.
+    pub challenger_owner: Pubkey,
+
+    /// Challenger-revealed account data hash. Zero until reveal.
+    pub challenger_data_hash: [u8; 32],
+
+    /// Challenger StateBuffer PDA used for reveal. Default pubkey until reveal.
+    pub challenger_state_buffer: Pubkey,
 
     /// Lamports locked in this challenge account.
     pub challenger_stake_lamports: u64,
