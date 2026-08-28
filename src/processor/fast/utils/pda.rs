@@ -1,11 +1,17 @@
 use pinocchio::{
     cpi::Signer,
+    error::ProgramError,
+    instruction::seeds,
     sysvars::{rent::Rent, Sysvar},
     AccountView, Address, ProgramResult,
 };
 use pinocchio_system::instructions as system;
 
-use crate::consts::PROTOCOL_FEES_PERCENTAGE;
+use crate::{
+    consts::PROTOCOL_FEES_PERCENTAGE,
+    error::DlpError,
+    requires::{is_uninitialized_account, require_owned_pda, require_pda},
+};
 
 /// Creates a new pda
 #[inline(always)]
@@ -58,6 +64,40 @@ pub(crate) fn create_pda(
             owner,
         }
         .invoke_signed(pda_signers)
+    }
+}
+
+/// Prepares `buffer_account` to hold exactly `state_size` bytes, seeded by
+/// `seeds_arr` under this program. Returns the PDA's bump seed.
+pub(crate) fn create_or_verify_preallocated_pda(
+    target_account: &AccountView,
+    seeds_arr: &[&[u8]; 2],
+    state_size: usize,
+    payer: &AccountView,
+    label: &str,
+) -> Result<u8, ProgramError> {
+    let bump =
+        require_pda(target_account, seeds_arr, &crate::fast::ID, true, label)?;
+
+    if is_uninitialized_account(target_account) {
+        // Not preallocated - initialize it here directly.
+        create_pda(
+            target_account,
+            &crate::fast::ID,
+            state_size,
+            &[Signer::from(&seeds!(seeds_arr[0], seeds_arr[1], &[bump]))],
+            payer,
+        )?;
+        Ok(bump)
+    } else {
+        // Already preallocated by PreallocateBuffer -- must match exactly.
+        require_owned_pda(target_account, &crate::fast::ID, label)?;
+
+        if target_account.data_len() != state_size {
+            Err(DlpError::BufferNotPreallocatedToExactSize.into())
+        } else {
+            Ok(bump)
+        }
     }
 }
 
@@ -114,4 +154,29 @@ pub(crate) fn close_pda_with_fees(
     }
 
     target_account.resize(0)
+}
+
+/// Resizes `pda` to `new_size`, topping it up with rent from `payer` if
+/// needed. Returns the amount of lamports actually transferred (0 if the
+/// account was already rent-exempt for `new_size`).
+pub(crate) fn resize_pda(
+    payer: &AccountView,
+    pda: &AccountView,
+    _system_program: &AccountView,
+    new_size: usize,
+) -> Result<u64, ProgramError> {
+    let rent = Rent::get()?;
+    let rent_exempt_balance = rent
+        .try_minimum_balance(new_size)?
+        .saturating_sub(pda.lamports());
+    if rent_exempt_balance > 0 {
+        system::Transfer {
+            from: payer,
+            to: pda,
+            lamports: rent_exempt_balance,
+        }
+        .invoke()?;
+    }
+    pda.resize(new_size)?;
+    Ok(rent_exempt_balance)
 }

@@ -191,6 +191,15 @@ pub enum DlpError {
     #[error("Owner program requested undelegation")]
     OwnerRequestedUndelegation = 55,
 
+    #[error("Cannot preallocate a buffer while a commit is in flight")]
+    PreallocateBufferCommitInFlight = 56,
+
+    #[error("Buffer must be preallocated to the exact required size ahead of time for accounts over the growth cap")]
+    BufferNotPreallocatedToExactSize = 57,
+
+    #[error("PreallocateBuffer target size does not exceed the growth cap; the buffer PDA is created directly by the consuming instruction instead")]
+    PreallocateBufferTargetTooSmall = 58,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }

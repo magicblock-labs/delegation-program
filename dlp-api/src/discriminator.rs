@@ -68,6 +68,9 @@ pub enum DlpDiscriminator {
 
     /// See [crate::processor::process_undelegate_with_rollback_after_timeout] for docs.
     UndelegateWithRollbackAfterTimeout = 27,
+
+    /// See [crate::processor::process_preallocate_buffer] for docs.
+    PreallocateBuffer = 28,
 }
 
 impl DlpDiscriminator {

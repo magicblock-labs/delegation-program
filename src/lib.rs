@@ -159,6 +159,11 @@ pub fn fast_process_instruction(
                 program_id, accounts, data,
             ),
         ),
+        DlpDiscriminator::PreallocateBuffer => {
+            Some(processor::fast::process_preallocate_buffer(
+                program_id, accounts, data,
+            ))
+        }
         _ => None,
     }
 }

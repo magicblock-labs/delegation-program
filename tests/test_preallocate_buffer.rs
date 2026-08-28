@@ -1,0 +1,573 @@
+use dlp::solana_program;
+use dlp_api::{
+    args::PreallocateBufferKind,
+    error::DlpError,
+    pda::{
+        commit_record_pda_from_delegated_account,
+        commit_state_pda_from_delegated_account,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+        program_config_from_program_id,
+        undelegate_buffer_pda_from_delegated_account,
+        validator_fees_vault_pda_from_validator,
+    },
+};
+use solana_program::{
+    account_info::MAX_PERMITTED_DATA_INCREASE, hash::Hash,
+    native_token::LAMPORTS_PER_SOL, rent::Rent,
+};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
+use solana_sdk::{
+    account::Account,
+    instruction::InstructionError,
+    pubkey::Pubkey,
+    signature::{Keypair, Signer},
+    transaction::{Transaction, TransactionError},
+};
+use solana_sdk_ids::system_program;
+
+use crate::fixtures::{
+    get_commit_record_account_data, get_delegation_metadata_data,
+    get_delegation_record_data, DELEGATED_PDA_ID, DELEGATED_PDA_OWNER_ID,
+    TEST_AUTHORITY,
+};
+
+mod fixtures;
+
+fn assert_custom_error(err: BanksClientError, expected: DlpError) {
+    match err {
+        BanksClientError::TransactionError(
+            TransactionError::InstructionError(
+                _,
+                InstructionError::Custom(code),
+            ),
+        ) => {
+            assert_eq!(code, expected as u32, "unexpected error code");
+        }
+        other => panic!("expected custom error {expected:?}, got {other:?}"),
+    }
+}
+
+#[tokio::test]
+async fn test_preallocate_commit_state_creates_fresh() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    // Must exceed MAX_PERMITTED_DATA_INCREASE (see
+    // test_preallocate_commit_state_rejects_target_at_or_below_cap below),
+    // so this needs two growth steps to actually reach the target.
+    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        0,
+        target_size,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_state_account =
+        banks.get_account(commit_state_pda).await.unwrap().unwrap();
+    assert_eq!(commit_state_account.owner, dlp_api::id());
+    assert_eq!(commit_state_account.data.len(), target_size as usize);
+    assert!(commit_state_account.data.iter().all(|&b| b == 0));
+}
+
+#[tokio::test]
+async fn test_preallocate_undelegate_buffer_creates_fresh() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    // Same reasoning as test_preallocate_commit_state_creates_fresh above.
+    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::UndelegateBuffer,
+        0,
+        target_size,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let undelegate_buffer_pda =
+        undelegate_buffer_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let undelegate_buffer_account = banks
+        .get_account(undelegate_buffer_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(undelegate_buffer_account.owner, dlp_api::id());
+    assert_eq!(undelegate_buffer_account.data.len(), target_size as usize);
+    assert!(undelegate_buffer_account.data.iter().all(|&b| b == 0));
+}
+
+#[tokio::test]
+async fn test_preallocate_delegated_account_grows_and_ignores_commit_in_flight()
+{
+    // A commit is in flight (commit_record already initialized): the
+    // DelegatedAccount kind is meant to run precisely in this window
+    // (between commit_state and finalize), so it must not be blocked by it.
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(true, None).await;
+
+    let target_size: u32 = 500;
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::DelegatedAccount,
+        target_size,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert_eq!(delegated_account.data.len(), target_size as usize);
+    assert!(delegated_account.data.iter().all(|&b| b == 0));
+}
+
+#[tokio::test]
+async fn test_preallocate_commit_state_idempotent_past_target() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    // Grow to 15_000 bytes first (must exceed MAX_PERMITTED_DATA_INCREASE,
+    // see test_preallocate_commit_state_rejects_target_at_or_below_cap --
+    // hence two growth steps to actually reach it).
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        0,
+        15_000,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    assert!(banks.process_transaction(tx).await.is_ok());
+
+    // Calling again with a smaller (but still > cap) target must be a no-op
+    // (never shrinks).
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        12_000,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_state_account =
+        banks.get_account(commit_state_pda).await.unwrap().unwrap();
+    assert_eq!(commit_state_account.data.len(), 15_000);
+}
+
+#[tokio::test]
+async fn test_preallocate_commit_state_multiple_instructions_same_tx_exceed_cap(
+) {
+    // The single most important property of this feature: several
+    // PreallocateBuffer instructions packed into ONE transaction can grow an
+    // account past MAX_PERMITTED_DATA_INCREASE, because the growth cap
+    // resets for each top-level instruction.
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        0,
+        target_size,
+    );
+    assert_eq!(ixs.len(), 2, "expected exactly two growth steps");
+
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let commit_state_account =
+        banks.get_account(commit_state_pda).await.unwrap().unwrap();
+    assert_eq!(commit_state_account.data.len(), target_size as usize);
+    assert!(commit_state_account.data.iter().all(|&b| b == 0));
+}
+
+#[tokio::test]
+async fn test_preallocate_commit_state_rejects_when_commit_in_flight() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(true, None).await;
+
+    // Must exceed MAX_PERMITTED_DATA_INCREASE, or this trips
+    // PreallocateBufferTargetTooSmall before ever reaching the
+    // commit-in-flight check this test means to exercise.
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        MAX_PERMITTED_DATA_INCREASE as u32 + 4_760, // 15_000
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::PreallocateBufferCommitInFlight);
+}
+
+/// `CommitState`/`UndelegateBuffer` buffers are always closed and recreated
+/// fresh each cycle, so a target at or below the cap can always be created
+/// directly, in one shot, by the consuming instruction itself -- there's
+/// never a legitimate reason to preallocate one this small, and doing so
+/// would leave `create_or_verify_preallocated_pda` unable to tell a genuine
+/// preallocation apart from a stray leftover account.
+#[tokio::test]
+async fn test_preallocate_commit_state_rejects_target_at_or_below_cap() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    // Exactly at the cap must also be rejected (the check is strictly `>`).
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        MAX_PERMITTED_DATA_INCREASE as u32,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::PreallocateBufferTargetTooSmall);
+
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    assert!(
+        banks.get_account(commit_state_pda).await.unwrap().is_none(),
+        "rejected preallocation must not create the buffer"
+    );
+}
+
+/// Same reasoning as test_preallocate_commit_state_rejects_target_at_or_below_cap.
+#[tokio::test]
+async fn test_preallocate_undelegate_buffer_rejects_target_at_or_below_cap() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::UndelegateBuffer,
+        500,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::PreallocateBufferTargetTooSmall);
+
+    let undelegate_buffer_pda =
+        undelegate_buffer_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    assert!(
+        banks
+            .get_account(undelegate_buffer_pda)
+            .await
+            .unwrap()
+            .is_none(),
+        "rejected preallocation must not create the buffer"
+    );
+}
+
+/// `DelegatedAccount` targets the delegated account itself, which isn't
+/// closed/recreated each cycle the way `CommitState`/`UndelegateBuffer`
+/// buffers are -- so it's exempt from the above guard, and small targets are
+/// legitimate (e.g. growing a small account by a few bytes).
+#[tokio::test]
+async fn test_preallocate_delegated_account_allows_target_at_or_below_cap() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    let target_size: u32 = 500;
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::DelegatedAccount,
+        target_size,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert_eq!(delegated_account.data.len(), target_size as usize);
+}
+
+#[tokio::test]
+async fn test_preallocate_undelegate_buffer_ignores_commit_in_flight() {
+    // Unlike CommitState, UndelegateBuffer isn't gated on "no commit in
+    // flight": in a two-stage commit-and-undelegate, the undelegate buffer
+    // is prepared alongside finalize -- i.e. precisely while the prior
+    // stage's commit record is still initialized -- so it must not be
+    // blocked by it, same reasoning as DelegatedAccount.
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(true, None).await;
+
+    // Must exceed MAX_PERMITTED_DATA_INCREASE, hence two growth steps.
+    let target_size: u32 = MAX_PERMITTED_DATA_INCREASE as u32 + 4_760; // 15_000
+    let ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::UndelegateBuffer,
+        0,
+        target_size,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&validator.pubkey()),
+        &[&validator],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    let undelegate_buffer_pda =
+        undelegate_buffer_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    let undelegate_buffer_account = banks
+        .get_account(undelegate_buffer_pda)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(undelegate_buffer_account.data.len(), target_size as usize);
+}
+
+#[tokio::test]
+async fn test_preallocate_rejects_wrong_authority() {
+    let other_validator = Keypair::new();
+    let (banks, _, _validator, blockhash) =
+        setup_program_test_env(false, Some(other_validator.pubkey())).await;
+
+    // `other_validator` is a registered validator (has a fees vault) but is
+    // not this delegation's authority.
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        other_validator.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        500,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&other_validator.pubkey()),
+        &[&other_validator],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert_custom_error(err, DlpError::InvalidAuthority);
+}
+
+#[tokio::test]
+async fn test_preallocate_rejects_unregistered_validator() {
+    let (banks, _, validator, blockhash) =
+        setup_program_test_env(false, None).await;
+
+    // Fresh validator with no validator_fees_vault PDA set up at all.
+    let unregistered = Keypair::new();
+    let ix = dlp_api::instruction_builder::preallocate_buffer(
+        unregistered.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::CommitState,
+        500,
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&validator.pubkey()),
+        &[&validator, &unregistered],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidAccountOwner,
+                )
+            )
+        ),
+        "expected InvalidAccountOwner, got {err:?}"
+    );
+}
+
+async fn setup_program_test_env(
+    with_in_flight_commit: bool,
+    extra_registered_validator: Option<Pubkey>,
+) -> (BanksClient, Keypair, Keypair, Hash) {
+    let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
+    program_test.prefer_bpf(true);
+
+    let validator_keypair =
+        crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
+
+    program_test.add_account(
+        validator_keypair.pubkey(),
+        Account {
+            lamports: 10 * LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup a delegated PDA
+    program_test.add_account(
+        DELEGATED_PDA_ID,
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the delegated account metadata PDA
+    let delegation_metadata_data =
+        get_delegation_metadata_data(validator_keypair.pubkey(), None);
+    program_test.add_account(
+        delegation_metadata_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        Account {
+            lamports: Rent::default()
+                .minimum_balance(delegation_metadata_data.len()),
+            data: delegation_metadata_data,
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the delegated record PDA
+    let delegation_record_data =
+        get_delegation_record_data(validator_keypair.pubkey(), None);
+    program_test.add_account(
+        delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
+        Account {
+            lamports: Rent::default()
+                .minimum_balance(delegation_record_data.len()),
+            data: delegation_record_data,
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    // Setup the validator fees vault
+    program_test.add_account(
+        validator_fees_vault_pda_from_validator(&validator_keypair.pubkey()),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: dlp_api::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    if let Some(other_validator) = extra_registered_validator {
+        program_test.add_account(
+            other_validator,
+            Account {
+                lamports: 10 * LAMPORTS_PER_SOL,
+                data: vec![],
+                owner: system_program::id(),
+                executable: false,
+                rent_epoch: 0,
+            },
+        );
+        program_test.add_account(
+            validator_fees_vault_pda_from_validator(&other_validator),
+            Account {
+                lamports: LAMPORTS_PER_SOL,
+                data: vec![],
+                owner: dlp_api::id(),
+                executable: false,
+                rent_epoch: 0,
+            },
+        );
+    }
+
+    if with_in_flight_commit {
+        let commit_record_data =
+            get_commit_record_account_data(validator_keypair.pubkey());
+        program_test.add_account(
+            commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
+            Account {
+                lamports: Rent::default()
+                    .minimum_balance(commit_record_data.len()),
+                data: commit_record_data,
+                owner: dlp_api::id(),
+                executable: false,
+                rent_epoch: 0,
+            },
+        );
+    }
+
+    // Absent program config PDA is treated as "no whitelist configured" by
+    // `require_program_config`, so it's intentionally left unset here.
+    let _ = program_config_from_program_id(&DELEGATED_PDA_OWNER_ID);
+
+    let (banks, payer, blockhash) = program_test.start().await;
+    (banks, payer, validator_keypair, blockhash)
+}

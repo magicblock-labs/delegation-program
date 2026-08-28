@@ -1,5 +1,6 @@
 use dlp::solana_program;
 use dlp_api::{
+    args::PreallocateBufferKind,
     pda::{
         commit_record_pda_from_delegated_account,
         commit_state_pda_from_delegated_account,
@@ -9,12 +10,16 @@ use dlp_api::{
     },
     state::{CommitRecord, DelegationMetadata},
 };
-use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
-use solana_program_test::{BanksClient, ProgramTest};
+use solana_program::{
+    account_info::MAX_PERMITTED_DATA_INCREASE, hash::Hash,
+    native_token::LAMPORTS_PER_SOL, rent::Rent,
+};
+use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use solana_sdk_ids::system_program;
 
@@ -29,7 +34,8 @@ mod fixtures;
 #[tokio::test]
 async fn test_finalize() {
     // Setup
-    let (banks, _, authority, blockhash) = setup_program_test_env().await;
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(COMMIT_NEW_STATE_ACCOUNT_DATA.into()).await;
 
     // Retrieve the accounts
     let delegation_record_pda =
@@ -105,7 +111,115 @@ async fn test_finalize() {
     assert_eq!(commit_record.nonce, delegation_metadata.last_commit_id);
 }
 
-async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
+/// Finalize copies `commit_state`'s full content straight into the delegated
+/// account (`delegated_account.resize(commit_state_data.len())`), so a
+/// target past `MAX_PERMITTED_DATA_INCREASE` needs the delegated account
+/// itself grown beforehand via `PreallocateBufferKind::DelegatedAccount`.
+#[tokio::test]
+async fn test_finalize_large_with_preallocation() {
+    let target_size = MAX_PERMITTED_DATA_INCREASE + 4_760; // 15_000
+    let new_state = vec![7u8; target_size];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(new_state.clone()).await;
+
+    let mut ixs = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::DelegatedAccount,
+        0,
+        target_size as u32,
+    );
+    ixs.push(dlp_api::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+    ));
+
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let res = banks.process_transaction(tx).await;
+    assert!(res.is_ok(), "{:?}", res);
+
+    // The delegated account grew to the full preallocated size and now holds
+    // the committed state's content exactly.
+    let delegated_account =
+        banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
+    assert_eq!(delegated_account.data, new_state);
+
+    // finalize closes both the commit_state and commit_record PDAs once
+    // their content has been applied, same as for a small-account finalize.
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    assert!(banks.get_account(commit_state_pda).await.unwrap().is_none());
+    let commit_record_pda =
+        commit_record_pda_from_delegated_account(&DELEGATED_PDA_ID);
+    assert!(banks
+        .get_account(commit_record_pda)
+        .await
+        .unwrap()
+        .is_none());
+}
+
+/// The delegated account *was* preallocated, just not far enough -- the gap
+/// left to the actual target still exceeds `MAX_PERMITTED_DATA_INCREASE`.
+/// `finalize` has no "must be preallocated to the exact size" check of its
+/// own -- it just resizes directly -- so this exercises the native realloc
+/// cap, not a dedicated dlp error.
+#[tokio::test]
+async fn test_finalize_large_wrong_preallocated_size_fails() {
+    let target_size = 25_000usize;
+    let new_state = vec![7u8; target_size];
+
+    let (banks, _, authority, blockhash) =
+        setup_program_test_env(new_state).await;
+
+    // Only send the first growth step (10_240 bytes) toward the 25_000
+    // target, leaving a 14_760-byte gap.
+    let all_steps = dlp_api::instruction_builder::preallocate_buffer_chunks(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        PreallocateBufferKind::DelegatedAccount,
+        0,
+        target_size as u32,
+    );
+    assert!(
+        all_steps.len() > 1,
+        "test setup expects the full growth to require multiple steps"
+    );
+    let mut ixs = vec![all_steps[0].clone()];
+    ixs.push(dlp_api::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+    ));
+
+    let tx = Transaction::new_signed_with_payer(
+        &ixs,
+        Some(&authority.pubkey()),
+        &[&authority],
+        blockhash,
+    );
+    let err = banks.process_transaction(tx).await.unwrap_err();
+    assert!(
+        matches!(
+            err,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    _,
+                    InstructionError::InvalidRealloc,
+                )
+            )
+        ),
+        "expected InvalidRealloc, got {err:?}"
+    );
+}
+
+async fn setup_program_test_env(
+    commit_state_data: Vec<u8>,
+) -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
@@ -169,7 +283,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         commit_state_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
             lamports: LAMPORTS_PER_SOL,
-            data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
+            data: commit_state_data,
             owner: dlp_api::id(),
             executable: false,
             rent_epoch: 0,
