@@ -2,17 +2,14 @@ use pinocchio::Address;
 
 use crate::compat::{pubkey, Pubkey};
 
-/// The delegation session fees (extracted in percentage from the delegation PDAs rent on closure).
-pub const RENT_FEES_PERCENTAGE: u8 = 10;
-
 /// The fees extracted from the validator earnings (extracted in percentage from the validator fees claims).
 pub const PROTOCOL_FEES_PERCENTAGE: u8 = 10;
 
-/// Fixed fee per commit (charged for each commit after the first).
-pub const COMMIT_FEE_LAMPORTS: u64 = 100_000;
+/// Fixed fee per commit after the first.
+pub const COMMIT_FEE_LAMPORTS: u64 = 1_000_000;
 
-/// Fixed fee per delegation session (0.0003 SOL).
-pub const SESSION_FEE_LAMPORTS: u64 = 300_000;
+/// Fixed fee per delegation session.
+pub const SESSION_FEE_LAMPORTS: u64 = 3_000_000;
 
 /// Default and minimum timeout for requested undelegation.
 /// Assuming 1 slot is roughly 400ms, then 9000 slots = 60min.
