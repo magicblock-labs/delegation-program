@@ -336,11 +336,7 @@ fn validate_state_buffer<'a>(
     delegated_account: &AccountView,
     pending: &PendingCommitment,
 ) -> Result<&'a [u8], ProgramError> {
-    if data.len() < StateBuffer::DATA_LEN {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let state = StateBuffer::decode(&data[..StateBuffer::DATA_LEN])?;
+    let state = StateBuffer::decode(data)?;
 
     if state.discriminator() != StateBuffer::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
@@ -366,8 +362,8 @@ fn validate_state_buffer<'a>(
         ProgramError::InvalidInstructionData
     );
     require_eq!(
-        state.written_len(),
-        state.total_len(),
+        state.payload().len(),
+        state.total_len() as usize,
         ProgramError::InvalidInstructionData
     );
     require_eq!(
@@ -376,14 +372,7 @@ fn validate_state_buffer<'a>(
         ProgramError::InvalidInstructionData
     );
 
-    let raw_end = StateBuffer::DATA_LEN
-        .checked_add(state.total_len() as usize)
-        .ok_or(DlpError::Overflow)?;
-    if data.len() < raw_end {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    Ok(&data[StateBuffer::DATA_LEN..raw_end])
+    Ok(state.payload().as_slice())
 }
 
 fn settle_lamports(
