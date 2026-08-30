@@ -12,20 +12,20 @@ use pinocchio::{
     AccountView, ProgramResult,
 };
 use wheels::{
-    layout::{Decodable, Encodable},
+    layout::{Decodable, Encodable, MaxLenStorage},
     require_eq, require_eq_keys, require_le, require_n_accounts, require_ne,
     require_signer,
 };
 
 use crate::{
-    processor::fast::utils::pda::{create_pda, resize_pda},
+    processor::fast::utils::pda::{create_pda, top_up_pda_rent},
     requires::{
         is_uninitialized_account, require_initialized_pda, require_owned_pda,
         require_uninitialized_pda, StandardCtx,
     },
 };
 
-/// Write full account-state bytes into a DLP-owned v2 StateBuffer.
+/// Write payload bytes into a DLP-owned v2 StateBuffer.
 ///
 /// Accounts:
 /// 0: `[signer, writable]` payer for StateBuffer rent
@@ -81,12 +81,15 @@ pub fn process_write_state_buffer(
             StandardCtx::new("state buffer"),
         )?;
 
-        let initial_len = account_len_for(write_end)?;
+        let initial_payload_capacity =
+            initial_payload_capacity_for(args.total_len() as usize)?;
         require_le!(
-            initial_len,
-            STATE_BUFFER_MAX_ACCOUNT_GROWTH,
+            write_end,
+            initial_payload_capacity,
             ProgramError::InvalidInstructionData
         );
+        let initial_len =
+            account_len_for_payload_capacity(initial_payload_capacity)?;
 
         create_pda(
             state_buffer,
@@ -109,14 +112,10 @@ pub fn process_write_state_buffer(
             commit_id: args.commit_id(),
             data_hash: [0; 32],
             total_len: args.total_len(),
-            written_len: 0,
             finalized: false,
-            _padding: [0; 7],
+            payload: Vec::new(),
         }
-        .encode_to(
-            &mut state_buffer.try_borrow_mut()?.as_mut()
-                [..StateBuffer::DATA_LEN],
-        )?;
+        .encode_to(state_buffer.try_borrow_mut()?.as_mut())?;
     } else {
         require_initialized_pda(
             state_buffer,
@@ -196,16 +195,20 @@ fn write_chunk(
     offset: usize,
     write_end: usize,
 ) -> ProgramResult {
-    let mut state = load_state_buffer(state_buffer_account)?;
-    validate_state_buffer(&state, authority, delegated_account, args)?;
+    let state = validate_state_buffer(
+        state_buffer_account,
+        authority,
+        delegated_account,
+        args,
+    )?;
 
-    if offset < state.written_len as usize {
+    if offset < state.payload_len {
         return validate_duplicate_chunk(
             state_buffer_account,
             args.chunk(),
             offset,
             write_end,
-            state.written_len as usize,
+            state.payload_len,
         );
     }
 
@@ -214,87 +217,113 @@ fn write_chunk(
     }
     require_eq!(
         offset,
-        state.written_len as usize,
+        state.payload_len,
         ProgramError::InvalidInstructionData
     );
 
-    let required_len = account_len_for(write_end)?;
-    if required_len > state_buffer_account.data_len() {
-        let growth = required_len
-            .checked_sub(state_buffer_account.data_len())
-            .ok_or(DlpError::Overflow)?;
-        require_le!(
-            growth,
-            STATE_BUFFER_MAX_ACCOUNT_GROWTH,
-            ProgramError::InvalidInstructionData
+    let old_account_len = state_buffer_account.data_len();
+    let max_account_len = account_len_for_payload_capacity(state.total_len)?;
+    let max_len_storage = MaxLenStorage::new(
+        state_buffer_account,
+        max_account_len,
+        STATE_BUFFER_MAX_ACCOUNT_GROWTH,
+    );
+
+    StateBuffer::decode_mut(&max_len_storage)?
+        .payload_mut()?
+        .extend_from_slice(args.chunk())?;
+
+    let new_account_len = state_buffer_account.data_len();
+    if new_account_len > old_account_len {
+        top_up_pda_rent(payer, state_buffer_account, new_account_len)?;
+    }
+
+    let data_hash = if write_end == state.total_len {
+        let account_data = state_buffer_account.try_borrow()?;
+        let state = StateBuffer::decode(account_data.as_ref())?;
+        let payload = state.payload();
+        require_eq!(
+            payload.len(),
+            state.total_len() as usize,
+            ProgramError::InvalidAccountData
         );
-        resize_pda(payer, state_buffer_account, required_len)?;
+        Some(account_data_hash(payload.as_slice()))
+    } else {
+        None
+    };
+
+    if let Some(data_hash) = data_hash {
+        let mut state_mut = StateBuffer::decode_mut(state_buffer_account)?;
+        *state_mut.data_hash_mut()? = data_hash;
+        state_mut.finalized_mut()?.set(true)?;
     }
-
-    let data_start = StateBuffer::DATA_LEN
-        .checked_add(offset)
-        .ok_or(DlpError::Overflow)?;
-    let data_end = StateBuffer::DATA_LEN
-        .checked_add(write_end)
-        .ok_or(DlpError::Overflow)?;
-    let total_data_end = StateBuffer::DATA_LEN
-        .checked_add(state.total_len as usize)
-        .ok_or(DlpError::Overflow)?;
-
-    let mut account_data = state_buffer_account.try_borrow_mut()?;
-    if account_data.len() < data_end {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    account_data.as_mut()[data_start..data_end].copy_from_slice(args.chunk());
-    state.written_len = write_end as u32;
-
-    if state.written_len == state.total_len {
-        if account_data.len() < total_data_end {
-            return Err(ProgramError::InvalidAccountData);
-        }
-        state.data_hash = account_data_hash(
-            &account_data.as_ref()[StateBuffer::DATA_LEN..total_data_end],
-        );
-        state.finalized = true;
-    }
-
-    state.encode_to(&mut account_data.as_mut()[..StateBuffer::DATA_LEN])?;
 
     Ok(())
 }
 
+struct StateBufferFields {
+    total_len: usize,
+    payload_len: usize,
+    finalized: bool,
+}
+
 fn validate_state_buffer(
-    state: &StateBuffer,
+    state_buffer_account: &AccountView,
     authority: &AccountView,
     delegated_account: &AccountView,
     args: &dlp_api::v2::WriteStateBufferArgsView<'_>,
-) -> ProgramResult {
-    if state.discriminator != StateBuffer::DISCRIMINATOR {
+) -> Result<StateBufferFields, ProgramError> {
+    let account_data = state_buffer_account.try_borrow()?;
+    let state = StateBuffer::decode(account_data.as_ref())?;
+
+    if state.discriminator() != StateBuffer::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
     }
     require_eq_keys!(
-        &state.authority,
+        state.authority(),
         authority.address(),
         DlpError::InvalidAuthority
     );
     require_eq_keys!(
-        &state.account_pubkey,
+        state.account_pubkey(),
         delegated_account.address(),
         ProgramError::InvalidAccountData
     );
     require_eq!(
-        state.commit_id,
+        state.commit_id(),
         args.commit_id(),
         ProgramError::InvalidInstructionData
     );
     require_eq!(
-        state.total_len,
+        state.total_len(),
         args.total_len(),
         ProgramError::InvalidInstructionData
     );
 
-    Ok(())
+    let payload = state.payload();
+    let payload_len = payload.len();
+    let payload_capacity = payload.capacity();
+    require_le!(
+        payload_len,
+        state.total_len() as usize,
+        ProgramError::InvalidAccountData
+    );
+    require_le!(
+        payload_capacity,
+        state.total_len() as usize,
+        ProgramError::InvalidAccountData
+    );
+    require_eq!(
+        account_data.len(),
+        account_len_for_payload_capacity(payload_capacity)?,
+        ProgramError::InvalidAccountData
+    );
+
+    Ok(StateBufferFields {
+        total_len: state.total_len() as usize,
+        payload_len,
+        finalized: state.finalized(),
+    })
 }
 
 fn validate_duplicate_chunk(
@@ -302,23 +331,15 @@ fn validate_duplicate_chunk(
     chunk: &[u8],
     offset: usize,
     write_end: usize,
-    written_len: usize,
+    payload_len: usize,
 ) -> ProgramResult {
-    require_le!(write_end, written_len, ProgramError::InvalidInstructionData);
-
-    let data_start = StateBuffer::DATA_LEN
-        .checked_add(offset)
-        .ok_or(DlpError::Overflow)?;
-    let data_end = StateBuffer::DATA_LEN
-        .checked_add(write_end)
-        .ok_or(DlpError::Overflow)?;
+    require_le!(write_end, payload_len, ProgramError::InvalidInstructionData);
 
     let account_data = state_buffer_account.try_borrow()?;
-    if account_data.len() < data_end {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    let state = StateBuffer::decode(account_data.as_ref())?;
+    let payload = state.payload();
     require_eq!(
-        &account_data.as_ref()[data_start..data_end],
+        &payload.as_slice()[offset..write_end],
         chunk,
         ProgramError::InvalidInstructionData
     );
@@ -326,33 +347,20 @@ fn validate_duplicate_chunk(
     Ok(())
 }
 
-fn load_state_buffer(
-    state_buffer_account: &AccountView,
-) -> Result<StateBuffer, ProgramError> {
-    let account_data = state_buffer_account.try_borrow()?;
-    if account_data.len() < StateBuffer::DATA_LEN {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let state =
-        StateBuffer::decode(&account_data.as_ref()[..StateBuffer::DATA_LEN])?;
-
-    Ok(StateBuffer {
-        discriminator: state.discriminator(),
-        authority: *state.authority(),
-        account_pubkey: *state.account_pubkey(),
-        commit_id: state.commit_id(),
-        data_hash: *state.data_hash(),
-        total_len: state.total_len(),
-        written_len: state.written_len(),
-        finalized: state.finalized(),
-        _padding: [0; 7],
-    })
+fn initial_payload_capacity_for(
+    total_len: usize,
+) -> Result<usize, ProgramError> {
+    let max_initial_payload_len = STATE_BUFFER_MAX_ACCOUNT_GROWTH
+        .checked_sub(StateBuffer::PAYLOAD_BYTES_OFFSET)
+        .ok_or(DlpError::Overflow)?;
+    Ok(total_len.min(max_initial_payload_len))
 }
 
-fn account_len_for(raw_len: usize) -> Result<usize, ProgramError> {
-    StateBuffer::DATA_LEN
-        .checked_add(raw_len)
+fn account_len_for_payload_capacity(
+    payload_capacity: usize,
+) -> Result<usize, ProgramError> {
+    StateBuffer::PAYLOAD_BYTES_OFFSET
+        .checked_add(payload_capacity)
         .ok_or(DlpError::Overflow.into())
 }
 
