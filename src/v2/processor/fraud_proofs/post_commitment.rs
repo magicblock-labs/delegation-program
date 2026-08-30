@@ -128,12 +128,7 @@ pub fn process_post_commitment(
     drop(operator_bond_data);
 
     let state_buffer_data = state_buffer.try_borrow()?;
-    if state_buffer_data.len() < StateBuffer::DATA_LEN {
-        return Err(ProgramError::InvalidAccountData);
-    }
-    let state_buffer_state = StateBuffer::decode(
-        &state_buffer_data.as_ref()[..StateBuffer::DATA_LEN],
-    )?;
+    let state_buffer_state = StateBuffer::decode(state_buffer_data.as_ref())?;
     let data_hash = validate_state_buffer(
         &state_buffer_state,
         operator,
@@ -341,8 +336,8 @@ fn validate_state_buffer(
         ProgramError::InvalidInstructionData
     );
     require_eq!(
-        state_buffer.written_len(),
-        state_buffer.total_len(),
+        state_buffer.payload().len(),
+        state_buffer.total_len() as usize,
         ProgramError::InvalidInstructionData
     );
 

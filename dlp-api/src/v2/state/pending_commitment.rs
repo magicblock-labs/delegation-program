@@ -99,7 +99,7 @@ pub struct PendingCommitment {
     pub _pad_before_selected_verifiers: [u8; 7],
 
     /// Verifiers selected by round-robin for this commitment.
-    #[flexible = 2]
+    #[extendable = 2]
     pub selected_verifiers: Vec<SelectedVerifier>,
 }
 
