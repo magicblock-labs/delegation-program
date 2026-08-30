@@ -21,7 +21,7 @@ pub struct VerifierRegistry {
     pub next_selection_index: u64,
 
     /// All registered verifiers DLP can select from.
-    #[flexible = 2]
+    #[extendable = 2]
     pub entries: Vec<VerifierRegistryEntry>,
 }
 
