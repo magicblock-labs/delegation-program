@@ -381,10 +381,7 @@ fn validate_state_buffer(
     )?;
 
     let data = state_buffer.try_borrow()?;
-    if data.len() < StateBuffer::DATA_LEN {
-        return Err(ProgramError::InvalidAccountData);
-    }
-    let state = StateBuffer::decode(&data.as_ref()[..StateBuffer::DATA_LEN])?;
+    let state = StateBuffer::decode(data.as_ref())?;
 
     if state.discriminator() != StateBuffer::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
@@ -406,8 +403,8 @@ fn validate_state_buffer(
         ProgramError::InvalidInstructionData
     );
     require_eq!(
-        state.written_len(),
-        state.total_len(),
+        state.payload().len(),
+        state.total_len() as usize,
         ProgramError::InvalidInstructionData
     );
     require_eq!(
@@ -415,13 +412,6 @@ fn validate_state_buffer(
         expected_data_hash,
         ProgramError::InvalidInstructionData
     );
-
-    let raw_end = StateBuffer::DATA_LEN
-        .checked_add(state.total_len() as usize)
-        .ok_or(DlpError::Overflow)?;
-    if data.len() < raw_end {
-        return Err(ProgramError::InvalidAccountData);
-    }
 
     Ok(())
 }
