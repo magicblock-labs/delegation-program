@@ -87,6 +87,18 @@ pub(crate) fn resize_pda(
     target_account: &AccountView,
     space: usize,
 ) -> ProgramResult {
+    top_up_pda_rent(payer, target_account, space)?;
+
+    target_account.resize(space)
+}
+
+/// Tops up a PDA to the rent-exempt balance for `space`.
+#[inline(always)]
+pub(crate) fn top_up_pda_rent(
+    payer: &AccountView,
+    target_account: &AccountView,
+    space: usize,
+) -> ProgramResult {
     let rent = Rent::get()?;
     let rent_exempt_balance = rent
         .try_minimum_balance(space)?
@@ -101,7 +113,7 @@ pub(crate) fn resize_pda(
         .invoke()?;
     }
 
-    target_account.resize(space)
+    Ok(())
 }
 
 /// Close PDA with fees, distributing the fees to the specified addresses in sequence
