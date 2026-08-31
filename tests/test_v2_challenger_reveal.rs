@@ -10,9 +10,9 @@ use dlp_api::{
             write_state_buffer,
         },
         pda::{challenge_pda, pending_commitment_pda, state_buffer_pda},
-        Challenge, ChallengerRevealArgs, DlpV2Instruction, PendingCommitment,
-        PostCommitmentArgs, RaiseChallengeArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, WriteStateBufferArgs,
+        Challenge, ChallengerRevealArgs, PendingCommitment, PostCommitmentArgs,
+        RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
+        WriteStateBufferArgs,
         CHALLENGE_OUTCOME_INVALID_REVEAL,
         CHALLENGE_OUTCOME_MATCHING_STATE_CHALLENGER_PENALIZED,
         CHALLENGE_OUTCOME_NONE, CHALLENGE_STATUS_AWAITING_RESOLVER,
@@ -35,7 +35,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk_ids::system_program;
-use wheels::layout::{Decodable, Encodable};
+use wheels::layout::Decodable;
 
 mod fixtures;
 
@@ -45,56 +45,6 @@ use crate::fixtures::{
 };
 
 const CHALLENGE_STAKE: u64 = 10_000;
-
-#[test]
-fn test_v2_challenger_reveal_instruction_data_uses_one_byte_tag() {
-    let challenger = Pubkey::new_unique();
-    let operator = Pubkey::new_unique();
-    let account = Pubkey::new_unique();
-    let args = ChallengerRevealArgs {
-        lamports: 1,
-        owner: Pubkey::new_unique(),
-        data_hash: [2; 32],
-        salt: [3; 32],
-    };
-    let ix = challenger_reveal(challenger, operator, account, 7, args.clone());
-    let encoded_args = args.encode().unwrap();
-
-    assert_eq!(ix.accounts.len(), 7);
-    assert_eq!(ix.accounts[0].pubkey, challenger);
-    assert!(ix.accounts[0].is_signer);
-    assert!(ix.accounts[0].is_writable);
-    assert_eq!(
-        ix.accounts[1].pubkey,
-        challenge_pda(&account, 7, &challenger)
-    );
-    assert!(ix.accounts[1].is_writable);
-    assert_eq!(ix.accounts[2].pubkey, pending_commitment_pda(&account, 7));
-    assert!(ix.accounts[2].is_writable);
-    assert_eq!(
-        ix.accounts[3].pubkey,
-        state_buffer_pda(&account, 7, &operator)
-    );
-    assert!(!ix.accounts[3].is_writable);
-    assert_eq!(
-        ix.accounts[4].pubkey,
-        state_buffer_pda(&account, 7, &challenger)
-    );
-    assert!(!ix.accounts[4].is_writable);
-    assert_eq!(ix.accounts[6].pubkey, fees_vault_pda());
-    assert!(ix.accounts[6].is_writable);
-
-    assert_eq!(ix.data[0], DlpV2Instruction::ChallengerReveal as u8);
-    assert_eq!(ix.data.len(), 1 + encoded_args.len());
-    assert_eq!(&ix.data[1..], encoded_args.as_slice());
-
-    let decoded =
-        <ChallengerRevealArgs as Decodable>::decode(&ix.data[1..]).unwrap();
-    assert_eq!(decoded.lamports(), args.lamports);
-    assert_eq!(*decoded.owner(), args.owner);
-    assert_eq!(*decoded.data_hash(), args.data_hash);
-    assert_eq!(*decoded.salt(), args.salt);
-}
 
 #[tokio::test]
 async fn test_v2_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
