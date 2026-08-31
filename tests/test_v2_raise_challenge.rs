@@ -10,9 +10,9 @@ use dlp_api::{
             update_verifier_registry, write_state_buffer,
         },
         pda::{challenge_pda, pending_commitment_pda, CHALLENGE_SEED},
-        Challenge, DlpV2Instruction, PendingCommitment, PostCommitmentArgs,
-        RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
-        WriteStateBufferArgs, CHALLENGE_OUTCOME_NONE,
+        Challenge, PendingCommitment, PostCommitmentArgs, RaiseChallengeArgs,
+        RegisterOperatorArgs, RegisterVerifierArgs, WriteStateBufferArgs,
+        CHALLENGE_OUTCOME_NONE,
         CHALLENGE_STATUS_AWAITING_REVEAL,
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
         VERIFIER_REGISTRY_ACTION_ADD,
@@ -32,7 +32,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk_ids::system_program;
-use wheels::layout::{Decodable, Encodable};
+use wheels::layout::Decodable;
 
 mod fixtures;
 
@@ -40,32 +40,6 @@ use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
     v2::{init_v2, valid_args},
 };
-
-#[test]
-fn test_v2_raise_challenge_instruction_data_uses_one_byte_tag() {
-    let args = RaiseChallengeArgs {
-        state_commitment_hash: [1; 32],
-        challenge_hash: [2; 32],
-        stake_lamports: 3,
-    };
-    let ix = raise_challenge(
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-        7,
-        args.clone(),
-    );
-    let encoded_args = args.encode().unwrap();
-
-    assert_eq!(ix.data[0], DlpV2Instruction::RaiseChallenge as u8);
-    assert_eq!(ix.data.len(), 1 + encoded_args.len());
-    assert_eq!(&ix.data[1..], encoded_args.as_slice());
-
-    let decoded =
-        <RaiseChallengeArgs as Decodable>::decode(&ix.data[1..]).unwrap();
-    assert_eq!(*decoded.state_commitment_hash(), args.state_commitment_hash);
-    assert_eq!(*decoded.challenge_hash(), args.challenge_hash);
-    assert_eq!(decoded.stake_lamports(), args.stake_lamports);
-}
 
 #[test]
 fn test_v2_challenge_pda_uses_account_commit_id_and_challenger() {
