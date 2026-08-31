@@ -12,8 +12,7 @@ use dlp_api::{
         pda::{challenge_pda, pending_commitment_pda, CHALLENGE_SEED},
         Challenge, PendingCommitment, PostCommitmentArgs, RaiseChallengeArgs,
         RegisterOperatorArgs, RegisterVerifierArgs, WriteStateBufferArgs,
-        CHALLENGE_OUTCOME_NONE,
-        CHALLENGE_STATUS_AWAITING_REVEAL,
+        CHALLENGE_OUTCOME_NONE, CHALLENGE_STATUS_AWAITING_REVEAL,
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
         VERIFIER_REGISTRY_ACTION_ADD,
     },
@@ -38,11 +37,11 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
-    v2::{init_v2, valid_args},
+    v2::{initialize_protocol_config, valid_protocol_config_args},
 };
 
 #[test]
-fn test_v2_challenge_pda_uses_account_commit_id_and_challenger() {
+fn test_challenge_pda_uses_account_commit_id_and_challenger() {
     let account = Pubkey::new_unique();
     let challenger = Pubkey::new_unique();
     let commit_id = 7_u64;
@@ -61,7 +60,7 @@ fn test_v2_challenge_pda_uses_account_commit_id_and_challenger() {
 }
 
 #[tokio::test]
-async fn test_v2_raise_challenge() {
+async fn test_raise_challenge() {
     let mut env = setup_raise_challenge_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -123,7 +122,7 @@ async fn test_v2_raise_challenge() {
 }
 
 #[tokio::test]
-async fn test_v2_raise_challenge_fails_without_challenger_signature() {
+async fn test_raise_challenge_fails_without_challenger_signature() {
     let mut env = setup_raise_challenge_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -141,7 +140,7 @@ async fn test_v2_raise_challenge_fails_without_challenger_signature() {
 }
 
 #[tokio::test]
-async fn test_v2_raise_challenge_fails_below_min_stake() {
+async fn test_raise_challenge_fails_below_min_stake() {
     let mut env = setup_raise_challenge_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -153,7 +152,7 @@ async fn test_v2_raise_challenge_fails_below_min_stake() {
 }
 
 #[tokio::test]
-async fn test_v2_raise_challenge_fails_after_challenge_window() {
+async fn test_raise_challenge_fails_after_challenge_window() {
     let mut env = setup_raise_challenge_env().await;
     post_v2_commitment(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
@@ -165,7 +164,7 @@ async fn test_v2_raise_challenge_fails_after_challenge_window() {
 }
 
 #[tokio::test]
-async fn test_v2_raise_challenge_fails_with_wrong_state_commitment_hash() {
+async fn test_raise_challenge_fails_with_wrong_state_commitment_hash() {
     let mut env = setup_raise_challenge_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -176,7 +175,7 @@ async fn test_v2_raise_challenge_fails_with_wrong_state_commitment_hash() {
 }
 
 #[tokio::test]
-async fn test_v2_raise_challenge_fails_when_challenge_already_active() {
+async fn test_raise_challenge_fails_when_challenge_already_active() {
     let mut env = setup_raise_challenge_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -188,7 +187,7 @@ async fn test_v2_raise_challenge_fails_when_challenge_already_active() {
 }
 
 #[tokio::test]
-async fn test_v2_finalize_commitment_fails_with_active_challenge() {
+async fn test_finalize_commitment_fails_with_active_challenge() {
     let mut env = setup_raise_challenge_env().await;
     post_v2_commitment(&mut env).await.unwrap();
     approve_v2_commitment(&mut env).await.unwrap();
@@ -273,8 +272,8 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
     );
 
     let mut context = program_test.start_with_context().await;
-    let config_args = valid_args();
-    init_v2(
+    let config_args = valid_protocol_config_args();
+    initialize_protocol_config(
         &context.banks_client,
         &context.payer,
         &authority,
