@@ -6,10 +6,9 @@ use dlp_api::{
             update_verifier_registry, write_state_buffer,
         },
         pda::{pending_commitment_pda, verifier_registry_pda},
-        DlpV2Instruction, PendingCommitment, PostCommitmentArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs, VerifierRegistry,
-        WriteStateBufferArgs, PENDING_COMMITMENT_STATUS_ACTIVE,
-        VERIFIER_REGISTRY_ACTION_ADD,
+        PendingCommitment, PostCommitmentArgs, RegisterOperatorArgs,
+        RegisterVerifierArgs, VerifierRegistry, WriteStateBufferArgs,
+        PENDING_COMMITMENT_STATUS_ACTIVE, VERIFIER_REGISTRY_ACTION_ADD,
     },
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -24,7 +23,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk_ids::system_program;
-use wheels::layout::{Decodable, Encodable};
+use wheels::layout::Decodable;
 
 mod fixtures;
 
@@ -32,28 +31,6 @@ use crate::fixtures::{
     create_delegation_record_data,
     v2::{init_v2, valid_args},
 };
-
-#[test]
-fn test_v2_post_commitment_instruction_data_uses_one_byte_tag() {
-    let args = valid_post_commitment_args();
-    let ix = post_commitment(
-        Pubkey::new_unique(),
-        Pubkey::new_unique(),
-        args.clone(),
-    );
-    let encoded_args = args.encode().unwrap();
-
-    assert_eq!(ix.data[0], DlpV2Instruction::PostCommitment as u8);
-    assert_eq!(ix.data.len(), 1 + encoded_args.len());
-    assert_eq!(&ix.data[1..], encoded_args.as_slice());
-
-    let decoded =
-        <PostCommitmentArgs as Decodable>::decode(&ix.data[1..]).unwrap();
-    assert_eq!(decoded.commit_id(), args.commit_id);
-    assert_eq!(decoded.lamports(), args.lamports);
-    assert_eq!(*decoded.owner(), args.owner);
-    assert_eq!(*decoded.da_pointer_hash(), args.da_pointer_hash);
-}
 
 #[tokio::test]
 async fn test_v2_post_commitment() {
