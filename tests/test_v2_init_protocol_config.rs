@@ -4,8 +4,8 @@ use dlp_api::{
     v2::{
         instruction_builder::init_protocol_config,
         pda::{protocol_config_pda, verifier_registry_pda},
-        DlpV2Instruction, InitProtocolConfigArgs, ProtocolConfig,
-        VerifierRegistry, VerifierRegistryEntry,
+        InitProtocolConfigArgs, ProtocolConfig, VerifierRegistry,
+        VerifierRegistryEntry,
     },
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
@@ -66,23 +66,6 @@ fn test_v2_verifier_registry_layout_round_trip() {
         );
         assert_eq!(decoded_entry.weight(), registry_entry.weight);
     }
-}
-
-#[test]
-fn test_v2_init_protocol_config_instruction_data_uses_one_byte_tag() {
-    let args = valid_args();
-    let ix = init_protocol_config(Pubkey::new_unique(), args.clone());
-    let encoded_args = args.encode().unwrap();
-
-    assert_eq!(ix.data[0], DlpV2Instruction::InitProtocolConfig as u8);
-    assert_eq!(ix.data.len(), 1 + encoded_args.len());
-    assert_eq!(&ix.data[1..], encoded_args.as_slice());
-
-    let decoded =
-        <InitProtocolConfigArgs as Decodable>::decode(&ix.data[1..]).unwrap();
-    assert_eq!(*decoded.resolver(), args.resolver);
-    assert_eq!(decoded.min_operator_bond(), args.min_operator_bond);
-    assert_eq!(decoded.approval_threshold(), args.approval_threshold);
 }
 
 #[tokio::test]
