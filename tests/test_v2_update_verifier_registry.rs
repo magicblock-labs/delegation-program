@@ -15,15 +15,25 @@ use wheels::layout::Decodable;
 
 mod fixtures;
 
-use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
+use crate::fixtures::v2::{
+    initialize_protocol_config, setup_program_test_env,
+    valid_protocol_config_args,
+};
 
 #[tokio::test]
-async fn test_v2_update_verifier_registry_adds_verifier() {
+async fn test_update_verifier_registry_adds_verifier() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_args();
+    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
 
-    init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        config_args.clone(),
+    )
+    .await;
     register_v2_verifier(
         &banks,
         &payer,
@@ -77,13 +87,20 @@ async fn test_v2_update_verifier_registry_adds_verifier() {
 }
 
 #[tokio::test]
-async fn test_v2_update_verifier_registry_fails_twice() {
+async fn test_update_verifier_registry_fails_twice() {
     let (mut banks, payer, authority, blockhash) =
         setup_program_test_env().await;
-    let config_args = valid_args();
+    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
 
-    init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        config_args.clone(),
+    )
+    .await;
     register_v2_verifier(
         &banks,
         &payer,
@@ -118,12 +135,19 @@ async fn test_v2_update_verifier_registry_fails_twice() {
 }
 
 #[tokio::test]
-async fn test_v2_update_verifier_registry_fails_with_wrong_authority() {
+async fn test_update_verifier_registry_fails_with_wrong_authority() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_args();
+    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
 
-    init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        config_args.clone(),
+    )
+    .await;
     register_v2_verifier(
         &banks,
         &payer,
@@ -154,12 +178,19 @@ async fn test_v2_update_verifier_registry_fails_with_wrong_authority() {
 }
 
 #[tokio::test]
-async fn test_v2_update_verifier_registry_fails_with_zero_weight() {
+async fn test_update_verifier_registry_fails_with_zero_weight() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_args();
+    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
 
-    init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        config_args.clone(),
+    )
+    .await;
     register_v2_verifier(
         &banks,
         &payer,
@@ -189,12 +220,19 @@ async fn test_v2_update_verifier_registry_fails_with_zero_weight() {
 }
 
 #[tokio::test]
-async fn test_v2_update_verifier_registry_fails_with_remove_action() {
+async fn test_update_verifier_registry_fails_with_remove_action() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_args();
+    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
 
-    init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        config_args.clone(),
+    )
+    .await;
     register_v2_verifier(
         &banks,
         &payer,
