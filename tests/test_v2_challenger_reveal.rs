@@ -12,8 +12,7 @@ use dlp_api::{
         pda::{challenge_pda, pending_commitment_pda, state_buffer_pda},
         Challenge, ChallengerRevealArgs, PendingCommitment, PostCommitmentArgs,
         RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
-        WriteStateBufferArgs,
-        CHALLENGE_OUTCOME_INVALID_REVEAL,
+        WriteStateBufferArgs, CHALLENGE_OUTCOME_INVALID_REVEAL,
         CHALLENGE_OUTCOME_MATCHING_STATE_CHALLENGER_PENALIZED,
         CHALLENGE_OUTCOME_NONE, CHALLENGE_STATUS_AWAITING_RESOLVER,
         CHALLENGE_STATUS_TERMINAL, PENDING_COMMITMENT_STATUS_ACTIVE,
@@ -41,13 +40,13 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
-    v2::{init_v2, valid_args},
+    v2::{initialize_protocol_config, valid_protocol_config_args},
 };
 
 const CHALLENGE_STAKE: u64 = 10_000;
 
 #[tokio::test]
-async fn test_v2_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
+async fn test_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
 ) {
     let mut env = setup_challenger_reveal_env().await;
     post_v2_commitment(&mut env).await.unwrap();
@@ -112,7 +111,7 @@ async fn test_v2_challenger_reveal_matching_state_penalizes_and_reopens_commitme
 }
 
 #[tokio::test]
-async fn test_v2_challenger_reveal_mismatch_moves_to_resolver() {
+async fn test_challenger_reveal_mismatch_moves_to_resolver() {
     let mut env = setup_challenger_reveal_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -166,8 +165,7 @@ async fn test_v2_challenger_reveal_mismatch_moves_to_resolver() {
 }
 
 #[tokio::test]
-async fn test_v2_challenger_reveal_invalid_hash_slashes_and_reopens_commitment()
-{
+async fn test_challenger_reveal_invalid_hash_slashes_and_reopens_commitment() {
     let mut env = setup_challenger_reveal_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -223,7 +221,7 @@ async fn test_v2_challenger_reveal_invalid_hash_slashes_and_reopens_commitment()
 }
 
 #[tokio::test]
-async fn test_v2_challenger_reveal_fails_after_reveal_deadline() {
+async fn test_challenger_reveal_fails_after_reveal_deadline() {
     let mut env = setup_challenger_reveal_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -250,7 +248,7 @@ async fn test_v2_challenger_reveal_fails_after_reveal_deadline() {
 }
 
 #[tokio::test]
-async fn test_v2_challenger_reveal_fails_with_wrong_challenger_buffer() {
+async fn test_challenger_reveal_fails_with_wrong_challenger_buffer() {
     let mut env = setup_challenger_reveal_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -283,7 +281,7 @@ async fn test_v2_challenger_reveal_fails_with_wrong_challenger_buffer() {
 }
 
 #[tokio::test]
-async fn test_v2_challenger_reveal_fails_with_unfinalized_challenger_buffer() {
+async fn test_challenger_reveal_fails_with_unfinalized_challenger_buffer() {
     let mut env = setup_challenger_reveal_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -313,7 +311,7 @@ async fn test_v2_challenger_reveal_fails_with_unfinalized_challenger_buffer() {
 }
 
 #[tokio::test]
-async fn test_v2_challenger_reveal_fails_with_wrong_fee_vault() {
+async fn test_challenger_reveal_fails_with_wrong_fee_vault() {
     let mut env = setup_challenger_reveal_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -418,8 +416,8 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     );
 
     let mut context = program_test.start_with_context().await;
-    let config_args = valid_args();
-    init_v2(
+    let config_args = valid_protocol_config_args();
+    initialize_protocol_config(
         &context.banks_client,
         &context.payer,
         &authority,
