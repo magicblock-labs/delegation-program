@@ -14,16 +14,26 @@ use wheels::layout::Decodable;
 
 mod fixtures;
 
-use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
+use crate::fixtures::v2::{
+    initialize_protocol_config, setup_program_test_env,
+    valid_protocol_config_args,
+};
 
 #[tokio::test]
-async fn test_v2_update_protocol_config() {
+async fn test_update_protocol_config() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let initial_args = valid_args();
+    let initial_args = valid_protocol_config_args();
 
-    init_v2(&banks, &payer, &authority, blockhash, initial_args).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        initial_args,
+    )
+    .await;
 
-    let mut update_args = valid_args();
+    let mut update_args = valid_protocol_config_args();
     update_args.resolver = Pubkey::new_unique();
     update_args.min_operator_bond = 11;
     update_args.min_verifier_bond = 13;
@@ -112,14 +122,24 @@ async fn test_v2_update_protocol_config() {
 }
 
 #[tokio::test]
-async fn test_v2_update_protocol_config_fails_with_wrong_authority() {
+async fn test_update_protocol_config_fails_with_wrong_authority() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    init_v2(&banks, &payer, &authority, blockhash, valid_args()).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        valid_protocol_config_args(),
+    )
+    .await;
 
     let wrong_authority = Keypair::new();
     let blockhash = banks.get_latest_blockhash().await.unwrap();
-    let ix = update_protocol_config(wrong_authority.pubkey(), valid_args());
+    let ix = update_protocol_config(
+        wrong_authority.pubkey(),
+        valid_protocol_config_args(),
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -131,12 +151,19 @@ async fn test_v2_update_protocol_config_fails_with_wrong_authority() {
 }
 
 #[tokio::test]
-async fn test_v2_update_protocol_config_fails_with_invalid_args() {
+async fn test_update_protocol_config_fails_with_invalid_args() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    init_v2(&banks, &payer, &authority, blockhash, valid_args()).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        valid_protocol_config_args(),
+    )
+    .await;
 
-    let mut args = valid_args();
+    let mut args = valid_protocol_config_args();
     args.approval_threshold = args.verifiers_per_commitment + 1;
 
     let blockhash = banks.get_latest_blockhash().await.unwrap();
@@ -152,13 +179,23 @@ async fn test_v2_update_protocol_config_fails_with_invalid_args() {
 }
 
 #[tokio::test]
-async fn test_v2_update_protocol_config_fails_with_wrong_protocol_config_pda() {
+async fn test_update_protocol_config_fails_with_wrong_protocol_config_pda() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    init_v2(&banks, &payer, &authority, blockhash, valid_args()).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        valid_protocol_config_args(),
+    )
+    .await;
 
     let blockhash = banks.get_latest_blockhash().await.unwrap();
-    let mut ix = update_protocol_config(authority.pubkey(), valid_args());
+    let mut ix = update_protocol_config(
+        authority.pubkey(),
+        valid_protocol_config_args(),
+    );
     ix.accounts[1].pubkey = Pubkey::new_unique();
     let tx = Transaction::new_signed_with_payer(
         &[ix],
