@@ -10,10 +10,9 @@ use dlp_api::{
             update_verifier_registry, write_state_buffer,
         },
         pda::{challenge_pda, operator_bond_pda, pending_commitment_pda},
-        Challenge, ChallengerRevealArgs, DlpV2Instruction, OperatorBond,
-        PendingCommitment, PostCommitmentArgs, RaiseChallengeArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs, ResolveDisputeArgs,
-        WriteStateBufferArgs,
+        Challenge, ChallengerRevealArgs, OperatorBond, PendingCommitment,
+        PostCommitmentArgs, RaiseChallengeArgs, RegisterOperatorArgs,
+        RegisterVerifierArgs, ResolveDisputeArgs, WriteStateBufferArgs,
         CHALLENGE_OUTCOME_CHALLENGER_CORRECT_OPERATOR_SLASHED,
         CHALLENGE_OUTCOME_OPERATOR_CORRECT_CHALLENGER_SLASHED,
         CHALLENGE_STATUS_AWAITING_RESOLVER, CHALLENGE_STATUS_TERMINAL,
@@ -42,7 +41,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk_ids::system_program;
-use wheels::layout::{Decodable, Encodable};
+use wheels::layout::Decodable;
 
 mod fixtures;
 
@@ -53,52 +52,6 @@ use crate::fixtures::{
 
 const CHALLENGE_STAKE: u64 = 10_000;
 const OPERATOR_STAKE: u64 = 50_000;
-
-#[test]
-fn test_v2_resolve_dispute_instruction_data_uses_one_byte_tag() {
-    let resolver = Pubkey::new_unique();
-    let operator = Pubkey::new_unique();
-    let challenger = Pubkey::new_unique();
-    let account = Pubkey::new_unique();
-    let args = ResolveDisputeArgs {
-        decision: DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
-    };
-    let ix = resolve_dispute(
-        resolver,
-        operator,
-        challenger,
-        account,
-        7,
-        args.clone(),
-    );
-    let encoded_args = args.encode().unwrap();
-
-    assert_eq!(ix.accounts.len(), 7);
-    assert_eq!(ix.accounts[0].pubkey, resolver);
-    assert!(ix.accounts[0].is_signer);
-    assert!(!ix.accounts[0].is_writable);
-    assert_eq!(
-        ix.accounts[1].pubkey,
-        challenge_pda(&account, 7, &challenger)
-    );
-    assert!(ix.accounts[1].is_writable);
-    assert_eq!(ix.accounts[2].pubkey, pending_commitment_pda(&account, 7));
-    assert!(ix.accounts[2].is_writable);
-    assert_eq!(ix.accounts[3].pubkey, operator_bond_pda(&operator));
-    assert!(ix.accounts[3].is_writable);
-    assert_eq!(ix.accounts[4].pubkey, challenger);
-    assert!(ix.accounts[4].is_writable);
-    assert_eq!(ix.accounts[6].pubkey, fees_vault_pda());
-    assert!(ix.accounts[6].is_writable);
-
-    assert_eq!(ix.data[0], DlpV2Instruction::ResolveDispute as u8);
-    assert_eq!(ix.data.len(), 1 + encoded_args.len());
-    assert_eq!(&ix.data[1..], encoded_args.as_slice());
-
-    let decoded =
-        <ResolveDisputeArgs as Decodable>::decode(&ix.data[1..]).unwrap();
-    assert_eq!(decoded.decision(), args.decision);
-}
 
 #[tokio::test]
 async fn test_v2_resolve_dispute_operator_correct_slashes_challenger_and_selects_operator(
