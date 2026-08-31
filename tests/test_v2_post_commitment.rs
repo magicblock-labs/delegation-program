@@ -29,11 +29,11 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_record_data,
-    v2::{init_v2, valid_args},
+    v2::{initialize_protocol_config, valid_protocol_config_args},
 };
 
 #[tokio::test]
-async fn test_v2_post_commitment() {
+async fn test_post_commitment() {
     let mut env = setup_post_commitment_env(2, true, false).await;
     let args = valid_post_commitment_args();
 
@@ -111,7 +111,7 @@ async fn test_v2_post_commitment() {
 }
 
 #[tokio::test]
-async fn test_v2_post_commitment_fails_twice() {
+async fn test_post_commitment_fails_twice() {
     let mut env = setup_post_commitment_env(2, true, false).await;
     let args = valid_post_commitment_args();
 
@@ -121,7 +121,7 @@ async fn test_v2_post_commitment_fails_twice() {
 }
 
 #[tokio::test]
-async fn test_v2_post_commitment_fails_without_operator_signature() {
+async fn test_post_commitment_fails_without_operator_signature() {
     let env = setup_post_commitment_env(2, false, false).await;
     let args = valid_post_commitment_args();
     let mut ix =
@@ -140,7 +140,7 @@ async fn test_v2_post_commitment_fails_without_operator_signature() {
 }
 
 #[tokio::test]
-async fn test_v2_post_commitment_fails_without_enough_verifiers() {
+async fn test_post_commitment_fails_without_enough_verifiers() {
     let mut env = setup_post_commitment_env(0, true, false).await;
 
     assert!(post_v2_commitment(&mut env, valid_post_commitment_args())
@@ -149,7 +149,7 @@ async fn test_v2_post_commitment_fails_without_enough_verifiers() {
 }
 
 #[tokio::test]
-async fn test_v2_post_commitment_fails_without_state_buffer() {
+async fn test_post_commitment_fails_without_state_buffer() {
     let mut env = setup_post_commitment_env(2, true, false).await;
     let mut args = valid_post_commitment_args();
     args.commit_id = 99;
@@ -158,7 +158,7 @@ async fn test_v2_post_commitment_fails_without_state_buffer() {
 }
 
 #[tokio::test]
-async fn test_v2_post_commitment_fails_with_wrong_delegation_authority() {
+async fn test_post_commitment_fails_with_wrong_delegation_authority() {
     let mut env = setup_post_commitment_env(2, true, true).await;
 
     assert!(post_v2_commitment(&mut env, valid_post_commitment_args())
@@ -227,8 +227,15 @@ async fn setup_post_commitment_env(
     );
 
     let (mut banks, payer, blockhash) = program_test.start().await;
-    let config_args = valid_args();
-    init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
+    let config_args = valid_protocol_config_args();
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        config_args.clone(),
+    )
+    .await;
 
     register_v2_operator(
         &banks,
