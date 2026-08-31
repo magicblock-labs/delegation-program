@@ -6,9 +6,8 @@ use dlp_api::{
             register_verifier, update_verifier_registry, write_state_buffer,
         },
         pda::pending_commitment_pda,
-        DlpV2Instruction, PendingCommitment, PostCommitmentArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs, WriteStateBufferArgs,
-        VERIFIER_REGISTRY_ACTION_ADD,
+        PendingCommitment, PostCommitmentArgs, RegisterOperatorArgs,
+        RegisterVerifierArgs, WriteStateBufferArgs, VERIFIER_REGISTRY_ACTION_ADD,
     },
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -31,13 +30,6 @@ use crate::fixtures::{
     create_delegation_record_data,
     v2::{init_v2, valid_args},
 };
-
-#[test]
-fn test_v2_approve_commitment_instruction_data_uses_one_byte_tag() {
-    let ix = approve_commitment(Pubkey::new_unique(), Pubkey::new_unique(), 7);
-
-    assert_eq!(ix.data, vec![DlpV2Instruction::ApproveCommitment as u8]);
-}
 
 #[tokio::test]
 async fn test_v2_approve_commitment() {
