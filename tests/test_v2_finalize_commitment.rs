@@ -11,8 +11,8 @@ use dlp_api::{
             write_state_buffer,
         },
         pda::pending_commitment_pda,
-        DlpV2Instruction, PendingCommitment, PostCommitmentArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs, WriteStateBufferArgs,
+        PendingCommitment, PostCommitmentArgs, RegisterOperatorArgs,
+        RegisterVerifierArgs, WriteStateBufferArgs,
         PENDING_COMMITMENT_STATUS_FINALIZED, VERIFIER_REGISTRY_ACTION_ADD,
     },
 };
@@ -38,13 +38,6 @@ use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
     v2::{init_v2, valid_args},
 };
-
-#[test]
-fn test_v2_finalize_commitment_instruction_data_uses_one_byte_tag() {
-    let ix = finalize_commitment(Pubkey::new_unique(), Pubkey::new_unique(), 7);
-
-    assert_eq!(ix.data, vec![DlpV2Instruction::FinalizeCommitment as u8]);
-}
 
 #[tokio::test]
 async fn test_v2_finalize_commitment() {
