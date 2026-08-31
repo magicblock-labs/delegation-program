@@ -36,11 +36,11 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
-    v2::{init_v2, valid_args},
+    v2::{initialize_protocol_config, valid_protocol_config_args},
 };
 
 #[tokio::test]
-async fn test_v2_finalize_commitment() {
+async fn test_finalize_commitment() {
     let mut env = setup_finalize_commitment_env(
         LAMPORTS_PER_SOL,
         LAMPORTS_PER_SOL,
@@ -77,7 +77,7 @@ async fn test_v2_finalize_commitment() {
 }
 
 #[tokio::test]
-async fn test_v2_finalize_commitment_fails_before_window_closes() {
+async fn test_finalize_commitment_fails_before_window_closes() {
     let mut env = setup_finalize_commitment_env(
         LAMPORTS_PER_SOL,
         LAMPORTS_PER_SOL,
@@ -92,7 +92,7 @@ async fn test_v2_finalize_commitment_fails_before_window_closes() {
 }
 
 #[tokio::test]
-async fn test_v2_finalize_commitment_fails_without_approval() {
+async fn test_finalize_commitment_fails_without_approval() {
     let mut env = setup_finalize_commitment_env(
         LAMPORTS_PER_SOL,
         LAMPORTS_PER_SOL,
@@ -107,7 +107,7 @@ async fn test_v2_finalize_commitment_fails_without_approval() {
 }
 
 #[tokio::test]
-async fn test_v2_finalize_commitment_fails_with_wrong_operator() {
+async fn test_finalize_commitment_fails_with_wrong_operator() {
     let mut env = setup_finalize_commitment_env(
         LAMPORTS_PER_SOL,
         LAMPORTS_PER_SOL,
@@ -134,7 +134,7 @@ async fn test_v2_finalize_commitment_fails_with_wrong_operator() {
 }
 
 #[tokio::test]
-async fn test_v2_finalize_commitment_fails_with_owner_mismatch() {
+async fn test_finalize_commitment_fails_with_owner_mismatch() {
     let mut env =
         setup_finalize_commitment_env(LAMPORTS_PER_SOL, LAMPORTS_PER_SOL, true)
             .await;
@@ -147,7 +147,7 @@ async fn test_v2_finalize_commitment_fails_with_owner_mismatch() {
 }
 
 #[tokio::test]
-async fn test_v2_finalize_commitment_lamport_increase() {
+async fn test_finalize_commitment_lamport_increase() {
     let mut env = setup_finalize_commitment_env(
         LAMPORTS_PER_SOL,
         LAMPORTS_PER_SOL + 1_000,
@@ -178,7 +178,7 @@ async fn test_v2_finalize_commitment_lamport_increase() {
 }
 
 #[tokio::test]
-async fn test_v2_finalize_commitment_lamport_decrease() {
+async fn test_finalize_commitment_lamport_decrease() {
     let mut env = setup_finalize_commitment_env(
         LAMPORTS_PER_SOL,
         LAMPORTS_PER_SOL - 1_000,
@@ -209,7 +209,7 @@ async fn test_v2_finalize_commitment_lamport_decrease() {
 }
 
 #[tokio::test]
-async fn test_v2_finalize_commitment_fails_twice() {
+async fn test_finalize_commitment_fails_twice() {
     let mut env = setup_finalize_commitment_env(
         LAMPORTS_PER_SOL,
         LAMPORTS_PER_SOL,
@@ -301,8 +301,8 @@ async fn setup_finalize_commitment_env(
     );
 
     let mut context = program_test.start_with_context().await;
-    let config_args = valid_args();
-    init_v2(
+    let config_args = valid_protocol_config_args();
+    initialize_protocol_config(
         &context.banks_client,
         &context.payer,
         &authority,
