@@ -47,14 +47,14 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
-    v2::{init_v2, valid_args},
+    v2::{initialize_protocol_config, valid_protocol_config_args},
 };
 
 const CHALLENGE_STAKE: u64 = 10_000;
 const OPERATOR_STAKE: u64 = 50_000;
 
 #[tokio::test]
-async fn test_v2_resolve_dispute_operator_correct_slashes_challenger_and_selects_operator(
+async fn test_resolve_dispute_operator_correct_slashes_challenger_and_selects_operator(
 ) {
     let mut env = setup_resolve_dispute_env().await;
     open_dispute(&mut env).await;
@@ -114,7 +114,7 @@ async fn test_v2_resolve_dispute_operator_correct_slashes_challenger_and_selects
 }
 
 #[tokio::test]
-async fn test_v2_resolve_dispute_challenger_correct_refunds_challenger_and_slashes_operator(
+async fn test_resolve_dispute_challenger_correct_refunds_challenger_and_slashes_operator(
 ) {
     let mut env = setup_resolve_dispute_env().await;
     open_dispute(&mut env).await;
@@ -175,7 +175,7 @@ async fn test_v2_resolve_dispute_challenger_correct_refunds_challenger_and_slash
 }
 
 #[tokio::test]
-async fn test_v2_resolve_dispute_fails_with_wrong_resolver() {
+async fn test_resolve_dispute_fails_with_wrong_resolver() {
     let mut env = setup_resolve_dispute_env().await;
     open_dispute(&mut env).await;
 
@@ -196,7 +196,7 @@ async fn test_v2_resolve_dispute_fails_with_wrong_resolver() {
 }
 
 #[tokio::test]
-async fn test_v2_resolve_dispute_fails_before_mismatched_reveal() {
+async fn test_resolve_dispute_fails_before_mismatched_reveal() {
     let mut env = setup_resolve_dispute_env().await;
     post_v2_commitment(&mut env).await.unwrap();
 
@@ -227,7 +227,7 @@ async fn test_v2_resolve_dispute_fails_before_mismatched_reveal() {
 }
 
 #[tokio::test]
-async fn test_v2_resolve_dispute_fails_with_wrong_operator_bond() {
+async fn test_resolve_dispute_fails_with_wrong_operator_bond() {
     let mut env = setup_resolve_dispute_env().await;
     open_dispute(&mut env).await;
 
@@ -249,7 +249,7 @@ async fn test_v2_resolve_dispute_fails_with_wrong_operator_bond() {
 }
 
 #[tokio::test]
-async fn test_v2_resolve_dispute_fails_with_wrong_fee_vault() {
+async fn test_resolve_dispute_fails_with_wrong_fee_vault() {
     let mut env = setup_resolve_dispute_env().await;
     open_dispute(&mut env).await;
 
@@ -271,7 +271,7 @@ async fn test_v2_resolve_dispute_fails_with_wrong_fee_vault() {
 }
 
 #[tokio::test]
-async fn test_v2_resolve_dispute_fails_with_invalid_decision() {
+async fn test_resolve_dispute_fails_with_invalid_decision() {
     let mut env = setup_resolve_dispute_env().await;
     open_dispute(&mut env).await;
 
@@ -359,9 +359,9 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
     );
 
     let mut context = program_test.start_with_context().await;
-    let mut config_args = valid_args();
+    let mut config_args = valid_protocol_config_args();
     config_args.resolver = resolver.pubkey();
-    init_v2(
+    initialize_protocol_config(
         &context.banks_client,
         &context.payer,
         &authority,
