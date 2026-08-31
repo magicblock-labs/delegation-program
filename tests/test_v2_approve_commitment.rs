@@ -7,7 +7,8 @@ use dlp_api::{
         },
         pda::pending_commitment_pda,
         PendingCommitment, PostCommitmentArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, WriteStateBufferArgs, VERIFIER_REGISTRY_ACTION_ADD,
+        RegisterVerifierArgs, WriteStateBufferArgs,
+        VERIFIER_REGISTRY_ACTION_ADD,
     },
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -28,11 +29,11 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_record_data,
-    v2::{init_v2, valid_args},
+    v2::{initialize_protocol_config, valid_protocol_config_args},
 };
 
 #[tokio::test]
-async fn test_v2_approve_commitment() {
+async fn test_approve_commitment() {
     let mut env = setup_approve_commitment_env(1).await;
     let args = valid_post_commitment_args();
 
@@ -77,7 +78,7 @@ async fn test_v2_approve_commitment() {
 }
 
 #[tokio::test]
-async fn test_v2_approve_commitment_duplicate_is_noop() {
+async fn test_approve_commitment_duplicate_is_noop() {
     let mut env = setup_approve_commitment_env(1).await;
     let args = valid_post_commitment_args();
 
@@ -127,7 +128,7 @@ async fn test_v2_approve_commitment_duplicate_is_noop() {
 }
 
 #[tokio::test]
-async fn test_v2_approve_commitment_fails_with_wrong_verifier() {
+async fn test_approve_commitment_fails_with_wrong_verifier() {
     let mut env = setup_approve_commitment_env(2).await;
     let args = valid_post_commitment_args();
 
@@ -153,7 +154,7 @@ async fn test_v2_approve_commitment_fails_with_wrong_verifier() {
 }
 
 #[tokio::test]
-async fn test_v2_approve_commitment_fails_without_verifier_signature() {
+async fn test_approve_commitment_fails_without_verifier_signature() {
     let mut env = setup_approve_commitment_env(1).await;
     let args = valid_post_commitment_args();
 
@@ -186,7 +187,7 @@ async fn test_v2_approve_commitment_fails_without_verifier_signature() {
 }
 
 #[tokio::test]
-async fn test_v2_approve_commitment_fails_with_instruction_data() {
+async fn test_approve_commitment_fails_with_instruction_data() {
     let mut env = setup_approve_commitment_env(1).await;
     let args = valid_post_commitment_args();
 
@@ -271,8 +272,15 @@ async fn setup_approve_commitment_env(
     );
 
     let (mut banks, payer, blockhash) = program_test.start().await;
-    let config_args = valid_args();
-    init_v2(&banks, &payer, &authority, blockhash, config_args.clone()).await;
+    let config_args = valid_protocol_config_args();
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        config_args.clone(),
+    )
+    .await;
 
     register_v2_operator(
         &banks,
