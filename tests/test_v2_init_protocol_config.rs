@@ -14,13 +14,13 @@ use wheels::layout::Decodable;
 
 mod fixtures;
 
-use crate::fixtures::v2::{setup_program_test_env, valid_args};
+use crate::fixtures::v2::{setup_program_test_env, valid_protocol_config_args};
 
 #[tokio::test]
 async fn test_init_protocol_config() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let args = valid_args();
+    let args = valid_protocol_config_args();
     let ix = init_protocol_config(authority.pubkey(), args.clone());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -109,7 +109,8 @@ async fn test_init_protocol_config() {
 async fn test_init_protocol_config_fails_twice() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let ix = init_protocol_config(authority.pubkey(), valid_args());
+    let ix =
+        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -119,7 +120,8 @@ async fn test_init_protocol_config_fails_twice() {
     banks.process_transaction(tx).await.unwrap();
 
     let blockhash = banks.get_latest_blockhash().await.unwrap();
-    let ix = init_protocol_config(authority.pubkey(), valid_args());
+    let ix =
+        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -134,7 +136,8 @@ async fn test_init_protocol_config_fails_twice() {
 async fn test_init_protocol_config_fails_with_wrong_protocol_config_pda() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut ix = init_protocol_config(authority.pubkey(), valid_args());
+    let mut ix =
+        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
     ix.accounts[1].pubkey = Pubkey::new_unique();
 
     let tx = Transaction::new_signed_with_payer(
@@ -151,7 +154,8 @@ async fn test_init_protocol_config_fails_with_wrong_protocol_config_pda() {
 async fn test_init_protocol_config_fails_with_wrong_verifier_registry_pda() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut ix = init_protocol_config(authority.pubkey(), valid_args());
+    let mut ix =
+        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
     ix.accounts[2].pubkey = Pubkey::new_unique();
 
     let tx = Transaction::new_signed_with_payer(
@@ -168,7 +172,8 @@ async fn test_init_protocol_config_fails_with_wrong_verifier_registry_pda() {
 async fn test_init_protocol_config_fails_without_authority_signature() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut ix = init_protocol_config(authority.pubkey(), valid_args());
+    let mut ix =
+        init_protocol_config(authority.pubkey(), valid_protocol_config_args());
     ix.accounts[0].is_signer = false;
 
     let tx = Transaction::new_signed_with_payer(
@@ -185,7 +190,7 @@ async fn test_init_protocol_config_fails_without_authority_signature() {
 async fn test_init_protocol_config_fails_with_invalid_args() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut args = valid_args();
+    let mut args = valid_protocol_config_args();
     args.approval_threshold = args.verifiers_per_commitment + 1;
 
     let ix = init_protocol_config(authority.pubkey(), args);
@@ -203,7 +208,7 @@ async fn test_init_protocol_config_fails_with_invalid_args() {
 async fn test_init_protocol_config_fails_with_zero_verifier_cap() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut args = valid_args();
+    let mut args = valid_protocol_config_args();
     args.verifiers_per_commitment = 0;
 
     let ix = init_protocol_config(authority.pubkey(), args);
@@ -221,7 +226,7 @@ async fn test_init_protocol_config_fails_with_zero_verifier_cap() {
 async fn test_init_protocol_config_fails_with_zero_approval_threshold() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
-    let mut args = valid_args();
+    let mut args = valid_protocol_config_args();
     args.approval_threshold = 0;
 
     let ix = init_protocol_config(authority.pubkey(), args);
