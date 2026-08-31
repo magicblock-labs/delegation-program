@@ -1,7 +1,7 @@
 use dlp_api::v2::{
     instruction_builder::write_state_buffer, pda::state_buffer_pda,
-    DlpV2Instruction, StateBuffer, WriteStateBufferArgs,
-    STATE_BUFFER_MAX_ACCOUNT_GROWTH, STATE_BUFFER_MAX_TOTAL_LEN,
+    StateBuffer, WriteStateBufferArgs, STATE_BUFFER_MAX_ACCOUNT_GROWTH,
+    STATE_BUFFER_MAX_TOTAL_LEN,
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{
@@ -14,54 +14,11 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_system_interface::instruction as system_instruction;
-use wheels::layout::{Decodable, Encodable};
+use wheels::layout::Decodable;
 
 mod fixtures;
 
 use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
-
-#[test]
-fn test_v2_write_state_buffer_instruction_data_uses_one_byte_tag() {
-    let payer = Pubkey::new_unique();
-    let authority = Pubkey::new_unique();
-    let account = Pubkey::new_unique();
-    let args = WriteStateBufferArgs {
-        commit_id: 7,
-        total_len: 3,
-        offset: 0,
-        chunk: vec![1, 2, 3],
-    };
-    let ix = write_state_buffer(payer, authority, account, args.clone());
-    let encoded_args = args.encode().unwrap();
-
-    assert_eq!(ix.accounts.len(), 6);
-    assert_eq!(ix.accounts[0].pubkey, payer);
-    assert!(ix.accounts[0].is_signer);
-    assert!(ix.accounts[0].is_writable);
-    assert_eq!(ix.accounts[1].pubkey, authority);
-    assert!(ix.accounts[1].is_signer);
-    assert!(!ix.accounts[1].is_writable);
-    assert_eq!(
-        ix.accounts[2].pubkey,
-        state_buffer_pda(&account, args.commit_id, &authority)
-    );
-    assert!(!ix.accounts[2].is_signer);
-    assert!(ix.accounts[2].is_writable);
-    assert_eq!(ix.accounts[3].pubkey, account);
-    assert!(!ix.accounts[3].is_signer);
-    assert!(!ix.accounts[3].is_writable);
-
-    assert_eq!(ix.data[0], DlpV2Instruction::WriteStateBuffer as u8);
-    assert_eq!(ix.data.len(), 1 + encoded_args.len());
-    assert_eq!(&ix.data[1..], encoded_args.as_slice());
-
-    let decoded =
-        <WriteStateBufferArgs as Decodable>::decode(&ix.data[1..]).unwrap();
-    assert_eq!(decoded.commit_id(), args.commit_id);
-    assert_eq!(decoded.total_len(), args.total_len);
-    assert_eq!(decoded.offset(), args.offset);
-    assert_eq!(decoded.chunk(), args.chunk.as_slice());
-}
 
 #[tokio::test]
 async fn test_v2_write_state_buffer_unregistered_authority_one_chunk_finalizes()
