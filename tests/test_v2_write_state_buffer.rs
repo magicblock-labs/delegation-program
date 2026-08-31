@@ -18,11 +18,13 @@ use wheels::layout::Decodable;
 
 mod fixtures;
 
-use crate::fixtures::v2::{init_v2, setup_program_test_env, valid_args};
+use crate::fixtures::v2::{
+    initialize_protocol_config, setup_program_test_env,
+    valid_protocol_config_args,
+};
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_unregistered_authority_one_chunk_finalizes()
-{
+async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 7;
     let data = vec![1, 2, 3, 4];
@@ -64,7 +66,7 @@ async fn test_v2_write_state_buffer_unregistered_authority_one_chunk_finalizes()
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_multiple_chunks_finalize() {
+async fn test_write_state_buffer_multiple_chunks_finalize() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 8;
 
@@ -128,7 +130,7 @@ async fn test_v2_write_state_buffer_multiple_chunks_finalize() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_grows_payload_span_past_initial_capacity() {
+async fn test_write_state_buffer_grows_payload_span_past_initial_capacity() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 15;
     let initial_payload_capacity = initial_payload_capacity();
@@ -204,7 +206,7 @@ async fn test_v2_write_state_buffer_grows_payload_span_past_initial_capacity() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_duplicate_retry() {
+async fn test_write_state_buffer_duplicate_retry() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 9;
     let first_chunk = vec![1, 2];
@@ -253,7 +255,7 @@ async fn test_v2_write_state_buffer_duplicate_retry() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_rejects_mismatched_duplicate_retry() {
+async fn test_write_state_buffer_rejects_mismatched_duplicate_retry() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 10;
 
@@ -290,7 +292,7 @@ async fn test_v2_write_state_buffer_rejects_mismatched_duplicate_retry() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_rejects_wrong_offset() {
+async fn test_write_state_buffer_rejects_wrong_offset() {
     let mut env = setup_write_state_buffer_env().await;
 
     let result = write_buffer(
@@ -311,7 +313,7 @@ async fn test_v2_write_state_buffer_rejects_wrong_offset() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_rejects_oversized_total_len() {
+async fn test_write_state_buffer_rejects_oversized_total_len() {
     let mut env = setup_write_state_buffer_env().await;
 
     let result = write_buffer(
@@ -332,7 +334,7 @@ async fn test_v2_write_state_buffer_rejects_oversized_total_len() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_rejects_post_finalize_mutation() {
+async fn test_write_state_buffer_rejects_post_finalize_mutation() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 13;
     let data = vec![1, 2, 3];
@@ -385,7 +387,7 @@ async fn test_v2_write_state_buffer_rejects_post_finalize_mutation() {
 }
 
 #[tokio::test]
-async fn test_v2_write_state_buffer_rejects_wrong_authority_for_buffer() {
+async fn test_write_state_buffer_rejects_wrong_authority_for_buffer() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 14;
     let wrong_authority = Keypair::new();
@@ -431,9 +433,16 @@ async fn setup_write_state_buffer_env() -> WriteStateBufferEnv {
         setup_program_test_env().await;
     let writer = Keypair::new();
     let delegated = Keypair::new();
-    let config_args = valid_args();
+    let config_args = valid_protocol_config_args();
 
-    init_v2(&banks, &payer, &authority, blockhash, config_args).await;
+    initialize_protocol_config(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        config_args,
+    )
+    .await;
     fund_account(&mut banks, &payer, &writer.pubkey()).await;
     create_delegated_account(&mut banks, &payer, &delegated).await;
 
