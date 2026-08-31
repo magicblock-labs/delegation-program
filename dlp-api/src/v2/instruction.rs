@@ -24,7 +24,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_v2_instruction_tags_are_one_byte() {
+    fn test_instruction_tags_are_one_byte() {
         assert_eq!(DlpV2Instruction::InitProtocolConfig.to_vec(), vec![100]);
     }
 }
