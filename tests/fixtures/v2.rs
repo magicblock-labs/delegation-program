@@ -12,7 +12,7 @@ use solana_sdk::{
 };
 use solana_sdk_ids::system_program;
 
-pub fn valid_args() -> InitProtocolConfigArgs {
+pub fn valid_protocol_config_args() -> InitProtocolConfigArgs {
     InitProtocolConfigArgs {
         resolver: Pubkey::new_unique(),
         min_operator_bond: 1,
@@ -30,7 +30,7 @@ pub fn valid_args() -> InitProtocolConfigArgs {
 }
 
 #[allow(dead_code)]
-pub async fn init_v2(
+pub async fn initialize_protocol_config(
     banks: &BanksClient,
     payer: &Keypair,
     authority: &Keypair,
