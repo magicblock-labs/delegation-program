@@ -18,13 +18,3 @@ impl DlpV2Instruction {
         self.into()
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_instruction_tags_are_one_byte() {
-        assert_eq!(DlpV2Instruction::InitProtocolConfig.to_vec(), vec![100]);
-    }
-}

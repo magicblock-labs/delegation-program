@@ -10,6 +10,9 @@ pub struct ProtocolConfig {
     /// Account type marker.
     pub discriminator: [u8; 8],
 
+    /// Canonical PDA bump for this account.
+    pub bump: u8,
+
     /// Signer allowed to update config and permissioned bootstrap state.
     pub authority: Pubkey,
 
@@ -58,4 +61,7 @@ pub struct ProtocolConfig {
 
 impl ProtocolConfig {
     pub const DISCRIMINATOR: [u8; 8] = *b"v2cfg000";
+
+    /// Maximum value for basis-points config fields.
+    pub const MAX_MATCH_PENALTY_BPS: u16 = 10_000;
 }
