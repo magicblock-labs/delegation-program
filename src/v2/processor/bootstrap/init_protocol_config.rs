@@ -42,11 +42,11 @@ pub fn process_init_protocol_config(
         _system_program,
     ] = require_n_accounts!(accounts, 4);
 
+    require_signer!(authority);
+
     let args = InitProtocolConfigArgs::decode(data)?;
 
     validate_protocol_config_args(&args)?;
-
-    require_signer!(authority);
 
     let protocol_config_bump = require_uninitialized_pda(
         protocol_config,
@@ -87,6 +87,7 @@ pub fn process_init_protocol_config(
 
     ProtocolConfig {
         discriminator: ProtocolConfig::DISCRIMINATOR,
+        bump: protocol_config_bump,
         authority: authority.address().to_bytes().into(),
         paused: false,
         resolver: *args.resolver(),
@@ -105,8 +106,14 @@ pub fn process_init_protocol_config(
     }
     .encode_to(protocol_config.try_borrow_mut()?.as_mut())?;
 
-    VerifierRegistry::default()
-        .encode_to(verifier_registry.try_borrow_mut()?.as_mut())?;
+    VerifierRegistry {
+        discriminator: VerifierRegistry::DISCRIMINATOR,
+        bump: verifier_registry_bump,
+        registry_revision: 0,
+        next_selection_index: 0,
+        entries: Vec::new(),
+    }
+    .encode_to(verifier_registry.try_borrow_mut()?.as_mut())?;
 
     Ok(())
 }
@@ -156,21 +163,6 @@ pub(super) fn validate_protocol_config_args(
         0,
         ProgramError::InvalidInstructionData
     );
-    require_ne!(
-        args.verifiers_per_commitment(),
-        0,
-        ProgramError::InvalidInstructionData
-    );
-    require_ne!(
-        args.approval_threshold(),
-        0,
-        ProgramError::InvalidInstructionData
-    );
-    require_le!(
-        args.approval_threshold(),
-        args.verifiers_per_commitment(),
-        ProgramError::InvalidInstructionData
-    );
     require_eq!(
         args.verifiers_per_commitment(),
         1,
@@ -183,7 +175,7 @@ pub(super) fn validate_protocol_config_args(
     );
     require_le!(
         args.match_penalty_bps(),
-        10_000,
+        ProtocolConfig::MAX_MATCH_PENALTY_BPS,
         ProgramError::InvalidInstructionData
     );
 
