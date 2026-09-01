@@ -1,7 +1,6 @@
 use dlp_api::v2::{
     instruction_builder::write_state_buffer, pda::state_buffer_pda,
-    StateBuffer, WriteStateBufferArgs, STATE_BUFFER_MAX_ACCOUNT_GROWTH,
-    STATE_BUFFER_MAX_TOTAL_LEN,
+    StateBuffer, WriteStateBufferArgs,
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{
@@ -44,10 +43,14 @@ async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
     .await
     .unwrap();
 
-    let state_buffer = state_buffer_address(&env, commit_id);
+    let state_buffer = state_buffer_pda(
+        &env.delegated.pubkey(),
+        commit_id,
+        &env.writer.pubkey(),
+    );
     let state_buffer_account =
-        get_state_buffer_account(&mut env.banks, state_buffer).await;
-    let state = decode_state_buffer(&state_buffer_account.data);
+        env.banks.get_account(state_buffer).await.unwrap().unwrap();
+    let state = StateBuffer::decode(&state_buffer_account.data).unwrap();
 
     assert_eq!(state.discriminator(), StateBuffer::DISCRIMINATOR);
     assert_eq!(*state.authority(), env.writer.pubkey());
@@ -69,79 +72,115 @@ async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
 async fn test_write_state_buffer_multiple_chunks_finalize() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 8;
-
-    write_buffer(
-        &mut env.banks,
-        &env.payer,
-        &env.writer,
-        env.delegated.pubkey(),
-        WriteStateBufferArgs {
-            commit_id,
-            total_len: 5,
-            offset: 0,
-            chunk: vec![1, 2],
-        },
-    )
-    .await
-    .unwrap();
-
-    let state_buffer = state_buffer_address(&env, commit_id);
-    let state_buffer_account =
-        get_state_buffer_account(&mut env.banks, state_buffer).await;
-    let state = decode_state_buffer(&state_buffer_account.data);
-    assert_rent_exempt(&state_buffer_account);
-    assert_payload_prefix_and_zero_suffix(
-        &state_buffer_account.data,
-        &state,
-        &[1, 2],
-        5,
+    let total_len = 5;
+    let state_buffer = state_buffer_pda(
+        &env.delegated.pubkey(),
+        commit_id,
+        &env.writer.pubkey(),
     );
-    assert!(!state.finalized());
-    assert_eq!(*state.data_hash(), [0; 32]);
 
-    write_buffer(
-        &mut env.banks,
-        &env.payer,
-        &env.writer,
-        env.delegated.pubkey(),
-        WriteStateBufferArgs {
-            commit_id,
-            total_len: 5,
-            offset: 2,
-            chunk: vec![3, 4, 5],
-        },
-    )
-    .await
-    .unwrap();
+    {
+        write_buffer(
+            &mut env.banks,
+            &env.payer,
+            &env.writer,
+            env.delegated.pubkey(),
+            WriteStateBufferArgs {
+                commit_id,
+                total_len,
+                offset: 0,
+                chunk: vec![1, 2],
+            },
+        )
+        .await
+        .unwrap();
 
-    let state_buffer = state_buffer_address(&env, commit_id);
-    let state_buffer_account =
-        get_state_buffer_account(&mut env.banks, state_buffer).await;
-    let state = decode_state_buffer(&state_buffer_account.data);
-    assert_eq!(state.payload().len(), 5);
-    assert_eq!(state.payload().capacity(), 5);
-    assert_eq!(state.payload().as_slice(), &[1, 2, 3, 4, 5]);
-    assert!(state.finalized());
-    assert_eq!(*state.data_hash(), account_data_hash(&[1, 2, 3, 4, 5]));
-    assert_eq!(
-        &state_buffer_account.data[StateBuffer::PAYLOAD_BYTES_OFFSET..],
-        &[1, 2, 3, 4, 5]
-    );
+        let state_buffer_account =
+            env.banks.get_account(state_buffer).await.unwrap().unwrap();
+        let state = StateBuffer::decode(&state_buffer_account.data).unwrap();
+        assert!(
+            state_buffer_account.lamports
+                >= Rent::default()
+                    .minimum_balance(state_buffer_account.data.len())
+        );
+        let payload = state.payload();
+        assert_eq!(payload.len(), 2);
+        assert_eq!(payload.capacity(), total_len as usize);
+        assert_eq!(payload.as_slice(), &[1, 2]);
+
+        let payload_start = StateBuffer::PAYLOAD_BYTES_OFFSET;
+        let written_end = payload_start + 2;
+        let capacity_end = payload_start + total_len as usize;
+        assert_eq!(
+            &state_buffer_account.data[payload_start..written_end],
+            &[1, 2]
+        );
+        assert!(state_buffer_account.data[written_end..capacity_end]
+            .iter()
+            .all(|byte| *byte == 0));
+        assert!(!state.finalized());
+        assert_eq!(*state.data_hash(), [0; 32]);
+    }
+
+    {
+        write_buffer(
+            &mut env.banks,
+            &env.payer,
+            &env.writer,
+            env.delegated.pubkey(),
+            WriteStateBufferArgs {
+                commit_id,
+                total_len,
+                offset: 2,
+                chunk: vec![3, 4, 5],
+            },
+        )
+        .await
+        .unwrap();
+
+        let state_buffer_account =
+            env.banks.get_account(state_buffer).await.unwrap().unwrap();
+        let state = StateBuffer::decode(&state_buffer_account.data).unwrap();
+        let payload = state.payload();
+        assert_eq!(payload.len(), total_len as usize);
+        assert_eq!(payload.capacity(), total_len as usize);
+        assert_eq!(payload.as_slice(), &[1, 2, 3, 4, 5]);
+
+        let payload_start = StateBuffer::PAYLOAD_BYTES_OFFSET;
+        let payload_end = payload_start + total_len as usize;
+        assert_eq!(
+            &state_buffer_account.data[payload_start..payload_end],
+            &[1, 2, 3, 4, 5]
+        );
+        assert!(state.finalized());
+        assert_eq!(*state.data_hash(), account_data_hash(&[1, 2, 3, 4, 5]));
+    }
 }
 
 #[tokio::test]
 async fn test_write_state_buffer_grows_payload_span_past_initial_capacity() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 15;
-    let initial_payload_capacity = initial_payload_capacity();
+    let state_buffer = state_buffer_pda(
+        &env.delegated.pubkey(),
+        commit_id,
+        &env.writer.pubkey(),
+    );
+    let initial_payload_capacity = StateBuffer::MAX_INITIAL_PAYLOAD_LEN;
     let total_len = initial_payload_capacity + 11;
+    let final_data_len =
+        StateBuffer::data_len_from_payload_capacity(total_len).unwrap();
     let first_write_len = initial_payload_capacity - 3;
     let mut expected = Vec::with_capacity(total_len);
     let mut offset = 0;
 
+    println!("total_len: {total_len}, first_write_len: {first_write_len}");
+
     while offset < first_write_len {
         let chunk_len = (first_write_len - offset).min(512);
-        let chunk = chunk_for_offset(offset, chunk_len);
+        let chunk = (offset..offset + chunk_len)
+            .map(|value| (value % u8::MAX as usize) as u8)
+            .collect::<Vec<_>>();
         expected.extend_from_slice(&chunk);
 
         write_buffer(
@@ -162,17 +201,30 @@ async fn test_write_state_buffer_grows_payload_span_past_initial_capacity() {
         offset += chunk_len;
     }
 
-    let state_buffer = state_buffer_address(&env, commit_id);
+    assert_eq!(offset, first_write_len);
+
     let state_buffer_account =
-        get_state_buffer_account(&mut env.banks, state_buffer).await;
-    let state = decode_state_buffer(&state_buffer_account.data);
-    assert_rent_exempt(&state_buffer_account);
-    assert_payload_prefix_and_zero_suffix(
-        &state_buffer_account.data,
-        &state,
-        &expected,
-        initial_payload_capacity,
+        env.banks.get_account(state_buffer).await.unwrap().unwrap();
+    let state = StateBuffer::decode(&state_buffer_account.data).unwrap();
+    assert!(
+        state_buffer_account.lamports
+            >= Rent::default().minimum_balance(final_data_len)
     );
+    let payload = state.payload();
+    assert_eq!(payload.len(), expected.len());
+    assert_eq!(payload.capacity(), initial_payload_capacity);
+    assert_eq!(payload.as_slice(), expected.as_slice());
+
+    let payload_start = StateBuffer::PAYLOAD_BYTES_OFFSET;
+    let written_end = payload_start + expected.len();
+    let capacity_end = payload_start + initial_payload_capacity;
+    assert_eq!(
+        &state_buffer_account.data[payload_start..written_end],
+        expected.as_slice()
+    );
+    assert!(state_buffer_account.data[written_end..capacity_end]
+        .iter()
+        .all(|byte| *byte == 0));
     assert!(!state.finalized());
 
     let crossing_chunk = vec![7, 8, 9, 10, 11];
@@ -192,16 +244,24 @@ async fn test_write_state_buffer_grows_payload_span_past_initial_capacity() {
     .unwrap();
     expected.extend_from_slice(&crossing_chunk);
 
-    let state_buffer = state_buffer_address(&env, commit_id);
     let state_buffer_account =
-        get_state_buffer_account(&mut env.banks, state_buffer).await;
-    let state = decode_state_buffer(&state_buffer_account.data);
-    assert_payload_prefix_and_zero_suffix(
-        &state_buffer_account.data,
-        &state,
-        &expected,
-        total_len,
+        env.banks.get_account(state_buffer).await.unwrap().unwrap();
+    let state = StateBuffer::decode(&state_buffer_account.data).unwrap();
+    let payload = state.payload();
+    assert_eq!(payload.len(), expected.len());
+    assert_eq!(payload.capacity(), total_len);
+    assert_eq!(payload.as_slice(), expected.as_slice());
+
+    let payload_start = StateBuffer::PAYLOAD_BYTES_OFFSET;
+    let written_end = payload_start + expected.len();
+    let capacity_end = payload_start + total_len;
+    assert_eq!(
+        &state_buffer_account.data[payload_start..written_end],
+        expected.as_slice()
     );
+    assert!(state_buffer_account.data[written_end..capacity_end]
+        .iter()
+        .all(|byte| *byte == 0));
     assert!(!state.finalized());
 }
 
@@ -241,16 +301,29 @@ async fn test_write_state_buffer_duplicate_retry() {
     .await
     .unwrap();
 
-    let state_buffer = state_buffer_address(&env, commit_id);
-    let state_buffer_account =
-        get_state_buffer_account(&mut env.banks, state_buffer).await;
-    let state = decode_state_buffer(&state_buffer_account.data);
-    assert_payload_prefix_and_zero_suffix(
-        &state_buffer_account.data,
-        &state,
-        &[1, 2],
-        4,
+    let state_buffer = state_buffer_pda(
+        &env.delegated.pubkey(),
+        commit_id,
+        &env.writer.pubkey(),
     );
+    let state_buffer_account =
+        env.banks.get_account(state_buffer).await.unwrap().unwrap();
+    let state = StateBuffer::decode(&state_buffer_account.data).unwrap();
+    let payload = state.payload();
+    assert_eq!(payload.len(), 2);
+    assert_eq!(payload.capacity(), 4);
+    assert_eq!(payload.as_slice(), &[1, 2]);
+
+    let payload_start = StateBuffer::PAYLOAD_BYTES_OFFSET;
+    let written_end = payload_start + 2;
+    let capacity_end = payload_start + 4;
+    assert_eq!(
+        &state_buffer_account.data[payload_start..written_end],
+        &[1, 2]
+    );
+    assert!(state_buffer_account.data[written_end..capacity_end]
+        .iter()
+        .all(|byte| *byte == 0));
     assert!(!state.finalized());
 }
 
@@ -323,7 +396,7 @@ async fn test_write_state_buffer_rejects_oversized_total_len() {
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id: 12,
-            total_len: STATE_BUFFER_MAX_TOTAL_LEN + 1,
+            total_len: StateBuffer::MAX_TOTAL_PAYLOAD_LEN + 1,
             offset: 0,
             chunk: vec![1],
         },
@@ -395,7 +468,7 @@ async fn test_write_state_buffer_rejects_wrong_authority_for_buffer() {
 
     let mut ix = write_state_buffer(
         env.payer.pubkey(),
-        wrong_authority.pubkey(),
+        env.writer.pubkey(),
         env.delegated.pubkey(),
         WriteStateBufferArgs {
             commit_id,
@@ -404,11 +477,9 @@ async fn test_write_state_buffer_rejects_wrong_authority_for_buffer() {
             chunk: vec![1, 2],
         },
     );
-    ix.accounts[2].pubkey = state_buffer_pda(
-        &env.delegated.pubkey(),
-        commit_id,
-        &env.writer.pubkey(),
-    );
+
+    // use wrong_authority as authority
+    ix.accounts[1].pubkey = wrong_authority.pubkey();
 
     let blockhash = fresh_blockhash(&mut env.banks).await;
     let tx = Transaction::new_signed_with_payer(
@@ -517,57 +588,6 @@ async fn write_buffer(
     );
 
     banks.process_transaction(tx).await
-}
-
-async fn get_state_buffer_account(
-    banks: &mut BanksClient,
-    state_buffer: Pubkey,
-) -> solana_sdk::account::Account {
-    banks.get_account(state_buffer).await.unwrap().unwrap()
-}
-
-fn state_buffer_address(env: &WriteStateBufferEnv, commit_id: u64) -> Pubkey {
-    state_buffer_pda(&env.delegated.pubkey(), commit_id, &env.writer.pubkey())
-}
-
-fn decode_state_buffer(data: &[u8]) -> dlp_api::v2::StateBufferView<'_> {
-    <StateBuffer as Decodable>::decode(data).unwrap()
-}
-
-fn initial_payload_capacity() -> usize {
-    STATE_BUFFER_MAX_ACCOUNT_GROWTH - StateBuffer::PAYLOAD_BYTES_OFFSET
-}
-
-fn assert_payload_prefix_and_zero_suffix(
-    account_data: &[u8],
-    state: &dlp_api::v2::StateBufferView<'_>,
-    prefix: &[u8],
-    payload_capacity: usize,
-) {
-    let payload = state.payload();
-    assert_eq!(payload.len(), prefix.len());
-    assert_eq!(payload.capacity(), payload_capacity);
-    assert_eq!(payload.as_slice(), prefix);
-
-    let payload_start = StateBuffer::PAYLOAD_BYTES_OFFSET;
-    let written_end = payload_start + prefix.len();
-    let capacity_end = payload_start + payload_capacity;
-    assert_eq!(&account_data[payload_start..written_end], prefix);
-    assert!(account_data[written_end..capacity_end]
-        .iter()
-        .all(|byte| *byte == 0));
-}
-
-fn chunk_for_offset(offset: usize, len: usize) -> Vec<u8> {
-    (offset..offset + len)
-        .map(|value| (value % u8::MAX as usize) as u8)
-        .collect()
-}
-
-fn assert_rent_exempt(account: &solana_sdk::account::Account) {
-    assert!(
-        account.lamports >= Rent::default().minimum_balance(account.data.len())
-    );
 }
 
 async fn fresh_blockhash(banks: &mut BanksClient) -> Hash {

@@ -16,6 +16,10 @@ pub enum DlpV2Instruction {
     /// Updates one cluster's challenge policy for future commitments.
     UpdateDelegationCluster = 104,
     /// Writes full account-state bytes into a v2 state buffer.
+    ///
+    /// TODO (snawaz/optimization): we can split this into two instructions such that 
+    /// InitStateBuffer takes more arguments and AppendStateBuffer takes as less as
+    /// possible. 
     WriteStateBuffer = 107,
 }
 
