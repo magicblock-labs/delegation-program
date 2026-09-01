@@ -2,12 +2,10 @@ use dlp_api::{
     error::DlpError,
     v2::{
         pda::{OPERATOR_BOND_SEED, PROTOCOL_CONFIG_SEED},
-        OperatorBond, ProtocolConfig, RegisterOperatorArgs,
-        OPERATOR_STATUS_ACTIVE,
+        OperatorBond, OperatorStatus, ProtocolConfig, RegisterOperatorArgs,
     },
 };
 use pinocchio::{
-    address::Address,
     cpi::{Seed, Signer},
     error::ProgramError,
     AccountView, ProgramResult,
@@ -15,8 +13,7 @@ use pinocchio::{
 use pinocchio_system::instructions as system;
 use wheels::{
     layout::{Decodable, Encodable},
-    require_eq_keys, require_ge, require_n_accounts, require_ne,
-    require_signer,
+    require, require_eq_keys, require_ge, require_n_accounts, require_signer,
 };
 
 use crate::{
@@ -47,10 +44,10 @@ pub fn process_register_operator(
         _system_program,
     ] = require_n_accounts!(accounts, 5);
 
-    let args = RegisterOperatorArgs::decode(data)?;
-
     require_signer!(operator);
     require_signer!(authority);
+
+    let args = RegisterOperatorArgs::decode(data)?;
 
     require_initialized_pda(
         protocol_config,
@@ -62,24 +59,22 @@ pub fn process_register_operator(
     let protocol_config_data = protocol_config.try_borrow()?;
     let protocol_config_state =
         ProtocolConfig::decode(protocol_config_data.as_ref())?;
-    if protocol_config_state.discriminator() != ProtocolConfig::DISCRIMINATOR {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    require!(
+        protocol_config_state.discriminator() == ProtocolConfig::DISCRIMINATOR,
+        ProgramError::InvalidAccountData
+    );
+
     require_eq_keys!(
-        &Address::from(protocol_config_state.authority().to_bytes()),
+        protocol_config_state.authority(),
         authority.address(),
         DlpError::InvalidAuthority
     );
-    require_ne!(
-        args.amount_lamports(),
-        0,
-        ProgramError::InvalidInstructionData
-    );
     require_ge!(
-        args.amount_lamports(),
+        args.stake_lamports(),
         protocol_config_state.min_operator_bond(),
         ProgramError::InvalidInstructionData
     );
+
     drop(protocol_config_data);
 
     let operator_bond_bump = require_uninitialized_pda(
@@ -105,16 +100,17 @@ pub fn process_register_operator(
     system::Transfer {
         from: operator,
         to: operator_bond,
-        lamports: args.amount_lamports(),
+        lamports: args.stake_lamports(),
     }
     .invoke()?;
 
     OperatorBond {
         discriminator: OperatorBond::DISCRIMINATOR,
+        bump: operator_bond_bump,
         operator_identity: operator.address().to_bytes().into(),
-        stake_lamports: args.amount_lamports(),
+        stake_lamports: args.stake_lamports(),
         locked_lamports: 0,
-        status: OPERATOR_STATUS_ACTIVE,
+        status: OperatorStatus::Active.value(),
         withdraw_requested_slot: None,
     }
     .encode_to(operator_bond.try_borrow_mut()?.as_mut())?;

@@ -1,8 +1,10 @@
 use dlp_api::v2::{
-    instruction_builder::register_operator, pda::operator_bond_pda,
-    OperatorBond, RegisterOperatorArgs, OPERATOR_STATUS_ACTIVE,
+    instruction_builder::register_operator, pda::OPERATOR_BOND_SEED,
+    OperatorBond, OperatorStatus, RegisterOperatorArgs,
 };
-use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_program::{
+    native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
+};
 use solana_program_test::ProgramTestBanksClientExt;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -23,6 +25,11 @@ async fn test_register_operator() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
     let config_args = valid_protocol_config_args();
     let operator = Keypair::new();
+    let (operator_bond_address, expected_operator_bond_bump) =
+        Pubkey::find_program_address(
+            &[OPERATOR_BOND_SEED, operator.pubkey().as_ref()],
+            &dlp_api::id(),
+        );
 
     initialize_protocol_config(
         &banks,
@@ -39,7 +46,7 @@ async fn test_register_operator() {
         operator.pubkey(),
         authority.pubkey(),
         RegisterOperatorArgs {
-            amount_lamports: config_args.min_operator_bond,
+            stake_lamports: config_args.min_operator_bond,
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -52,26 +59,29 @@ async fn test_register_operator() {
     assert!(banks.process_transaction(tx).await.is_ok());
 
     let operator_bond_account = banks
-        .get_account(operator_bond_pda(&operator.pubkey()))
+        .get_account(operator_bond_address)
         .await
         .unwrap()
         .unwrap();
     let operator_bond =
-        <OperatorBond as Decodable>::decode(&operator_bond_account.data)
-            .unwrap();
+        OperatorBond::decode(&operator_bond_account.data).unwrap();
+    let expected_operator_bond_lamports = Rent::default()
+        .minimum_balance(OperatorBond::DATA_LEN)
+        + config_args.min_operator_bond;
 
     assert_eq!(operator_bond.discriminator(), OperatorBond::DISCRIMINATOR);
+    assert_eq!(operator_bond.bump(), expected_operator_bond_bump);
     assert_eq!(*operator_bond.operator_identity(), operator.pubkey());
     assert_eq!(
         operator_bond.stake_lamports(),
         config_args.min_operator_bond
     );
     assert_eq!(operator_bond.locked_lamports(), 0);
-    assert_eq!(operator_bond.status(), OPERATOR_STATUS_ACTIVE);
+    assert_eq!(operator_bond.status(), OperatorStatus::Active.value());
     assert_eq!(operator_bond.withdraw_requested_slot(), None);
-    assert!(
-        operator_bond_account.lamports > operator_bond.stake_lamports(),
-        "operator bond account should hold rent plus stake"
+    assert_eq!(
+        operator_bond_account.lamports,
+        expected_operator_bond_lamports
     );
 }
 
@@ -97,7 +107,7 @@ async fn test_register_operator_fails_with_wrong_authority() {
         operator.pubkey(),
         wrong_authority.pubkey(),
         RegisterOperatorArgs {
-            amount_lamports: config_args.min_operator_bond,
+            stake_lamports: config_args.min_operator_bond,
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -130,7 +140,7 @@ async fn test_register_operator_fails_with_low_stake() {
     let ix = register_operator(
         operator.pubkey(),
         authority.pubkey(),
-        RegisterOperatorArgs { amount_lamports: 0 },
+        RegisterOperatorArgs { stake_lamports: 0 },
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -159,46 +169,50 @@ async fn test_register_operator_fails_twice() {
     .await;
     fund_operator(&banks, &payer, &operator).await;
 
-    let ix = register_operator(
-        operator.pubkey(),
-        authority.pubkey(),
-        RegisterOperatorArgs {
-            amount_lamports: config_args.min_operator_bond,
-        },
-    );
-    let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
-    let blockhash = banks
-        .get_new_latest_blockhash(&latest_blockhash)
-        .await
-        .unwrap();
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &operator, &authority],
-        blockhash,
-    );
-    banks.process_transaction(tx).await.unwrap();
+    {
+        let ix = register_operator(
+            operator.pubkey(),
+            authority.pubkey(),
+            RegisterOperatorArgs {
+                stake_lamports: config_args.min_operator_bond,
+            },
+        );
+        let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
+        let blockhash = banks
+            .get_new_latest_blockhash(&latest_blockhash)
+            .await
+            .unwrap();
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&payer.pubkey()),
+            &[&payer, &operator, &authority],
+            blockhash,
+        );
+        banks.process_transaction(tx).await.unwrap();
+    }
 
-    let ix = register_operator(
-        operator.pubkey(),
-        authority.pubkey(),
-        RegisterOperatorArgs {
-            amount_lamports: config_args.min_operator_bond,
-        },
-    );
-    let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
-    let blockhash = banks
-        .get_new_latest_blockhash(&latest_blockhash)
-        .await
-        .unwrap();
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &operator, &authority],
-        blockhash,
-    );
+    {
+        let ix = register_operator(
+            operator.pubkey(),
+            authority.pubkey(),
+            RegisterOperatorArgs {
+                stake_lamports: config_args.min_operator_bond,
+            },
+        );
+        let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
+        let blockhash = banks
+            .get_new_latest_blockhash(&latest_blockhash)
+            .await
+            .unwrap();
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&payer.pubkey()),
+            &[&payer, &operator, &authority],
+            blockhash,
+        );
 
-    assert!(banks.process_transaction(tx).await.is_err());
+        assert!(banks.process_transaction(tx).await.is_err());
+    }
 }
 
 async fn fund_operator(
