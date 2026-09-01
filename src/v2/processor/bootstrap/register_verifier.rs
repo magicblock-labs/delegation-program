@@ -2,12 +2,10 @@ use dlp_api::{
     error::DlpError,
     v2::{
         pda::{PROTOCOL_CONFIG_SEED, VERIFIER_BOND_SEED},
-        ProtocolConfig, RegisterVerifierArgs, VerifierBond,
-        VERIFIER_STATUS_ACTIVE,
+        ProtocolConfig, RegisterVerifierArgs, VerifierBond, VerifierStatus,
     },
 };
 use pinocchio::{
-    address::Address,
     cpi::{Seed, Signer},
     error::ProgramError,
     sysvars::{clock::Clock, Sysvar},
@@ -16,8 +14,7 @@ use pinocchio::{
 use pinocchio_system::instructions as system;
 use wheels::{
     layout::{Decodable, Encodable},
-    require_eq_keys, require_ge, require_n_accounts, require_ne,
-    require_signer,
+    require, require_eq_keys, require_ge, require_n_accounts, require_signer,
 };
 
 use crate::{
@@ -48,10 +45,10 @@ pub fn process_register_verifier(
         _system_program,
     ] = require_n_accounts!(accounts, 5);
 
-    let args = RegisterVerifierArgs::decode(data)?;
-
     require_signer!(verifier);
     require_signer!(authority);
+
+    let args = RegisterVerifierArgs::decode(data)?;
 
     require_initialized_pda(
         protocol_config,
@@ -63,24 +60,22 @@ pub fn process_register_verifier(
     let protocol_config_data = protocol_config.try_borrow()?;
     let protocol_config_state =
         ProtocolConfig::decode(protocol_config_data.as_ref())?;
-    if protocol_config_state.discriminator() != ProtocolConfig::DISCRIMINATOR {
-        return Err(ProgramError::InvalidAccountData);
-    }
+    require!(
+        protocol_config_state.discriminator() == ProtocolConfig::DISCRIMINATOR,
+        ProgramError::InvalidAccountData
+    );
+
     require_eq_keys!(
-        &Address::from(protocol_config_state.authority().to_bytes()),
+        protocol_config_state.authority(),
         authority.address(),
         DlpError::InvalidAuthority
     );
-    require_ne!(
-        args.amount_lamports(),
-        0,
-        ProgramError::InvalidInstructionData
-    );
     require_ge!(
-        args.amount_lamports(),
+        args.stake_lamports(),
         protocol_config_state.min_verifier_bond(),
         ProgramError::InvalidInstructionData
     );
+
     drop(protocol_config_data);
 
     let verifier_bond_bump = require_uninitialized_pda(
@@ -106,15 +101,16 @@ pub fn process_register_verifier(
     system::Transfer {
         from: verifier,
         to: verifier_bond,
-        lamports: args.amount_lamports(),
+        lamports: args.stake_lamports(),
     }
     .invoke()?;
 
     VerifierBond {
         discriminator: VerifierBond::DISCRIMINATOR,
+        bump: verifier_bond_bump,
         verifier_identity: verifier.address().to_bytes().into(),
-        stake_lamports: args.amount_lamports(),
-        status: VERIFIER_STATUS_ACTIVE,
+        stake_lamports: args.stake_lamports(),
+        status: VerifierStatus::Active.value(),
         registered_slot: Clock::get()?.slot,
         withdraw_requested_slot: None,
     }

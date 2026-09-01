@@ -1,8 +1,10 @@
 use dlp_api::v2::{
-    instruction_builder::register_verifier, pda::verifier_bond_pda,
-    RegisterVerifierArgs, VerifierBond, VERIFIER_STATUS_ACTIVE,
+    instruction_builder::register_verifier, pda::VERIFIER_BOND_SEED,
+    RegisterVerifierArgs, VerifierBond, VerifierStatus,
 };
-use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_program::{
+    native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
+};
 use solana_program_test::ProgramTestBanksClientExt;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -23,6 +25,11 @@ async fn test_register_verifier() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
     let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
+    let (verifier_bond_address, expected_verifier_bond_bump) =
+        Pubkey::find_program_address(
+            &[VERIFIER_BOND_SEED, verifier.pubkey().as_ref()],
+            &dlp_api::id(),
+        );
 
     initialize_protocol_config(
         &banks,
@@ -39,7 +46,7 @@ async fn test_register_verifier() {
         verifier.pubkey(),
         authority.pubkey(),
         RegisterVerifierArgs {
-            amount_lamports: config_args.min_verifier_bond,
+            stake_lamports: config_args.min_verifier_bond,
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -52,26 +59,29 @@ async fn test_register_verifier() {
     assert!(banks.process_transaction(tx).await.is_ok());
 
     let verifier_bond_account = banks
-        .get_account(verifier_bond_pda(&verifier.pubkey()))
+        .get_account(verifier_bond_address)
         .await
         .unwrap()
         .unwrap();
     let verifier_bond =
-        <VerifierBond as Decodable>::decode(&verifier_bond_account.data)
-            .unwrap();
+        VerifierBond::decode(&verifier_bond_account.data).unwrap();
+    let expected_verifier_bond_lamports = Rent::default()
+        .minimum_balance(VerifierBond::DATA_LEN)
+        + config_args.min_verifier_bond;
 
     assert_eq!(verifier_bond.discriminator(), VerifierBond::DISCRIMINATOR);
+    assert_eq!(verifier_bond.bump(), expected_verifier_bond_bump);
     assert_eq!(*verifier_bond.verifier_identity(), verifier.pubkey());
     assert_eq!(
         verifier_bond.stake_lamports(),
         config_args.min_verifier_bond
     );
-    assert_eq!(verifier_bond.status(), VERIFIER_STATUS_ACTIVE);
+    assert_eq!(verifier_bond.status(), VerifierStatus::Active.value());
     assert!(verifier_bond.registered_slot() > 0);
     assert_eq!(verifier_bond.withdraw_requested_slot(), None);
-    assert!(
-        verifier_bond_account.lamports > verifier_bond.stake_lamports(),
-        "verifier bond account should hold rent plus stake"
+    assert_eq!(
+        verifier_bond_account.lamports,
+        expected_verifier_bond_lamports
     );
 }
 
@@ -97,7 +107,7 @@ async fn test_register_verifier_fails_with_wrong_authority() {
         verifier.pubkey(),
         wrong_authority.pubkey(),
         RegisterVerifierArgs {
-            amount_lamports: config_args.min_verifier_bond,
+            stake_lamports: config_args.min_verifier_bond,
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -130,7 +140,7 @@ async fn test_register_verifier_fails_with_low_stake() {
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
-        RegisterVerifierArgs { amount_lamports: 0 },
+        RegisterVerifierArgs { stake_lamports: 0 },
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -159,46 +169,50 @@ async fn test_register_verifier_fails_twice() {
     .await;
     fund_verifier(&banks, &payer, &verifier).await;
 
-    let ix = register_verifier(
-        verifier.pubkey(),
-        authority.pubkey(),
-        RegisterVerifierArgs {
-            amount_lamports: config_args.min_verifier_bond,
-        },
-    );
-    let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
-    let blockhash = banks
-        .get_new_latest_blockhash(&latest_blockhash)
-        .await
-        .unwrap();
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &verifier, &authority],
-        blockhash,
-    );
-    banks.process_transaction(tx).await.unwrap();
+    {
+        let ix = register_verifier(
+            verifier.pubkey(),
+            authority.pubkey(),
+            RegisterVerifierArgs {
+                stake_lamports: config_args.min_verifier_bond,
+            },
+        );
+        let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
+        let blockhash = banks
+            .get_new_latest_blockhash(&latest_blockhash)
+            .await
+            .unwrap();
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&payer.pubkey()),
+            &[&payer, &verifier, &authority],
+            blockhash,
+        );
+        banks.process_transaction(tx).await.unwrap();
+    }
 
-    let ix = register_verifier(
-        verifier.pubkey(),
-        authority.pubkey(),
-        RegisterVerifierArgs {
-            amount_lamports: config_args.min_verifier_bond,
-        },
-    );
-    let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
-    let blockhash = banks
-        .get_new_latest_blockhash(&latest_blockhash)
-        .await
-        .unwrap();
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &verifier, &authority],
-        blockhash,
-    );
+    {
+        let ix = register_verifier(
+            verifier.pubkey(),
+            authority.pubkey(),
+            RegisterVerifierArgs {
+                stake_lamports: config_args.min_verifier_bond,
+            },
+        );
+        let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
+        let blockhash = banks
+            .get_new_latest_blockhash(&latest_blockhash)
+            .await
+            .unwrap();
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&payer.pubkey()),
+            &[&payer, &verifier, &authority],
+            blockhash,
+        );
 
-    assert!(banks.process_transaction(tx).await.is_err());
+        assert!(banks.process_transaction(tx).await.is_err());
+    }
 }
 
 async fn fund_verifier(
