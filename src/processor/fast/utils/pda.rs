@@ -16,15 +16,33 @@ pub(crate) fn create_pda(
     pda_signers: &[Signer],
     payer: &AccountView,
 ) -> ProgramResult {
-    // Create the account manually or using the create instruction
+    create_pda_with_rent_exempt_lamports(
+        target_account,
+        owner,
+        space,
+        Rent::get()?.try_minimum_balance(space)?,
+        pda_signers,
+        payer,
+    )
+}
 
-    let rent = Rent::get()?;
+/// Creates a new PDA with an explicit rent-exempt lamport target.
+#[inline(always)]
+pub(crate) fn create_pda_with_rent_exempt_lamports(
+    target_account: &AccountView,
+    owner: &Address,
+    space: usize,
+    rent_exempt_lamports: u64,
+    pda_signers: &[Signer],
+    payer: &AccountView,
+) -> ProgramResult {
+    // Create the account manually or using the create instruction
     if target_account.lamports().eq(&0) {
         // If balance is zero, create account
         system::CreateAccount {
             from: payer,
             to: target_account,
-            lamports: rent.try_minimum_balance(space)?,
+            lamports: rent_exempt_lamports,
             space: space as u64,
             owner,
         }
@@ -33,9 +51,8 @@ pub(crate) fn create_pda(
         // Otherwise, if balance is nonzero:
 
         // 1) transfer sufficient lamports for rent exemption
-        let rent_exempt_balance = rent
-            .try_minimum_balance(space)?
-            .saturating_sub(target_account.lamports());
+        let rent_exempt_balance =
+            rent_exempt_lamports.saturating_sub(target_account.lamports());
         if rent_exempt_balance > 0 {
             system::Transfer {
                 from: payer,
