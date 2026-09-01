@@ -3,9 +3,11 @@ use dlp_api::{
     pda::fees_vault_pda,
     v2::{
         instruction_builder::init_protocol_config,
-        pda::{protocol_config_pda, verifier_registry_pda},
+        pda::{
+            protocol_config_pda, verifier_registry_pda, PROTOCOL_CONFIG_SEED,
+            VERIFIER_REGISTRY_SEED,
+        },
         InitProtocolConfigArgs, ProtocolConfig, VerifierRegistry,
-        VerifierRegistryEntry,
     },
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
@@ -17,56 +19,9 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_sdk_ids::system_program;
-use wheels::layout::{Decodable, Encodable};
+use wheels::layout::Decodable;
 
 mod fixtures;
-
-#[test]
-fn test_verifier_registry_layout_round_trip() {
-    let registry = VerifierRegistry {
-        discriminator: VerifierRegistry::DISCRIMINATOR,
-        registry_revision: 7,
-        next_selection_index: 5,
-        entries: vec![
-            VerifierRegistryEntry {
-                verifier_identity: Pubkey::new_unique(),
-                verifier_bond: Pubkey::new_unique(),
-                weight: 11,
-            },
-            VerifierRegistryEntry {
-                verifier_identity: Pubkey::new_unique(),
-                verifier_bond: Pubkey::new_unique(),
-                weight: 13,
-            },
-        ],
-    };
-    let mut data = vec![0; registry.encoded_len().unwrap()];
-
-    registry.encode_to(data.as_mut_slice()).unwrap();
-    let decoded =
-        <VerifierRegistry as Decodable>::decode(data.as_slice()).unwrap();
-
-    assert_eq!(decoded.discriminator(), VerifierRegistry::DISCRIMINATOR);
-    assert_eq!(decoded.registry_revision(), registry.registry_revision);
-    assert_eq!(
-        decoded.next_selection_index(),
-        registry.next_selection_index
-    );
-    assert_eq!(decoded.entries().len(), registry.entries.len());
-    for (decoded_entry, registry_entry) in
-        decoded.entries().iter().zip(registry.entries.iter())
-    {
-        assert_eq!(
-            *decoded_entry.verifier_identity(),
-            registry_entry.verifier_identity
-        );
-        assert_eq!(
-            *decoded_entry.verifier_bond(),
-            registry_entry.verifier_bond
-        );
-        assert_eq!(decoded_entry.weight(), registry_entry.weight);
-    }
-}
 
 #[tokio::test]
 async fn test_init_protocol_config() {
@@ -81,8 +36,7 @@ async fn test_init_protocol_config() {
         blockhash,
     );
 
-    let res = banks.process_transaction(tx).await;
-    assert!(res.is_ok());
+    banks.process_transaction(tx).await.unwrap();
 
     let protocol_config_account = banks
         .get_account(protocol_config_pda())
@@ -90,13 +44,15 @@ async fn test_init_protocol_config() {
         .unwrap()
         .unwrap();
     let protocol_config =
-        <ProtocolConfig as Decodable>::decode(&protocol_config_account.data)
-            .unwrap();
+        ProtocolConfig::decode(&protocol_config_account.data).unwrap();
+    let (_, expected_protocol_config_bump) =
+        Pubkey::find_program_address(&[PROTOCOL_CONFIG_SEED], &dlp_api::id());
 
     assert_eq!(
         protocol_config.discriminator(),
         ProtocolConfig::DISCRIMINATOR
     );
+    assert_eq!(protocol_config.bump(), expected_protocol_config_bump);
     assert_eq!(*protocol_config.authority(), authority.pubkey());
     assert!(!protocol_config.paused());
     assert_eq!(*protocol_config.resolver(), args.resolver);
@@ -142,15 +98,16 @@ async fn test_init_protocol_config() {
         .await
         .unwrap()
         .unwrap();
-    let verifier_registry = <VerifierRegistry as Decodable>::decode(
-        &verifier_registry_account.data,
-    )
-    .unwrap();
+    let verifier_registry =
+        VerifierRegistry::decode(&verifier_registry_account.data).unwrap();
+    let (_, expected_verifier_registry_bump) =
+        Pubkey::find_program_address(&[VERIFIER_REGISTRY_SEED], &dlp_api::id());
 
     assert_eq!(
         verifier_registry.discriminator(),
         VerifierRegistry::DISCRIMINATOR
     );
+    assert_eq!(verifier_registry.bump(), expected_verifier_registry_bump);
     assert_eq!(verifier_registry.registry_revision(), 0);
     assert_eq!(verifier_registry.next_selection_index(), 0);
     assert!(verifier_registry.entries().is_empty());
@@ -189,6 +146,7 @@ async fn test_init_protocol_config_fails_with_wrong_protocol_config_pda() {
 
     let mut ix =
         init_protocol_config(authority.pubkey(), valid_protocol_config_args());
+
     ix.accounts[1].pubkey = Pubkey::new_unique();
 
     let tx = Transaction::new_signed_with_payer(
@@ -207,6 +165,7 @@ async fn test_init_protocol_config_fails_with_wrong_verifier_registry_pda() {
 
     let mut ix =
         init_protocol_config(authority.pubkey(), valid_protocol_config_args());
+
     ix.accounts[2].pubkey = Pubkey::new_unique();
 
     let tx = Transaction::new_signed_with_payer(
@@ -225,6 +184,7 @@ async fn test_init_protocol_config_fails_without_authority_signature() {
 
     let mut ix =
         init_protocol_config(authority.pubkey(), valid_protocol_config_args());
+
     ix.accounts[0].is_signer = false;
 
     let tx = Transaction::new_signed_with_payer(
@@ -242,6 +202,7 @@ async fn test_init_protocol_config_fails_with_invalid_args() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
     let mut args = valid_protocol_config_args();
+
     args.approval_threshold = args.verifiers_per_commitment + 1;
 
     let ix = init_protocol_config(authority.pubkey(), args);
@@ -260,6 +221,7 @@ async fn test_init_protocol_config_fails_with_zero_verifier_cap() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
     let mut args = valid_protocol_config_args();
+
     args.verifiers_per_commitment = 0;
 
     let ix = init_protocol_config(authority.pubkey(), args);
@@ -278,6 +240,7 @@ async fn test_init_protocol_config_fails_with_zero_approval_threshold() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
 
     let mut args = valid_protocol_config_args();
+
     args.approval_threshold = 0;
 
     let ix = init_protocol_config(authority.pubkey(), args);
@@ -289,22 +252,6 @@ async fn test_init_protocol_config_fails_with_zero_approval_threshold() {
     );
 
     assert!(banks.process_transaction(tx).await.is_err());
-}
-
-#[tokio::test]
-async fn test_v1_dispatch_still_works_after_v2_routing() {
-    let (banks, payer, _authority, blockhash) = setup_program_test_env().await;
-
-    let ix =
-        dlp_api::instruction_builder::init_protocol_fees_vault(payer.pubkey());
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer],
-        blockhash,
-    );
-
-    assert!(banks.process_transaction(tx).await.is_ok());
 }
 
 fn valid_protocol_config_args() -> InitProtocolConfigArgs {

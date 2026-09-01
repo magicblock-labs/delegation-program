@@ -11,6 +11,9 @@ pub struct VerifierRegistry {
     /// Account type marker.
     pub discriminator: [u8; 8],
 
+    /// Canonical PDA bump for this account.
+    pub bump: u8,
+
     /// Increments every time `entries` changes.
     ///
     /// Pending commitments store this value when selected verifiers are copied
@@ -26,7 +29,7 @@ pub struct VerifierRegistry {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 2)]
+#[fixed_offset_layout(buffer_offset = 3)]
 pub struct VerifierRegistryEntry {
     /// Verifier identity selectable by DLP.
     pub verifier_identity: Pubkey,
@@ -40,15 +43,4 @@ pub struct VerifierRegistryEntry {
 
 impl VerifierRegistry {
     pub const DISCRIMINATOR: [u8; 8] = *b"v2vreg00";
-}
-
-impl Default for VerifierRegistry {
-    fn default() -> Self {
-        Self {
-            discriminator: Self::DISCRIMINATOR,
-            registry_revision: 0,
-            next_selection_index: 0,
-            entries: Vec::new(),
-        }
-    }
 }
