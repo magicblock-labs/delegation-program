@@ -183,7 +183,6 @@ fn load_pending_commitment(
         owner: *pending_view.owner(),
         state_commitment_hash: *pending_view.state_commitment_hash(),
         verifier_registry: *pending_view.verifier_registry(),
-        verifier_registry_revision: pending_view.verifier_registry_revision(),
         challenge_window_id: pending_view.challenge_window_id(),
         posted_slot: pending_view.posted_slot(),
         activation_slot: pending_view.activation_slot(),
