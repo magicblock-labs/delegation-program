@@ -21,7 +21,7 @@ use wheels::{
 };
 
 use crate::{
-    processor::fast::utils::pda::create_pda,
+    processor::fast::utils::pda::{create_pda, AccountSpace},
     requires::{
         require_initialized_pda, require_owned_pda, require_uninitialized_pda,
         StandardCtx,
@@ -122,7 +122,7 @@ pub fn process_raise_challenge(
     create_pda(
         challenge,
         &crate::fast::ID,
-        Challenge::DATA_LEN,
+        AccountSpace::CurrentRent(Challenge::DATA_LEN),
         &[Signer::from(&[
             Seed::from(CHALLENGE_SEED),
             Seed::from(pending_account_pubkey.as_ref()),
@@ -253,7 +253,6 @@ fn copy_pending_with_challenge(
         owner: *pending.owner(),
         state_commitment_hash: *pending.state_commitment_hash(),
         verifier_registry: *pending.verifier_registry(),
-        verifier_registry_revision: pending.verifier_registry_revision(),
         challenge_window_id: pending.challenge_window_id(),
         posted_slot: pending.posted_slot(),
         activation_slot: pending.activation_slot(),
