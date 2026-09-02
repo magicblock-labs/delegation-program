@@ -174,7 +174,7 @@ pub fn process_post_commitment(
 
     let updated_registry = VerifierRegistry {
         discriminator: VerifierRegistry::DISCRIMINATOR,
-        registry_revision: verifier_registry_view.registry_revision(),
+        bump: verifier_registry_view.bump(),
         next_selection_index: verifier_registry_view
             .next_selection_index()
             .checked_add(scanned_count as u64)
@@ -214,7 +214,6 @@ pub fn process_post_commitment(
         owner: *args.owner(),
         state_commitment_hash,
         verifier_registry: verifier_registry.address().to_bytes().into(),
-        verifier_registry_revision: updated_registry.registry_revision,
         challenge_window_id,
         posted_slot: clock.slot,
         activation_slot: clock.slot,

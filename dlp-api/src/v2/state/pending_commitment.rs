@@ -65,9 +65,6 @@ pub struct PendingCommitment {
     /// Registry account used when this commitment was posted.
     pub verifier_registry: Pubkey,
 
-    /// Copy of `VerifierRegistry.registry_revision` at post time.
-    pub verifier_registry_revision: u64,
-
     /// Monotonic id for this approval/challenge window.
     pub challenge_window_id: u64,
 
