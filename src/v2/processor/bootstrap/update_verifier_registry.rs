@@ -81,7 +81,8 @@ pub fn process_update_verifier_registry(
 
     let verifier_identity = verifier_bond_state.verifier_identity();
     let verifier_bond_key = verifier_bond.address();
-    let registry_revision = {
+
+    {
         let verifier_registry_data = verifier_registry.try_borrow()?;
         let verifier_registry_view =
             VerifierRegistry::decode(verifier_registry_data.as_ref())?;
@@ -100,12 +101,7 @@ pub fn process_update_verifier_registry(
             }),
             ProgramError::AccountAlreadyInitialized
         );
-
-        verifier_registry_view
-            .registry_revision()
-            .checked_add(1)
-            .ok_or(DlpError::Overflow)?
-    };
+    }
 
     // CHECKPOINT: before registry size grows beyond bootstrap needs, define a
     // max entry count or switch to a paged/Merkle registry.
@@ -120,10 +116,6 @@ pub fn process_update_verifier_registry(
             verifier_bond: *verifier_bond_key,
             weight: args.weight(),
         })?;
-
-    verifier_registry_state
-        .registry_revision_mut()?
-        .set(registry_revision)?;
 
     let new_registry_len = verifier_registry.data_len();
     if new_registry_len > old_registry_len {

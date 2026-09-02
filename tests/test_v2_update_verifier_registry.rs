@@ -76,7 +76,6 @@ async fn test_update_verifier_registry_adds_verifier() {
         VerifierRegistry::DISCRIMINATOR
     );
     assert_eq!(verifier_registry.bump(), expected_verifier_registry_bump);
-    assert_eq!(verifier_registry.registry_revision(), 1);
     assert_eq!(verifier_registry.entries().len(), 1);
     let entry = verifier_registry.entries().iter().next().unwrap();
     assert_eq!(*entry.verifier_identity(), verifier.pubkey());
