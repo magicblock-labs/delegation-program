@@ -6,6 +6,7 @@ pub const VERIFIER_BOND_SEED: &[u8] = b"verifier-bond";
 pub const VERIFIER_REGISTRY_SEED: &[u8] = b"verifier-registry";
 pub const STATE_BUFFER_SEED: &[u8] = b"state-buffer";
 pub const PENDING_COMMITMENT_SEED: &[u8] = b"pending-commitment";
+pub const CHALLENGE_SEED: &[u8] = b"challenge";
 
 // TODO (snawaz): Precompute these addresses if PDA derivation becomes const-safe.
 
@@ -56,6 +57,23 @@ pub fn pending_commitment_pda(account: &Pubkey, commit_id: u64) -> Pubkey {
             PENDING_COMMITMENT_SEED,
             account.as_ref(),
             &commit_id.to_le_bytes(),
+        ],
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn challenge_pda(
+    account: &Pubkey,
+    commit_id: u64,
+    challenger: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[
+            CHALLENGE_SEED,
+            account.as_ref(),
+            &commit_id.to_le_bytes(),
+            challenger.as_ref(),
         ],
         &crate::id(),
     )

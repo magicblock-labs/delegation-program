@@ -3,6 +3,7 @@
 
 mod init_protocol_config;
 mod post_commitment;
+mod raise_challenge;
 mod register_operator;
 mod register_verifier;
 mod update_protocol_config;
@@ -11,6 +12,7 @@ mod write_state_buffer;
 
 pub use init_protocol_config::*;
 pub use post_commitment::*;
+pub use raise_challenge::*;
 pub use register_operator::*;
 pub use register_verifier::*;
 pub use update_protocol_config::*;

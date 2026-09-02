@@ -42,5 +42,8 @@ pub fn process_instruction(
         DlpV2Instruction::FinalizeCommitment => {
             process_finalize_commitment(accounts, data)
         }
+        DlpV2Instruction::RaiseChallenge => {
+            process_raise_challenge(accounts, data)
+        }
     }
 }
