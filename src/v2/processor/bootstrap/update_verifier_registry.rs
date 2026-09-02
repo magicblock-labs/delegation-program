@@ -103,8 +103,9 @@ pub fn process_update_verifier_registry(
         );
     }
 
-    // CHECKPOINT: before registry size grows beyond bootstrap needs, define a
-    // max entry count or switch to a paged/Merkle registry.
+    // CHECKPOINT: this single-PDA Vec is only suitable while the verifier set
+    // is small. Before allowing unbounded growth, cap the entry count or
+    // replace this with paged storage / Merkle-root based membership.
     let old_registry_len = verifier_registry.data_len();
     let mut verifier_registry_state =
         VerifierRegistry::decode_mut(verifier_registry)?;

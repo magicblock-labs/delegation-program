@@ -36,7 +36,7 @@ async fn test_update_verifier_registry_adds_verifier() {
         config_args.clone(),
     )
     .await;
-    register_v2_verifier(
+    fund_and_register_verifier(
         &banks,
         &payer,
         &verifier,
@@ -101,7 +101,7 @@ async fn test_update_verifier_registry_fails_twice() {
         config_args.clone(),
     )
     .await;
-    register_v2_verifier(
+    fund_and_register_verifier(
         &banks,
         &payer,
         &verifier,
@@ -148,7 +148,7 @@ async fn test_update_verifier_registry_fails_with_wrong_authority() {
         config_args.clone(),
     )
     .await;
-    register_v2_verifier(
+    fund_and_register_verifier(
         &banks,
         &payer,
         &verifier,
@@ -191,7 +191,7 @@ async fn test_update_verifier_registry_fails_with_invalid_weight() {
         config_args.clone(),
     )
     .await;
-    register_v2_verifier(
+    fund_and_register_verifier(
         &banks,
         &payer,
         &verifier,
@@ -255,7 +255,7 @@ async fn test_update_verifier_registry_fails_with_remove_action() {
         config_args.clone(),
     )
     .await;
-    register_v2_verifier(
+    fund_and_register_verifier(
         &banks,
         &payer,
         &verifier,
@@ -283,7 +283,7 @@ async fn test_update_verifier_registry_fails_with_remove_action() {
     assert!(banks.process_transaction(tx).await.is_err());
 }
 
-async fn register_v2_verifier(
+async fn fund_and_register_verifier(
     banks: &solana_program_test::BanksClient,
     payer: &Keypair,
     verifier: &Keypair,
