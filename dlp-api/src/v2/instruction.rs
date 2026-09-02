@@ -9,6 +9,8 @@ pub enum DlpV2Instruction {
     InitProtocolConfig = 100,
     /// Registers one operator and deposits its initial stake.
     RegisterOperator = 101,
+    /// Registers one verifier and deposits its initial stake.
+    RegisterVerifier = 102,
 }
 
 impl DlpV2Instruction {
