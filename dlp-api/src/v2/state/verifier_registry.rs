@@ -14,12 +14,6 @@ pub struct VerifierRegistry {
     /// Canonical PDA bump for this account.
     pub bump: u8,
 
-    /// Increments every time `entries` changes.
-    ///
-    /// Pending commitments store this value when selected verifiers are copied
-    /// from this registry.
-    pub registry_revision: u64,
-
     /// Round-robin start cursor used by the next commitment selection.
     pub next_selection_index: u64,
 
