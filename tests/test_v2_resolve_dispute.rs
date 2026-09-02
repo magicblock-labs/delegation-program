@@ -10,14 +10,15 @@ use dlp_api::{
             update_verifier_registry, write_state_buffer,
         },
         pda::{challenge_pda, operator_bond_pda, pending_commitment_pda},
-        Challenge, ChallengerRevealArgs, OperatorBond, PendingCommitment,
-        PostCommitmentArgs, RaiseChallengeArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, ResolveDisputeArgs, WriteStateBufferArgs,
+        Challenge, ChallengerRevealArgs, OperatorBond, OperatorStatus,
+        PendingCommitment, PostCommitmentArgs, RaiseChallengeArgs,
+        RegisterOperatorArgs, RegisterVerifierArgs, ResolveDisputeArgs,
+        WriteStateBufferArgs,
         CHALLENGE_OUTCOME_CHALLENGER_CORRECT_OPERATOR_SLASHED,
         CHALLENGE_OUTCOME_OPERATOR_CORRECT_CHALLENGER_SLASHED,
         CHALLENGE_STATUS_AWAITING_RESOLVER, CHALLENGE_STATUS_TERMINAL,
         DISPUTE_DECISION_CHALLENGER_STATE_CORRECT,
-        DISPUTE_DECISION_OPERATOR_STATE_CORRECT, OPERATOR_STATUS_SLASHED,
+        DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
         PENDING_COMMITMENT_STATUS_AWAITING_DISPUTE_RESOLUTION,
         PENDING_COMMITMENT_STATUS_RESOLVED_CHALLENGER,
@@ -165,7 +166,7 @@ async fn test_resolve_dispute_challenger_correct_refunds_challenger_and_slashes_
     );
 
     let operator_bond_after = read_operator_bond(&mut env).await;
-    assert_eq!(operator_bond_after.status, OPERATOR_STATUS_SLASHED);
+    assert_eq!(operator_bond_after.status, OperatorStatus::Slashed.value());
     assert_eq!(operator_bond_after.stake_lamports, 0);
     assert_eq!(operator_bond_after.locked_lamports, 0);
     assert_eq!(
