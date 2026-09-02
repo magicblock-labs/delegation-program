@@ -11,6 +11,8 @@ pub enum DlpV2Instruction {
     RegisterOperator = 101,
     /// Registers one verifier and deposits its initial stake.
     RegisterVerifier = 102,
+    /// Updates the set of verifiers that can be selected.
+    UpdateVerifierRegistry = 103,
 }
 
 impl DlpV2Instruction {
