@@ -15,6 +15,12 @@ pub enum DlpV2Instruction {
     UpdateVerifierRegistry = 103,
     /// Updates global v2 config for future commitments.
     UpdateProtocolConfig = 104,
+    /// Writes full account-state bytes into a v2 state buffer.
+    ///
+    /// TODO (snawaz/optimization): we can split this into two instructions such that 
+    /// InitStateBuffer takes more arguments and AppendStateBuffer takes as less as
+    /// possible. 
+    WriteStateBuffer = 107,
 }
 
 impl DlpV2Instruction {
