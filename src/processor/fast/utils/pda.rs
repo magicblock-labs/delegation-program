@@ -80,18 +80,6 @@ pub(crate) fn close_pda(
     target_account.resize(0)
 }
 
-/// Resizes an existing PDA and tops up rent when the account grows.
-#[inline(always)]
-pub(crate) fn resize_pda(
-    payer: &AccountView,
-    target_account: &AccountView,
-    space: usize,
-) -> ProgramResult {
-    top_up_pda_rent(payer, target_account, space)?;
-
-    target_account.resize(space)
-}
-
 /// Tops up a PDA to the rent-exempt balance for `space`.
 #[inline(always)]
 pub(crate) fn top_up_pda_rent(
