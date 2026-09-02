@@ -1,4 +1,4 @@
-use dlp_api::{compat::borsh, require_eq_keys};
+use dlp_api::compat::borsh;
 use pinocchio::{
     address::{address_eq, Address},
     cpi::{invoke_signed, Signer},
@@ -21,7 +21,7 @@ use crate::{
     error::DlpError,
     pda,
     processor::fast::utils::pda::{close_pda, close_pda_with_fees, create_pda},
-    require_n_accounts_with_optionals,
+    require_eq_keys, require_n_accounts_with_optionals,
     requires::{
         require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_initialized_pda,

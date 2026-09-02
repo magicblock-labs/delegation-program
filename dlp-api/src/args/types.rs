@@ -3,7 +3,9 @@ use std::ops::Deref;
 use bytemuck::{Pod, Zeroable};
 use pinocchio::error::ProgramError;
 
-use crate::{pod_view::PodView, require_ge};
+use wheels::require_ge;
+
+use crate::pod_view::PodView;
 
 ///
 /// Boolean

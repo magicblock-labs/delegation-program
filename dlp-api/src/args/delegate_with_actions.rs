@@ -1,11 +1,11 @@
 use borsh::{BorshDeserialize, BorshSerialize};
 use pinocchio::error::ProgramError;
+use wheels::{require, require_le};
 
 use super::DelegateArgs;
 use crate::{
     compact::{self, MAX_PUBKEYS},
     compat::borsh,
-    require, require_le,
 };
 
 #[derive(Debug, BorshSerialize, BorshDeserialize)]

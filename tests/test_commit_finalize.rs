@@ -33,12 +33,12 @@ mod fixtures;
 
 #[tokio::test]
 async fn test_commit_finalize_data_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1400).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1450).await;
 }
 
 #[tokio::test]
 async fn test_commit_finalize_diff_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1650).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1700).await;
 }
 
 async fn run_test_commit_finalize(

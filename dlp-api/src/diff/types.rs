@@ -7,7 +7,9 @@ use std::{cmp::Ordering, ops::Range};
 use pinocchio::error::ProgramError;
 use static_assertions::const_assert;
 
-use crate::{error::DlpError, require_eq, require_ge, require_le, require_lt};
+use wheels::{require_eq, require_ge, require_le, require_lt};
+
+use crate::error::DlpError;
 
 #[derive(Debug, Clone, Copy)]
 pub enum SizeChanged {

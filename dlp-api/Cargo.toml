@@ -49,6 +49,7 @@ static_assertions = "1.1.0"
 strum = { version = ">=0.27", features = ["derive"] }
 thiserror = { version = ">=1" }
 serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+wheels = { path = "../../magicblock-wheels/rust/wheels" }
 
 solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = ["borsh", "bytemuck", "curve25519"] } 
 
