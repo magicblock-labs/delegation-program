@@ -31,6 +31,8 @@ pub enum DlpV2Instruction {
     RaiseChallenge = 109,
     /// Reveals challenger state for a v2 challenge.
     ChallengerReveal = 110,
+    /// Applies resolver decision for a v2 challenge.
+    ResolveDispute = 111,
 }
 
 impl DlpV2Instruction {
