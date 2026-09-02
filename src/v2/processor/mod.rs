@@ -39,5 +39,8 @@ pub fn process_instruction(
         DlpV2Instruction::WriteStateBuffer => {
             process_write_state_buffer(accounts, data)
         }
+        DlpV2Instruction::FinalizeCommitment => {
+            process_finalize_commitment(accounts, data)
+        }
     }
 }
