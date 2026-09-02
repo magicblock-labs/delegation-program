@@ -33,6 +33,9 @@ pub fn process_instruction(
         DlpV2Instruction::PostCommitment => {
             process_post_commitment(accounts, data)
         }
+        DlpV2Instruction::ApproveCommitment => {
+            process_approve_commitment(accounts, data)
+        }
         DlpV2Instruction::WriteStateBuffer => {
             process_write_state_buffer(accounts, data)
         }

@@ -17,6 +17,8 @@ pub enum DlpV2Instruction {
     UpdateProtocolConfig = 104,
     /// Posts a new v2 account-state commitment.
     PostCommitment = 105,
+    /// Records approval from the selected verifier for a v2 commitment.
+    ApproveCommitment = 106,
     /// Writes full account-state bytes into a v2 state buffer.
     ///
     /// TODO (snawaz/optimization): we can split this into two instructions such that 
