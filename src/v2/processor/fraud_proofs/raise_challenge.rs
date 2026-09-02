@@ -253,7 +253,6 @@ fn copy_pending_with_challenge(
         owner: *pending.owner(),
         state_commitment_hash: *pending.state_commitment_hash(),
         verifier_registry: *pending.verifier_registry(),
-        verifier_registry_revision: pending.verifier_registry_revision(),
         challenge_window_id: pending.challenge_window_id(),
         posted_slot: pending.posted_slot(),
         activation_slot: pending.activation_slot(),
