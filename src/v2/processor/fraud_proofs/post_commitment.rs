@@ -6,9 +6,9 @@ use dlp_api::{
             OPERATOR_BOND_SEED, PENDING_COMMITMENT_SEED, PROTOCOL_CONFIG_SEED,
             STATE_BUFFER_SEED, VERIFIER_REGISTRY_SEED,
         },
-        OperatorBond, PendingCommitment, PostCommitmentArgs, ProtocolConfig,
-        SelectedVerifier, StateBuffer, VerifierRegistry, VerifierRegistryEntry,
-        OPERATOR_STATUS_ACTIVE, PENDING_COMMITMENT_STATUS_ACTIVE,
+        OperatorBond, OperatorStatus, PendingCommitment, PostCommitmentArgs,
+        ProtocolConfig, SelectedVerifier, StateBuffer, VerifierRegistry,
+        VerifierRegistryEntry, PENDING_COMMITMENT_STATUS_ACTIVE,
     },
 };
 use pinocchio::{
@@ -278,7 +278,7 @@ fn validate_operator_bond(
     );
     require_eq!(
         operator_bond.status(),
-        OPERATOR_STATUS_ACTIVE,
+        OperatorStatus::Active.value(),
         ProgramError::InvalidInstructionData
     );
     require_eq!(
