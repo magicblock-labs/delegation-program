@@ -5,14 +5,14 @@ use dlp_api::{
             CHALLENGE_SEED, OPERATOR_BOND_SEED, PENDING_COMMITMENT_SEED,
             PROTOCOL_CONFIG_SEED,
         },
-        Challenge, OperatorBond, PendingCommitment, ProtocolConfig,
-        ResolveDisputeArgs, SelectedVerifier,
+        Challenge, OperatorBond, OperatorStatus, PendingCommitment,
+        ProtocolConfig, ResolveDisputeArgs, SelectedVerifier,
         CHALLENGE_OUTCOME_CHALLENGER_CORRECT_OPERATOR_SLASHED,
         CHALLENGE_OUTCOME_NONE,
         CHALLENGE_OUTCOME_OPERATOR_CORRECT_CHALLENGER_SLASHED,
         CHALLENGE_STATUS_AWAITING_RESOLVER, CHALLENGE_STATUS_TERMINAL,
         DISPUTE_DECISION_CHALLENGER_STATE_CORRECT,
-        DISPUTE_DECISION_OPERATOR_STATE_CORRECT, OPERATOR_STATUS_SLASHED,
+        DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
         PENDING_COMMITMENT_STATUS_AWAITING_DISPUTE_RESOLUTION,
         PENDING_COMMITMENT_STATUS_RESOLVED_CHALLENGER,
         PENDING_COMMITMENT_STATUS_RESOLVED_OPERATOR,
@@ -134,7 +134,7 @@ pub fn process_resolve_dispute(
 
             operator_bond_state.stake_lamports = 0;
             operator_bond_state.locked_lamports = 0;
-            operator_bond_state.status = OPERATOR_STATUS_SLASHED;
+            operator_bond_state.status = OperatorStatus::Slashed.value();
             operator_bond_state.withdraw_requested_slot = None;
 
             resolve_pending_commitment(
@@ -202,7 +202,6 @@ fn load_pending_commitment(
         owner: *pending_view.owner(),
         state_commitment_hash: *pending_view.state_commitment_hash(),
         verifier_registry: *pending_view.verifier_registry(),
-        verifier_registry_revision: pending_view.verifier_registry_revision(),
         challenge_window_id: pending_view.challenge_window_id(),
         posted_slot: pending_view.posted_slot(),
         activation_slot: pending_view.activation_slot(),
@@ -282,6 +281,7 @@ fn load_operator_bond(
 
     Ok(OperatorBond {
         discriminator: OperatorBond::DISCRIMINATOR,
+        bump: state.bump(),
         operator_identity: *state.operator_identity(),
         stake_lamports: state.stake_lamports(),
         locked_lamports: state.locked_lamports(),
