@@ -1,8 +1,9 @@
 use dlp_api::{
     pda::fees_vault_pda,
     v2::{
-        instruction_builder::update_protocol_config, pda::protocol_config_pda,
-        ProtocolConfig,
+        instruction_builder::update_protocol_config,
+        pda::{protocol_config_pda, PROTOCOL_CONFIG_SEED},
+        ProtocolConfig, UpdateProtocolConfigArgs,
     },
 };
 use solana_sdk::{
@@ -29,23 +30,28 @@ async fn test_update_protocol_config() {
         &payer,
         &authority,
         blockhash,
-        initial_args,
+        initial_args.clone(),
     )
     .await;
 
-    let mut update_args = valid_protocol_config_args();
-    update_args.resolver = Pubkey::new_unique();
-    update_args.min_operator_bond = 11;
-    update_args.min_verifier_bond = 13;
-    update_args.min_challenger_stake = 17;
-    update_args.challenge_window_slots = 19;
-    update_args.operator_response_timeout_slots = 23;
-    update_args.challenger_reveal_timeout_slots = 29;
-    update_args.payout_timelock_slots = 31;
-    update_args.verifiers_per_commitment = 1;
-    update_args.approval_threshold = 1;
-    update_args.max_window_extensions = 2;
-    update_args.match_penalty_bps = 700;
+    let update_args = UpdateProtocolConfigArgs {
+        resolver: Pubkey::new_unique(),
+        min_operator_bond: initial_args.min_operator_bond + 10,
+        min_verifier_bond: initial_args.min_verifier_bond + 12,
+        min_challenger_stake: initial_args.min_challenger_stake + 16,
+        challenge_window_slots: initial_args.challenge_window_slots + 9,
+        operator_response_timeout_slots: initial_args
+            .operator_response_timeout_slots
+            + 13,
+        challenger_reveal_timeout_slots: initial_args
+            .challenger_reveal_timeout_slots
+            + 19,
+        payout_timelock_slots: initial_args.payout_timelock_slots + 21,
+        verifiers_per_commitment: initial_args.verifiers_per_commitment,
+        approval_threshold: initial_args.approval_threshold,
+        max_window_extensions: initial_args.max_window_extensions + 1,
+        match_penalty_bps: initial_args.match_penalty_bps + 200,
+    };
 
     let blockhash = banks.get_latest_blockhash().await.unwrap();
     let ix = update_protocol_config(authority.pubkey(), update_args.clone());
@@ -64,13 +70,15 @@ async fn test_update_protocol_config() {
         .unwrap()
         .unwrap();
     let protocol_config =
-        <ProtocolConfig as Decodable>::decode(&protocol_config_account.data)
-            .unwrap();
+        ProtocolConfig::decode(&protocol_config_account.data).unwrap();
+    let (_, expected_protocol_config_bump) =
+        Pubkey::find_program_address(&[PROTOCOL_CONFIG_SEED], &dlp_api::id());
 
     assert_eq!(
         protocol_config.discriminator(),
         ProtocolConfig::DISCRIMINATOR
     );
+    assert_eq!(protocol_config.bump(), expected_protocol_config_bump);
     assert_eq!(*protocol_config.authority(), authority.pubkey());
     assert!(!protocol_config.paused());
     assert_eq!(*protocol_config.resolver(), update_args.resolver);
