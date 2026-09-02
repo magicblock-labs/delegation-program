@@ -14,7 +14,7 @@ use pinocchio::{
 };
 
 use crate::{
-    processor::fast::utils::pda::create_pda,
+    processor::fast::utils::pda::{create_pda, AccountSpace},
     requires::{require_uninitialized_pda, StandardCtx},
 };
 use wheels::{
@@ -66,7 +66,7 @@ pub fn process_init_protocol_config(
     create_pda(
         protocol_config,
         &crate::fast::ID,
-        ProtocolConfig::DATA_LEN,
+        AccountSpace::CurrentRent(ProtocolConfig::DATA_LEN),
         &[Signer::from(&[
             Seed::from(PROTOCOL_CONFIG_SEED),
             Seed::from(&[protocol_config_bump]),
@@ -77,7 +77,7 @@ pub fn process_init_protocol_config(
     create_pda(
         verifier_registry,
         &crate::fast::ID,
-        VerifierRegistry::MIN_DATA_LEN,
+        AccountSpace::CurrentRent(VerifierRegistry::MIN_DATA_LEN),
         &[Signer::from(&[
             Seed::from(VERIFIER_REGISTRY_SEED),
             Seed::from(&[verifier_registry_bump]),
@@ -109,7 +109,6 @@ pub fn process_init_protocol_config(
     VerifierRegistry {
         discriminator: VerifierRegistry::DISCRIMINATOR,
         bump: verifier_registry_bump,
-        registry_revision: 0,
         next_selection_index: 0,
         entries: Vec::new(),
     }
