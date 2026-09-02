@@ -2,9 +2,7 @@ use dlp_api::{
     error::DlpError,
     v2::{pda::PROTOCOL_CONFIG_SEED, ProtocolConfig, UpdateProtocolConfigArgs},
 };
-use pinocchio::{
-    address::Address, error::ProgramError, AccountView, ProgramResult,
-};
+use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 use wheels::{
     layout::{Decodable, Encodable},
     require_eq_keys, require_n_accounts, require_signer,
@@ -45,7 +43,7 @@ pub fn process_update_protocol_config(
         return Err(ProgramError::InvalidAccountData);
     }
     require_eq_keys!(
-        &Address::from(current.authority().to_bytes()),
+        current.authority(),
         authority.address(),
         DlpError::InvalidAuthority
     );
@@ -54,6 +52,8 @@ pub fn process_update_protocol_config(
         discriminator: ProtocolConfig::DISCRIMINATOR,
         bump: current.bump(),
         authority: *current.authority(),
+        // CHECKPOINT: pause/unpause remains a separate design decision; this
+        // instruction deliberately preserves the current emergency-stop state.
         paused: current.paused(),
         resolver: *args.resolver(),
         protocol_fee_vault: *current.protocol_fee_vault(),
