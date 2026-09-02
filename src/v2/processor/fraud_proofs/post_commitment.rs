@@ -6,9 +6,9 @@ use dlp_api::{
             OPERATOR_BOND_SEED, PENDING_COMMITMENT_SEED, PROTOCOL_CONFIG_SEED,
             STATE_BUFFER_SEED, VERIFIER_REGISTRY_SEED,
         },
-        OperatorBond, PendingCommitment, PostCommitmentArgs, ProtocolConfig,
-        SelectedVerifier, StateBuffer, VerifierRegistry, VerifierRegistryEntry,
-        OPERATOR_STATUS_ACTIVE, PENDING_COMMITMENT_STATUS_ACTIVE,
+        OperatorBond, OperatorStatus, PendingCommitment, PostCommitmentArgs,
+        ProtocolConfig, SelectedVerifier, StateBuffer, VerifierRegistry,
+        VerifierRegistryEntry, PENDING_COMMITMENT_STATUS_ACTIVE,
     },
 };
 use pinocchio::{
@@ -25,7 +25,10 @@ use wheels::{
 };
 
 use crate::{
-    processor::fast::{to_pinocchio_program_error, utils::pda::create_pda},
+    processor::fast::{
+        to_pinocchio_program_error,
+        utils::pda::{create_pda, AccountSpace},
+    },
     requires::{
         require_initialized_delegation_record, require_initialized_pda,
         require_owned_pda, require_uninitialized_pda, StandardCtx,
@@ -247,7 +250,7 @@ pub fn process_post_commitment(
     create_pda(
         pending_commitment,
         &crate::fast::ID,
-        pending_commitment_state.encoded_len()?,
+        AccountSpace::CurrentRent(pending_commitment_state.encoded_len()?),
         &[Signer::from(&[
             Seed::from(PENDING_COMMITMENT_SEED),
             Seed::from(delegated_account.address().as_ref()),
@@ -278,7 +281,7 @@ fn validate_operator_bond(
     );
     require_eq!(
         operator_bond.status(),
-        OPERATOR_STATUS_ACTIVE,
+        OperatorStatus::Active.value(),
         ProgramError::InvalidInstructionData
     );
     require_eq!(
