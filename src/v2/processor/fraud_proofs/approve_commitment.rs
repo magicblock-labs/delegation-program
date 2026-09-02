@@ -2,8 +2,8 @@ use dlp_api::{
     error::DlpError,
     v2::{
         pda::{PENDING_COMMITMENT_SEED, VERIFIER_BOND_SEED},
-        PendingCommitment, SelectedVerifier, VerifierBond,
-        PENDING_COMMITMENT_STATUS_ACTIVE, VERIFIER_STATUS_ACTIVE,
+        PendingCommitment, SelectedVerifier, VerifierBond, VerifierStatus,
+        PENDING_COMMITMENT_STATUS_ACTIVE,
     },
 };
 use pinocchio::{
@@ -100,7 +100,6 @@ pub fn process_approve_commitment(
         owner: *pending_state.owner(),
         state_commitment_hash: *pending_state.state_commitment_hash(),
         verifier_registry: *pending_state.verifier_registry(),
-        verifier_registry_revision: pending_state.verifier_registry_revision(),
         challenge_window_id: pending_state.challenge_window_id(),
         posted_slot: pending_state.posted_slot(),
         activation_slot: pending_state.activation_slot(),
@@ -138,7 +137,7 @@ fn validate_verifier_bond(
     );
     require_eq!(
         verifier_bond.status(),
-        VERIFIER_STATUS_ACTIVE,
+        VerifierStatus::Active.value(),
         ProgramError::InvalidInstructionData
     );
     require_eq!(
