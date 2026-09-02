@@ -52,6 +52,7 @@ pub fn process_update_protocol_config(
 
     let updated = ProtocolConfig {
         discriminator: ProtocolConfig::DISCRIMINATOR,
+        bump: current.bump(),
         authority: *current.authority(),
         paused: current.paused(),
         resolver: *args.resolver(),
