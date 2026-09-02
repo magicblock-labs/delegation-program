@@ -1,10 +1,10 @@
 use dlp_api::v2::{
     instruction_builder::{register_verifier, update_verifier_registry},
-    pda::{verifier_bond_pda, verifier_registry_pda},
+    pda::{verifier_bond_pda, verifier_registry_pda, VERIFIER_REGISTRY_SEED},
     RegisterVerifierArgs, UpdateVerifierRegistryArgs, VerifierRegistry,
-    VERIFIER_REGISTRY_ACTION_ADD, VERIFIER_REGISTRY_ACTION_REMOVE,
+    VerifierRegistryAction,
 };
-use solana_program::native_token::LAMPORTS_PER_SOL;
+use solana_program::{native_token::LAMPORTS_PER_SOL, pubkey::Pubkey};
 use solana_program_test::ProgramTestBanksClientExt;
 use solana_sdk::{
     signature::{Keypair, Signer},
@@ -25,6 +25,8 @@ async fn test_update_verifier_registry_adds_verifier() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
     let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
+    let (_, expected_verifier_registry_bump) =
+        Pubkey::find_program_address(&[VERIFIER_REGISTRY_SEED], &dlp_api::id());
 
     initialize_protocol_config(
         &banks,
@@ -48,7 +50,7 @@ async fn test_update_verifier_registry_adds_verifier() {
         authority.pubkey(),
         verifier.pubkey(),
         UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+            action: VerifierRegistryAction::Add.value(),
             weight: 1,
         },
     );
@@ -66,15 +68,14 @@ async fn test_update_verifier_registry_adds_verifier() {
         .await
         .unwrap()
         .unwrap();
-    let verifier_registry = <VerifierRegistry as Decodable>::decode(
-        &verifier_registry_account.data,
-    )
-    .unwrap();
+    let verifier_registry =
+        VerifierRegistry::decode(&verifier_registry_account.data).unwrap();
 
     assert_eq!(
         verifier_registry.discriminator(),
         VerifierRegistry::DISCRIMINATOR
     );
+    assert_eq!(verifier_registry.bump(), expected_verifier_registry_bump);
     assert_eq!(verifier_registry.registry_revision(), 1);
     assert_eq!(verifier_registry.entries().len(), 1);
     let entry = verifier_registry.entries().iter().next().unwrap();
@@ -120,7 +121,7 @@ async fn test_update_verifier_registry_fails_twice() {
         authority.pubkey(),
         verifier.pubkey(),
         UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+            action: VerifierRegistryAction::Add.value(),
             weight: 1,
         },
     );
@@ -163,7 +164,7 @@ async fn test_update_verifier_registry_fails_with_wrong_authority() {
         wrong_authority.pubkey(),
         verifier.pubkey(),
         UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+            action: VerifierRegistryAction::Add.value(),
             weight: 1,
         },
     );
@@ -178,7 +179,7 @@ async fn test_update_verifier_registry_fails_with_wrong_authority() {
 }
 
 #[tokio::test]
-async fn test_update_verifier_registry_fails_with_zero_weight() {
+async fn test_update_verifier_registry_fails_with_invalid_weight() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
     let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
@@ -200,23 +201,45 @@ async fn test_update_verifier_registry_fails_with_zero_weight() {
     )
     .await;
 
-    let blockhash = banks.get_latest_blockhash().await.unwrap();
-    let ix = update_verifier_registry(
-        authority.pubkey(),
-        verifier.pubkey(),
-        UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
-            weight: 0,
-        },
-    );
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &authority],
-        blockhash,
-    );
+    {
+        let blockhash = banks.get_latest_blockhash().await.unwrap();
+        let ix = update_verifier_registry(
+            authority.pubkey(),
+            verifier.pubkey(),
+            UpdateVerifierRegistryArgs {
+                action: VerifierRegistryAction::Add.value(),
+                weight: 0,
+            },
+        );
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&payer.pubkey()),
+            &[&payer, &authority],
+            blockhash,
+        );
 
-    assert!(banks.process_transaction(tx).await.is_err());
+        assert!(banks.process_transaction(tx).await.is_err());
+    }
+
+    {
+        let blockhash = banks.get_latest_blockhash().await.unwrap();
+        let ix = update_verifier_registry(
+            authority.pubkey(),
+            verifier.pubkey(),
+            UpdateVerifierRegistryArgs {
+                action: VerifierRegistryAction::Add.value(),
+                weight: 2,
+            },
+        );
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&payer.pubkey()),
+            &[&payer, &authority],
+            blockhash,
+        );
+
+        assert!(banks.process_transaction(tx).await.is_err());
+    }
 }
 
 #[tokio::test]
@@ -247,7 +270,7 @@ async fn test_update_verifier_registry_fails_with_remove_action() {
         authority.pubkey(),
         verifier.pubkey(),
         UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_REMOVE,
+            action: VerifierRegistryAction::Remove.value(),
             weight: 1,
         },
     );
@@ -266,7 +289,7 @@ async fn register_v2_verifier(
     payer: &Keypair,
     verifier: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    stake_lamports: u64,
 ) {
     let blockhash = banks.get_latest_blockhash().await.unwrap();
     let ix = system_instruction::transfer(
@@ -286,7 +309,7 @@ async fn register_v2_verifier(
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
-        RegisterVerifierArgs { amount_lamports },
+        RegisterVerifierArgs { stake_lamports },
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -310,7 +333,7 @@ async fn add_verifier_to_registry(
         authority.pubkey(),
         verifier.pubkey(),
         UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+            action: VerifierRegistryAction::Add.value(),
             weight,
         },
     );
