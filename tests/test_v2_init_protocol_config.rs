@@ -108,7 +108,6 @@ async fn test_init_protocol_config() {
         VerifierRegistry::DISCRIMINATOR
     );
     assert_eq!(verifier_registry.bump(), expected_verifier_registry_bump);
-    assert_eq!(verifier_registry.registry_revision(), 0);
     assert_eq!(verifier_registry.next_selection_index(), 0);
     assert!(verifier_registry.entries().is_empty());
 }

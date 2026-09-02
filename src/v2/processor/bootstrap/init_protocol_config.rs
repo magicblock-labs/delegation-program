@@ -109,7 +109,6 @@ pub fn process_init_protocol_config(
     VerifierRegistry {
         discriminator: VerifierRegistry::DISCRIMINATOR,
         bump: verifier_registry_bump,
-        registry_revision: 0,
         next_selection_index: 0,
         entries: Vec::new(),
     }
