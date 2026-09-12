@@ -25,6 +25,15 @@ pub const EXTERNAL_UNDELEGATE_DISCRIMINATOR: [u8; 8] =
 /// The program ID of the delegation program.
 pub const DELEGATION_PROGRAM_ID: Pubkey = crate::id();
 
+/// Program that executes post-commit / post-undelegate actions.
+///
+/// Actions that CPI back into the delegation program (for example to
+/// redelegate) cannot run through DLP `CallHandler` — that is DLP reentrancy.
+/// The committor issues this program as a sibling instruction after
+/// `Undelegate`. Undelegation itself still happens through the DLP.
+pub const ACTION_EXECUTOR_PROGRAM_ID: Pubkey =
+    pubkey!("BwaKr8LA41fWW84A8CjZXRzhFsiuUEP2p6rEbtGXvUov");
+
 /// Default validator identity (used when none is provided during delegation).
 #[cfg(not(feature = "unit_test_config"))]
 pub const DEFAULT_VALIDATOR_IDENTITY: Pubkey =

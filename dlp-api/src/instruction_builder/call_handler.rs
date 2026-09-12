@@ -1,7 +1,9 @@
 use dlp::{
     args::CallHandlerArgs,
+    consts::ACTION_EXECUTOR_PROGRAM_ID,
     discriminator::DlpDiscriminator,
     pda::{
+        action_executor_escrow_pda_from_authority,
         ephemeral_balance_pda_from_payer,
         validator_fees_vault_pda_from_validator,
     },
@@ -73,4 +75,54 @@ pub fn call_handler_size_budget(
         AccountSizeClass::Tiny, // escrow_authority
         AccountSizeClass::Tiny, // escrow_account
     ]) + other_accounts
+}
+
+/// Builds an action-executor instruction.
+///
+/// Account layout matches [`call_handler`], except the escrow is the
+/// action-executor PDA (not DLP's ephemeral balance). The executor signs that
+/// escrow for the destination CPI; the validator is never a destination
+/// signer.
+pub fn execute_action(
+    validator: Pubkey,
+    destination_program: Pubkey,
+    escrow_authority: Pubkey,
+    other_accounts: Vec<AccountMeta>,
+    args: CallHandlerArgs,
+) -> Instruction {
+    let validator_compat = validator.compatize();
+    let validator_fees_vault_pda =
+        validator_fees_vault_pda_from_validator(&validator_compat).modernize();
+    let escrow_authority_compat = escrow_authority.compatize();
+    let escrow_account = action_executor_escrow_pda_from_authority(
+        &escrow_authority_compat,
+        args.escrow_index,
+    )
+    .modernize();
+    let mut accounts = vec![
+        AccountMeta::new(validator, true),
+        AccountMeta::new(validator_fees_vault_pda, false),
+        AccountMeta::new_readonly(destination_program, false),
+        AccountMeta::new(escrow_authority, false),
+        AccountMeta::new(escrow_account, true),
+    ];
+    accounts.extend(other_accounts);
+
+    Instruction {
+        program_id: ACTION_EXECUTOR_PROGRAM_ID.modernize(),
+        accounts,
+        data: [
+            DlpDiscriminator::CallHandler.to_vec(),
+            to_vec(&args).unwrap(),
+        ]
+        .concat(),
+    }
+}
+
+/// Accounts-data-size budget for [`execute_action`].
+pub fn execute_action_size_budget(
+    destination_program: AccountSizeClass,
+    other_accounts: u32,
+) -> u32 {
+    call_handler_size_budget(destination_program, other_accounts)
 }

@@ -19,7 +19,11 @@ use crate::{
     },
 };
 
-/// Calls a handler on user specified program
+/// Calls a handler on user specified program.
+///
+/// Prefer [`crate::consts::ACTION_EXECUTOR_PROGRAM_ID`] for actions that
+/// re-enter the DLP (for example redelegate). This processor keeps DLP on the
+/// invoke stack, so a nested `Delegate` CPI fails with reentrancy.
 ///
 /// Accounts:
 /// 0: `[signer]`   validator

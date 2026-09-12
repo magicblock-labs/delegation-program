@@ -220,3 +220,28 @@ pub fn ephemeral_balance_pda_from_payer(payer: &Pubkey, index: u8) -> Pubkey {
     )
     .0
 }
+
+pub const ACTION_EXECUTOR_ESCROW_TAG: &[u8] = b"escrow";
+#[macro_export]
+macro_rules! action_executor_escrow_seeds_from_authority {
+    ($authority: expr, $index: expr) => {
+        &[
+            $crate::pda::ACTION_EXECUTOR_ESCROW_TAG,
+            &$authority.as_ref(),
+            &[$index],
+        ]
+    };
+}
+
+/// Escrow PDA owned by the action-executor. That program can `invoke_signed`
+/// it; DLP ephemeral-balance PDAs cannot, because they are DLP-derived.
+pub fn action_executor_escrow_pda_from_authority(
+    authority: &Pubkey,
+    index: u8,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        action_executor_escrow_seeds_from_authority!(authority, index),
+        &crate::consts::ACTION_EXECUTOR_PROGRAM_ID,
+    )
+    .0
+}
