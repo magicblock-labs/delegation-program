@@ -38,7 +38,7 @@ jobs:
         with:
           persist-credentials: false
 
-      - uses: magicblock-labs/.github/actions/squads-program-upgrade@d5afca7fc30a89e3a735ae358094eaa7b8157fc2
+      - uses: magicblock-labs/.github/actions/squads-program-upgrade@efa96d71ce379b51274250aa560b84f676366f4d
         with:
           rpc-url: ${{ secrets.RPC_URL }}
           proposer-keypair: ${{ secrets.SQUADS_PROPOSER_KEYPAIR }}
