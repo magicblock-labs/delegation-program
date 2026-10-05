@@ -117,9 +117,11 @@ pub(crate) fn process_commit_finalize_internal(
 
     let mut delegation_record_data =
         args.delegation_record_account.try_borrow_mut()?;
-    let delegation_record = DelegationRecord::try_view_from_mut(
-        &mut delegation_record_data.as_mut()[8..],
-    )?;
+    // DelegateWithActions appends action data after the fixed-size record.
+    let record_bytes = delegation_record_data
+        .get_mut(8..DelegationRecord::size_with_discriminator())
+        .ok_or(ProgramError::InvalidAccountData)?;
+    let delegation_record = DelegationRecord::try_view_from_mut(record_bytes)?;
 
     // Check that the authority is allowed to commit
     require_eq_keys!(
