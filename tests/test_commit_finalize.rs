@@ -31,6 +31,8 @@ use crate::fixtures::{
 
 mod fixtures;
 
+const ACTION_DATA: &[u8] = b"post-delegation actions";
+
 #[tokio::test]
 async fn test_commit_finalize_data_perf() {
     run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1450).await;
@@ -102,6 +104,16 @@ async fn run_test_commit_finalize(
     let delegated_account =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
     assert_eq!(delegated_account.data, new_state);
+
+    let record = banks
+        .get_account(pdas.delegation_record)
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(
+        &record.data[DelegationRecord::size_with_discriminator()..],
+        ACTION_DATA
+    );
 
     let delegation_metadata_account = banks
         .get_account(pdas.delegation_metadata)
@@ -238,10 +250,12 @@ async fn setup_program_test_env_with_record_lamports(
     );
 
     // Setup the delegated record PDA
-    let delegation_record_data = get_delegation_record_data(
+    let mut delegation_record_data = get_delegation_record_data(
         validator_keypair.pubkey(),
         Some(record_lamports),
     );
+    // DelegateWithActions appends bytes that CommitFinalize must leave intact.
+    delegation_record_data.extend_from_slice(ACTION_DATA);
     program_test.add_account(
         delegation_record_pda_from_delegated_account(&DELEGATED_PDA_ID),
         Account {
@@ -293,7 +307,7 @@ async fn test_commit_finalize_lamports_increase() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         },
-        &vec![1; 8],
+        &[1; 8],
     );
 
     let before_validator_lamports = banks
@@ -371,7 +385,7 @@ async fn test_commit_finalize_lamports_decrease() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         },
-        &vec![2; 8],
+        &[2; 8],
     );
 
     let tx = Transaction::new_signed_with_payer(
