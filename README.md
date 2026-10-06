@@ -54,3 +54,20 @@ or:
 ```bash
 cd tests/integration && anchor test
 ```
+
+## Upgrading the Program
+
+Upgrades go through a Squads multisig whose vault holds the upgrade authority. CI only proposes them.
+
+1. Run **Actions → Propose Program Upgrade** with the target `cluster` (start with `dry_run`). It builds `dlp` verifiably, uploads a buffer and opens a Squads proposal that upgrades the program and records its verified build. The job summary shows the proposal number and the executable hash.
+2. Members review and approve:
+   - **mainnet:** in the [Squads app](https://app.squads.so);
+   - **devnet:** with the shared command-line tools, run locally with your own keypair:
+
+   ```bash
+   node approve.mjs --multisig <MULTISIG> --keypair <your keypair> <proposal #> --hash <executable hash>
+   ```
+
+3. Once approved, any member with Execute executes it.
+
+See the [squads-program-upgrade action](https://github.com/magicblock-labs/.github/tree/main/actions/squads-program-upgrade#approving-and-managing-the-multisig-devnet) for setup, membership changes, and the per-cluster GitHub environments.
