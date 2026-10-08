@@ -172,6 +172,16 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
             "PostDelegationActions does not support multiple merge/insert"
         );
 
+        let old_signers_len = insertable.signers.len();
+        let old_non_signers_len = insertable.non_signers.len();
+        let old_total = old_signers_len + old_non_signers_len;
+
+        let skipable_signer_pubkeys: Vec<Option<Address>> = insertable
+            .signers
+            .iter()
+            .map(|signer| Some((*signer).into()))
+            .collect();
+
         // add keys from actions (pre-encrypted instructions)
         let skipable_pubkeys: Vec<Option<Address>> = {
             let mut skipable: Vec<Option<Address>> = vec![];
@@ -198,7 +208,8 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
 
         let add_to =
             |metas: &mut Vec<solana_instruction::AccountMeta>,
-             meta: &solana_instruction::AccountMeta| {
+             meta: &solana_instruction::AccountMeta,
+             skipable_pubkeys: &[Option<Address>]| {
                 if skipable_pubkeys.contains(&Some(meta.pubkey)) {
                     return;
                 }
@@ -217,7 +228,7 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
             .flat_map(|ix| ix.accounts.iter())
             .filter(|meta| meta.is_signer)
         {
-            add_to(&mut signers, signer_meta);
+            add_to(&mut signers, signer_meta, &skipable_signer_pubkeys);
         }
 
         for ix in self.iter() {
@@ -227,6 +238,7 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
                     ix.program_id,
                     false,
                 ),
+                &skipable_pubkeys,
             );
             for non_signer_meta in
                 ix.accounts.iter().filter(|meta| !meta.is_signer)
@@ -239,12 +251,16 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
                     // update its is_writable only.
                     signer.is_writable |= non_signer_meta.is_writable;
                 } else {
-                    add_to(&mut non_signers, non_signer_meta);
+                    add_to(
+                        &mut non_signers,
+                        non_signer_meta,
+                        &skipable_pubkeys,
+                    );
                 }
             }
         }
 
-        if signers.len() + non_signers.len()
+        if old_total + signers.len() + non_signers.len()
             > crate::compact::MAX_PUBKEYS as usize
         {
             panic!(
@@ -252,10 +268,6 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
                 crate::compact::MAX_PUBKEYS
             );
         }
-
-        let old_signers_len = insertable.signers.len();
-        let old_non_signers_len = insertable.non_signers.len();
-        let old_total = old_signers_len + old_non_signers_len;
 
         let index_of = |pk: &solana_address::Address| -> u8 {
             //
@@ -292,6 +304,25 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
                 as u8
         };
 
+        let index_of_signer = |pk: &solana_address::Address| -> u8 {
+            if let Some(index) = skipable_signer_pubkeys
+                .iter()
+                .position(|pubkey| pubkey == &Some(*pk))
+            {
+                return index as u8;
+            }
+
+            // This lookup is only used for metas from `self` that have
+            // `is_signer = true`. The earlier signer collection loop inserts
+            // every such pubkey unless existing inserted signer storage can
+            // satisfy it, which returns above.
+            let Some(index) = signers.iter().position(|s| &s.pubkey == pk)
+            else {
+                unreachable!("signer meta must resolve to inserted or new signer storage");
+            };
+            (old_total + index) as u8
+        };
+
         let mut compact_instructions: Vec<MaybeEncryptedInstruction> = self
             .into_iter()
             .map(|ix| MaybeEncryptedInstruction {
@@ -301,7 +332,11 @@ impl ClearTextWithInsertable for Vec<solana_instruction::Instruction> {
                     .accounts
                     .into_iter()
                     .map(|meta| {
-                        let index = index_of(&meta.pubkey);
+                        let index = if meta.is_signer {
+                            index_of_signer(&meta.pubkey)
+                        } else {
+                            index_of(&meta.pubkey)
+                        };
                         crate::compact::AccountMeta::try_new(
                             index,
                             meta.is_signer,
@@ -456,7 +491,9 @@ mod tests {
         assert_cleartext_meta(&new_ix.accounts[2], 7, false);
         assert_cleartext_meta(&new_ix.accounts[3], 8, false);
 
-        // a similar code is used in process_delegate_with_actions() to early validate actions
+        // A similar check is used in process_delegate_with_actions() to
+        // validate the signer security model: signer metas must resolve to
+        // signer storage, and signer-storage pubkeys must be signed.
         for ix in actions.instructions.iter() {
             actions.validate_index(ix.program_id).unwrap();
 
@@ -467,8 +504,104 @@ mod tests {
                     continue;
                 };
                 let index = actions.validate_index(meta.key()).unwrap();
-                assert_eq!(meta.is_signer(), actions.is_signer(index).unwrap());
+                if meta.is_signer() {
+                    assert!(actions.is_signer(index).unwrap());
+                }
             }
         }
+    }
+
+    #[test]
+    fn test_cleartext_with_insertable_reuses_inserted_signer_as_non_signer() {
+        let shared = pk(1);
+        let program_id = pk(2);
+
+        let insertable = PostDelegationActions {
+            inserted_signers: 0,
+            inserted_non_signers: 0,
+            signers: vec![shared.to_bytes()],
+            non_signers: vec![],
+            instructions: vec![],
+        };
+
+        let ix = Instruction {
+            program_id,
+            accounts: vec![AccountMeta::new_readonly(shared, false)],
+            data: vec![1, 2, 3],
+        };
+
+        let actions = vec![ix].cleartext_with_insertable(insertable, 0);
+
+        assert_eq!(actions.inserted_signers, 1);
+        assert_eq!(actions.inserted_non_signers, 0);
+        assert_eq!(actions.signers, vec![shared.to_bytes()]);
+
+        let new_ix = &actions.instructions[0];
+        assert_cleartext_meta(&new_ix.accounts[0], 0, false);
+
+        // A non-signer meta may reuse signer storage. The signer account is
+        // available to the action set, but this instruction does not request
+        // signer privilege for this account.
+        let index = actions
+            .validate_index(match &new_ix.accounts[0] {
+                MaybeEncryptedAccountMeta::ClearText(meta) => meta.key(),
+                MaybeEncryptedAccountMeta::Encrypted(_) => {
+                    panic!("expected cleartext account meta")
+                }
+            })
+            .unwrap();
+        let MaybeEncryptedAccountMeta::ClearText(meta) = &new_ix.accounts[0]
+        else {
+            panic!("expected cleartext account meta");
+        };
+        assert!(!meta.is_signer());
+        assert!(actions.is_signer(index).unwrap());
+    }
+
+    #[test]
+    fn test_cleartext_with_insertable_adds_signer_for_inserted_non_signer() {
+        let shared = pk(1);
+        let program_id = pk(2);
+
+        let insertable = PostDelegationActions {
+            inserted_signers: 0,
+            inserted_non_signers: 0,
+            signers: vec![],
+            non_signers: vec![MaybeEncryptedPubkey::ClearText(
+                shared.to_bytes(),
+            )],
+            instructions: vec![],
+        };
+
+        let ix = Instruction {
+            program_id,
+            accounts: vec![AccountMeta::new_readonly(shared, true)],
+            data: vec![1, 2, 3],
+        };
+
+        let actions = vec![ix].cleartext_with_insertable(insertable, 0);
+
+        assert_eq!(actions.inserted_signers, 0);
+        assert_eq!(actions.inserted_non_signers, 1);
+        assert_eq!(actions.signers, vec![shared.to_bytes()]);
+        assert_eq!(
+            actions.non_signers,
+            vec![
+                MaybeEncryptedPubkey::ClearText(shared.to_bytes()),
+                MaybeEncryptedPubkey::ClearText(program_id.to_bytes()),
+            ]
+        );
+
+        let new_ix = &actions.instructions[0];
+        assert_eq!(new_ix.program_id, 2);
+        assert_cleartext_meta(&new_ix.accounts[0], 1, true);
+
+        let MaybeEncryptedAccountMeta::ClearText(meta) = &new_ix.accounts[0]
+        else {
+            panic!("expected cleartext account meta");
+        };
+        let index = actions.validate_index(meta.key()).unwrap();
+        assert!(meta.is_signer());
+        assert!(actions.is_signer(index).unwrap());
     }
 }

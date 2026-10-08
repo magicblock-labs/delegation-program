@@ -1,4 +1,4 @@
-use dlp_api::{compat::borsh, require_eq};
+use dlp_api::{compat::borsh, require};
 use pinocchio::{
     address::address_eq,
     cpi::{Seed, Signer},
@@ -102,6 +102,12 @@ pub fn process_delegate_with_actions(
         // Validate clear-text indices early when possible. Encrypted
         // AccountMetas are skipped here because they can only be validated
         // after decryption by the ER validator.
+        //
+        // Signer security model:
+        // 1. For every signer meta, require its compact index to resolve to
+        //    signer storage.
+        // 2. For every signer-storage pubkey, require the real AccountInfo to
+        //    be present and signed.
         for ix in args.actions.instructions.iter() {
             args.actions.validate_index(ix.program_id)?;
 
@@ -112,11 +118,12 @@ pub fn process_delegate_with_actions(
                     continue;
                 };
                 let index = args.actions.validate_index(meta.key())?;
-                require_eq!(
-                    meta.is_signer(),
-                    args.actions.is_signer(index)?,
-                    ProgramError::InvalidInstructionData
-                );
+                if meta.is_signer() {
+                    require!(
+                        args.actions.is_signer(index)?,
+                        ProgramError::InvalidInstructionData
+                    );
+                }
             }
         }
 
