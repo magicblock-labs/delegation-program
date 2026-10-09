@@ -14,8 +14,9 @@ use crate::{
 ///
 /// Accounts:
 ///
-/// 1. `[signer]`   admin account that can claim the fees
-/// 2. `[writable]` protocol fees vault PDA
+/// 0: `[signer]`   admin account that can claim the fees
+/// 1: `[writable]` protocol fees vault PDA
+/// 2: `[]`         delegation program data account
 ///
 /// Requirements:
 ///
