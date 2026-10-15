@@ -69,5 +69,6 @@ Upgrades go through a Squads multisig whose vault holds the upgrade authority. C
    ```
 
 3. Once approved, any member with Execute executes it.
+4. **mainnet:** run **Actions → Verify Program (Remote)**. OtterSec rebuilds the recorded commit and, if it matches the deployed binary, explorers show the program as verified. Every upgrade needs this step again.
 
 See the [squads-program-upgrade action](https://github.com/magicblock-labs/.github/tree/main/actions/squads-program-upgrade#approving-and-managing-the-multisig-devnet) for setup, membership changes, and the per-cluster GitHub environments.
