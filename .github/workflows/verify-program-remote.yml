@@ -1,72 +1,21 @@
 name: Verify Program (Remote)
 
+# Asks OtterSec to rebuild dlp from its otter-verify PDA, so explorers show it
+# as verified. Run it after each mainnet upgrade proposal executes in Squads.
+
 on:
   workflow_dispatch:
 
 permissions:
   contents: read
 
-env:
-  SOLANA_VERSION: v3.1.5
-  SOLANA_VERIFY_VERSION: 0.4.15
-
-  PROGRAM_ID: DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh
-  MAINNET_RPC_URL: ${{ secrets.MAINNET_RPC_URL }}
-
 jobs:
-  submit:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
 
     steps:
-      - name: Validate configuration
-        run: |
-          : "${MAINNET_RPC_URL:?Set secrets.MAINNET_RPC_URL}"
-
-      - name: Install Solana CLI
-        run: |
-          sh -c "$(curl -sSfL https://release.anza.xyz/${SOLANA_VERSION}/install)"
-          echo "$HOME/.local/share/solana/install/active_release/bin" >> "$GITHUB_PATH"
-
-      - name: Install solana-verify
-        run: |
-          BASE="https://github.com/solana-foundation/solana-verifiable-build/releases/download/v${SOLANA_VERIFY_VERSION}"
-          curl -sSfL "$BASE/solana-verify-${SOLANA_VERIFY_VERSION}-linux" -o /tmp/solana-verify
-          curl -sSfL "$BASE/solana-verify-${SOLANA_VERIFY_VERSION}-linux.sha256" -o /tmp/solana-verify.sha256
-          (cd /tmp && awk '{print $1"  solana-verify"}' solana-verify.sha256 | sha256sum -c -)
-          chmod +x /tmp/solana-verify
-          sudo mv /tmp/solana-verify /usr/local/bin/solana-verify
-          solana-verify --version
-
-      - name: Fetch upgrade authority
-        run: |
-          # Solana CLI 3.x refuses to run without a configured signer, even for read-only RPC calls.
-          solana-keygen new --no-bip39-passphrase --silent --outfile /tmp/dummy-keypair.json
-          PROGRAM_INFO=$(solana program show "$PROGRAM_ID" --url "$MAINNET_RPC_URL" --keypair /tmp/dummy-keypair.json --no-address-labels)
-
-          SQUADS_VAULT_PDA=$(printf '%s\n' "$PROGRAM_INFO" | awk -F': ' '/^Authority:/ {print $2; exit}')
-          if [ -z "$SQUADS_VAULT_PDA" ]; then
-            echo "Could not parse upgrade authority from solana program show output." >&2
-            exit 1
-          fi
-
-          echo "SQUADS_VAULT_PDA=$SQUADS_VAULT_PDA" >> "$GITHUB_ENV"
-
-      - name: Submit remote verification job
-        run: |
-          solana-verify remote submit-job \
-            --program-id "$PROGRAM_ID" \
-            --uploader "$SQUADS_VAULT_PDA"
-
-      - name: Write summary
-        run: |
-          {
-            echo "### Remote verification submitted"
-            echo
-            echo "- Program: \`$PROGRAM_ID\`"
-            echo "- Uploader / authority: \`$SQUADS_VAULT_PDA\`"
-            echo
-            echo "OtterSec is rebuilding from the source committed in the on-chain verify PDA."
-            echo "Check status with:"
-            echo
-            echo "    solana-verify remote status --program-id $PROGRAM_ID"
-          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: magicblock-labs/.github/actions/verify-program-remote@f230947fd85afe668cbea20b94766252a278cc85
+        with:
+          program-id: DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh
+          rpc-url: ${{ secrets.MAINNET_RPC_URL }}
