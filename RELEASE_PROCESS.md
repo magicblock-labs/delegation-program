@@ -16,10 +16,10 @@ writing release notes. The program crate is no longer published to crates.io.
 
 ## Prepare the release commit
 
-1. Start from up-to-date `main`. For an API release, including a paired
-   program/API release, create `release/v<API version>`, such as
-   `release/v4.0.0`. For a program-only release, use
-   `release/dlp-v<program version>`.
+1. Start from an up-to-date `main` branch. For an API release, including a paired
+   program/API release, create a release branch named `release/v<API version>`,
+   such as `release/v4.0.0`. For a program-only release, create a release branch
+   named `release/dlp-v<program version>`.
 2. Update the manifest version for each component being released and its
    workspace package entry in `Cargo.lock`. Keep unrelated dependency versions
    unchanged. The program and API versions do not need to match.
