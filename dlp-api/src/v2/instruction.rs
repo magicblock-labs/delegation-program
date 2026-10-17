@@ -27,6 +27,8 @@ pub enum DlpV2Instruction {
     WriteStateBuffer = 107,
     /// Applies an approved v2 commitment to the delegated account.
     FinalizeCommitment = 108,
+    /// Raises a hash-only challenge against a v2 pending commitment.
+    RaiseChallenge = 109,
 }
 
 impl DlpV2Instruction {
