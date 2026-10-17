@@ -26,9 +26,29 @@ env:
 
 jobs:
   install:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'dlp-api@v')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
+      - name: Check API release tag matches the manifest
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import tomllib
+
+          with open("dlp-api/Cargo.toml", "rb") as manifest:
+              version = tomllib.load(manifest)["package"]["version"]
+          expected_tag = f"dlp-api@v{version}"
+          actual_tag = os.environ["RELEASE_TAG"]
+          if actual_tag != expected_tag:
+              raise SystemExit(
+                  f"::error::Release tag {actual_tag!r} must match {expected_tag!r}"
+              )
+          PY
 
       - name: install essentials
         run: |
