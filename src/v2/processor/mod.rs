@@ -48,5 +48,8 @@ pub fn process_instruction(
         DlpV2Instruction::ChallengerReveal => {
             process_challenger_reveal(accounts, data)
         }
+        DlpV2Instruction::ResolveDispute => {
+            process_resolve_dispute(accounts, data)
+        }
     }
 }
