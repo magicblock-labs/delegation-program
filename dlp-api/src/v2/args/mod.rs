@@ -1,6 +1,7 @@
 // V2 processors decode args from `instruction_data[1..]` after the one-byte
 // instruction tag, so v2 instruction args use `buffer_offset = 1`.
 
+mod challenger_reveal;
 mod init_protocol_config;
 mod post_commitment;
 mod raise_challenge;
@@ -10,6 +11,7 @@ mod update_protocol_config;
 mod update_verifier_registry;
 mod write_state_buffer;
 
+pub use challenger_reveal::*;
 pub use init_protocol_config::*;
 pub use post_commitment::*;
 pub use raise_challenge::*;
