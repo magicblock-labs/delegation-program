@@ -25,6 +25,8 @@ pub enum DlpV2Instruction {
     /// InitStateBuffer takes more arguments and AppendStateBuffer takes as less as
     /// possible. 
     WriteStateBuffer = 107,
+    /// Applies an approved v2 commitment to the delegated account.
+    FinalizeCommitment = 108,
 }
 
 impl DlpV2Instruction {
