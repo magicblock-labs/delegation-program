@@ -16,27 +16,34 @@ use wheels::layout::Decodable;
 mod fixtures;
 
 use crate::fixtures::v2::{
-    initialize_protocol_config, setup_program_test_env,
-    valid_protocol_config_args,
+    challenge_cluster_args, direct_cluster_args, initialize_delegation_cluster,
+    setup_program_test_env,
 };
 
 #[tokio::test]
 async fn test_register_operator() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_protocol_config_args();
     let operator = Keypair::new();
+    let cluster_args = challenge_cluster_args(operator.pubkey());
+    let min_operator_bond = cluster_args
+        .challenge_config
+        .as_ref()
+        .unwrap()
+        .min_operator_bond;
+    let delegation_cluster =
+        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
     let (operator_bond_address, expected_operator_bond_bump) =
         Pubkey::find_program_address(
-            &[OPERATOR_BOND_SEED, operator.pubkey().as_ref()],
+            &[OPERATOR_BOND_SEED, delegation_cluster.as_ref()],
             &dlp_api::id(),
         );
 
-    initialize_protocol_config(
+    initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args.clone(),
+        cluster_args,
     )
     .await;
     fund_operator(&banks, &payer, &operator).await;
@@ -45,8 +52,9 @@ async fn test_register_operator() {
     let ix = register_operator(
         operator.pubkey(),
         authority.pubkey(),
+        delegation_cluster,
         RegisterOperatorArgs {
-            stake_lamports: config_args.min_operator_bond,
+            stake_lamports: min_operator_bond,
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -67,15 +75,12 @@ async fn test_register_operator() {
         OperatorBond::decode(&operator_bond_account.data).unwrap();
     let expected_operator_bond_lamports = Rent::default()
         .minimum_balance(OperatorBond::DATA_LEN)
-        + config_args.min_operator_bond;
+        + min_operator_bond;
 
     assert_eq!(operator_bond.discriminator(), OperatorBond::DISCRIMINATOR);
     assert_eq!(operator_bond.bump(), expected_operator_bond_bump);
-    assert_eq!(*operator_bond.operator_identity(), operator.pubkey());
-    assert_eq!(
-        operator_bond.stake_lamports(),
-        config_args.min_operator_bond
-    );
+    assert_eq!(*operator_bond.delegation_cluster(), delegation_cluster);
+    assert_eq!(operator_bond.stake_lamports(), min_operator_bond);
     assert_eq!(operator_bond.locked_lamports(), 0);
     assert_eq!(operator_bond.status(), OperatorStatus::Active.value());
     assert_eq!(operator_bond.withdraw_requested_slot(), None);
@@ -88,15 +93,20 @@ async fn test_register_operator() {
 #[tokio::test]
 async fn test_register_operator_fails_with_wrong_authority() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_protocol_config_args();
     let operator = Keypair::new();
+    let cluster_args = challenge_cluster_args(operator.pubkey());
+    let min_operator_bond = cluster_args
+        .challenge_config
+        .as_ref()
+        .unwrap()
+        .min_operator_bond;
 
-    initialize_protocol_config(
+    let delegation_cluster = initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args.clone(),
+        cluster_args,
     )
     .await;
     fund_operator(&banks, &payer, &operator).await;
@@ -106,8 +116,9 @@ async fn test_register_operator_fails_with_wrong_authority() {
     let ix = register_operator(
         operator.pubkey(),
         wrong_authority.pubkey(),
+        delegation_cluster,
         RegisterOperatorArgs {
-            stake_lamports: config_args.min_operator_bond,
+            stake_lamports: min_operator_bond,
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -121,17 +132,56 @@ async fn test_register_operator_fails_with_wrong_authority() {
 }
 
 #[tokio::test]
-async fn test_register_operator_fails_with_low_stake() {
+async fn test_register_operator_fails_with_wrong_validator() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_protocol_config_args();
-    let operator = Keypair::new();
-
-    initialize_protocol_config(
+    let current_validator = Keypair::new();
+    let wrong_validator = Keypair::new();
+    let cluster_args = challenge_cluster_args(current_validator.pubkey());
+    let min_operator_bond = cluster_args
+        .challenge_config
+        .as_ref()
+        .unwrap()
+        .min_operator_bond;
+    let delegation_cluster = initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args,
+        cluster_args,
+    )
+    .await;
+    fund_operator(&banks, &payer, &wrong_validator).await;
+
+    let ix = register_operator(
+        wrong_validator.pubkey(),
+        authority.pubkey(),
+        delegation_cluster,
+        RegisterOperatorArgs {
+            stake_lamports: min_operator_bond,
+        },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &wrong_validator, &authority],
+        banks.get_latest_blockhash().await.unwrap(),
+    );
+
+    assert!(banks.process_transaction(tx).await.is_err());
+}
+
+#[tokio::test]
+async fn test_register_operator_fails_with_low_stake() {
+    let (banks, payer, authority, blockhash) = setup_program_test_env().await;
+    let operator = Keypair::new();
+    let cluster_args = challenge_cluster_args(operator.pubkey());
+
+    let delegation_cluster = initialize_delegation_cluster(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        cluster_args,
     )
     .await;
     fund_operator(&banks, &payer, &operator).await;
@@ -140,6 +190,7 @@ async fn test_register_operator_fails_with_low_stake() {
     let ix = register_operator(
         operator.pubkey(),
         authority.pubkey(),
+        delegation_cluster,
         RegisterOperatorArgs { stake_lamports: 0 },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -156,15 +207,20 @@ async fn test_register_operator_fails_with_low_stake() {
 async fn test_register_operator_fails_twice() {
     let (mut banks, payer, authority, blockhash) =
         setup_program_test_env().await;
-    let config_args = valid_protocol_config_args();
     let operator = Keypair::new();
+    let cluster_args = challenge_cluster_args(operator.pubkey());
+    let min_operator_bond = cluster_args
+        .challenge_config
+        .as_ref()
+        .unwrap()
+        .min_operator_bond;
 
-    initialize_protocol_config(
+    let delegation_cluster = initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args.clone(),
+        cluster_args,
     )
     .await;
     fund_operator(&banks, &payer, &operator).await;
@@ -173,8 +229,9 @@ async fn test_register_operator_fails_twice() {
         let ix = register_operator(
             operator.pubkey(),
             authority.pubkey(),
+            delegation_cluster,
             RegisterOperatorArgs {
-                stake_lamports: config_args.min_operator_bond,
+                stake_lamports: min_operator_bond,
             },
         );
         let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
@@ -195,8 +252,9 @@ async fn test_register_operator_fails_twice() {
         let ix = register_operator(
             operator.pubkey(),
             authority.pubkey(),
+            delegation_cluster,
             RegisterOperatorArgs {
-                stake_lamports: config_args.min_operator_bond,
+                stake_lamports: min_operator_bond,
             },
         );
         let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
@@ -213,6 +271,36 @@ async fn test_register_operator_fails_twice() {
 
         assert!(banks.process_transaction(tx).await.is_err());
     }
+}
+
+#[tokio::test]
+async fn test_register_operator_rejects_direct_cluster() {
+    let (banks, payer, authority, blockhash) = setup_program_test_env().await;
+    let operator = Keypair::new();
+    let delegation_cluster = initialize_delegation_cluster(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        direct_cluster_args(operator.pubkey()),
+    )
+    .await;
+    fund_operator(&banks, &payer, &operator).await;
+
+    let ix = register_operator(
+        operator.pubkey(),
+        authority.pubkey(),
+        delegation_cluster,
+        RegisterOperatorArgs { stake_lamports: 1 },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &operator, &authority],
+        banks.get_latest_blockhash().await.unwrap(),
+    );
+
+    assert!(banks.process_transaction(tx).await.is_err());
 }
 
 async fn fund_operator(

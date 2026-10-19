@@ -1,5 +1,6 @@
 use dlp_api::v2::{
-    instruction_builder::init_protocol_config, InitProtocolConfigArgs,
+    instruction_builder::init_delegation_cluster, pda::delegation_cluster_pda,
+    ChallengeConfig, InitDelegationClusterArgs,
 };
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
@@ -12,40 +13,58 @@ use solana_sdk::{
 };
 use solana_sdk_ids::system_program;
 
-pub fn valid_protocol_config_args() -> InitProtocolConfigArgs {
-    InitProtocolConfigArgs {
-        resolver: Pubkey::new_unique(),
-        min_operator_bond: 1,
-        min_verifier_bond: 1,
-        min_challenger_stake: 1,
-        challenge_window_slots: 10,
-        operator_response_timeout_slots: 10,
-        challenger_reveal_timeout_slots: 10,
-        payout_timelock_slots: 10,
-        verifiers_per_commitment: 1,
-        approval_threshold: 1,
-        max_window_extensions: 1,
-        match_penalty_bps: 500,
+pub fn direct_cluster_args(
+    current_validator: Pubkey,
+) -> InitDelegationClusterArgs {
+    InitDelegationClusterArgs {
+        cluster_id: Pubkey::new_unique(),
+        current_validator,
+        validator_rotation_authority: Pubkey::new_unique(),
+        challenge_config: None,
+    }
+}
+
+pub fn challenge_cluster_args(
+    current_validator: Pubkey,
+) -> InitDelegationClusterArgs {
+    InitDelegationClusterArgs {
+        challenge_config: Some(ChallengeConfig {
+            resolver: Pubkey::new_unique(),
+            min_operator_bond: 1,
+            min_verifier_bond: 1,
+            min_challenger_stake: 1,
+            challenge_window_slots: 10,
+            operator_response_timeout_slots: 10,
+            challenger_reveal_timeout_slots: 10,
+            payout_timelock_slots: 10,
+            verifiers_per_commitment: 1,
+            approval_threshold: 1,
+            max_window_extensions: 1,
+            match_penalty_bps: 500,
+        }),
+        ..direct_cluster_args(current_validator)
     }
 }
 
 #[allow(dead_code)]
-pub async fn initialize_protocol_config(
+pub async fn initialize_delegation_cluster(
     banks: &BanksClient,
     payer: &Keypair,
-    authority: &Keypair,
+    config_authority: &Keypair,
     blockhash: Hash,
-    args: InitProtocolConfigArgs,
-) {
-    let ix = init_protocol_config(authority.pubkey(), args);
+    args: InitDelegationClusterArgs,
+) -> Pubkey {
+    let delegation_cluster = delegation_cluster_pda(&args.cluster_id);
+    let ix = init_delegation_cluster(config_authority.pubkey(), args);
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[payer, authority],
+        &[payer, config_authority],
         blockhash,
     );
 
     banks.process_transaction(tx).await.unwrap();
+    delegation_cluster
 }
 
 pub async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {

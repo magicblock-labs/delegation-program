@@ -22,9 +22,9 @@ pub fn verifier_registry_pda(delegation_cluster: &Pubkey) -> Pubkey {
     .0
 }
 
-pub fn operator_bond_pda(operator: &Pubkey) -> Pubkey {
+pub fn operator_bond_pda(delegation_cluster: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
-        &[OPERATOR_BOND_SEED, operator.as_ref()],
+        &[OPERATOR_BOND_SEED, delegation_cluster.as_ref()],
         &crate::id(),
     )
     .0

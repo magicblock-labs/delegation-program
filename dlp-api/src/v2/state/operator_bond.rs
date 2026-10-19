@@ -11,8 +11,8 @@ pub struct OperatorBond {
     /// Canonical PDA bump for this account.
     pub bump: u8,
 
-    /// Operator identity allowed to post commitments through this bond.
-    pub operator_identity: Pubkey,
+    /// Delegation cluster whose operator stake this account holds.
+    pub delegation_cluster: Pubkey,
 
     /// Slashable operator stake held in this account.
     /// CHECKPOINT: the staking asset is SOL or BLOCK?
