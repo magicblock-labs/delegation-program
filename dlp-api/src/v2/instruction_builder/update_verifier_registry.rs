@@ -6,27 +6,31 @@ use solana_sdk_ids::system_program;
 use wheels::layout::Encodable;
 
 use crate::{
-    compat::{Compatize, Modernize},
+    compat::Modernize,
     v2::{
-        pda::{protocol_config_pda, verifier_bond_pda, verifier_registry_pda},
+        pda::{verifier_bond_pda, verifier_registry_pda},
         DlpV2Instruction, UpdateVerifierRegistryArgs,
     },
 };
 
 /// Builds the instruction that updates the verifier selection registry.
 pub fn update_verifier_registry(
-    authority: Pubkey,
+    config_authority: Pubkey,
+    delegation_cluster: Pubkey,
     verifier: Pubkey,
     args: UpdateVerifierRegistryArgs,
 ) -> Instruction {
     Instruction {
         program_id: crate::id().modernize(),
         accounts: vec![
-            AccountMeta::new(authority, true),
-            AccountMeta::new_readonly(protocol_config_pda().modernize(), false),
-            AccountMeta::new(verifier_registry_pda().modernize(), false),
+            AccountMeta::new(config_authority, true),
+            AccountMeta::new_readonly(delegation_cluster, false),
+            AccountMeta::new(
+                verifier_registry_pda(&delegation_cluster).modernize(),
+                false,
+            ),
             AccountMeta::new_readonly(
-                verifier_bond_pda(&verifier.compatize()).modernize(),
+                verifier_bond_pda(&delegation_cluster, &verifier).modernize(),
                 false,
             ),
             AccountMeta::new_readonly(system_program::id(), false),

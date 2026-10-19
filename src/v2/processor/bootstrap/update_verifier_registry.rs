@@ -2,18 +2,18 @@ use dlp_api::{
     error::DlpError,
     v2::{
         pda::{
-            PROTOCOL_CONFIG_SEED, VERIFIER_BOND_SEED, VERIFIER_REGISTRY_SEED,
+            DELEGATION_CLUSTER_SEED, VERIFIER_BOND_SEED, VERIFIER_REGISTRY_SEED,
         },
-        ProtocolConfig, ProtocolConfigView, UpdateVerifierRegistryArgs,
-        UpdateVerifierRegistryArgsView, VerifierBond, VerifierBondView,
-        VerifierRegistry, VerifierRegistryAction, VerifierRegistryEntry,
-        VerifierStatus,
+        ChallengeConfigView, DelegationCluster, DelegationClusterView,
+        UpdateVerifierRegistryArgs, UpdateVerifierRegistryArgsView,
+        VerifierBond, VerifierBondView, VerifierRegistry,
+        VerifierRegistryAction, VerifierRegistryEntry, VerifierStatus,
     },
 };
 use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 use wheels::{
     layout::Decodable, require, require_eq, require_eq_keys, require_ge,
-    require_n_accounts, require_signer,
+    require_n_accounts, require_signer, require_some,
 };
 
 use crate::{
@@ -24,8 +24,8 @@ use crate::{
 /// Update the verifier registry used by v2 verifier selection.
 ///
 /// Accounts:
-/// 0: `[signer, writable]` protocol authority and registry rent payer
-/// 1: `[]`                 ProtocolConfig PDA
+/// 0: `[signer, writable]` cluster config authority and registry rent payer
+/// 1: `[]`                 DelegationCluster PDA
 /// 2: `[writable]`         VerifierRegistry PDA
 /// 3: `[]`                 VerifierBond PDA
 /// 4: `[]`                 system program, required by system CPI
@@ -35,28 +35,41 @@ pub fn process_update_verifier_registry(
     data: &[u8],
 ) -> ProgramResult {
     let [
-        authority, // force multi-line
-        protocol_config,
+        config_authority, // force multi-line
+        delegation_cluster,
         verifier_registry,
         verifier_bond,
         _system_program,
     ] = require_n_accounts!(accounts, 5);
 
-    require_signer!(authority);
+    require_signer!(config_authority);
 
     let args = UpdateVerifierRegistryArgs::decode(data)?;
     validate_update_args(&args)?;
 
+    let delegation_cluster_data = delegation_cluster.try_borrow()?;
+    let delegation_cluster_state =
+        DelegationCluster::decode(delegation_cluster_data.as_ref())?;
     require_initialized_pda(
-        protocol_config,
-        &[PROTOCOL_CONFIG_SEED],
+        delegation_cluster,
+        &[
+            DELEGATION_CLUSTER_SEED,
+            delegation_cluster_state.cluster_id().as_ref(),
+        ],
         &crate::fast::ID,
         false,
-        "protocol config",
+        "delegation cluster",
+    )?;
+    let challenge_config = validate_delegation_cluster(
+        &delegation_cluster_state,
+        config_authority,
     )?;
     require_initialized_pda(
         verifier_registry,
-        &[VERIFIER_REGISTRY_SEED],
+        &[
+            VERIFIER_REGISTRY_SEED,
+            delegation_cluster.address().as_ref(),
+        ],
         &crate::fast::ID,
         true,
         "verifier registry",
@@ -66,18 +79,12 @@ pub fn process_update_verifier_registry(
     let verifier_bond_data = verifier_bond.try_borrow()?;
     let verifier_bond_state =
         VerifierBond::decode(verifier_bond_data.as_ref())?;
-    validate_verifier_bond(&verifier_bond_state, verifier_bond)?;
-
-    {
-        let protocol_config_data = protocol_config.try_borrow()?;
-        let protocol_config_state =
-            ProtocolConfig::decode(protocol_config_data.as_ref())?;
-        validate_protocol_config(&protocol_config_state, authority)?;
-        validate_verifier_can_be_added(
-            &protocol_config_state,
-            &verifier_bond_state,
-        )?;
-    }
+    validate_verifier_bond(
+        &verifier_bond_state,
+        verifier_bond,
+        delegation_cluster,
+    )?;
+    validate_verifier_can_be_added(&challenge_config, &verifier_bond_state)?;
 
     let verifier_identity = verifier_bond_state.verifier_identity();
     let verifier_bond_key = verifier_bond.address();
@@ -89,6 +96,11 @@ pub fn process_update_verifier_registry(
         require!(
             verifier_registry_view.discriminator()
                 == VerifierRegistry::DISCRIMINATOR,
+            ProgramError::InvalidAccountData
+        );
+        require_eq_keys!(
+            verifier_registry_view.delegation_cluster(),
+            delegation_cluster.address(),
             ProgramError::InvalidAccountData
         );
         // CHECKPOINT: this treats verifier identity and verifier bond as
@@ -120,7 +132,7 @@ pub fn process_update_verifier_registry(
 
     let new_registry_len = verifier_registry.data_len();
     if new_registry_len > old_registry_len {
-        top_up_pda_rent(authority, verifier_registry, new_registry_len)?;
+        top_up_pda_rent(config_authority, verifier_registry, new_registry_len)?;
     }
 
     Ok(())
@@ -142,26 +154,34 @@ fn validate_update_args(
     Ok(())
 }
 
-fn validate_protocol_config(
-    protocol_config: &ProtocolConfigView<'_>,
-    authority: &AccountView,
-) -> ProgramResult {
+fn validate_delegation_cluster<'a>(
+    delegation_cluster: &DelegationClusterView<'a>,
+    config_authority: &AccountView,
+) -> Result<ChallengeConfigView<'a>, ProgramError> {
     require!(
-        protocol_config.discriminator() == ProtocolConfig::DISCRIMINATOR,
+        delegation_cluster.discriminator() == DelegationCluster::DISCRIMINATOR,
         ProgramError::InvalidAccountData
     );
     require_eq_keys!(
-        protocol_config.authority(),
-        authority.address(),
+        delegation_cluster.config_authority(),
+        config_authority.address(),
         DlpError::InvalidAuthority
     );
+    require!(
+        !delegation_cluster.paused(),
+        ProgramError::InvalidAccountData
+    );
 
-    Ok(())
+    Ok(require_some!(
+        delegation_cluster.challenge_config(),
+        ProgramError::InvalidAccountData
+    ))
 }
 
 fn validate_verifier_bond(
     verifier_bond: &VerifierBondView<'_>,
     verifier_bond_account: &AccountView,
+    delegation_cluster: &AccountView,
 ) -> ProgramResult {
     require!(
         verifier_bond.discriminator() == VerifierBond::DISCRIMINATOR,
@@ -171,18 +191,24 @@ fn validate_verifier_bond(
         verifier_bond_account,
         &[
             VERIFIER_BOND_SEED,
+            delegation_cluster.address().as_ref(),
             verifier_bond.verifier_identity().as_ref(),
         ],
         &crate::fast::ID,
         false,
         "verifier bond",
     )?;
+    require_eq_keys!(
+        verifier_bond.delegation_cluster(),
+        delegation_cluster.address(),
+        ProgramError::InvalidAccountData
+    );
 
     Ok(())
 }
 
 fn validate_verifier_can_be_added(
-    protocol_config: &ProtocolConfigView<'_>,
+    challenge_config: &ChallengeConfigView<'_>,
     verifier_bond: &VerifierBondView<'_>,
 ) -> ProgramResult {
     require_eq!(
@@ -192,7 +218,7 @@ fn validate_verifier_can_be_added(
     );
     require_ge!(
         verifier_bond.stake_lamports(),
-        protocol_config.min_verifier_bond(),
+        challenge_config.min_verifier_bond(),
         ProgramError::InvalidInstructionData
     );
     require!(
