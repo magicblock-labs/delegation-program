@@ -180,7 +180,7 @@ fn validate_init_args(
     Ok(())
 }
 
-fn validate_challenge_config(
+pub(super) fn validate_challenge_config(
     config: &ChallengeConfigView<'_>,
 ) -> ProgramResult {
     require_ne_keys!(
