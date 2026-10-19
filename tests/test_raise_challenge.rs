@@ -5,16 +5,18 @@ use dlp_api::{
     },
     v2::{
         instruction_builder::{
-            approve_commitment, finalize_commitment, post_commitment,
-            raise_challenge, register_operator, register_verifier,
-            update_verifier_registry, write_state_buffer,
+            approve_commitment, finalize_commitment, raise_challenge,
+            register_operator, register_verifier, submit_commitment,
+            update_delegation_cluster, update_verifier_registry,
+            write_state_buffer,
         },
-        pda::{challenge_pda, pending_commitment_pda, CHALLENGE_SEED},
-        Challenge, PendingCommitment, PostCommitmentArgs, RaiseChallengeArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs, WriteStateBufferArgs,
-        CHALLENGE_OUTCOME_NONE, CHALLENGE_STATUS_AWAITING_REVEAL,
+        pda::{challenge_pda, pending_commitment_pda},
+        Challenge, ChallengeConfig, PendingCommitment, RaiseChallengeArgs,
+        RegisterOperatorArgs, RegisterVerifierArgs, SubmitCommitmentArgs,
+        UpdateDelegationClusterArgs, UpdateVerifierRegistryArgs,
+        VerifierRegistryAction, WriteStateBufferArgs, CHALLENGE_OUTCOME_NONE,
+        CHALLENGE_STATUS_AWAITING_REVEAL,
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
-        VERIFIER_REGISTRY_ACTION_ADD,
     },
 };
 use solana_program::{native_token::LAMPORTS_PER_SOL, rent::Rent};
@@ -37,32 +39,13 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
-    v2::{initialize_protocol_config, valid_protocol_config_args},
+    v2::{challenge_cluster_args, initialize_delegation_cluster},
 };
-
-#[test]
-fn test_challenge_pda_uses_account_commit_id_and_challenger() {
-    let account = Pubkey::new_unique();
-    let challenger = Pubkey::new_unique();
-    let commit_id = 7_u64;
-    let expected = Pubkey::find_program_address(
-        &[
-            CHALLENGE_SEED,
-            account.as_ref(),
-            &commit_id.to_le_bytes(),
-            challenger.as_ref(),
-        ],
-        &dlp_api::ID,
-    )
-    .0;
-
-    assert_eq!(challenge_pda(&account, commit_id, &challenger), expected);
-}
 
 #[tokio::test]
 async fn test_raise_challenge() {
     let mut env = setup_raise_challenge_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let pending_before = read_pending_commitment(&mut env).await;
     let args = valid_raise_challenge_args(pending_before.state_commitment_hash);
@@ -72,7 +55,7 @@ async fn test_raise_challenge() {
         &env.challenger.pubkey(),
     );
 
-    raise_v2_challenge(&mut env, args.clone()).await.unwrap();
+    raise(&mut env, args.clone()).await.unwrap();
 
     let challenge_account = env
         .context
@@ -105,7 +88,7 @@ async fn test_raise_challenge() {
     assert_eq!(
         challenge.reveal_deadline_slot(),
         challenge.raised_slot()
-            + env.config_args.challenger_reveal_timeout_slots
+            + env.challenge_config.challenger_reveal_timeout_slots
     );
     assert_eq!(
         challenge_account.lamports,
@@ -124,12 +107,13 @@ async fn test_raise_challenge() {
 #[tokio::test]
 async fn test_raise_challenge_fails_without_challenger_signature() {
     let mut env = setup_raise_challenge_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let pending = read_pending_commitment(&mut env).await;
     let args = valid_raise_challenge_args(pending.state_commitment_hash);
     let mut ix = raise_challenge(
         env.challenger.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
         args,
@@ -142,74 +126,121 @@ async fn test_raise_challenge_fails_without_challenger_signature() {
 #[tokio::test]
 async fn test_raise_challenge_fails_below_min_stake() {
     let mut env = setup_raise_challenge_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let pending = read_pending_commitment(&mut env).await;
     let mut args = valid_raise_challenge_args(pending.state_commitment_hash);
-    args.stake_lamports = env.config_args.min_challenger_stake - 1;
+    args.stake_lamports = env.challenge_config.min_challenger_stake - 1;
 
-    assert!(raise_v2_challenge(&mut env, args).await.is_err());
+    assert!(raise(&mut env, args).await.is_err());
+}
+
+#[tokio::test]
+async fn test_raise_challenge_uses_submitted_policy() {
+    let mut env = setup_raise_challenge_env().await;
+    submit(&mut env).await.unwrap();
+
+    let submitted_config = env.challenge_config.clone();
+    let mut updated_config = submitted_config.clone();
+    updated_config.min_challenger_stake += 100;
+    updated_config.challenger_reveal_timeout_slots += 100;
+    let ix = update_delegation_cluster(
+        env.config_authority.pubkey(),
+        env.delegation_cluster,
+        UpdateDelegationClusterArgs {
+            challenge_config: Some(updated_config),
+        },
+    );
+    process_ix(&mut env.context, ix, &[&env.config_authority])
+        .await
+        .unwrap();
+
+    let pending = read_pending_commitment(&mut env).await;
+    let mut args = valid_raise_challenge_args(pending.state_commitment_hash);
+    args.stake_lamports = submitted_config.min_challenger_stake;
+    raise(&mut env, args).await.unwrap();
+
+    let challenge_account = env
+        .context
+        .banks_client
+        .get_account(challenge_pda(
+            &env.delegated_account,
+            env.commit_id,
+            &env.challenger.pubkey(),
+        ))
+        .await
+        .unwrap()
+        .unwrap();
+    let challenge =
+        <Challenge as Decodable>::decode(&challenge_account.data).unwrap();
+    assert_eq!(
+        challenge.reveal_deadline_slot(),
+        challenge.raised_slot()
+            + submitted_config.challenger_reveal_timeout_slots
+    );
 }
 
 #[tokio::test]
 async fn test_raise_challenge_fails_after_challenge_window() {
     let mut env = setup_raise_challenge_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
     let pending = read_pending_commitment(&mut env).await;
     let args = valid_raise_challenge_args(pending.state_commitment_hash);
 
-    assert!(raise_v2_challenge(&mut env, args).await.is_err());
+    assert!(raise(&mut env, args).await.is_err());
 }
 
 #[tokio::test]
 async fn test_raise_challenge_fails_with_wrong_state_commitment_hash() {
     let mut env = setup_raise_challenge_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let mut args = valid_raise_challenge_args([1; 32]);
     args.state_commitment_hash[0] ^= 1;
 
-    assert!(raise_v2_challenge(&mut env, args).await.is_err());
+    assert!(raise(&mut env, args).await.is_err());
 }
 
 #[tokio::test]
 async fn test_raise_challenge_fails_when_challenge_already_active() {
     let mut env = setup_raise_challenge_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let pending = read_pending_commitment(&mut env).await;
     let args = valid_raise_challenge_args(pending.state_commitment_hash);
-    raise_v2_challenge(&mut env, args.clone()).await.unwrap();
+    raise(&mut env, args.clone()).await.unwrap();
 
-    assert!(raise_v2_challenge(&mut env, args).await.is_err());
+    assert!(raise(&mut env, args).await.is_err());
 }
 
 #[tokio::test]
 async fn test_finalize_commitment_fails_with_active_challenge() {
     let mut env = setup_raise_challenge_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
-    approve_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
 
     let pending = read_pending_commitment(&mut env).await;
     let args = valid_raise_challenge_args(pending.state_commitment_hash);
-    raise_v2_challenge(&mut env, args).await.unwrap();
+    raise(&mut env, args).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
-    assert!(finalize_v2_commitment(&mut env).await.is_err());
+    assert!(finalize(&mut env).await.is_err());
 }
 
 struct RaiseChallengeEnv {
     context: ProgramTestContext,
+    config_authority: Keypair,
     operator: Keypair,
     verifier: Keypair,
     challenger: Keypair,
+    delegation_cluster: Pubkey,
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
     commit_id: u64,
-    config_args: dlp_api::v2::InitProtocolConfigArgs,
+    challenge_config: ChallengeConfig,
 }
 
 async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
@@ -221,6 +252,9 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
     let verifier = Keypair::new();
     let challenger = Keypair::new();
     let delegated_account = Pubkey::new_unique();
+    let cluster_args = challenge_cluster_args(operator.pubkey());
+    let delegation_cluster =
+        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;
     let final_state_data = vec![9, 8, 7, 6, 5];
@@ -247,7 +281,7 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: create_delegation_record_data(
-                operator.pubkey(),
+                delegation_cluster,
                 committed_owner,
                 Some(record_lamports),
             ),
@@ -272,34 +306,36 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
     );
 
     let mut context = program_test.start_with_context().await;
-    let config_args = valid_protocol_config_args();
-    initialize_protocol_config(
+    initialize_delegation_cluster(
         &context.banks_client,
         &context.payer,
         &authority,
         context.last_blockhash,
-        config_args.clone(),
+        cluster_args.clone(),
     )
     .await;
 
-    register_v2_operator(
+    let challenge_config = cluster_args.challenge_config.unwrap();
+    register_operator_for_cluster(
         &mut context,
         &operator,
         &authority,
-        config_args.min_operator_bond,
+        delegation_cluster,
+        challenge_config.min_operator_bond,
     )
     .await
     .unwrap();
-    register_and_add_v2_verifier(
+    register_and_add_verifier(
         &mut context,
         &verifier,
         &authority,
-        config_args.min_verifier_bond,
+        delegation_cluster,
+        challenge_config.min_verifier_bond,
     )
     .await
     .unwrap();
 
-    write_v2_state_buffer(
+    write_state(
         &mut context,
         &operator,
         delegated_account,
@@ -315,24 +351,25 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
 
     RaiseChallengeEnv {
         context,
+        config_authority: authority,
         operator,
         verifier,
         challenger,
+        delegation_cluster,
         delegated_account,
         committed_owner,
         committed_lamports,
         commit_id,
-        config_args,
+        challenge_config,
     }
 }
 
-async fn post_v2_commitment(
-    env: &mut RaiseChallengeEnv,
-) -> Result<(), BanksClientError> {
-    let ix = post_commitment(
+async fn submit(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
+    let ix = submit_commitment(
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
-        PostCommitmentArgs {
+        SubmitCommitmentArgs {
             commit_id: env.commit_id,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
@@ -344,11 +381,10 @@ async fn post_v2_commitment(
     process_ix(&mut env.context, ix, &[&env.operator]).await
 }
 
-async fn approve_v2_commitment(
-    env: &mut RaiseChallengeEnv,
-) -> Result<(), BanksClientError> {
+async fn approve(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
     let ix = approve_commitment(
         env.verifier.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
     );
@@ -356,12 +392,13 @@ async fn approve_v2_commitment(
     process_ix(&mut env.context, ix, &[&env.verifier]).await
 }
 
-async fn raise_v2_challenge(
+async fn raise(
     env: &mut RaiseChallengeEnv,
     args: RaiseChallengeArgs,
 ) -> Result<(), BanksClientError> {
     let ix = raise_challenge(
         env.challenger.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
         args,
@@ -370,11 +407,10 @@ async fn raise_v2_challenge(
     process_ix(&mut env.context, ix, &[&env.challenger]).await
 }
 
-async fn finalize_v2_commitment(
-    env: &mut RaiseChallengeEnv,
-) -> Result<(), BanksClientError> {
+async fn finalize(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
     let ix = finalize_commitment(
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
     );
@@ -382,39 +418,44 @@ async fn finalize_v2_commitment(
     process_ix(&mut env.context, ix, &[&env.operator]).await
 }
 
-async fn register_v2_operator(
+async fn register_operator_for_cluster(
     context: &mut ProgramTestContext,
     operator: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) -> Result<(), BanksClientError> {
     let ix = register_operator(
         operator.pubkey(),
         authority.pubkey(),
-        RegisterOperatorArgs { amount_lamports },
+        delegation_cluster,
+        RegisterOperatorArgs { stake_lamports },
     );
 
     process_ix(context, ix, &[operator, authority]).await
 }
 
-async fn register_and_add_v2_verifier(
+async fn register_and_add_verifier(
     context: &mut ProgramTestContext,
     verifier: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) -> Result<(), BanksClientError> {
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
-        RegisterVerifierArgs { amount_lamports },
+        delegation_cluster,
+        RegisterVerifierArgs { stake_lamports },
     );
     process_ix(context, ix, &[verifier, authority]).await?;
 
     let ix = update_verifier_registry(
         authority.pubkey(),
+        delegation_cluster,
         verifier.pubkey(),
-        dlp_api::v2::UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+        UpdateVerifierRegistryArgs {
+            action: VerifierRegistryAction::Add.value(),
             weight: 1,
         },
     );
@@ -422,7 +463,7 @@ async fn register_and_add_v2_verifier(
     process_ix(context, ix, &[authority]).await
 }
 
-async fn write_v2_state_buffer(
+async fn write_state(
     context: &mut ProgramTestContext,
     operator: &Keypair,
     account: Pubkey,

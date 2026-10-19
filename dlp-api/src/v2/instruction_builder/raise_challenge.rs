@@ -8,7 +8,7 @@ use wheels::layout::Encodable;
 use crate::{
     compat::{Compatize, Modernize},
     v2::{
-        pda::{challenge_pda, pending_commitment_pda, protocol_config_pda},
+        pda::{challenge_pda, pending_commitment_pda},
         DlpV2Instruction, RaiseChallengeArgs,
     },
 };
@@ -16,6 +16,7 @@ use crate::{
 /// Builds the instruction that raises a hash-only v2 challenge.
 pub fn raise_challenge(
     challenger: Pubkey,
+    delegation_cluster: Pubkey,
     account: Pubkey,
     commit_id: u64,
     args: RaiseChallengeArgs,
@@ -38,7 +39,7 @@ pub fn raise_challenge(
                     .modernize(),
                 false,
             ),
-            AccountMeta::new_readonly(protocol_config_pda().modernize(), false),
+            AccountMeta::new_readonly(delegation_cluster, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
