@@ -5,14 +5,14 @@ use dlp_api::{
     },
     v2::{
         instruction_builder::{
-            approve_commitment, finalize_commitment, raise_challenge,
-            register_operator, register_verifier, submit_commitment,
+            approve_commitment, finalize_commitment, propose_commitment,
+            raise_challenge, register_operator, register_verifier,
             update_delegation_cluster, update_verifier_registry,
             write_state_buffer,
         },
         pda::{challenge_pda, pending_commitment_pda},
-        Challenge, ChallengeConfig, PendingCommitment, RaiseChallengeArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs, SubmitCommitmentArgs,
+        Challenge, ChallengeConfig, PendingCommitment, ProposeCommitmentArgs,
+        RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
         UpdateDelegationClusterArgs, UpdateVerifierRegistryArgs,
         VerifierRegistryAction, WriteStateBufferArgs, CHALLENGE_OUTCOME_NONE,
         CHALLENGE_STATUS_AWAITING_REVEAL,
@@ -45,7 +45,7 @@ use crate::fixtures::{
 #[tokio::test]
 async fn test_raise_challenge() {
     let mut env = setup_raise_challenge_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let pending_before = read_pending_commitment(&mut env).await;
     let args = valid_raise_challenge_args(pending_before.state_commitment_hash);
@@ -107,7 +107,7 @@ async fn test_raise_challenge() {
 #[tokio::test]
 async fn test_raise_challenge_fails_without_challenger_signature() {
     let mut env = setup_raise_challenge_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let pending = read_pending_commitment(&mut env).await;
     let args = valid_raise_challenge_args(pending.state_commitment_hash);
@@ -126,7 +126,7 @@ async fn test_raise_challenge_fails_without_challenger_signature() {
 #[tokio::test]
 async fn test_raise_challenge_fails_below_min_stake() {
     let mut env = setup_raise_challenge_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let pending = read_pending_commitment(&mut env).await;
     let mut args = valid_raise_challenge_args(pending.state_commitment_hash);
@@ -138,7 +138,7 @@ async fn test_raise_challenge_fails_below_min_stake() {
 #[tokio::test]
 async fn test_raise_challenge_uses_submitted_policy() {
     let mut env = setup_raise_challenge_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let submitted_config = env.challenge_config.clone();
     let mut updated_config = submitted_config.clone();
@@ -183,7 +183,7 @@ async fn test_raise_challenge_uses_submitted_policy() {
 #[tokio::test]
 async fn test_raise_challenge_fails_after_challenge_window() {
     let mut env = setup_raise_challenge_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
     let pending = read_pending_commitment(&mut env).await;
@@ -195,7 +195,7 @@ async fn test_raise_challenge_fails_after_challenge_window() {
 #[tokio::test]
 async fn test_raise_challenge_fails_with_wrong_state_commitment_hash() {
     let mut env = setup_raise_challenge_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let mut args = valid_raise_challenge_args([1; 32]);
     args.state_commitment_hash[0] ^= 1;
@@ -206,7 +206,7 @@ async fn test_raise_challenge_fails_with_wrong_state_commitment_hash() {
 #[tokio::test]
 async fn test_raise_challenge_fails_when_challenge_already_active() {
     let mut env = setup_raise_challenge_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let pending = read_pending_commitment(&mut env).await;
     let args = valid_raise_challenge_args(pending.state_commitment_hash);
@@ -218,7 +218,7 @@ async fn test_raise_challenge_fails_when_challenge_already_active() {
 #[tokio::test]
 async fn test_finalize_commitment_fails_with_active_challenge() {
     let mut env = setup_raise_challenge_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     approve(&mut env).await.unwrap();
 
     let pending = read_pending_commitment(&mut env).await;
@@ -364,12 +364,12 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
     }
 }
 
-async fn submit(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
-    let ix = submit_commitment(
+async fn propose(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
+    let ix = propose_commitment(
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        SubmitCommitmentArgs {
+        ProposeCommitmentArgs {
             commit_id: env.commit_id,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
