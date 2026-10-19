@@ -13,8 +13,8 @@ pub enum DlpV2Instruction {
     RegisterVerifier = 102,
     /// Updates the set of verifiers that can be selected.
     UpdateVerifierRegistry = 103,
-    /// Updates global v2 config for future commitments.
-    UpdateProtocolConfig = 104,
+    /// Updates one cluster's challenge policy for future commitments.
+    UpdateDelegationCluster = 104,
 }
 
 impl DlpV2Instruction {
