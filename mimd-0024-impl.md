@@ -47,7 +47,7 @@ Protocol rationale stays in the MIMD.
   salted challenge hash and locks stake; `ChallengerReveal` opens the
   challenged state later.
 - Bind every v2 delegation to a `DelegationCluster`, which supplies the active
-  validator and an immutable direct-or-challenge finalization mode.
+  validator and either omits or stores an immutable challenge configuration.
 
 ## MIMD Drift
 
@@ -91,12 +91,19 @@ undelegations, and other validator-authorized operations. A future
 configured rotation authority. Rotation orchestration, temporary encryption
 keys, key handover, and transaction forwarding stay outside DLP.
 
-Each cluster chooses one immutable finalization mode:
+Each cluster chooses one immutable finalization route through the presence of
+its challenge configuration:
 
-- `Direct` uses the v2 direct commit/finalize path and does not use the
-  challenge state machine.
-- `Challenge` requires `PostCommitment`, verifier approval, the challenge
-  window, and `FinalizeCommitment`.
+- `challenge_config: None` is Direct mode. It uses the v2 direct
+  commit/finalize path and does not create challenge-specific accounts.
+- `challenge_config: Some(...)` is Challenge mode. It requires
+  `PostCommitment`, verifier approval, the challenge window, and
+  `FinalizeCommitment`.
+
+`FinalizationMode` is therefore a conceptual distinction, not a separately
+serialized field. The presence of `challenge_config` is fixed when the cluster
+is initialized, so an update cannot convert an existing Direct cluster into a
+Challenge cluster or vice versa.
 
 The existing v1 direct instructions continue to compare their signer with the
 validator pubkey stored by a v1 delegation. They cannot authorize a v2
@@ -187,7 +194,7 @@ Seed strings are placeholders until frozen.
 
 | Account | PDA seeds | Purpose |
 | --- | --- | --- |
-| `DelegationCluster` | `["delegation-cluster", cluster_id]` | Stable ER identity, active validator, finalization mode, and cluster policy. |
+| `DelegationCluster` | `["delegation-cluster", cluster_id]` | Stable ER identity, active validator, and optional challenge policy. |
 | `OperatorBond` | `["operator-bond", delegation_cluster]` | Cluster-scoped operator stake for the challenge flow that survives validator rotation. |
 | `VerifierBond` | `["verifier-bond", delegation_cluster, verifier]` | Verifier stake isolated to one cluster. |
 | `VerifierRegistry` | `["verifier-registry", delegation_cluster]` | Verifiers selectable for one challenge-enabled cluster. |
@@ -210,33 +217,10 @@ pub enum ActorStatus {
     Jailed,
 }
 
-pub enum FinalizationMode {
-    /// Use the v2 direct commit/finalize path without a challenge window.
-    Direct,
-    /// Require the pending-commitment and challenge state machine.
-    Challenge,
-}
-
-/// PDA: `["delegation-cluster", cluster_id]`
-/// Created by: `InitDelegationCluster`.
-/// Closed by: not normally closed.
-pub struct DelegationCluster {
-    /// Stable identifier used to derive this cluster account.
-    pub cluster_id: Pubkey,
-    /// Signer allowed to update cluster policy and permissioned bootstrap state.
-    pub config_authority: Pubkey,
-    /// Signer allowed to replace `current_validator`.
-    pub validator_rotation_authority: Pubkey,
-    /// Validator currently authorized to act for this cluster.
-    pub current_validator: Pubkey,
-    /// Immutable choice between direct and challenge-based finalization.
-    pub finalization_mode: FinalizationMode,
-    /// Emergency stop for new commitments and other non-exit activity.
-    pub paused: bool,
+/// Challenge-only policy stored by clusters that opt into fraud proofs.
+pub struct ChallengeConfig {
     /// Multisig-controlled signer allowed to call ResolveDispute.
     pub resolver: Pubkey,
-    /// Vault receiving protocol fees, penalties, or slashed funds.
-    pub protocol_fee_vault: Pubkey,
     /// Minimum stake required for an operator to register and stay active.
     pub min_operator_bond: u64,
     /// Minimum stake required for a verifier to register and stay active.
@@ -245,6 +229,10 @@ pub struct DelegationCluster {
     pub min_challenger_stake: u64,
     /// Slots available for approval/challenge after commitment post.
     pub challenge_window_slots: u64,
+    /// Operator-response timeout retained in the configuration schema.
+    pub operator_response_timeout_slots: u64,
+    /// Slots available for the challenger to reveal its committed state.
+    pub challenger_reveal_timeout_slots: u64,
     /// Delay before a winning challenger can claim payout.
     pub payout_timelock_slots: u64,
     /// Maximum number of verifiers selected for one commitment.
@@ -255,6 +243,33 @@ pub struct DelegationCluster {
     pub max_window_extensions: u16,
     /// Penalty charged when a challenged state matches the operator state.
     pub match_penalty_bps: u16,
+}
+
+/// PDA: `["delegation-cluster", cluster_id]`
+/// Created by: `InitDelegationCluster`.
+/// Closed by: not normally closed.
+pub struct DelegationCluster {
+    /// Account type marker.
+    pub discriminator: [u8; 8],
+    /// Canonical PDA bump for this account.
+    pub bump: u8,
+    /// Stable identifier used to derive this cluster account.
+    pub cluster_id: Pubkey,
+    /// Signer allowed to update cluster policy and permissioned bootstrap state.
+    pub config_authority: Pubkey,
+    /// Signer allowed to replace `current_validator`.
+    pub validator_rotation_authority: Pubkey,
+    /// Validator currently authorized to act for this cluster.
+    pub current_validator: Pubkey,
+    /// Emergency stop for new commitments and other non-exit activity.
+    pub paused: bool,
+    /// Vault receiving protocol fees, penalties, or slashed funds.
+    pub protocol_fee_vault: Pubkey,
+    /// `None` selects Direct mode; `Some` selects Challenge mode.
+    /// The field is trailing and flexible, so Direct clusters do not allocate
+    /// account bytes for challenge-only policy.
+    #[flexible]
+    pub challenge_config: Option<ChallengeConfig>,
 }
 // Review: `protocol_fee_vault` may be too vague if it also holds slashed funds
 // and penalties.
@@ -554,8 +569,8 @@ Authority-gated setup and admission instructions for permissioned v2.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `InitDelegationCluster`<ul><li>ix-data: <code>cluster_id, current_validator, validator_rotation_authority, finalization_mode, params</code></li><li>accounts: <strong>config authority signer, DelegationCluster, optional VerifierRegistry, system program</strong></li></ul> | Cluster config authority | Creates one cluster and stores its stable identity, active validator, immutable finalization mode, and policy. `Challenge` requires and creates the cluster registry; `Direct` omits that account. |
-| `UpdateDelegationCluster`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>config authority signer, DelegationCluster</strong></li></ul> | Cluster config authority | Updates mutable policy used by future commitments. It cannot change `cluster_id`, `finalization_mode`, or the validator through this instruction. Existing pending commitments keep the values copied into their accounts. |
+| `InitDelegationCluster`<ul><li>ix-data: <code>cluster_id, current_validator, validator_rotation_authority, challenge_config</code></li><li>accounts: <strong>config authority signer, DelegationCluster, optional VerifierRegistry, system program</strong></li></ul> | Cluster config authority | Creates one cluster and stores its stable identity, active validator, and optional challenge policy. `Some(challenge_config)` requires and creates the cluster registry; `None` omits that account. |
+| `UpdateDelegationCluster`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>config authority signer, DelegationCluster</strong></li></ul> | Cluster config authority | Updates mutable policy used by future commitments. It cannot change `cluster_id`, switch the presence of `challenge_config`, or replace the validator through this instruction. Existing pending commitments keep the values copied into their accounts. |
 | `RegisterOperator`<ul><li>ix-data: <code>stake_lamports</code></li><li>accounts: <strong>current validator signer, config authority signer, OperatorBond, DelegationCluster</strong></li></ul> | Current validator, cluster config authority | Requires `Challenge` mode, creates the cluster's `OperatorBond` PDA at `["operator-bond", delegation_cluster]`, and deposits slashable stake. The bond remains with the cluster when its validator rotates. |
 | `RegisterVerifier`<ul><li>ix-data: <code>stake_lamports</code></li><li>accounts: <strong>verifier signer, config authority signer, VerifierBond, DelegationCluster</strong></li></ul> | Verifier, cluster config authority | Requires `Challenge` mode, creates a cluster-scoped `VerifierBond` PDA at `["verifier-bond", delegation_cluster, verifier]`, and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter that cluster's registry. |
 | `UpdateVerifierRegistry`<ul><li>ix-data: <code>update</code></li><li>accounts: <strong>config authority signer, DelegationCluster, VerifierRegistry, VerifierBond accounts</strong></li></ul> | Cluster config authority | Requires `Challenge` mode and adds or removes verifiers in the cluster's registry. Cross-cluster bonds, invalid entries, duplicates, and inactive verifiers are rejected. |
@@ -704,9 +719,10 @@ pub struct ResolveDisputeData {
   cluster and require its `current_validator` signer. A caller cannot choose a
   different cluster or policy at runtime.
 - `Direct` and `Challenge` are separate v2 finalization routes. The direct
-  commit/finalize path rejects `Challenge` clusters, while `PostCommitment` and
-  `FinalizeCommitment` reject `Direct` clusters. Existing v1 delegations and
-  their direct instructions retain their validator-key authorization model.
+  commit/finalize path requires `challenge_config == None`, while
+  `PostCommitment` and `FinalizeCommitment` require
+  `challenge_config == Some(...)`. Existing v1 delegations and their direct
+  instructions retain their validator-key authorization model.
 - `WriteStateBuffer` must run before `PostCommitment` for the operator state.
   `PostCommitment` rejects if the operator buffer is missing, unfinished, or
   belongs to another account, commit id, or current validator.
@@ -720,11 +736,13 @@ pub struct ResolveDisputeData {
   entries, and starts the challenge window.
 - Verifier selection uses all registered verifiers except the commitment
   operator. If no verifier remains, `PostCommitment` rejects.
-- v2 MVP requires `DelegationCluster.verifiers_per_commitment == 1` and
-  `DelegationCluster.approval_threshold == 1`. `PostCommitment` therefore selects
-  exactly one verifier; if no verifier other than the operator exists, it
-  rejects. Multi-verifier approval can be added later by relaxing config
-  validation and adding an index or bitmap to `ApproveCommitment`.
+- v2 MVP requires
+  `DelegationCluster.challenge_config.verifiers_per_commitment == 1` and
+  `DelegationCluster.challenge_config.approval_threshold == 1`.
+  `PostCommitment` therefore selects exactly one verifier; if no verifier other
+  than the operator exists, it rejects. Multi-verifier approval can be added
+  later by relaxing config validation and adding an index or bitmap to
+  `ApproveCommitment`.
 - `UpdateVerifierRegistry` mutates the registry and increments
   `registry_revision`. It affects future commitments only; it does not change
   `selected_verifiers` already stored on a pending commitment.
@@ -732,17 +750,18 @@ pub struct ResolveDisputeData {
   selected verifier for this commitment, and still be inside the challenge
   window. Duplicate approvals do not increment `approval_count`.
 - `RaiseChallenge` requires an active pending commitment, an open challenge
-  window, no active challenge, and at least `min_challenger_stake`. It creates
-  the `Challenge`, stores `challenge_hash`, locks stake, sets
+  window, no active challenge, and at least
+  `challenge_config.min_challenger_stake`. It creates the `Challenge`, stores
+  `challenge_hash`, locks stake, sets
   `PendingCommitment.active_challenge`, and blocks normal finalization.
 - `ChallengerReveal` validates the salted `challenge_hash` against the opened
   challenger state. If challenger state matches operator state, the challenge is
   terminal, the challenger pays the match penalty, and the commitment can return
   to normal finalization. If challenger state differs, the commitment remains
   blocked until `ResolveDispute`.
-- `ResolveDispute` requires the configured `resolver` signer from
-  the `DelegationCluster` stored by the pending commitment. In DLP v2 this
-  signer is expected to be a multisig-controlled account.
+- `ResolveDispute` requires the configured `challenge_config.resolver` signer
+  from the `DelegationCluster` stored by the pending commitment. In DLP v2
+  this signer is expected to be a multisig-controlled account.
 - `FinalizeCommitment` on the happy path requires closed window, approval
   threshold, no unresolved challenge, and full-state hash match.
 - `FinalizeCommitment` after dispute resolution uses
