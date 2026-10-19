@@ -56,7 +56,7 @@ operator-side place.
 
 The MIMD describes an operator response after a challenge if the pending
 commitment does not already expose full state. For the v2 MVP, the operator must
-write and finalize the DLP-owned `StateBuffer` before `SubmitCommitment`; the
+write and finalize the DLP-owned `StateBuffer` before `ProposeCommitment`; the
 commitment stores hashes and the buffer stays available for finalization or
 dispute review. The operator/validator already has to upload these bytes for
 finalization, so this mostly changes ordering. It also simplifies the state
@@ -97,7 +97,7 @@ its challenge configuration:
 - `challenge_config: None` is Direct mode. It uses the v2 direct
   commit/finalize path and does not create challenge-specific accounts.
 - `challenge_config: Some(...)` is Challenge mode. It requires
-  `SubmitCommitment`, verifier approval, the challenge window, and
+  `ProposeCommitment`, verifier approval, the challenge window, and
   `FinalizeCommitment`.
 
 `FinalizationMode` is therefore a conceptual distinction, not a separately
@@ -362,14 +362,14 @@ pub enum PendingCommitmentStatus {
     Cancelled,
 }
 pub enum ResolvedStateSource {
-    /// Finalize using the operator state buffer used at SubmitCommitment.
+    /// Finalize using the operator state buffer used at ProposeCommitment.
     OperatorState,
     /// Finalize using challenger-opened state after resolution.
     ChallengerState,
 }
 
 /// PDA: `["pending-commitment", account, commit_id]`
-/// Created by: `SubmitCommitment`.
+/// Created by: `ProposeCommitment`.
 /// Closed by: `CloseTerminalAccounts` after finalize, cancel, or expiry.
 ///
 /// One account per delegated account and commit id.
@@ -584,7 +584,7 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
 | `WriteStateBuffer`<ul><li>ix-data: <code>buffer_write</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_id, authority]` seed pattern. The instruction remains cluster-neutral; consuming instructions validate the authority and cluster relationship. |
-| `SubmitCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>current validator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, DelegationCluster, VerifierRegistry</strong></li></ul> | Current validator | Requires `Challenge` mode, verifies the delegation's cluster and current validator, consumes only cluster-scoped bond and registry accounts, selects verifiers, and starts the challenge window. |
+| `ProposeCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>current validator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, DelegationCluster, VerifierRegistry</strong></li></ul> | Current validator | Requires `Challenge` mode, verifies the delegation's cluster and current validator, consumes only cluster-scoped bond and registry accounts, selects verifiers, and starts the challenge window. |
 | `ApproveCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from the selected verifier. v2 MVP requires exactly one selected verifier, so no verifier index is needed. Duplicate approvals do not increase the count. |
 | `RaiseChallenge`<ul><li>ix-data: <code>challenge_hash, stake_lamports</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, system program</strong></li></ul> | Challenger | Requires the cluster stored by the pending commitment, locks challenger stake, stores the salted `challenge_hash`, and blocks normal finalization until reveal, timeout, or resolution. It does not consume challenger state bytes. |
 | `ChallengerReveal`<ul><li>ix-data: <code>revealed_state</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, optional finalized challenger StateBuffer, protocol fee vault</strong></li></ul> | Challenger | Opens the challenged state and salt, validates the stored cluster and `challenge_hash`, compares against the operator state, penalizes matching challenges, or moves mismatches to resolver decision. |
@@ -612,7 +612,7 @@ These instructions are not part of the current v2 MVP flow.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `OperatorChallengeResponse`<ul><li>ix-data: <code>state</code></li><li>accounts: <strong>operator signer, PendingCommitment, Challenge, optional StateBuffer</strong></li></ul> | Operator | Remove candidate. Operator state is already opened by `WriteStateBuffer` before `SubmitCommitment`. |
+| `OperatorChallengeResponse`<ul><li>ix-data: <code>state</code></li><li>accounts: <strong>operator signer, PendingCommitment, Challenge, optional StateBuffer</strong></li></ul> | Operator | Remove candidate. Operator state is already opened by `WriteStateBuffer` before `ProposeCommitment`. |
 | `MarkOperatorTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge</strong></li></ul> | Cranker | Remove candidate. There is no post-challenge operator upload step in the simplified challenge flow. |
 
 ### State Buffer Plan
@@ -645,7 +645,7 @@ pattern:
 The header must bind the same `authority`, `account_pubkey`, and `commit_id`.
 The buffer is inert until a consuming instruction validates the authority role:
 
-- `SubmitCommitment` accepts a finalized buffer whose authority is the operator;
+- `ProposeCommitment` accepts a finalized buffer whose authority is the operator;
 - happy-path `FinalizeCommitment` uses the operator buffer recorded by the
   commitment path;
 - `ChallengerReveal` accepts a challenger buffer only when large revealed data
@@ -664,7 +664,7 @@ Consuming instructions must check:
 - buffer PDA seeds match `account_pubkey`, `commit_id`, and `authority`;
 - buffer is finalized;
 - buffer commitment matches the `PendingCommitment`;
-- authority matches the operator for `SubmitCommitment` and happy-path
+- authority matches the operator for `ProposeCommitment` and happy-path
   `FinalizeCommitment`;
 - authority matches the challenger for `ChallengerReveal` when a challenger
   buffer is supplied.
@@ -684,7 +684,7 @@ pub struct WriteStateBufferData<'a> {
     pub chunk: &'a [u8],
 }
 
-pub struct SubmitCommitmentData {
+pub struct ProposeCommitmentData {
     pub commit_id: u64,
     pub lamports: u64,
     pub owner: Pubkey,
@@ -722,13 +722,13 @@ pub struct ResolveDisputeData {
   different cluster or policy at runtime.
 - `Direct` and `Challenge` are separate v2 finalization routes. The direct
   commit/finalize path requires `challenge_config == None`, while
-  `SubmitCommitment` and `FinalizeCommitment` require
+  `ProposeCommitment` and `FinalizeCommitment` require
   `challenge_config == Some(...)`. Existing v1 delegations and their direct
   instructions retain their validator-key authorization model.
-- `WriteStateBuffer` must run before `SubmitCommitment` for the operator state.
-  `SubmitCommitment` rejects if the operator buffer is missing, unfinished, or
+- `WriteStateBuffer` must run before `ProposeCommitment` for the operator state.
+  `ProposeCommitment` rejects if the operator buffer is missing, unfinished, or
   belongs to another account, commit id, or current validator.
-- `SubmitCommitment` reads `data_hash` from the finalized operator buffer,
+- `ProposeCommitment` reads `data_hash` from the finalized operator buffer,
   verifies that the delegation, operator bond, and verifier registry belong to
   the same cluster, computes `account_state_hash` and
   `state_commitment_hash`, stores the cluster and posting validator in the
@@ -738,11 +738,11 @@ pub struct ResolveDisputeData {
   `VerifierRegistry.next_selection_index` by the number of scanned registry
   entries, and starts the challenge window.
 - Verifier selection uses all registered verifiers except the commitment
-  operator. If no verifier remains, `SubmitCommitment` rejects.
+  operator. If no verifier remains, `ProposeCommitment` rejects.
 - v2 MVP requires
   `DelegationCluster.challenge_config.verifiers_per_commitment == 1` and
   `DelegationCluster.challenge_config.approval_threshold == 1`.
-  `SubmitCommitment` therefore selects exactly one verifier; if no verifier other
+  `ProposeCommitment` therefore selects exactly one verifier; if no verifier other
   than the operator exists, it rejects. Multi-verifier approval can be added
   later by relaxing config validation and adding an index or bitmap to
   `ApproveCommitment`.
@@ -783,8 +783,8 @@ pub struct ResolveDisputeData {
 | Bond or registry belongs to another cluster | Reject before using its stake or verifier entries. |
 | Wrong registry account is passed | Reject. The registry account must match `PendingCommitment.verifier_registry`. |
 | Registry update includes duplicate, unbonded, or inactive verifiers | Reject without changing the registry. |
-| No eligible verifier exists at `SubmitCommitment` | Reject. At least one verifier other than the operator must be selectable. |
-| Registry changes after `SubmitCommitment` | No effect on this commitment. Approvals use stored `selected_verifiers`. |
+| No eligible verifier exists at `ProposeCommitment` | Reject. At least one verifier other than the operator must be selectable. |
+| Registry changes after `ProposeCommitment` | No effect on this commitment. Approvals use stored `selected_verifiers`. |
 | Selected verifier is slashed or exits before approval | Reject that approval. Under-approval handling decides whether to extend or expire. |
 | Revealed challenger state matches operator state | Penalize the challenger and allow normal finalization. |
 | Revealed challenger state differs from operator state | Block normal finalization until resolver chooses the state source. |
@@ -870,7 +870,7 @@ roles and bonds remain separate and cluster-scoped.
 
 **Can an operator verify its own commitment?**
 
-No. `SubmitCommitment` must exclude the posting validator from
+No. `ProposeCommitment` must exclude the posting validator from
 `selected_verifiers`, even if the same pubkey is registered as a verifier.
 
 **Why keep VerifierBond separate from VerifierRegistry?**
