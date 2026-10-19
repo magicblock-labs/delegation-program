@@ -5,8 +5,8 @@ use strum::IntoStaticStr;
 #[derive(Clone, Copy, Debug, Eq, PartialEq, TryFromPrimitive, IntoStaticStr)]
 #[rustfmt::skip]
 pub enum DlpV2Instruction {
-    /// Creates the global v2 protocol config and verifier registry accounts.
-    InitProtocolConfig = 100,
+    /// Creates one delegation cluster and its optional verifier registry.
+    InitDelegationCluster = 100,
 }
 
 impl DlpV2Instruction {

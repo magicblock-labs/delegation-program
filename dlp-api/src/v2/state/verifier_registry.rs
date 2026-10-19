@@ -2,8 +2,8 @@ use wheels::fixed_offset_layout;
 
 use crate::compat::Pubkey;
 
-/// PDA: `["verifier-registry"]`.
-/// Created by `InitProtocolConfig`; updated by `UpdateVerifierRegistry`.
+/// PDA: `["verifier-registry", delegation_cluster]`.
+/// Created by `InitDelegationCluster`; updated by `UpdateVerifierRegistry`.
 /// Not normally closed.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[fixed_offset_layout(buffer_offset = 0)]
@@ -13,6 +13,9 @@ pub struct VerifierRegistry {
 
     /// Canonical PDA bump for this account.
     pub bump: u8,
+
+    /// Delegation cluster whose verifiers this registry contains.
+    pub delegation_cluster: Pubkey,
 
     /// Round-robin start cursor used by the next commitment selection.
     pub next_selection_index: u64,

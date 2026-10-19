@@ -1,5 +1,5 @@
-mod protocol_config;
+mod delegation_cluster;
 mod verifier_registry;
 
-pub use protocol_config::*;
+pub use delegation_cluster::*;
 pub use verifier_registry::*;

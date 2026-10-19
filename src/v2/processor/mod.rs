@@ -13,8 +13,8 @@ pub fn process_instruction(
     ix: DlpV2Instruction,
 ) -> ProgramResult {
     match ix {
-        DlpV2Instruction::InitProtocolConfig => {
-            process_init_protocol_config(accounts, data)
+        DlpV2Instruction::InitDelegationCluster => {
+            process_init_delegation_cluster(accounts, data)
         }
     }
 }

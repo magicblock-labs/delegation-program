@@ -1,3 +1,3 @@
-mod init_protocol_config;
+mod init_delegation_cluster;
 
-pub use init_protocol_config::*;
+pub use init_delegation_cluster::*;
