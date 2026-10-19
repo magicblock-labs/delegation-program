@@ -31,9 +31,16 @@ pub fn operator_bond_pda(delegation_cluster: &Pubkey) -> Pubkey {
     .0
 }
 
-pub fn verifier_bond_pda(verifier: &Pubkey) -> Pubkey {
+pub fn verifier_bond_pda(
+    delegation_cluster: &Pubkey,
+    verifier: &Pubkey,
+) -> Pubkey {
     Pubkey::find_program_address(
-        &[VERIFIER_BOND_SEED, verifier.as_ref()],
+        &[
+            VERIFIER_BOND_SEED,
+            delegation_cluster.as_ref(),
+            verifier.as_ref(),
+        ],
         &crate::id(),
     )
     .0

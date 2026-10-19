@@ -11,6 +11,9 @@ pub struct VerifierBond {
     /// Canonical PDA bump for this account.
     pub bump: u8,
 
+    /// Delegation cluster in which this verifier is registered.
+    pub delegation_cluster: Pubkey,
+
     /// Verifier identity allowed to approve commitments through this bond.
     pub verifier_identity: Pubkey,
 

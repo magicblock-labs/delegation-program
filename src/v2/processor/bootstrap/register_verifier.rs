@@ -1,8 +1,8 @@
 use dlp_api::{
     error::DlpError,
     v2::{
-        pda::{PROTOCOL_CONFIG_SEED, VERIFIER_BOND_SEED},
-        ProtocolConfig, RegisterVerifierArgs, VerifierBond, VerifierStatus,
+        pda::{DELEGATION_CLUSTER_SEED, VERIFIER_BOND_SEED},
+        DelegationCluster, RegisterVerifierArgs, VerifierBond, VerifierStatus,
     },
 };
 use pinocchio::{
@@ -15,6 +15,7 @@ use pinocchio_system::instructions as system;
 use wheels::{
     layout::{Decodable, Encodable},
     require, require_eq_keys, require_ge, require_n_accounts, require_signer,
+    require_some,
 };
 
 use crate::{
@@ -28,9 +29,9 @@ use crate::{
 ///
 /// Accounts:
 /// 0: `[signer, writable]` verifier identity and stake payer
-/// 1: `[signer]`           protocol authority that admits the verifier
+/// 1: `[signer]`           cluster config authority
 /// 2: `[writable]`         VerifierBond PDA
-/// 3: `[]`                 ProtocolConfig PDA
+/// 3: `[]`                 DelegationCluster PDA
 /// 4: `[]`                 system program, required by system CPI
 #[inline(never)]
 pub fn process_register_verifier(
@@ -39,48 +40,63 @@ pub fn process_register_verifier(
 ) -> ProgramResult {
     let [
         verifier, // force multi-line
-        authority,
+        config_authority,
         verifier_bond,
-        protocol_config,
+        delegation_cluster,
         _system_program,
     ] = require_n_accounts!(accounts, 5);
 
     require_signer!(verifier);
-    require_signer!(authority);
+    require_signer!(config_authority);
 
     let args = RegisterVerifierArgs::decode(data)?;
 
+    let delegation_cluster_data = delegation_cluster.try_borrow()?;
+    let delegation_cluster_state =
+        DelegationCluster::decode(delegation_cluster_data.as_ref())?;
     require_initialized_pda(
-        protocol_config,
-        &[PROTOCOL_CONFIG_SEED],
+        delegation_cluster,
+        &[
+            DELEGATION_CLUSTER_SEED,
+            delegation_cluster_state.cluster_id().as_ref(),
+        ],
         &crate::fast::ID,
         false,
-        "protocol config",
+        "delegation cluster",
     )?;
-    let protocol_config_data = protocol_config.try_borrow()?;
-    let protocol_config_state =
-        ProtocolConfig::decode(protocol_config_data.as_ref())?;
     require!(
-        protocol_config_state.discriminator() == ProtocolConfig::DISCRIMINATOR,
+        delegation_cluster_state.discriminator()
+            == DelegationCluster::DISCRIMINATOR,
         ProgramError::InvalidAccountData
     );
-
     require_eq_keys!(
-        protocol_config_state.authority(),
-        authority.address(),
+        delegation_cluster_state.config_authority(),
+        config_authority.address(),
         DlpError::InvalidAuthority
+    );
+    require!(
+        !delegation_cluster_state.paused(),
+        ProgramError::InvalidAccountData
+    );
+    let challenge_config = require_some!(
+        delegation_cluster_state.challenge_config(),
+        ProgramError::InvalidAccountData
     );
     require_ge!(
         args.stake_lamports(),
-        protocol_config_state.min_verifier_bond(),
+        challenge_config.min_verifier_bond(),
         ProgramError::InvalidInstructionData
     );
 
-    drop(protocol_config_data);
+    drop(delegation_cluster_data);
 
     let verifier_bond_bump = require_uninitialized_pda(
         verifier_bond,
-        &[VERIFIER_BOND_SEED, verifier.address().as_ref()],
+        &[
+            VERIFIER_BOND_SEED,
+            delegation_cluster.address().as_ref(),
+            verifier.address().as_ref(),
+        ],
         &crate::fast::ID,
         true,
         StandardCtx::new("verifier bond"),
@@ -92,6 +108,7 @@ pub fn process_register_verifier(
         AccountSpace::CurrentRent(VerifierBond::DATA_LEN),
         &[Signer::from(&[
             Seed::from(VERIFIER_BOND_SEED),
+            Seed::from(delegation_cluster.address().as_ref()),
             Seed::from(verifier.address().as_ref()),
             Seed::from(&[verifier_bond_bump]),
         ])],
@@ -108,6 +125,7 @@ pub fn process_register_verifier(
     VerifierBond {
         discriminator: VerifierBond::DISCRIMINATOR,
         bump: verifier_bond_bump,
+        delegation_cluster: *delegation_cluster.address(),
         verifier_identity: verifier.address().to_bytes().into(),
         stake_lamports: args.stake_lamports(),
         status: VerifierStatus::Active.value(),

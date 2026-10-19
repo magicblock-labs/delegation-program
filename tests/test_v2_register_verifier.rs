@@ -16,27 +16,38 @@ use wheels::layout::Decodable;
 mod fixtures;
 
 use crate::fixtures::v2::{
-    initialize_protocol_config, setup_program_test_env,
-    valid_protocol_config_args,
+    challenge_cluster_args, direct_cluster_args, initialize_delegation_cluster,
+    setup_program_test_env,
 };
 
 #[tokio::test]
 async fn test_register_verifier() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
+    let cluster_args = challenge_cluster_args(Pubkey::new_unique());
+    let min_verifier_bond = cluster_args
+        .challenge_config
+        .as_ref()
+        .unwrap()
+        .min_verifier_bond;
+    let delegation_cluster =
+        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
     let (verifier_bond_address, expected_verifier_bond_bump) =
         Pubkey::find_program_address(
-            &[VERIFIER_BOND_SEED, verifier.pubkey().as_ref()],
+            &[
+                VERIFIER_BOND_SEED,
+                delegation_cluster.as_ref(),
+                verifier.pubkey().as_ref(),
+            ],
             &dlp_api::id(),
         );
 
-    initialize_protocol_config(
+    initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args.clone(),
+        cluster_args,
     )
     .await;
     fund_verifier(&banks, &payer, &verifier).await;
@@ -45,8 +56,9 @@ async fn test_register_verifier() {
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
+        delegation_cluster,
         RegisterVerifierArgs {
-            stake_lamports: config_args.min_verifier_bond,
+            stake_lamports: min_verifier_bond,
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -67,15 +79,13 @@ async fn test_register_verifier() {
         VerifierBond::decode(&verifier_bond_account.data).unwrap();
     let expected_verifier_bond_lamports = Rent::default()
         .minimum_balance(VerifierBond::DATA_LEN)
-        + config_args.min_verifier_bond;
+        + min_verifier_bond;
 
     assert_eq!(verifier_bond.discriminator(), VerifierBond::DISCRIMINATOR);
     assert_eq!(verifier_bond.bump(), expected_verifier_bond_bump);
+    assert_eq!(*verifier_bond.delegation_cluster(), delegation_cluster);
     assert_eq!(*verifier_bond.verifier_identity(), verifier.pubkey());
-    assert_eq!(
-        verifier_bond.stake_lamports(),
-        config_args.min_verifier_bond
-    );
+    assert_eq!(verifier_bond.stake_lamports(), min_verifier_bond);
     assert_eq!(verifier_bond.status(), VerifierStatus::Active.value());
     assert!(verifier_bond.registered_slot() > 0);
     assert_eq!(verifier_bond.withdraw_requested_slot(), None);
@@ -88,15 +98,20 @@ async fn test_register_verifier() {
 #[tokio::test]
 async fn test_register_verifier_fails_with_wrong_authority() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
+    let cluster_args = challenge_cluster_args(Pubkey::new_unique());
+    let min_verifier_bond = cluster_args
+        .challenge_config
+        .as_ref()
+        .unwrap()
+        .min_verifier_bond;
 
-    initialize_protocol_config(
+    let delegation_cluster = initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args.clone(),
+        cluster_args,
     )
     .await;
     fund_verifier(&banks, &payer, &verifier).await;
@@ -106,8 +121,9 @@ async fn test_register_verifier_fails_with_wrong_authority() {
     let ix = register_verifier(
         verifier.pubkey(),
         wrong_authority.pubkey(),
+        delegation_cluster,
         RegisterVerifierArgs {
-            stake_lamports: config_args.min_verifier_bond,
+            stake_lamports: min_verifier_bond,
         },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -123,15 +139,15 @@ async fn test_register_verifier_fails_with_wrong_authority() {
 #[tokio::test]
 async fn test_register_verifier_fails_with_low_stake() {
     let (banks, payer, authority, blockhash) = setup_program_test_env().await;
-    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
+    let cluster_args = challenge_cluster_args(Pubkey::new_unique());
 
-    initialize_protocol_config(
+    let delegation_cluster = initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args,
+        cluster_args,
     )
     .await;
     fund_verifier(&banks, &payer, &verifier).await;
@@ -140,6 +156,7 @@ async fn test_register_verifier_fails_with_low_stake() {
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
+        delegation_cluster,
         RegisterVerifierArgs { stake_lamports: 0 },
     );
     let tx = Transaction::new_signed_with_payer(
@@ -156,15 +173,20 @@ async fn test_register_verifier_fails_with_low_stake() {
 async fn test_register_verifier_fails_twice() {
     let (mut banks, payer, authority, blockhash) =
         setup_program_test_env().await;
-    let config_args = valid_protocol_config_args();
     let verifier = Keypair::new();
+    let cluster_args = challenge_cluster_args(Pubkey::new_unique());
+    let min_verifier_bond = cluster_args
+        .challenge_config
+        .as_ref()
+        .unwrap()
+        .min_verifier_bond;
 
-    initialize_protocol_config(
+    let delegation_cluster = initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args.clone(),
+        cluster_args,
     )
     .await;
     fund_verifier(&banks, &payer, &verifier).await;
@@ -173,8 +195,9 @@ async fn test_register_verifier_fails_twice() {
         let ix = register_verifier(
             verifier.pubkey(),
             authority.pubkey(),
+            delegation_cluster,
             RegisterVerifierArgs {
-                stake_lamports: config_args.min_verifier_bond,
+                stake_lamports: min_verifier_bond,
             },
         );
         let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
@@ -195,8 +218,9 @@ async fn test_register_verifier_fails_twice() {
         let ix = register_verifier(
             verifier.pubkey(),
             authority.pubkey(),
+            delegation_cluster,
             RegisterVerifierArgs {
-                stake_lamports: config_args.min_verifier_bond,
+                stake_lamports: min_verifier_bond,
             },
         );
         let latest_blockhash = banks.get_latest_blockhash().await.unwrap();
@@ -213,6 +237,36 @@ async fn test_register_verifier_fails_twice() {
 
         assert!(banks.process_transaction(tx).await.is_err());
     }
+}
+
+#[tokio::test]
+async fn test_register_verifier_rejects_direct_cluster() {
+    let (banks, payer, authority, blockhash) = setup_program_test_env().await;
+    let verifier = Keypair::new();
+    let delegation_cluster = initialize_delegation_cluster(
+        &banks,
+        &payer,
+        &authority,
+        blockhash,
+        direct_cluster_args(Pubkey::new_unique()),
+    )
+    .await;
+    fund_verifier(&banks, &payer, &verifier).await;
+
+    let ix = register_verifier(
+        verifier.pubkey(),
+        authority.pubkey(),
+        delegation_cluster,
+        RegisterVerifierArgs { stake_lamports: 1 },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &verifier, &authority],
+        banks.get_latest_blockhash().await.unwrap(),
+    );
+
+    assert!(banks.process_transaction(tx).await.is_err());
 }
 
 async fn fund_verifier(
