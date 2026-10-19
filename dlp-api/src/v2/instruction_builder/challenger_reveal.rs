@@ -8,10 +8,7 @@ use crate::{
     compat::{Compatize, Modernize},
     pda::fees_vault_pda,
     v2::{
-        pda::{
-            challenge_pda, pending_commitment_pda, protocol_config_pda,
-            state_buffer_pda,
-        },
+        pda::{challenge_pda, pending_commitment_pda, state_buffer_pda},
         ChallengerRevealArgs, DlpV2Instruction,
     },
 };
@@ -20,6 +17,7 @@ use crate::{
 pub fn challenger_reveal(
     challenger: Pubkey,
     operator: Pubkey,
+    delegation_cluster: Pubkey,
     account: Pubkey,
     commit_id: u64,
     args: ChallengerRevealArgs,
@@ -60,7 +58,7 @@ pub fn challenger_reveal(
                 .modernize(),
                 false,
             ),
-            AccountMeta::new_readonly(protocol_config_pda().modernize(), false),
+            AccountMeta::new_readonly(delegation_cluster, false),
             AccountMeta::new(fees_vault_pda().modernize(), false),
         ],
         data: [

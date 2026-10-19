@@ -5,19 +5,20 @@ use dlp_api::{
     },
     v2::{
         instruction_builder::{
-            challenger_reveal, post_commitment, raise_challenge,
-            register_operator, register_verifier, update_verifier_registry,
-            write_state_buffer,
+            challenger_reveal, raise_challenge, register_operator,
+            register_verifier, submit_commitment, update_delegation_cluster,
+            update_verifier_registry, write_state_buffer,
         },
         pda::{challenge_pda, pending_commitment_pda, state_buffer_pda},
-        Challenge, ChallengerRevealArgs, PendingCommitment, PostCommitmentArgs,
+        Challenge, ChallengeConfig, ChallengerRevealArgs, PendingCommitment,
         RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
+        SubmitCommitmentArgs, UpdateDelegationClusterArgs,
+        UpdateVerifierRegistryArgs, VerifierRegistryAction,
         WriteStateBufferArgs, CHALLENGE_OUTCOME_INVALID_REVEAL,
         CHALLENGE_OUTCOME_MATCHING_STATE_CHALLENGER_PENALIZED,
         CHALLENGE_OUTCOME_NONE, CHALLENGE_STATUS_AWAITING_RESOLVER,
         CHALLENGE_STATUS_TERMINAL, PENDING_COMMITMENT_STATUS_ACTIVE,
         PENDING_COMMITMENT_STATUS_AWAITING_DISPUTE_RESOLUTION,
-        VERIFIER_REGISTRY_ACTION_ADD,
     },
 };
 use solana_program::{native_token::LAMPORTS_PER_SOL, rent::Rent};
@@ -40,7 +41,7 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
-    v2::{initialize_protocol_config, valid_protocol_config_args},
+    v2::{challenge_cluster_args, initialize_delegation_cluster},
 };
 
 const CHALLENGE_STAKE: u64 = 10_000;
@@ -49,7 +50,21 @@ const CHALLENGE_STAKE: u64 = 10_000;
 async fn test_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
 ) {
     let mut env = setup_challenger_reveal_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+
+    let submitted_match_penalty_bps = env.challenge_config.match_penalty_bps;
+    let mut updated_config = env.challenge_config.clone();
+    updated_config.match_penalty_bps += 100;
+    let ix = update_delegation_cluster(
+        env.config_authority.pubkey(),
+        env.delegation_cluster,
+        UpdateDelegationClusterArgs {
+            challenge_config: Some(updated_config),
+        },
+    );
+    process_ix(&mut env.context, ix, &[&env.config_authority])
+        .await
+        .unwrap();
 
     let data_hash = account_data_hash(&env.operator_state_data);
     let reveal_args = valid_reveal_args(
@@ -67,15 +82,13 @@ async fn test_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
     let fee_vault_before =
         account_lamports(&mut env.context, fees_vault_pda()).await;
 
-    raise_v2_challenge_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
+    raise_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
-    reveal_v2_challenge(&mut env, reveal_args.clone())
-        .await
-        .unwrap();
+    reveal(&mut env, reveal_args.clone()).await.unwrap();
 
     let penalty =
-        CHALLENGE_STAKE * u64::from(env.config_args.match_penalty_bps) / 10_000;
+        CHALLENGE_STAKE * u64::from(submitted_match_penalty_bps) / 10_000;
     let challenge_rent = Rent::default().minimum_balance(Challenge::DATA_LEN);
     let challenge = read_challenge(&mut env).await;
     assert_eq!(challenge.status, CHALLENGE_STATUS_TERMINAL);
@@ -113,7 +126,7 @@ async fn test_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
 #[tokio::test]
 async fn test_challenger_reveal_mismatch_moves_to_resolver() {
     let mut env = setup_challenger_reveal_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let challenger_data = vec![4, 3, 2, 1];
     let reveal_args = valid_reveal_args(
@@ -130,12 +143,10 @@ async fn test_challenger_reveal_mismatch_moves_to_resolver() {
     let fee_vault_before =
         account_lamports(&mut env.context, fees_vault_pda()).await;
 
-    raise_v2_challenge_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
+    raise_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
-    reveal_v2_challenge(&mut env, reveal_args.clone())
-        .await
-        .unwrap();
+    reveal(&mut env, reveal_args.clone()).await.unwrap();
 
     let challenge_rent = Rent::default().minimum_balance(Challenge::DATA_LEN);
     let challenge_address = challenge_address(&env);
@@ -167,7 +178,7 @@ async fn test_challenger_reveal_mismatch_moves_to_resolver() {
 #[tokio::test]
 async fn test_challenger_reveal_invalid_hash_slashes_and_reopens_commitment() {
     let mut env = setup_challenger_reveal_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let challenger_data = vec![4, 3, 2, 1];
     let raise_reveal_args = valid_reveal_args(
@@ -186,16 +197,10 @@ async fn test_challenger_reveal_invalid_hash_slashes_and_reopens_commitment() {
     let fee_vault_before =
         account_lamports(&mut env.context, fees_vault_pda()).await;
 
-    raise_v2_challenge_for_reveal(
-        &mut env,
-        &raise_reveal_args,
-        CHALLENGE_STAKE,
-    )
-    .await
-    .unwrap();
-    reveal_v2_challenge(&mut env, actual_reveal_args.clone())
+    raise_for_reveal(&mut env, &raise_reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
+    reveal(&mut env, actual_reveal_args.clone()).await.unwrap();
 
     let challenge_rent = Rent::default().minimum_balance(Challenge::DATA_LEN);
     let challenge = read_challenge(&mut env).await;
@@ -223,7 +228,7 @@ async fn test_challenger_reveal_invalid_hash_slashes_and_reopens_commitment() {
 #[tokio::test]
 async fn test_challenger_reveal_fails_after_reveal_deadline() {
     let mut env = setup_challenger_reveal_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let data_hash = account_data_hash(&env.operator_state_data);
     let reveal_args = valid_reveal_args(
@@ -235,7 +240,7 @@ async fn test_challenger_reveal_fails_after_reveal_deadline() {
     write_challenger_state_buffer(&mut env, challenger_data)
         .await
         .unwrap();
-    raise_v2_challenge_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
+    raise_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
 
@@ -244,13 +249,13 @@ async fn test_challenger_reveal_fails_after_reveal_deadline() {
         .warp_to_slot(challenge.reveal_deadline_slot + 1)
         .unwrap();
 
-    assert!(reveal_v2_challenge(&mut env, reveal_args).await.is_err());
+    assert!(reveal(&mut env, reveal_args).await.is_err());
 }
 
 #[tokio::test]
 async fn test_challenger_reveal_fails_with_wrong_challenger_buffer() {
     let mut env = setup_challenger_reveal_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let data_hash = account_data_hash(&env.operator_state_data);
     let reveal_args = valid_reveal_args(
@@ -258,13 +263,14 @@ async fn test_challenger_reveal_fails_with_wrong_challenger_buffer() {
         env.committed_owner,
         data_hash,
     );
-    raise_v2_challenge_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
+    raise_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
 
     let mut ix = challenger_reveal(
         env.challenger.pubkey(),
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
         reveal_args,
@@ -283,7 +289,7 @@ async fn test_challenger_reveal_fails_with_wrong_challenger_buffer() {
 #[tokio::test]
 async fn test_challenger_reveal_fails_with_unfinalized_challenger_buffer() {
     let mut env = setup_challenger_reveal_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let expected_data = [1, 2, 3, 4];
     let reveal_args = valid_reveal_args(
@@ -303,17 +309,17 @@ async fn test_challenger_reveal_fails_with_unfinalized_challenger_buffer() {
     )
     .await
     .unwrap();
-    raise_v2_challenge_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
+    raise_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
 
-    assert!(reveal_v2_challenge(&mut env, reveal_args).await.is_err());
+    assert!(reveal(&mut env, reveal_args).await.is_err());
 }
 
 #[tokio::test]
 async fn test_challenger_reveal_fails_with_wrong_fee_vault() {
     let mut env = setup_challenger_reveal_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let data_hash = account_data_hash(&env.operator_state_data);
     let reveal_args = valid_reveal_args(
@@ -325,13 +331,14 @@ async fn test_challenger_reveal_fails_with_wrong_fee_vault() {
     write_challenger_state_buffer(&mut env, challenger_data)
         .await
         .unwrap();
-    raise_v2_challenge_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
+    raise_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
 
     let mut ix = challenger_reveal(
         env.challenger.pubkey(),
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
         reveal_args,
@@ -345,13 +352,15 @@ async fn test_challenger_reveal_fails_with_wrong_fee_vault() {
 
 struct ChallengerRevealEnv {
     context: ProgramTestContext,
+    config_authority: Keypair,
     operator: Keypair,
     challenger: Keypair,
+    delegation_cluster: Pubkey,
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
     commit_id: u64,
-    config_args: dlp_api::v2::InitProtocolConfigArgs,
+    challenge_config: ChallengeConfig,
     operator_state_data: Vec<u8>,
 }
 
@@ -364,6 +373,9 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     let verifier = Keypair::new();
     let challenger = Keypair::new();
     let delegated_account = Pubkey::new_unique();
+    let cluster_args = challenge_cluster_args(operator.pubkey());
+    let delegation_cluster =
+        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;
     let operator_state_data = vec![9, 8, 7, 6, 5];
@@ -391,7 +403,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: create_delegation_record_data(
-                operator.pubkey(),
+                delegation_cluster,
                 committed_owner,
                 Some(record_lamports),
             ),
@@ -416,34 +428,36 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     );
 
     let mut context = program_test.start_with_context().await;
-    let config_args = valid_protocol_config_args();
-    initialize_protocol_config(
+    initialize_delegation_cluster(
         &context.banks_client,
         &context.payer,
         &authority,
         context.last_blockhash,
-        config_args.clone(),
+        cluster_args.clone(),
     )
     .await;
 
-    register_v2_operator(
+    let challenge_config = cluster_args.challenge_config.unwrap();
+    register_operator_for_cluster(
         &mut context,
         &operator,
         &authority,
-        config_args.min_operator_bond,
+        delegation_cluster,
+        challenge_config.min_operator_bond,
     )
     .await
     .unwrap();
-    register_and_add_v2_verifier(
+    register_and_add_verifier(
         &mut context,
         &verifier,
         &authority,
-        config_args.min_verifier_bond,
+        delegation_cluster,
+        challenge_config.min_verifier_bond,
     )
     .await
     .unwrap();
 
-    write_v2_state_buffer(
+    write_state(
         &mut context,
         &operator,
         delegated_account,
@@ -459,24 +473,25 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
 
     ChallengerRevealEnv {
         context,
+        config_authority: authority,
         operator,
         challenger,
+        delegation_cluster,
         delegated_account,
         committed_owner,
         committed_lamports,
         commit_id,
-        config_args,
+        challenge_config,
         operator_state_data,
     }
 }
 
-async fn post_v2_commitment(
-    env: &mut ChallengerRevealEnv,
-) -> Result<(), BanksClientError> {
-    let ix = post_commitment(
+async fn submit(env: &mut ChallengerRevealEnv) -> Result<(), BanksClientError> {
+    let ix = submit_commitment(
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
-        PostCommitmentArgs {
+        SubmitCommitmentArgs {
             commit_id: env.commit_id,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
@@ -488,7 +503,7 @@ async fn post_v2_commitment(
     process_ix(&mut env.context, ix, &[&env.operator]).await
 }
 
-async fn raise_v2_challenge_for_reveal(
+async fn raise_for_reveal(
     env: &mut ChallengerRevealEnv,
     reveal_args: &ChallengerRevealArgs,
     stake_lamports: u64,
@@ -496,6 +511,7 @@ async fn raise_v2_challenge_for_reveal(
     let pending = read_pending_commitment(env).await;
     let ix = raise_challenge(
         env.challenger.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
         RaiseChallengeArgs {
@@ -515,13 +531,14 @@ async fn raise_v2_challenge_for_reveal(
     process_ix(&mut env.context, ix, &[&env.challenger]).await
 }
 
-async fn reveal_v2_challenge(
+async fn reveal(
     env: &mut ChallengerRevealEnv,
     args: ChallengerRevealArgs,
 ) -> Result<(), BanksClientError> {
     let ix = challenger_reveal(
         env.challenger.pubkey(),
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
         args,
@@ -550,7 +567,7 @@ async fn write_challenger_state_buffer_args(
     env: &mut ChallengerRevealEnv,
     args: WriteStateBufferArgs,
 ) -> Result<(), BanksClientError> {
-    write_v2_state_buffer(
+    write_state(
         &mut env.context,
         &env.challenger,
         env.delegated_account,
@@ -559,39 +576,44 @@ async fn write_challenger_state_buffer_args(
     .await
 }
 
-async fn register_v2_operator(
+async fn register_operator_for_cluster(
     context: &mut ProgramTestContext,
     operator: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) -> Result<(), BanksClientError> {
     let ix = register_operator(
         operator.pubkey(),
         authority.pubkey(),
-        RegisterOperatorArgs { amount_lamports },
+        delegation_cluster,
+        RegisterOperatorArgs { stake_lamports },
     );
 
     process_ix(context, ix, &[operator, authority]).await
 }
 
-async fn register_and_add_v2_verifier(
+async fn register_and_add_verifier(
     context: &mut ProgramTestContext,
     verifier: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) -> Result<(), BanksClientError> {
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
-        RegisterVerifierArgs { amount_lamports },
+        delegation_cluster,
+        RegisterVerifierArgs { stake_lamports },
     );
     process_ix(context, ix, &[verifier, authority]).await?;
 
     let ix = update_verifier_registry(
         authority.pubkey(),
+        delegation_cluster,
         verifier.pubkey(),
-        dlp_api::v2::UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+        UpdateVerifierRegistryArgs {
+            action: VerifierRegistryAction::Add.value(),
             weight: 1,
         },
     );
@@ -599,7 +621,7 @@ async fn register_and_add_v2_verifier(
     process_ix(context, ix, &[authority]).await
 }
 
-async fn write_v2_state_buffer(
+async fn write_state(
     context: &mut ProgramTestContext,
     authority: &Keypair,
     account: Pubkey,
