@@ -6,13 +6,13 @@ use dlp_api::{
     state::{DelegationMetadata, DelegationRecord},
     v2::{
         instruction_builder::{
-            approve_commitment, finalize_commitment, register_operator,
-            register_verifier, submit_commitment, update_verifier_registry,
+            approve_commitment, finalize_commitment, propose_commitment,
+            register_operator, register_verifier, update_verifier_registry,
             write_state_buffer,
         },
         pda::pending_commitment_pda,
-        PendingCommitment, RegisterOperatorArgs, RegisterVerifierArgs,
-        SubmitCommitmentArgs, UpdateVerifierRegistryArgs,
+        PendingCommitment, ProposeCommitmentArgs, RegisterOperatorArgs,
+        RegisterVerifierArgs, UpdateVerifierRegistryArgs,
         VerifierRegistryAction, WriteStateBufferArgs,
         PENDING_COMMITMENT_STATUS_FINALIZED,
     },
@@ -49,7 +49,7 @@ async fn test_finalize_commitment() {
     )
     .await;
 
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
     finalize(&mut env).await.unwrap();
@@ -86,7 +86,7 @@ async fn test_finalize_commitment_fails_before_window_closes() {
     )
     .await;
 
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     approve(&mut env).await.unwrap();
 
     assert!(finalize(&mut env).await.is_err());
@@ -101,7 +101,7 @@ async fn test_finalize_commitment_fails_without_approval() {
     )
     .await;
 
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
     assert!(finalize(&mut env).await.is_err());
@@ -119,7 +119,7 @@ async fn test_finalize_commitment_fails_with_wrong_operator() {
     add_lamport_account_to_context(&mut env.context, wrong_operator.pubkey())
         .await;
 
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
@@ -141,7 +141,7 @@ async fn test_finalize_commitment_fails_with_owner_mismatch() {
         setup_finalize_commitment_env(LAMPORTS_PER_SOL, LAMPORTS_PER_SOL, true)
             .await;
 
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
@@ -157,7 +157,7 @@ async fn test_finalize_commitment_lamport_increase() {
     )
     .await;
 
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
@@ -188,7 +188,7 @@ async fn test_finalize_commitment_lamport_decrease() {
     )
     .await;
 
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
@@ -219,7 +219,7 @@ async fn test_finalize_commitment_fails_twice() {
     )
     .await;
 
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
     approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
     finalize(&mut env).await.unwrap();
@@ -363,14 +363,14 @@ async fn setup_finalize_commitment_env(
     }
 }
 
-async fn submit(
+async fn propose(
     env: &mut FinalizeCommitmentEnv,
 ) -> Result<(), BanksClientError> {
-    let ix = submit_commitment(
+    let ix = propose_commitment(
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        SubmitCommitmentArgs {
+        ProposeCommitmentArgs {
             commit_id: env.commit_id,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
