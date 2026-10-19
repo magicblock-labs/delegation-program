@@ -22,7 +22,10 @@ Protocol rationale stays in the MIMD.
   - [Important Instruction Rules](#important-instruction-rules)
   - [Failure Scenarios](#failure-scenarios)
 - [Flows](#flows)
+  - [Happy Path](#happy-path)
+  - [Challenge Paths](#challenge-paths)
   - [Dispute Resolution](#dispute-resolution)
+  - [Under-Approval](#under-approval)
 - [Validator Repo Responsibilities](#validator-repo-responsibilities)
 - [Design FAQ](#design-faq)
 - [Open Design Points](#open-design-points)
@@ -79,7 +82,7 @@ should start permissioned, but with the permissionless account shape:
   verifier registry changes, and dispute resolution are controlled by configured
   signers.
 
-So our DLP v2 "permissioned" means: 
+So our DLP v2 "permissioned" means:
 
 - use `OperatorBond`, `VerifierBond`, `VerifierRegistry`,
   `PendingCommitment`, `Challenge`, and payout accounts from the start;
