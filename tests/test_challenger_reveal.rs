@@ -5,14 +5,14 @@ use dlp_api::{
     },
     v2::{
         instruction_builder::{
-            challenger_reveal, raise_challenge, register_operator,
-            register_verifier, submit_commitment, update_delegation_cluster,
+            challenger_reveal, propose_commitment, raise_challenge,
+            register_operator, register_verifier, update_delegation_cluster,
             update_verifier_registry, write_state_buffer,
         },
         pda::{challenge_pda, pending_commitment_pda, state_buffer_pda},
         Challenge, ChallengeConfig, ChallengerRevealArgs, PendingCommitment,
-        RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
-        SubmitCommitmentArgs, UpdateDelegationClusterArgs,
+        ProposeCommitmentArgs, RaiseChallengeArgs, RegisterOperatorArgs,
+        RegisterVerifierArgs, UpdateDelegationClusterArgs,
         UpdateVerifierRegistryArgs, VerifierRegistryAction,
         WriteStateBufferArgs, CHALLENGE_OUTCOME_INVALID_REVEAL,
         CHALLENGE_OUTCOME_MATCHING_STATE_CHALLENGER_PENALIZED,
@@ -50,7 +50,7 @@ const CHALLENGE_STAKE: u64 = 10_000;
 async fn test_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
 ) {
     let mut env = setup_challenger_reveal_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let submitted_match_penalty_bps = env.challenge_config.match_penalty_bps;
     let mut updated_config = env.challenge_config.clone();
@@ -126,7 +126,7 @@ async fn test_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
 #[tokio::test]
 async fn test_challenger_reveal_mismatch_moves_to_resolver() {
     let mut env = setup_challenger_reveal_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let challenger_data = vec![4, 3, 2, 1];
     let reveal_args = valid_reveal_args(
@@ -178,7 +178,7 @@ async fn test_challenger_reveal_mismatch_moves_to_resolver() {
 #[tokio::test]
 async fn test_challenger_reveal_invalid_hash_slashes_and_reopens_commitment() {
     let mut env = setup_challenger_reveal_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let challenger_data = vec![4, 3, 2, 1];
     let raise_reveal_args = valid_reveal_args(
@@ -228,7 +228,7 @@ async fn test_challenger_reveal_invalid_hash_slashes_and_reopens_commitment() {
 #[tokio::test]
 async fn test_challenger_reveal_fails_after_reveal_deadline() {
     let mut env = setup_challenger_reveal_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let data_hash = account_data_hash(&env.operator_state_data);
     let reveal_args = valid_reveal_args(
@@ -255,7 +255,7 @@ async fn test_challenger_reveal_fails_after_reveal_deadline() {
 #[tokio::test]
 async fn test_challenger_reveal_fails_with_wrong_challenger_buffer() {
     let mut env = setup_challenger_reveal_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let data_hash = account_data_hash(&env.operator_state_data);
     let reveal_args = valid_reveal_args(
@@ -289,7 +289,7 @@ async fn test_challenger_reveal_fails_with_wrong_challenger_buffer() {
 #[tokio::test]
 async fn test_challenger_reveal_fails_with_unfinalized_challenger_buffer() {
     let mut env = setup_challenger_reveal_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let expected_data = [1, 2, 3, 4];
     let reveal_args = valid_reveal_args(
@@ -319,7 +319,7 @@ async fn test_challenger_reveal_fails_with_unfinalized_challenger_buffer() {
 #[tokio::test]
 async fn test_challenger_reveal_fails_with_wrong_fee_vault() {
     let mut env = setup_challenger_reveal_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let data_hash = account_data_hash(&env.operator_state_data);
     let reveal_args = valid_reveal_args(
@@ -486,12 +486,14 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     }
 }
 
-async fn submit(env: &mut ChallengerRevealEnv) -> Result<(), BanksClientError> {
-    let ix = submit_commitment(
+async fn propose(
+    env: &mut ChallengerRevealEnv,
+) -> Result<(), BanksClientError> {
+    let ix = propose_commitment(
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        SubmitCommitmentArgs {
+        ProposeCommitmentArgs {
             commit_id: env.commit_id,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
