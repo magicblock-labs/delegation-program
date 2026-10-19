@@ -14,6 +14,7 @@ use crate::{
 /// Builds the instruction that approves one v2 account-state commitment.
 pub fn approve_commitment(
     verifier: Pubkey,
+    delegation_cluster: Pubkey,
     account: Pubkey,
     commit_id: u64,
 ) -> Instruction {
@@ -22,7 +23,11 @@ pub fn approve_commitment(
         accounts: vec![
             AccountMeta::new_readonly(verifier, true),
             AccountMeta::new_readonly(
-                verifier_bond_pda(&verifier.compatize()).modernize(),
+                verifier_bond_pda(
+                    &delegation_cluster.compatize(),
+                    &verifier.compatize(),
+                )
+                .modernize(),
                 false,
             ),
             AccountMeta::new(

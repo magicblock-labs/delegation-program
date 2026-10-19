@@ -7,15 +7,13 @@ use dlp_api::{
     },
 };
 use pinocchio::{
-    address::Address,
     error::ProgramError,
     sysvars::{clock::Clock, Sysvar},
     AccountView, ProgramResult,
 };
 use wheels::{
-    layout::{Decodable, Encodable},
-    require_eq, require_eq_keys, require_le, require_n_accounts,
-    require_signer,
+    layout::Decodable, require_eq, require_eq_keys, require_le,
+    require_n_accounts, require_signer,
 };
 
 use crate::requires::{require_initialized_pda, require_owned_pda};
@@ -40,13 +38,6 @@ pub fn process_approve_commitment(
     require_eq!(data.len(), 0, ProgramError::InvalidInstructionData);
     require_signer!(verifier);
 
-    require_initialized_pda(
-        verifier_bond,
-        &[VERIFIER_BOND_SEED, verifier.address().as_ref()],
-        &crate::fast::ID,
-        false,
-        "verifier bond",
-    )?;
     require_owned_pda(
         pending_commitment,
         &crate::fast::ID,
@@ -56,15 +47,30 @@ pub fn process_approve_commitment(
         return Err(ProgramError::Immutable);
     }
 
-    let verifier_bond_data = verifier_bond.try_borrow()?;
-    let verifier_bond_state =
-        VerifierBond::decode(verifier_bond_data.as_ref())?;
-    validate_verifier_bond(&verifier_bond_state, verifier)?;
-    drop(verifier_bond_data);
-
     let pending_data = pending_commitment.try_borrow()?;
     let pending_state = PendingCommitment::decode(pending_data.as_ref())?;
     validate_pending_commitment(&pending_state, pending_commitment, verifier)?;
+
+    require_initialized_pda(
+        verifier_bond,
+        &[
+            VERIFIER_BOND_SEED,
+            pending_state.delegation_cluster().as_ref(),
+            verifier.address().as_ref(),
+        ],
+        &crate::fast::ID,
+        false,
+        "verifier bond",
+    )?;
+
+    let verifier_bond_data = verifier_bond.try_borrow()?;
+    let verifier_bond_state =
+        VerifierBond::decode(verifier_bond_data.as_ref())?;
+    validate_verifier_bond(
+        &verifier_bond_state,
+        pending_state.delegation_cluster(),
+        verifier,
+    )?;
 
     let selected_verifier = pending_state
         .selected_verifiers()
@@ -85,53 +91,39 @@ pub fn process_approve_commitment(
         ProgramError::InvalidAccountData
     );
 
-    let updated_pending = PendingCommitment {
-        discriminator: PendingCommitment::DISCRIMINATOR,
-        status: pending_state.status(),
-        operator_identity: *pending_state.operator_identity(),
-        operator_bond: *pending_state.operator_bond(),
-        account_pubkey: *pending_state.account_pubkey(),
-        commit_id: pending_state.commit_id(),
-        delegation_record: *pending_state.delegation_record(),
-        da_pointer_hash: *pending_state.da_pointer_hash(),
-        account_state_hash: *pending_state.account_state_hash(),
-        data_hash: *pending_state.data_hash(),
-        lamports: pending_state.lamports(),
-        owner: *pending_state.owner(),
-        state_commitment_hash: *pending_state.state_commitment_hash(),
-        verifier_registry: *pending_state.verifier_registry(),
-        challenge_window_id: pending_state.challenge_window_id(),
-        posted_slot: pending_state.posted_slot(),
-        activation_slot: pending_state.activation_slot(),
-        challenge_window_end_slot: pending_state.challenge_window_end_slot(),
-        approval_count: 1,
-        approval_threshold: pending_state.approval_threshold(),
-        active_challenge: pending_state.active_challenge().cloned(),
-        resolved_state_source: pending_state.resolved_state_source(),
-        er_slot: pending_state.er_slot(),
-        _pad_before_selected_verifiers: [0; 7],
-        selected_verifiers: vec![SelectedVerifier {
-            verifier_identity: *selected_verifier.verifier_identity(),
-            approved: true,
-            _pad_after_approved: [0; 7],
-        }],
-    };
+    let verifier_identity = *selected_verifier.verifier_identity();
+    drop(verifier_bond_data);
     drop(pending_data);
 
-    updated_pending.encode_to(pending_commitment.try_borrow_mut()?.as_mut())?;
+    let mut pending_state = PendingCommitment::decode_mut(pending_commitment)?;
+    pending_state.approval_count_mut()?.set(1)?;
+    pending_state.selected_verifiers_mut()?.set(
+        0,
+        &SelectedVerifier {
+            verifier_identity,
+            approved: true,
+            _pad_after_approved: [0; 7],
+        },
+    )?;
 
     Ok(())
 }
 
 fn validate_verifier_bond(
     verifier_bond: &dlp_api::v2::VerifierBondView<'_>,
+    delegation_cluster: &dlp_api::compat::Pubkey,
     verifier: &AccountView,
 ) -> ProgramResult {
     if verifier_bond.discriminator() != VerifierBond::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
     }
     require_eq_keys!(
-        &Address::from(verifier_bond.verifier_identity().to_bytes()),
+        verifier_bond.delegation_cluster(),
+        delegation_cluster,
+        ProgramError::InvalidAccountData
+    );
+    require_eq_keys!(
+        verifier_bond.verifier_identity(),
         verifier.address(),
         DlpError::InvalidAuthority
     );
@@ -197,7 +189,7 @@ fn validate_pending_commitment(
         .get(0)
         .ok_or(ProgramError::InvalidAccountData)?;
     require_eq_keys!(
-        &Address::from(selected_verifier.verifier_identity().to_bytes()),
+        selected_verifier.verifier_identity(),
         verifier.address(),
         DlpError::InvalidAuthority
     );
