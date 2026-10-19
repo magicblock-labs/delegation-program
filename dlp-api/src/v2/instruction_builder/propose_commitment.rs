@@ -13,16 +13,16 @@ use crate::{
             operator_bond_pda, pending_commitment_pda, state_buffer_pda,
             verifier_registry_pda,
         },
-        DlpV2Instruction, SubmitCommitmentArgs,
+        DlpV2Instruction, ProposeCommitmentArgs,
     },
 };
 
-/// Builds the instruction that submits one v2 account-state commitment.
-pub fn submit_commitment(
+/// Builds the instruction that proposes one v2 account-state commitment.
+pub fn propose_commitment(
     current_validator: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    args: SubmitCommitmentArgs,
+    args: ProposeCommitmentArgs,
 ) -> Instruction {
     Instruction {
         program_id: crate::id().modernize(),
@@ -62,7 +62,7 @@ pub fn submit_commitment(
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
-            DlpV2Instruction::SubmitCommitment.to_vec(),
+            DlpV2Instruction::ProposeCommitment.to_vec(),
             args.encode().unwrap(),
         ]
         .concat(),

@@ -15,8 +15,8 @@ pub enum DlpV2Instruction {
     UpdateVerifierRegistry = 103,
     /// Updates one cluster's challenge policy for future commitments.
     UpdateDelegationCluster = 104,
-    /// Submits a new v2 account-state commitment.
-    SubmitCommitment = 105,
+    /// Proposes a new v2 account-state commitment.
+    ProposeCommitment = 105,
     /// Writes full account-state bytes into a v2 state buffer.
     ///
     /// TODO (snawaz/optimization): we can split this into two instructions such that 

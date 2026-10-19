@@ -16,7 +16,7 @@ pub const RESOLVED_STATE_SOURCE_OPERATOR_COMMITMENT: u8 = 1;
 pub const RESOLVED_STATE_SOURCE_CHALLENGER_REVEAL: u8 = 2;
 
 /// PDA: `["pending-commitment", account, commit_id]`.
-/// Created by `SubmitCommitment`.
+/// Created by `ProposeCommitment`.
 /// Closed by `CloseTerminalAccounts` after finalize, cancel, or expiry.
 ///
 /// One account per delegated account and commit id.
@@ -29,7 +29,7 @@ pub struct PendingCommitment {
     /// Current state-machine state for this commitment.
     pub status: u8,
 
-    /// Delegation cluster under which this commitment was submitted.
+    /// Delegation cluster under which this commitment was proposed.
     pub delegation_cluster: Pubkey,
 
     /// Operator identity that posted the commitment.
@@ -83,19 +83,19 @@ pub struct PendingCommitment {
     /// Number of unique selected verifiers that approved.
     pub approval_count: u16,
 
-    /// Threshold copied from DelegationCluster when the commitment is submitted.
+    /// Threshold copied from DelegationCluster when the commitment is proposed.
     pub approval_threshold: u16,
 
-    /// Resolver copied when the commitment is submitted.
+    /// Resolver copied when the commitment is proposed.
     pub resolver: Pubkey,
 
-    /// Minimum challenge stake copied when the commitment is submitted.
+    /// Minimum challenge stake copied when the commitment is proposed.
     pub min_challenger_stake: u64,
 
-    /// Reveal timeout copied when the commitment is submitted.
+    /// Reveal timeout copied when the commitment is proposed.
     pub challenger_reveal_timeout_slots: u64,
 
-    /// Matching-state penalty copied when the commitment is submitted.
+    /// Matching-state penalty copied when the commitment is proposed.
     pub match_penalty_bps: u16,
 
     /// Active Challenge account, if any.

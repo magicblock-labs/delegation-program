@@ -7,8 +7,8 @@ use dlp_api::{
             PENDING_COMMITMENT_SEED, STATE_BUFFER_SEED, VERIFIER_REGISTRY_SEED,
         },
         ChallengeConfigView, DelegationCluster, OperatorBond, OperatorStatus,
-        PendingCommitment, SelectedVerifier, StateBuffer, SubmitCommitmentArgs,
-        VerifierRegistry, VerifierRegistryEntry,
+        PendingCommitment, ProposeCommitmentArgs, SelectedVerifier,
+        StateBuffer, VerifierRegistry, VerifierRegistryEntry,
         PENDING_COMMITMENT_STATUS_ACTIVE,
     },
 };
@@ -36,7 +36,7 @@ use crate::{
     },
 };
 
-/// Submit one v2 account-state commitment.
+/// Propose one v2 account-state commitment.
 ///
 /// Accounts:
 /// 0: `[signer, writable]` current validator and pending account rent payer
@@ -49,7 +49,7 @@ use crate::{
 /// 7: `[writable]`         VerifierRegistry PDA
 /// 8: `[]`                 system program, required by system CPI
 #[inline(never)]
-pub fn process_submit_commitment(
+pub fn process_propose_commitment(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
@@ -65,7 +65,7 @@ pub fn process_submit_commitment(
         _system_program,
     ] = require_n_accounts!(accounts, 9);
 
-    let args = SubmitCommitmentArgs::decode(data)?;
+    let args = ProposeCommitmentArgs::decode(data)?;
 
     require_signer!(current_validator);
     require_owned_pda(

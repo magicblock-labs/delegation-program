@@ -2,12 +2,12 @@ use dlp_api::{
     pda::delegation_record_pda_from_delegated_account,
     v2::{
         instruction_builder::{
-            register_operator, register_verifier, submit_commitment,
+            propose_commitment, register_operator, register_verifier,
             update_verifier_registry, write_state_buffer,
         },
         pda::{pending_commitment_pda, verifier_registry_pda},
-        ChallengeConfig, PendingCommitment, RegisterOperatorArgs,
-        RegisterVerifierArgs, SubmitCommitmentArgs, UpdateVerifierRegistryArgs,
+        ChallengeConfig, PendingCommitment, ProposeCommitmentArgs,
+        RegisterOperatorArgs, RegisterVerifierArgs, UpdateVerifierRegistryArgs,
         VerifierRegistry, VerifierRegistryAction, WriteStateBufferArgs,
         PENDING_COMMITMENT_STATUS_ACTIVE,
     },
@@ -34,11 +34,11 @@ use crate::fixtures::{
 };
 
 #[tokio::test]
-async fn test_submit_commitment() {
-    let mut env = setup_submit_commitment_env(2, true, false).await;
-    let args = submit_commitment_args();
+async fn test_propose_commitment() {
+    let mut env = setup_propose_commitment_env(2, true, false).await;
+    let args = propose_commitment_args();
 
-    submit(&mut env, args.clone()).await.unwrap();
+    propose(&mut env, args.clone()).await.unwrap();
 
     let pending_commitment_account = env
         .banks
@@ -132,20 +132,20 @@ async fn test_submit_commitment() {
 }
 
 #[tokio::test]
-async fn test_submit_commitment_fails_twice() {
-    let mut env = setup_submit_commitment_env(2, true, false).await;
-    let args = submit_commitment_args();
+async fn test_propose_commitment_fails_twice() {
+    let mut env = setup_propose_commitment_env(2, true, false).await;
+    let args = propose_commitment_args();
 
-    submit(&mut env, args.clone()).await.unwrap();
+    propose(&mut env, args.clone()).await.unwrap();
 
-    assert!(submit(&mut env, args).await.is_err());
+    assert!(propose(&mut env, args).await.is_err());
 }
 
 #[tokio::test]
-async fn test_submit_commitment_fails_without_validator_signature() {
-    let env = setup_submit_commitment_env(2, false, false).await;
-    let args = submit_commitment_args();
-    let mut ix = submit_commitment(
+async fn test_propose_commitment_fails_without_validator_signature() {
+    let env = setup_propose_commitment_env(2, false, false).await;
+    let args = propose_commitment_args();
+    let mut ix = propose_commitment(
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
@@ -165,29 +165,29 @@ async fn test_submit_commitment_fails_without_validator_signature() {
 }
 
 #[tokio::test]
-async fn test_submit_commitment_fails_without_enough_verifiers() {
-    let mut env = setup_submit_commitment_env(0, true, false).await;
+async fn test_propose_commitment_fails_without_enough_verifiers() {
+    let mut env = setup_propose_commitment_env(0, true, false).await;
 
-    assert!(submit(&mut env, submit_commitment_args()).await.is_err());
+    assert!(propose(&mut env, propose_commitment_args()).await.is_err());
 }
 
 #[tokio::test]
-async fn test_submit_commitment_fails_without_state_buffer() {
-    let mut env = setup_submit_commitment_env(2, true, false).await;
-    let mut args = submit_commitment_args();
+async fn test_propose_commitment_fails_without_state_buffer() {
+    let mut env = setup_propose_commitment_env(2, true, false).await;
+    let mut args = propose_commitment_args();
     args.commit_id = 99;
 
-    assert!(submit(&mut env, args).await.is_err());
+    assert!(propose(&mut env, args).await.is_err());
 }
 
 #[tokio::test]
-async fn test_submit_commitment_fails_with_wrong_delegation_authority() {
-    let mut env = setup_submit_commitment_env(2, true, true).await;
+async fn test_propose_commitment_fails_with_wrong_delegation_authority() {
+    let mut env = setup_propose_commitment_env(2, true, true).await;
 
-    assert!(submit(&mut env, submit_commitment_args()).await.is_err());
+    assert!(propose(&mut env, propose_commitment_args()).await.is_err());
 }
 
-struct SubmitCommitmentEnv {
+struct ProposeCommitmentEnv {
     banks: BanksClient,
     payer: Keypair,
     operator: Keypair,
@@ -197,11 +197,11 @@ struct SubmitCommitmentEnv {
     challenge_config: ChallengeConfig,
 }
 
-async fn setup_submit_commitment_env(
+async fn setup_propose_commitment_env(
     verifier_count: usize,
     register_operator_as_verifier: bool,
     wrong_delegation_authority: bool,
-) -> SubmitCommitmentEnv {
+) -> ProposeCommitmentEnv {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
@@ -302,7 +302,7 @@ async fn setup_submit_commitment_env(
         &operator,
         delegated_account,
         WriteStateBufferArgs {
-            commit_id: submit_commitment_args().commit_id,
+            commit_id: propose_commitment_args().commit_id,
             total_len: state_data().len() as u32,
             offset: 0,
             chunk: state_data(),
@@ -310,7 +310,7 @@ async fn setup_submit_commitment_env(
     )
     .await;
 
-    SubmitCommitmentEnv {
+    ProposeCommitmentEnv {
         banks,
         payer,
         operator,
@@ -402,8 +402,8 @@ async fn register_and_add_verifier(
     banks.process_transaction(tx).await.unwrap();
 }
 
-fn submit_commitment_args() -> SubmitCommitmentArgs {
-    SubmitCommitmentArgs {
+fn propose_commitment_args() -> ProposeCommitmentArgs {
+    ProposeCommitmentArgs {
         commit_id: 1,
         lamports: 1_000,
         owner: Pubkey::new_unique(),
@@ -445,9 +445,9 @@ fn account_data_hash(data: &[u8]) -> [u8; 32] {
         .to_bytes()
 }
 
-async fn submit(
-    env: &mut SubmitCommitmentEnv,
-    args: SubmitCommitmentArgs,
+async fn propose(
+    env: &mut ProposeCommitmentEnv,
+    args: ProposeCommitmentArgs,
 ) -> Result<(), solana_program_test::BanksClientError> {
     let latest_blockhash: Hash =
         env.banks.get_latest_blockhash().await.unwrap();
@@ -456,7 +456,7 @@ async fn submit(
         .get_new_latest_blockhash(&latest_blockhash)
         .await
         .unwrap();
-    let ix = submit_commitment(
+    let ix = propose_commitment(
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
