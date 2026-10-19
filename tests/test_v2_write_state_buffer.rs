@@ -17,10 +17,7 @@ use wheels::layout::Decodable;
 
 mod fixtures;
 
-use crate::fixtures::v2::{
-    initialize_protocol_config, setup_program_test_env,
-    valid_protocol_config_args,
-};
+use crate::fixtures::v2::setup_program_test_env;
 
 #[tokio::test]
 async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
@@ -500,20 +497,10 @@ struct WriteStateBufferEnv {
 }
 
 async fn setup_write_state_buffer_env() -> WriteStateBufferEnv {
-    let (mut banks, payer, authority, blockhash) =
+    let (mut banks, payer, _authority, _blockhash) =
         setup_program_test_env().await;
     let writer = Keypair::new();
     let delegated = Keypair::new();
-    let config_args = valid_protocol_config_args();
-
-    initialize_protocol_config(
-        &banks,
-        &payer,
-        &authority,
-        blockhash,
-        config_args,
-    )
-    .await;
     fund_account(&mut banks, &payer, &writer.pubkey()).await;
     create_delegated_account(&mut banks, &payer, &delegated).await;
 

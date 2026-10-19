@@ -1,9 +1,6 @@
 use dlp_api::{
     error::DlpError,
-    v2::{
-        pda::{PROTOCOL_CONFIG_SEED, STATE_BUFFER_SEED},
-        ProtocolConfig, StateBuffer, WriteStateBufferArgs,
-    },
+    v2::{pda::STATE_BUFFER_SEED, StateBuffer, WriteStateBufferArgs},
 };
 use pinocchio::{
     cpi::{Seed, Signer},
@@ -32,8 +29,7 @@ use crate::{
 /// 1: `[signer]`           authority identity for this buffer
 /// 2: `[writable]`         StateBuffer PDA
 /// 3: `[]`                 delegated account whose bytes are being uploaded
-/// 4: `[]`                 ProtocolConfig PDA
-/// 5: `[]`                 system program, required by system CPI
+/// 4: `[]`                 system program, required by system CPI
 #[inline(never)]
 pub fn process_write_state_buffer(
     accounts: &[AccountView],
@@ -44,9 +40,8 @@ pub fn process_write_state_buffer(
         authority,
         state_buffer,
         delegated_account,
-        protocol_config,
         _system_program,
-    ] = require_n_accounts!(accounts, 6);
+    ] = require_n_accounts!(accounts, 5);
 
     require_signer!(payer);
     require_signer!(authority);
@@ -54,8 +49,6 @@ pub fn process_write_state_buffer(
 
     let args = WriteStateBufferArgs::decode(data)?;
     let (offset, write_end) = validate_args(&args)?;
-
-    validate_protocol_config(protocol_config)?;
 
     let commit_id_bytes = args.commit_id().to_le_bytes();
     let state_buffer_seeds = [
@@ -166,32 +159,6 @@ fn validate_args(
     );
 
     Ok((offset, write_end))
-}
-
-fn validate_protocol_config(protocol_config: &AccountView) -> ProgramResult {
-    require_initialized_pda(
-        protocol_config,
-        &[PROTOCOL_CONFIG_SEED],
-        &crate::fast::ID,
-        false,
-        "protocol config",
-    )?;
-
-    let protocol_config_data = protocol_config.try_borrow()?;
-    let protocol_config_state =
-        ProtocolConfig::decode(protocol_config_data.as_ref())?;
-    require_eq!(
-        &protocol_config_state.discriminator(),
-        &ProtocolConfig::DISCRIMINATOR,
-        ProgramError::InvalidAccountData
-    );
-    require_eq!(
-        protocol_config_state.paused(),
-        false,
-        ProgramError::InvalidAccountData
-    );
-
-    Ok(())
 }
 
 fn write_chunk(
