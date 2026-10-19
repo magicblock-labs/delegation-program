@@ -10,25 +10,26 @@ use crate::{
     pda::delegation_record_pda_from_delegated_account,
     v2::{
         pda::{
-            operator_bond_pda, pending_commitment_pda, protocol_config_pda,
-            state_buffer_pda, verifier_registry_pda,
+            operator_bond_pda, pending_commitment_pda, state_buffer_pda,
+            verifier_registry_pda,
         },
-        DlpV2Instruction, PostCommitmentArgs,
+        DlpV2Instruction, SubmitCommitmentArgs,
     },
 };
 
-/// Builds the instruction that posts one v2 account-state commitment.
-pub fn post_commitment(
-    operator: Pubkey,
+/// Builds the instruction that submits one v2 account-state commitment.
+pub fn submit_commitment(
+    current_validator: Pubkey,
+    delegation_cluster: Pubkey,
     account: Pubkey,
-    args: PostCommitmentArgs,
+    args: SubmitCommitmentArgs,
 ) -> Instruction {
     Instruction {
         program_id: crate::id().modernize(),
         accounts: vec![
-            AccountMeta::new(operator, true),
+            AccountMeta::new(current_validator, true),
             AccountMeta::new_readonly(
-                operator_bond_pda(&operator.compatize()).modernize(),
+                operator_bond_pda(&delegation_cluster).modernize(),
                 false,
             ),
             AccountMeta::new(
@@ -40,7 +41,7 @@ pub fn post_commitment(
                 state_buffer_pda(
                     &account.compatize(),
                     args.commit_id,
-                    &operator.compatize(),
+                    &current_validator.compatize(),
                 )
                 .modernize(),
                 false,
@@ -53,12 +54,15 @@ pub fn post_commitment(
                 .modernize(),
                 false,
             ),
-            AccountMeta::new_readonly(protocol_config_pda().modernize(), false),
-            AccountMeta::new(verifier_registry_pda().modernize(), false),
+            AccountMeta::new_readonly(delegation_cluster, false),
+            AccountMeta::new(
+                verifier_registry_pda(&delegation_cluster).modernize(),
+                false,
+            ),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: [
-            DlpV2Instruction::PostCommitment.to_vec(),
+            DlpV2Instruction::SubmitCommitment.to_vec(),
             args.encode().unwrap(),
         ]
         .concat(),

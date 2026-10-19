@@ -30,8 +30,8 @@ pub fn process_instruction(
         DlpV2Instruction::UpdateDelegationCluster => {
             process_update_delegation_cluster(accounts, data)
         }
-        DlpV2Instruction::PostCommitment => {
-            process_post_commitment(accounts, data)
+        DlpV2Instruction::SubmitCommitment => {
+            process_submit_commitment(accounts, data)
         }
         DlpV2Instruction::WriteStateBuffer => {
             process_write_state_buffer(accounts, data)

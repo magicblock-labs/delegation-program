@@ -3,12 +3,13 @@ use dlp_api::{
     state::DelegationRecord,
     v2::{
         pda::{
-            OPERATOR_BOND_SEED, PENDING_COMMITMENT_SEED, PROTOCOL_CONFIG_SEED,
-            STATE_BUFFER_SEED, VERIFIER_REGISTRY_SEED,
+            DELEGATION_CLUSTER_SEED, OPERATOR_BOND_SEED,
+            PENDING_COMMITMENT_SEED, STATE_BUFFER_SEED, VERIFIER_REGISTRY_SEED,
         },
-        OperatorBond, OperatorStatus, PendingCommitment, PostCommitmentArgs,
-        ProtocolConfig, SelectedVerifier, StateBuffer, VerifierRegistry,
-        VerifierRegistryEntry, PENDING_COMMITMENT_STATUS_ACTIVE,
+        ChallengeConfigView, DelegationCluster, OperatorBond, OperatorStatus,
+        PendingCommitment, SelectedVerifier, StateBuffer, SubmitCommitmentArgs,
+        VerifierRegistry, VerifierRegistryEntry,
+        PENDING_COMMITMENT_STATUS_ACTIVE,
     },
 };
 use pinocchio::{
@@ -21,7 +22,7 @@ use pinocchio::{
 use wheels::{
     layout::{Decodable, Encodable},
     require_eq, require_eq_keys, require_ge, require_n_accounts,
-    require_signer,
+    require_signer, require_some,
 };
 
 use crate::{
@@ -35,47 +36,65 @@ use crate::{
     },
 };
 
-/// Post one v2 account-state commitment.
+/// Submit one v2 account-state commitment.
 ///
 /// Accounts:
-/// 0: `[signer, writable]` operator identity and pending account rent payer
+/// 0: `[signer, writable]` current validator and pending account rent payer
 /// 1: `[]`                 OperatorBond PDA
 /// 2: `[writable]`         PendingCommitment PDA
 /// 3: `[]`                 finalized StateBuffer PDA
 /// 4: `[]`                 delegated account
 /// 5: `[]`                 DelegationRecord PDA
-/// 6: `[]`                 ProtocolConfig PDA
+/// 6: `[]`                 DelegationCluster PDA
 /// 7: `[writable]`         VerifierRegistry PDA
 /// 8: `[]`                 system program, required by system CPI
 #[inline(never)]
-pub fn process_post_commitment(
+pub fn process_submit_commitment(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
     let [
-        operator, // force multi-line
+        current_validator, // force multi-line
         operator_bond,
         pending_commitment,
         state_buffer,
         delegated_account,
         delegation_record,
-        protocol_config,
+        delegation_cluster,
         verifier_registry,
         _system_program,
     ] = require_n_accounts!(accounts, 9);
 
-    let args = PostCommitmentArgs::decode(data)?;
+    let args = SubmitCommitmentArgs::decode(data)?;
 
-    require_signer!(operator);
+    require_signer!(current_validator);
     require_owned_pda(
         delegated_account,
         &crate::fast::ID,
         "delegated account",
     )?;
 
+    let delegation_cluster_data = delegation_cluster.try_borrow()?;
+    let delegation_cluster_state =
+        DelegationCluster::decode(delegation_cluster_data.as_ref())?;
+    require_initialized_pda(
+        delegation_cluster,
+        &[
+            DELEGATION_CLUSTER_SEED,
+            delegation_cluster_state.cluster_id().as_ref(),
+        ],
+        &crate::fast::ID,
+        false,
+        "delegation cluster",
+    )?;
+    let challenge_config = validate_delegation_cluster(
+        &delegation_cluster_state,
+        current_validator,
+    )?;
+
     require_initialized_pda(
         operator_bond,
-        &[OPERATOR_BOND_SEED, operator.address().as_ref()],
+        &[OPERATOR_BOND_SEED, delegation_cluster.address().as_ref()],
         &crate::fast::ID,
         false,
         "operator bond",
@@ -87,7 +106,7 @@ pub fn process_post_commitment(
             STATE_BUFFER_SEED,
             delegated_account.address().as_ref(),
             &commit_id_bytes,
-            operator.address().as_ref(),
+            current_validator.address().as_ref(),
         ],
         &crate::fast::ID,
         false,
@@ -99,15 +118,11 @@ pub fn process_post_commitment(
         false,
     )?;
     require_initialized_pda(
-        protocol_config,
-        &[PROTOCOL_CONFIG_SEED],
-        &crate::fast::ID,
-        false,
-        "protocol config",
-    )?;
-    require_initialized_pda(
         verifier_registry,
-        &[VERIFIER_REGISTRY_SEED],
+        &[
+            VERIFIER_REGISTRY_SEED,
+            delegation_cluster.address().as_ref(),
+        ],
         &crate::fast::ID,
         true,
         "verifier registry",
@@ -116,16 +131,11 @@ pub fn process_post_commitment(
     let operator_bond_data = operator_bond.try_borrow()?;
     let operator_bond_state =
         OperatorBond::decode(operator_bond_data.as_ref())?;
-    validate_operator_bond(&operator_bond_state, operator)?;
-
-    let protocol_config_data = protocol_config.try_borrow()?;
-    let protocol_config_state =
-        ProtocolConfig::decode(protocol_config_data.as_ref())?;
-    validate_protocol_config(&protocol_config_state)?;
+    validate_operator_bond(&operator_bond_state, delegation_cluster)?;
 
     require_ge!(
         operator_bond_state.stake_lamports(),
-        protocol_config_state.min_operator_bond(),
+        challenge_config.min_operator_bond(),
         ProgramError::InvalidInstructionData
     );
     drop(operator_bond_data);
@@ -134,7 +144,7 @@ pub fn process_post_commitment(
     let state_buffer_state = StateBuffer::decode(state_buffer_data.as_ref())?;
     let data_hash = validate_state_buffer(
         &state_buffer_state,
-        operator,
+        current_validator,
         delegated_account,
         args.commit_id(),
     )?;
@@ -147,8 +157,8 @@ pub fn process_post_commitment(
         )
         .map_err(to_pinocchio_program_error)?;
     require_eq_keys!(
-        &Address::from(delegation_record_state.authority.to_bytes()),
-        operator.address(),
+        &delegation_record_state.authority,
+        delegation_cluster.address(),
         DlpError::InvalidAuthority
     );
     drop(delegation_record_data);
@@ -160,24 +170,30 @@ pub fn process_post_commitment(
     {
         return Err(ProgramError::InvalidAccountData);
     }
+    require_eq_keys!(
+        verifier_registry_view.delegation_cluster(),
+        delegation_cluster.address(),
+        ProgramError::InvalidAccountData
+    );
 
     let entries = copy_verifier_entries(&verifier_registry_view);
     let (selected_verifiers, scanned_count) = select_verifiers_round_robin(
         &entries,
         verifier_registry_view.next_selection_index(),
-        protocol_config_state.verifiers_per_commitment() as usize,
-        operator.address(),
+        challenge_config.verifiers_per_commitment() as usize,
+        current_validator.address(),
     )?;
 
     require_ge!(
         selected_verifiers.len(),
-        protocol_config_state.approval_threshold() as usize,
+        challenge_config.approval_threshold() as usize,
         ProgramError::InvalidInstructionData
     );
 
     let updated_registry = VerifierRegistry {
         discriminator: VerifierRegistry::DISCRIMINATOR,
         bump: verifier_registry_view.bump(),
+        delegation_cluster: *verifier_registry_view.delegation_cluster(),
         next_selection_index: verifier_registry_view
             .next_selection_index()
             .checked_add(scanned_count as u64)
@@ -192,7 +208,8 @@ pub fn process_post_commitment(
         account_state_hash(args.lamports(), args.owner(), &data_hash);
     let state_commitment_hash =
         state_commitment_hash(StateCommitmentHashInput {
-            operator_identity: operator.address(),
+            delegation_cluster: delegation_cluster.address(),
+            operator_identity: current_validator.address(),
             account_pubkey: delegated_account.address(),
             commit_id: args.commit_id(),
             delegation_record: delegation_record.address(),
@@ -205,7 +222,8 @@ pub fn process_post_commitment(
     let pending_commitment_state = PendingCommitment {
         discriminator: PendingCommitment::DISCRIMINATOR,
         status: PENDING_COMMITMENT_STATUS_ACTIVE,
-        operator_identity: operator.address().to_bytes().into(),
+        delegation_cluster: *delegation_cluster.address(),
+        operator_identity: *current_validator.address(),
         operator_bond: operator_bond.address().to_bytes().into(),
         account_pubkey: delegated_account.address().to_bytes().into(),
         commit_id: args.commit_id(),
@@ -222,18 +240,23 @@ pub fn process_post_commitment(
         activation_slot: clock.slot,
         challenge_window_end_slot: clock
             .slot
-            .checked_add(protocol_config_state.challenge_window_slots())
+            .checked_add(challenge_config.challenge_window_slots())
             .ok_or(DlpError::Overflow)?,
         approval_count: 0,
-        approval_threshold: protocol_config_state.approval_threshold(),
+        approval_threshold: challenge_config.approval_threshold(),
+        resolver: *challenge_config.resolver(),
+        min_challenger_stake: challenge_config.min_challenger_stake(),
+        challenger_reveal_timeout_slots: challenge_config
+            .challenger_reveal_timeout_slots(),
+        match_penalty_bps: challenge_config.match_penalty_bps(),
         active_challenge: None,
         resolved_state_source: None,
         er_slot: args.er_slot(),
-        _pad_before_selected_verifiers: [0; 7],
+        _pad_before_selected_verifiers: [0; 5],
         selected_verifiers,
     };
 
-    drop(protocol_config_data);
+    drop(delegation_cluster_data);
 
     let pending_commitment_bump = require_uninitialized_pda(
         pending_commitment,
@@ -257,7 +280,7 @@ pub fn process_post_commitment(
             Seed::from(&commit_id_bytes),
             Seed::from(&[pending_commitment_bump]),
         ])],
-        operator,
+        current_validator,
     )?;
 
     pending_commitment_state
@@ -269,15 +292,15 @@ pub fn process_post_commitment(
 
 fn validate_operator_bond(
     operator_bond: &dlp_api::v2::OperatorBondView<'_>,
-    operator: &AccountView,
+    delegation_cluster: &AccountView,
 ) -> ProgramResult {
     if operator_bond.discriminator() != OperatorBond::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
     }
     require_eq_keys!(
-        &Address::from(operator_bond.operator_identity().to_bytes()),
-        operator.address(),
-        DlpError::InvalidAuthority
+        operator_bond.delegation_cluster(),
+        delegation_cluster.address(),
+        ProgramError::InvalidAccountData
     );
     require_eq!(
         operator_bond.status(),
@@ -293,19 +316,28 @@ fn validate_operator_bond(
     Ok(())
 }
 
-fn validate_protocol_config(
-    protocol_config: &dlp_api::v2::ProtocolConfigView<'_>,
-) -> ProgramResult {
-    if protocol_config.discriminator() != ProtocolConfig::DISCRIMINATOR {
+fn validate_delegation_cluster<'a>(
+    delegation_cluster: &dlp_api::v2::DelegationClusterView<'a>,
+    current_validator: &AccountView,
+) -> Result<ChallengeConfigView<'a>, ProgramError> {
+    if delegation_cluster.discriminator() != DelegationCluster::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
     }
+    require_eq_keys!(
+        delegation_cluster.current_validator(),
+        current_validator.address(),
+        DlpError::InvalidAuthority
+    );
     require_eq!(
-        protocol_config.paused(),
+        delegation_cluster.paused(),
         false,
         ProgramError::InvalidAccountData
     );
 
-    Ok(())
+    Ok(require_some!(
+        delegation_cluster.challenge_config(),
+        ProgramError::InvalidAccountData
+    ))
 }
 
 fn validate_state_buffer(
@@ -380,7 +412,7 @@ fn select_verifiers_round_robin(
         let index = (start + scanned_count) % entries.len();
         let entry = &entries[index];
 
-        if Address::from(entry.verifier_identity.to_bytes()) != *operator {
+        if entry.verifier_identity != *operator {
             selected.push(SelectedVerifier {
                 verifier_identity: entry.verifier_identity,
                 approved: false,
@@ -413,6 +445,7 @@ fn account_state_hash(
 }
 
 struct StateCommitmentHashInput<'a> {
+    delegation_cluster: &'a Address,
     operator_identity: &'a Address,
     account_pubkey: &'a Address,
     commit_id: u64,
@@ -426,6 +459,7 @@ struct StateCommitmentHashInput<'a> {
 fn state_commitment_hash(input: StateCommitmentHashInput<'_>) -> [u8; 32] {
     solana_sha256_hasher::hashv(&[
         b"magicblock.state_commitment.v1",
+        input.delegation_cluster.as_ref(),
         input.operator_identity.as_ref(),
         input.account_pubkey.as_ref(),
         &input.commit_id.to_le_bytes(),

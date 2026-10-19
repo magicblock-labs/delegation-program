@@ -2,13 +2,14 @@ use dlp_api::{
     pda::delegation_record_pda_from_delegated_account,
     v2::{
         instruction_builder::{
-            post_commitment, register_operator, register_verifier,
+            register_operator, register_verifier, submit_commitment,
             update_verifier_registry, write_state_buffer,
         },
         pda::{pending_commitment_pda, verifier_registry_pda},
-        PendingCommitment, PostCommitmentArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, VerifierRegistry, WriteStateBufferArgs,
-        PENDING_COMMITMENT_STATUS_ACTIVE, VERIFIER_REGISTRY_ACTION_ADD,
+        ChallengeConfig, PendingCommitment, RegisterOperatorArgs,
+        RegisterVerifierArgs, SubmitCommitmentArgs, UpdateVerifierRegistryArgs,
+        VerifierRegistry, VerifierRegistryAction, WriteStateBufferArgs,
+        PENDING_COMMITMENT_STATUS_ACTIVE,
     },
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -29,15 +30,15 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_record_data,
-    v2::{initialize_protocol_config, valid_protocol_config_args},
+    v2::{challenge_cluster_args, initialize_delegation_cluster},
 };
 
 #[tokio::test]
-async fn test_post_commitment() {
-    let mut env = setup_post_commitment_env(2, true, false).await;
-    let args = valid_post_commitment_args();
+async fn test_submit_commitment() {
+    let mut env = setup_submit_commitment_env(2, true, false).await;
+    let args = submit_commitment_args();
 
-    post_v2_commitment(&mut env, args.clone()).await.unwrap();
+    submit(&mut env, args.clone()).await.unwrap();
 
     let pending_commitment_account = env
         .banks
@@ -62,6 +63,10 @@ async fn test_post_commitment() {
         PENDING_COMMITMENT_STATUS_ACTIVE
     );
     assert_eq!(
+        *pending_commitment.delegation_cluster(),
+        env.delegation_cluster
+    );
+    assert_eq!(
         *pending_commitment.operator_identity(),
         env.operator.pubkey()
     );
@@ -77,12 +82,28 @@ async fn test_post_commitment() {
     assert_eq!(pending_commitment.approval_count(), 0);
     assert_eq!(
         pending_commitment.approval_threshold(),
-        env.config_args.approval_threshold
+        env.challenge_config.approval_threshold
+    );
+    assert_eq!(
+        *pending_commitment.resolver(),
+        env.challenge_config.resolver
+    );
+    assert_eq!(
+        pending_commitment.min_challenger_stake(),
+        env.challenge_config.min_challenger_stake
+    );
+    assert_eq!(
+        pending_commitment.challenger_reveal_timeout_slots(),
+        env.challenge_config.challenger_reveal_timeout_slots
+    );
+    assert_eq!(
+        pending_commitment.match_penalty_bps(),
+        env.challenge_config.match_penalty_bps
     );
     assert_eq!(
         pending_commitment.challenge_window_end_slot(),
         pending_commitment.posted_slot()
-            + env.config_args.challenge_window_slots
+            + env.challenge_config.challenge_window_slots
     );
 
     let selected: Vec<_> = pending_commitment
@@ -98,7 +119,7 @@ async fn test_post_commitment() {
 
     let verifier_registry_account = env
         .banks
-        .get_account(verifier_registry_pda())
+        .get_account(verifier_registry_pda(&env.delegation_cluster))
         .await
         .unwrap()
         .unwrap();
@@ -111,21 +132,25 @@ async fn test_post_commitment() {
 }
 
 #[tokio::test]
-async fn test_post_commitment_fails_twice() {
-    let mut env = setup_post_commitment_env(2, true, false).await;
-    let args = valid_post_commitment_args();
+async fn test_submit_commitment_fails_twice() {
+    let mut env = setup_submit_commitment_env(2, true, false).await;
+    let args = submit_commitment_args();
 
-    post_v2_commitment(&mut env, args.clone()).await.unwrap();
+    submit(&mut env, args.clone()).await.unwrap();
 
-    assert!(post_v2_commitment(&mut env, args).await.is_err());
+    assert!(submit(&mut env, args).await.is_err());
 }
 
 #[tokio::test]
-async fn test_post_commitment_fails_without_operator_signature() {
-    let env = setup_post_commitment_env(2, false, false).await;
-    let args = valid_post_commitment_args();
-    let mut ix =
-        post_commitment(env.operator.pubkey(), env.delegated_account, args);
+async fn test_submit_commitment_fails_without_validator_signature() {
+    let env = setup_submit_commitment_env(2, false, false).await;
+    let args = submit_commitment_args();
+    let mut ix = submit_commitment(
+        env.operator.pubkey(),
+        env.delegation_cluster,
+        env.delegated_account,
+        args,
+    );
     ix.accounts[0].is_signer = false;
 
     let blockhash = env.banks.get_latest_blockhash().await.unwrap();
@@ -140,46 +165,43 @@ async fn test_post_commitment_fails_without_operator_signature() {
 }
 
 #[tokio::test]
-async fn test_post_commitment_fails_without_enough_verifiers() {
-    let mut env = setup_post_commitment_env(0, true, false).await;
+async fn test_submit_commitment_fails_without_enough_verifiers() {
+    let mut env = setup_submit_commitment_env(0, true, false).await;
 
-    assert!(post_v2_commitment(&mut env, valid_post_commitment_args())
-        .await
-        .is_err());
+    assert!(submit(&mut env, submit_commitment_args()).await.is_err());
 }
 
 #[tokio::test]
-async fn test_post_commitment_fails_without_state_buffer() {
-    let mut env = setup_post_commitment_env(2, true, false).await;
-    let mut args = valid_post_commitment_args();
+async fn test_submit_commitment_fails_without_state_buffer() {
+    let mut env = setup_submit_commitment_env(2, true, false).await;
+    let mut args = submit_commitment_args();
     args.commit_id = 99;
 
-    assert!(post_v2_commitment(&mut env, args).await.is_err());
+    assert!(submit(&mut env, args).await.is_err());
 }
 
 #[tokio::test]
-async fn test_post_commitment_fails_with_wrong_delegation_authority() {
-    let mut env = setup_post_commitment_env(2, true, true).await;
+async fn test_submit_commitment_fails_with_wrong_delegation_authority() {
+    let mut env = setup_submit_commitment_env(2, true, true).await;
 
-    assert!(post_v2_commitment(&mut env, valid_post_commitment_args())
-        .await
-        .is_err());
+    assert!(submit(&mut env, submit_commitment_args()).await.is_err());
 }
 
-struct PostCommitmentEnv {
+struct SubmitCommitmentEnv {
     banks: BanksClient,
     payer: Keypair,
     operator: Keypair,
     verifiers: Vec<Keypair>,
+    delegation_cluster: Pubkey,
     delegated_account: Pubkey,
-    config_args: dlp_api::v2::InitProtocolConfigArgs,
+    challenge_config: ChallengeConfig,
 }
 
-async fn setup_post_commitment_env(
+async fn setup_submit_commitment_env(
     verifier_count: usize,
     register_operator_as_verifier: bool,
     wrong_delegation_authority: bool,
-) -> PostCommitmentEnv {
+) -> SubmitCommitmentEnv {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
@@ -189,10 +211,13 @@ async fn setup_post_commitment_env(
         .map(|_| Keypair::new())
         .collect::<Vec<_>>();
     let delegated_account = Pubkey::new_unique();
+    let cluster_args = challenge_cluster_args(operator.pubkey());
+    let delegation_cluster =
+        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
     let delegation_authority = if wrong_delegation_authority {
         Pubkey::new_unique()
     } else {
-        operator.pubkey()
+        delegation_cluster
     };
 
     add_lamport_account(&mut program_test, authority.pubkey());
@@ -227,54 +252,57 @@ async fn setup_post_commitment_env(
     );
 
     let (mut banks, payer, blockhash) = program_test.start().await;
-    let config_args = valid_protocol_config_args();
-    initialize_protocol_config(
+    initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
         blockhash,
-        config_args.clone(),
+        cluster_args.clone(),
     )
     .await;
+    let challenge_config = cluster_args.challenge_config.unwrap();
 
-    register_v2_operator(
+    register_operator_for_cluster(
         &banks,
         &payer,
         &operator,
         &authority,
-        config_args.min_operator_bond,
+        delegation_cluster,
+        challenge_config.min_operator_bond,
     )
     .await;
 
     if register_operator_as_verifier {
-        register_and_add_v2_verifier(
+        register_and_add_verifier(
             &banks,
             &payer,
             &operator,
             &authority,
-            config_args.min_verifier_bond,
+            delegation_cluster,
+            challenge_config.min_verifier_bond,
         )
         .await;
     }
 
     for verifier in verifiers.iter() {
-        register_and_add_v2_verifier(
+        register_and_add_verifier(
             &banks,
             &payer,
             verifier,
             &authority,
-            config_args.min_verifier_bond,
+            delegation_cluster,
+            challenge_config.min_verifier_bond,
         )
         .await;
     }
 
-    write_v2_state_buffer(
+    write_state(
         &mut banks,
         &payer,
         &operator,
         delegated_account,
         WriteStateBufferArgs {
-            commit_id: valid_post_commitment_args().commit_id,
+            commit_id: submit_commitment_args().commit_id,
             total_len: state_data().len() as u32,
             offset: 0,
             chunk: state_data(),
@@ -282,13 +310,14 @@ async fn setup_post_commitment_env(
     )
     .await;
 
-    PostCommitmentEnv {
+    SubmitCommitmentEnv {
         banks,
         payer,
         operator,
         verifiers,
+        delegation_cluster,
         delegated_account,
-        config_args,
+        challenge_config,
     }
 }
 
@@ -305,18 +334,20 @@ fn add_lamport_account(program_test: &mut ProgramTest, pubkey: Pubkey) {
     );
 }
 
-async fn register_v2_operator(
+async fn register_operator_for_cluster(
     banks: &BanksClient,
     payer: &Keypair,
     operator: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) {
     let blockhash = banks.get_latest_blockhash().await.unwrap();
     let ix = register_operator(
         operator.pubkey(),
         authority.pubkey(),
-        RegisterOperatorArgs { amount_lamports },
+        delegation_cluster,
+        RegisterOperatorArgs { stake_lamports },
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -328,18 +359,20 @@ async fn register_v2_operator(
     banks.process_transaction(tx).await.unwrap();
 }
 
-async fn register_and_add_v2_verifier(
+async fn register_and_add_verifier(
     banks: &BanksClient,
     payer: &Keypair,
     verifier: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) {
     let blockhash = banks.get_latest_blockhash().await.unwrap();
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
-        RegisterVerifierArgs { amount_lamports },
+        delegation_cluster,
+        RegisterVerifierArgs { stake_lamports },
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -352,9 +385,10 @@ async fn register_and_add_v2_verifier(
     let blockhash = banks.get_latest_blockhash().await.unwrap();
     let ix = update_verifier_registry(
         authority.pubkey(),
+        delegation_cluster,
         verifier.pubkey(),
-        dlp_api::v2::UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+        UpdateVerifierRegistryArgs {
+            action: VerifierRegistryAction::Add.value(),
             weight: 1,
         },
     );
@@ -368,8 +402,8 @@ async fn register_and_add_v2_verifier(
     banks.process_transaction(tx).await.unwrap();
 }
 
-fn valid_post_commitment_args() -> PostCommitmentArgs {
-    PostCommitmentArgs {
+fn submit_commitment_args() -> SubmitCommitmentArgs {
+    SubmitCommitmentArgs {
         commit_id: 1,
         lamports: 1_000,
         owner: Pubkey::new_unique(),
@@ -378,7 +412,7 @@ fn valid_post_commitment_args() -> PostCommitmentArgs {
     }
 }
 
-async fn write_v2_state_buffer(
+async fn write_state(
     banks: &mut BanksClient,
     payer: &Keypair,
     operator: &Keypair,
@@ -411,9 +445,9 @@ fn account_data_hash(data: &[u8]) -> [u8; 32] {
         .to_bytes()
 }
 
-async fn post_v2_commitment(
-    env: &mut PostCommitmentEnv,
-    args: PostCommitmentArgs,
+async fn submit(
+    env: &mut SubmitCommitmentEnv,
+    args: SubmitCommitmentArgs,
 ) -> Result<(), solana_program_test::BanksClientError> {
     let latest_blockhash: Hash =
         env.banks.get_latest_blockhash().await.unwrap();
@@ -422,8 +456,12 @@ async fn post_v2_commitment(
         .get_new_latest_blockhash(&latest_blockhash)
         .await
         .unwrap();
-    let ix =
-        post_commitment(env.operator.pubkey(), env.delegated_account, args);
+    let ix = submit_commitment(
+        env.operator.pubkey(),
+        env.delegation_cluster,
+        env.delegated_account,
+        args,
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&env.payer.pubkey()),

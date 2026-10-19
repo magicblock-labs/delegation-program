@@ -32,7 +32,7 @@ pub struct StateBuffer {
     /// Once true, buffer content cannot change except exact duplicate retries.
     pub finalized: bool,
 
-    /// Active payload bytes for `PostCommitment` or `RaiseChallenge`.
+    /// Active payload bytes for `SubmitCommitment` or `RaiseChallenge`.
     ///
     /// This is not a serialized Solana account. Depending on the flow, it can
     /// be the delegated account's complete `Account::data` bytes or an encoded
