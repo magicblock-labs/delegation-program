@@ -9,6 +9,7 @@ Protocol rationale stays in the MIMD.
 
 - [Decisions To Review](#decisions-to-review)
 - [MIMD Drift](#mimd-drift)
+- [Delegation Clusters](#delegation-clusters)
 - [Permissioned vs Permissionless](#permissioned-vs-permissionless)
 - [Hashes](#hashes)
 - [Accounts](#accounts)
@@ -45,6 +46,8 @@ Protocol rationale stays in the MIMD.
 - Keep challenger commit/reveal from the MIMD: `RaiseChallenge` records a
   salted challenge hash and locks stake; `ChallengerReveal` opens the
   challenged state later.
+- Bind every v2 delegation to a `DelegationCluster`, which supplies the active
+  validator and an immutable direct-or-challenge finalization mode.
 
 ## MIMD Drift
 
@@ -68,6 +71,44 @@ opens lamports, owner, salt, and data or a buffered data hash. This preserves
 the purpose of commit/reveal and avoids forcing full challenger data upload
 before the challenge is accepted.
 
+## Delegation Clusters
+
+The DLP program serves multiple ER deployments with different security and
+finalization policies. There is therefore no program-wide protocol config.
+Each ER security domain has a `DelegationCluster` account, and every v2
+delegation references that account instead of a validator identity directly.
+
+The `DelegationCluster` address is the stable delegation authority. Its
+`cluster_id` is fixed when the account is initialized and is independent of the
+validator key. The account stores the current validator identity, so rotating
+that identity updates authorization for every account delegated to the cluster
+without undelegating and redelegating those accounts. This follows the agreed
+[validator-rotation discussion](https://github.com/magicblock-labs/dev-kanban/issues/194).
+
+DLP is responsible for checking the current validator on commits,
+undelegations, and other validator-authorized operations. A future
+`RotateValidator` instruction will update the validator when invoked by the
+configured rotation authority. Rotation orchestration, temporary encryption
+keys, key handover, and transaction forwarding stay outside DLP.
+
+Each cluster chooses one immutable finalization mode:
+
+- `Direct` uses the v2 direct commit/finalize path and does not use the
+  challenge state machine.
+- `Challenge` requires `PostCommitment`, verifier approval, the challenge
+  window, and `FinalizeCommitment`.
+
+The existing v1 direct instructions continue to compare their signer with the
+validator pubkey stored by a v1 delegation. They cannot authorize a v2
+delegation because its authority is a PDA. The v2 direct commit/finalize path
+must instead load that PDA, require `Direct`, and authorize
+`current_validator`.
+
+The mode is immutable because changing a challenge-enabled cluster to direct
+finalization could bypass protection expected by existing delegations or open
+commitments. Other policy fields may be updated for future commitments; values
+needed by an already-open commitment must be copied into its protocol state.
+
 ## Permissioned vs Permissionless
 
 Our implementation target is **DLP v2**. DLP v1 is the current program. DLP v2
@@ -82,7 +123,7 @@ should start permissioned, but with the permissionless account shape:
   verifier registry changes, and dispute resolution are controlled by configured
   signers.
 
-So our DLP v2 "permissioned" means:
+So our DLP v2 "permissioned" challenge flow means:
 
 - use `OperatorBond`, `VerifierBond`, `VerifierRegistry`,
   `PendingCommitment`, `Challenge`, and payout accounts from the start;
@@ -112,6 +153,7 @@ da_pointer_hash = H("magicblock.da_pointer.v1", da_pointer_bytes)
 
 state_commitment_hash = H(
   "magicblock.state_commitment.v1",
+  delegation_cluster,
   operator_identity,
   account_pubkey,
   commit_id,
@@ -145,10 +187,10 @@ Seed strings are placeholders until frozen.
 
 | Account | PDA seeds | Purpose |
 | --- | --- | --- |
-| `ProtocolConfig` | `["protocol-config"]` | Global params, resolver signer, protocol fee vault. |
-| `OperatorBond` | `["operator-bond", operator]` | Slashable operator stake and lifecycle. |
-| `VerifierBond` | `["verifier-bond", verifier]` | Slashable verifier stake. |
-| `VerifierRegistry` | `["verifier-registry"]` | All registered verifiers. |
+| `DelegationCluster` | `["delegation-cluster", cluster_id]` | Stable ER identity, active validator, finalization mode, and cluster policy. |
+| `OperatorBond` | `["operator-bond", delegation_cluster]` | Cluster-scoped operator stake for the challenge flow that survives validator rotation. |
+| `VerifierBond` | `["verifier-bond", delegation_cluster, verifier]` | Verifier stake isolated to one cluster. |
+| `VerifierRegistry` | `["verifier-registry", delegation_cluster]` | Verifiers selectable for one challenge-enabled cluster. |
 | `PendingCommitment` | `["pending-commitment", account, commit_id]` | Main commitment state machine. |
 | `StateBuffer` | `["state-buffer", account, commit_id, authority]` | Chunked full account data opened by operator or challenger. |
 | `Challenge` | `["challenge", account, commit_id, challenger]` | One challenge against one pending commitment. |
@@ -168,12 +210,27 @@ pub enum ActorStatus {
     Jailed,
 }
 
-/// PDA: `["protocol-config"]`
-/// Created by: `InitProtocolConfig`.
+pub enum FinalizationMode {
+    /// Use the v2 direct commit/finalize path without a challenge window.
+    Direct,
+    /// Require the pending-commitment and challenge state machine.
+    Challenge,
+}
+
+/// PDA: `["delegation-cluster", cluster_id]`
+/// Created by: `InitDelegationCluster`.
 /// Closed by: not normally closed.
-pub struct ProtocolConfig {
-    /// Signer allowed to update config and permissioned-v2 bootstrap state.
-    pub authority: Pubkey,
+pub struct DelegationCluster {
+    /// Stable identifier used to derive this cluster account.
+    pub cluster_id: Pubkey,
+    /// Signer allowed to update cluster policy and permissioned bootstrap state.
+    pub config_authority: Pubkey,
+    /// Signer allowed to replace `current_validator`.
+    pub validator_rotation_authority: Pubkey,
+    /// Validator currently authorized to act for this cluster.
+    pub current_validator: Pubkey,
+    /// Immutable choice between direct and challenge-based finalization.
+    pub finalization_mode: FinalizationMode,
     /// Emergency stop for new commitments and other non-exit activity.
     pub paused: bool,
     /// Multisig-controlled signer allowed to call ResolveDispute.
@@ -202,16 +259,16 @@ pub struct ProtocolConfig {
 // Review: `protocol_fee_vault` may be too vague if it also holds slashed funds
 // and penalties.
 // Review: fields copied into PendingCommitment or Challenge must not be read
-// from ProtocolConfig later for already-open records.
+// from DelegationCluster later for already-open records.
 
-/// PDA: `["operator-bond", operator]`
+/// PDA: `["operator-bond", delegation_cluster]`
 /// Created by: `RegisterOperator`.
 /// Closed by: `WithdrawStake` after exit, zero stake, and no locks.
 ///
-/// One account per operator. `PostCommitment` checks this account.
+/// One account per cluster. Validator rotation does not move the bonded stake.
 pub struct OperatorBond {
-    /// Operator identity this bond belongs to.
-    pub operator_identity: Pubkey,
+    /// Delegation cluster whose operator stake this account holds.
+    pub delegation_cluster: Pubkey,
     /// Slashable stake currently credited to this operator.
     pub stake_lamports: u64,
     /// Stake temporarily unavailable for withdrawal.
@@ -224,12 +281,15 @@ pub struct OperatorBond {
 // Review: `locked_lamports` needs exact lock/unlock rules when one operator has
 // multiple pending commitments or disputes.
 
-/// PDA: `["verifier-bond", verifier]`
+/// PDA: `["verifier-bond", delegation_cluster, verifier]`
 /// Created by: `RegisterVerifier`.
 /// Closed by: `WithdrawStake` after exit, zero stake, no locks, and registry removal.
 ///
-/// One account per verifier. Selection also requires presence in VerifierRegistry.
+/// One account per verifier per cluster. Selection also requires presence in
+/// that cluster's VerifierRegistry.
 pub struct VerifierBond {
+    /// Cluster in which this verifier and stake are registered.
+    pub delegation_cluster: Pubkey,
     /// Verifier identity this bond belongs to.
     pub verifier_identity: Pubkey,
     /// Slashable stake currently credited to this verifier.
@@ -244,20 +304,22 @@ pub struct VerifierBond {
 // Review: `registered_slot` is only useful if verifier warm-up/cooldown rules
 // exist. Remove it if no such rule is planned.
 
-/// PDA: `["verifier-registry"]`
-/// Created by: `InitProtocolConfig` as an empty registry.
+/// PDA: `["verifier-registry", delegation_cluster]`
+/// Created by: `InitDelegationCluster` for `Challenge` mode.
 /// Updated by: `UpdateVerifierRegistry`.
 /// Closed by: not normally closed.
 ///
-/// Single registry containing all verifiers that can be selected.
+/// One cluster-scoped registry containing all verifiers that can be selected.
 pub struct VerifierRegistry {
+    /// Cluster whose commitments select from this registry.
+    pub delegation_cluster: Pubkey,
     /// Increments every time `entries` changes.
     /// Pending commitments store this value when selected verifiers are copied
     /// from this registry.
     pub registry_revision: u64,
     /// Round-robin start cursor used by the next commitment selection.
     pub next_selection_index: u64,
-    /// All registered verifiers DLP can select from.
+    /// All registered verifiers DLP can select for this cluster.
     pub entries: Vec<VerifierRegistryEntry>,
 }
 // Review: account size must be bounded before implementation. If the verifier
@@ -303,13 +365,15 @@ pub enum ResolvedStateSource {
 pub struct PendingCommitment {
     /// Current state-machine state for this commitment.
     pub status: PendingCommitmentStatus,
-    /// Operator identity that posted the commitment.
+    /// Cluster under which this commitment was posted.
+    pub delegation_cluster: Pubkey,
+    /// Validator identity that posted the commitment.
     pub operator_identity: Pubkey,
-    /// OperatorBond checked when the commitment was posted.
+    /// Cluster OperatorBond checked when the commitment was posted.
     pub operator_bond: Pubkey,
     /// Delegated account whose base-layer state will be finalized.
     pub account_pubkey: Pubkey,
-    /// Operator-chosen nonce for this account commitment.
+    /// Validator-chosen nonce for this account commitment.
     pub commit_id: u64,
     /// Delegation metadata tying this account to the ER context.
     pub delegation_record: Pubkey,
@@ -323,7 +387,8 @@ pub struct PendingCommitment {
     pub lamports: u64,
     /// Owner committed by the operator.
     pub owner: Pubkey,
-    /// Hash binding operator, account, commit id, delegation, DA, and state.
+    /// Hash binding cluster, validator, account, commit id, delegation, DA,
+    /// and state.
     pub state_commitment_hash: [u8; 32],
     /// Registry account used when this commitment was posted.
     pub verifier_registry: Pubkey,
@@ -344,7 +409,7 @@ pub struct PendingCommitment {
     pub approval_bitmap: Vec<u8>,
     /// Number of unique selected verifiers that approved.
     pub approval_count: u16,
-    /// Threshold copied from ProtocolConfig when the commitment is posted.
+    /// Threshold copied from DelegationCluster when the commitment is posted.
     pub approval_threshold: u16,
     /// Active Challenge account, if any.
     pub active_challenge: Option<Pubkey>,
@@ -489,11 +554,11 @@ Authority-gated setup and admission instructions for permissioned v2.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `InitProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority signer, ProtocolConfig, VerifierRegistry</strong></li></ul> | Protocol authority | Creates the global config account and empty verifier registry. Stores bootstrap params such as resolver, fees, thresholds, and timeouts. |
-| `UpdateProtocolConfig`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>authority signer, ProtocolConfig</strong></li></ul> | Protocol authority | Updates params used by future commitments. Existing pending commitments keep the values copied into their accounts. |
-| `RegisterOperator`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>operator signer, protocol authority signer, OperatorBond, ProtocolConfig</strong></li></ul> | Operator, protocol authority | Creates the per-operator `OperatorBond` PDA at `["operator-bond", operator]` and deposits slashable stake. Permissioned v2 requires configured approval before the operator can post commitments. |
-| `RegisterVerifier`<ul><li>ix-data: <code>amount_lamports</code></li><li>accounts: <strong>verifier signer, protocol authority signer, VerifierBond, ProtocolConfig</strong></li></ul> | Verifier, protocol authority | Creates the per-verifier `VerifierBond` PDA at `["verifier-bond", verifier]` and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter the registry. |
-| `UpdateVerifierRegistry`<ul><li>ix-data: <code>update</code></li><li>accounts: <strong>authority signer, VerifierRegistry, VerifierBond accounts</strong></li></ul> | Protocol authority | Adds or removes verifier pubkeys in the single `VerifierRegistry` account and increments `registry_revision`. Invalid, duplicate, unbonded, or inactive verifiers are rejected. |
+| `InitDelegationCluster`<ul><li>ix-data: <code>cluster_id, current_validator, validator_rotation_authority, finalization_mode, params</code></li><li>accounts: <strong>config authority signer, DelegationCluster, optional VerifierRegistry, system program</strong></li></ul> | Cluster config authority | Creates one cluster and stores its stable identity, active validator, immutable finalization mode, and policy. `Challenge` requires and creates the cluster registry; `Direct` omits that account. |
+| `UpdateDelegationCluster`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>config authority signer, DelegationCluster</strong></li></ul> | Cluster config authority | Updates mutable policy used by future commitments. It cannot change `cluster_id`, `finalization_mode`, or the validator through this instruction. Existing pending commitments keep the values copied into their accounts. |
+| `RegisterOperator`<ul><li>ix-data: <code>stake_lamports</code></li><li>accounts: <strong>current validator signer, config authority signer, OperatorBond, DelegationCluster</strong></li></ul> | Current validator, cluster config authority | Requires `Challenge` mode, creates the cluster's `OperatorBond` PDA at `["operator-bond", delegation_cluster]`, and deposits slashable stake. The bond remains with the cluster when its validator rotates. |
+| `RegisterVerifier`<ul><li>ix-data: <code>stake_lamports</code></li><li>accounts: <strong>verifier signer, config authority signer, VerifierBond, DelegationCluster</strong></li></ul> | Verifier, cluster config authority | Requires `Challenge` mode, creates a cluster-scoped `VerifierBond` PDA at `["verifier-bond", delegation_cluster, verifier]`, and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter that cluster's registry. |
+| `UpdateVerifierRegistry`<ul><li>ix-data: <code>update</code></li><li>accounts: <strong>config authority signer, DelegationCluster, VerifierRegistry, VerifierBond accounts</strong></li></ul> | Cluster config authority | Requires `Challenge` mode and adds or removes verifiers in the cluster's registry. Cross-cluster bonds, invalid entries, duplicates, and inactive verifiers are rejected. |
 
 ### Core Runtime Instructions
 
@@ -501,13 +566,13 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `WriteStateBuffer`<ul><li>ix-data: <code>buffer_write</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, ProtocolConfig, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_id, authority]` seed pattern. The instruction is authority-specific, not operator-specific; consuming instructions validate whether the authority is valid for their flow. |
-| `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>operator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, ProtocolConfig, VerifierRegistry</strong></li></ul> | Operator | Requires the finalized operator buffer, stores its `data_hash`, selects verifiers with round-robin, creates an active commitment, stores the current `registry_revision`, and starts the challenge window. |
+| `WriteStateBuffer`<ul><li>ix-data: <code>buffer_write</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_id, authority]` seed pattern. The instruction remains cluster-neutral; consuming instructions validate the authority and cluster relationship. |
+| `PostCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>current validator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, DelegationCluster, VerifierRegistry</strong></li></ul> | Current validator | Requires `Challenge` mode, verifies the delegation's cluster and current validator, consumes only cluster-scoped bond and registry accounts, selects verifiers, and starts the challenge window. |
 | `ApproveCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from the selected verifier. v2 MVP requires exactly one selected verifier, so no verifier index is needed. Duplicate approvals do not increase the count. |
-| `RaiseChallenge`<ul><li>ix-data: <code>challenge_hash, stake_lamports</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, ProtocolConfig, system program</strong></li></ul> | Challenger | Creates the challenge account, locks challenger stake, stores the salted `challenge_hash`, and blocks normal finalization until reveal, timeout, or resolution. It does not consume challenger state bytes. |
-| `ChallengerReveal`<ul><li>ix-data: <code>revealed_state</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, optional finalized challenger StateBuffer, protocol fee vault</strong></li></ul> | Challenger | Opens the challenged state and salt, validates the stored `challenge_hash`, compares against the operator state, penalizes matching challenges, or moves mismatches to resolver decision. |
-| `ResolveDispute`<ul><li>ix-data: <code>decision</code></li><li>accounts: <strong>resolver signer, Challenge, PendingCommitment, OperatorBond, fee vault, optional PayoutTimelock</strong></li></ul> | Resolver multisig | Applies the multisig decision for a valid mismatch: operator state correct or challenger state correct. |
-| `FinalizeCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>operator or cranker, PendingCommitment, delegated account, DelegationRecord/metadata, selected StateBuffer, optional Challenge</strong></li></ul> | Operator or cranker | Applies the operator state on the happy path, or the resolver-selected state after dispute resolution. |
+| `RaiseChallenge`<ul><li>ix-data: <code>challenge_hash, stake_lamports</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, system program</strong></li></ul> | Challenger | Requires the cluster stored by the pending commitment, locks challenger stake, stores the salted `challenge_hash`, and blocks normal finalization until reveal, timeout, or resolution. It does not consume challenger state bytes. |
+| `ChallengerReveal`<ul><li>ix-data: <code>revealed_state</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, optional finalized challenger StateBuffer, protocol fee vault</strong></li></ul> | Challenger | Opens the challenged state and salt, validates the stored cluster and `challenge_hash`, compares against the operator state, penalizes matching challenges, or moves mismatches to resolver decision. |
+| `ResolveDispute`<ul><li>ix-data: <code>decision</code></li><li>accounts: <strong>resolver signer, Challenge, PendingCommitment, DelegationCluster, OperatorBond, fee vault, optional PayoutTimelock</strong></li></ul> | Resolver multisig | Requires the resolver and cluster stored by the pending commitment, then applies the multisig decision for a valid mismatch. |
+| `FinalizeCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>operator or cranker, PendingCommitment, delegated account, DelegationRecord/metadata, DelegationCluster, selected StateBuffer, optional Challenge</strong></li></ul> | Operator or cranker | Requires `Challenge` mode and the delegation-bound cluster, then applies the operator state on the happy path or the resolver-selected state after dispute resolution. |
 
 ### Low-Priority Instructions
 
@@ -515,10 +580,11 @@ These instructions can be skipped while implementing the first usable v2 flow.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Marks bonded stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
-| `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, ProtocolConfig</strong></li></ul> | Operator or verifier | Low priority. Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
+| `RotateValidator`<ul><li>ix-data: <code>new_validator</code></li><li>accounts: <strong>validator rotation authority signer, DelegationCluster</strong></li></ul> | External rotation controller | Deferred. Replaces the cluster's current validator. DLP enforces the signer and account update; key handover and transaction forwarding are external responsibilities. |
+| `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, DelegationCluster</strong></li></ul> | Operator or verifier | Low priority. Marks cluster-scoped stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
+| `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, DelegationCluster</strong></li></ul> | Operator or verifier | Low priority. Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
 | `FinalizeStateBuffer`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Low priority. Useful only if we want buffer finalization to be a separate instruction instead of the final `WriteStateBuffer` chunk freezing the buffer. |
-| `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, ProtocolConfig</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to config, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
+| `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, DelegationCluster</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to the commitment's cluster policy, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
 | `MarkChallengerRevealTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge, fee vault</strong></li></ul> | Cranker | Deferred. Closes an unrevealed challenge after the reveal timeout, applies the configured challenger penalty, and unblocks or expires the pending commitment according to final policy. |
 | `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Low priority. Needed only if dispute payouts are delayed through `PayoutTimelock`; otherwise `ResolveDispute` can pay immediately. |
 | `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Low priority. Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
@@ -633,19 +699,29 @@ pub struct ResolveDisputeData {
 
 ### Important Instruction Rules
 
+- A v2 `DelegationRecord` stores its `DelegationCluster` address as the
+  delegation authority. Validator-authorized instructions load that exact
+  cluster and require its `current_validator` signer. A caller cannot choose a
+  different cluster or policy at runtime.
+- `Direct` and `Challenge` are separate v2 finalization routes. The direct
+  commit/finalize path rejects `Challenge` clusters, while `PostCommitment` and
+  `FinalizeCommitment` reject `Direct` clusters. Existing v1 delegations and
+  their direct instructions retain their validator-key authorization model.
 - `WriteStateBuffer` must run before `PostCommitment` for the operator state.
   `PostCommitment` rejects if the operator buffer is missing, unfinished, or
-  belongs to another account, commit id, or operator.
+  belongs to another account, commit id, or current validator.
 - `PostCommitment` reads `data_hash` from the finalized operator buffer,
-  computes `account_state_hash` and `state_commitment_hash`, stores the pending
-  record, stores the current `VerifierRegistry.registry_revision`, selects
-  verifiers with round-robin, increments
+  verifies that the delegation, operator bond, and verifier registry belong to
+  the same cluster, computes `account_state_hash` and
+  `state_commitment_hash`, stores the cluster and posting validator in the
+  pending record, stores the current `VerifierRegistry.registry_revision`,
+  selects verifiers with round-robin, increments
   `VerifierRegistry.next_selection_index` by the number of scanned registry
   entries, and starts the challenge window.
 - Verifier selection uses all registered verifiers except the commitment
   operator. If no verifier remains, `PostCommitment` rejects.
-- v2 MVP requires `ProtocolConfig.verifiers_per_commitment == 1` and
-  `ProtocolConfig.approval_threshold == 1`. `PostCommitment` therefore selects
+- v2 MVP requires `DelegationCluster.verifiers_per_commitment == 1` and
+  `DelegationCluster.approval_threshold == 1`. `PostCommitment` therefore selects
   exactly one verifier; if no verifier other than the operator exists, it
   rejects. Multi-verifier approval can be added later by relaxing config
   validation and adding an index or bitmap to `ApproveCommitment`.
@@ -665,8 +741,8 @@ pub struct ResolveDisputeData {
   to normal finalization. If challenger state differs, the commitment remains
   blocked until `ResolveDispute`.
 - `ResolveDispute` requires the configured `resolver` signer from
-  `ProtocolConfig`. In DLP v2 this signer is expected to be a multisig-controlled
-  account.
+  the `DelegationCluster` stored by the pending commitment. In DLP v2 this
+  signer is expected to be a multisig-controlled account.
 - `FinalizeCommitment` on the happy path requires closed window, approval
   threshold, no unresolved challenge, and full-state hash match.
 - `FinalizeCommitment` after dispute resolution uses
@@ -677,6 +753,11 @@ pub struct ResolveDisputeData {
 
 | Scenario | DLP behavior |
 | --- | --- |
+| Delegation and supplied cluster differ | Reject. The delegation fixes the cluster for every v2 operation. |
+| Rotated-out validator starts a new validator-authorized operation | Reject. Only `DelegationCluster.current_validator` is authorized. |
+| Direct instruction receives a `Challenge` cluster | Reject. Challenge-enabled delegations cannot bypass the pending-commitment state machine. |
+| Challenge instruction receives a `Direct` cluster | Reject. Direct clusters do not create challenge protocol state. |
+| Bond or registry belongs to another cluster | Reject before using its stake or verifier entries. |
 | Wrong registry account is passed | Reject. The registry account must match `PendingCommitment.verifier_registry`. |
 | Registry update includes duplicate, unbonded, or inactive verifiers | Reject. `registry_revision` changes only after a valid update. |
 | No eligible verifier exists at `PostCommitment` | Reject. At least one verifier other than the operator must be selectable. |
@@ -689,8 +770,9 @@ pub struct ResolveDisputeData {
 
 ### Happy Path
 
-1. Operator writes and finalizes `StateBuffer`.
-2. Operator posts commitment using that buffer.
+1. The cluster's current validator writes and finalizes `StateBuffer`.
+2. The current validator posts a commitment using that buffer and the
+   delegation-bound `DelegationCluster`.
 3. DLP selects verifiers with round-robin and starts the challenge window.
 4. Selected verifier approves.
 5. Window closes without challenge.
@@ -736,7 +818,11 @@ commitment expires.
 
 ## Validator Repo Responsibilities
 
-- Operator: write DLP state buffers, compute hashes, and post commitments.
+- Current validator: resolve its `DelegationCluster`, write DLP state buffers,
+  compute hashes, and post commitments.
+- Rotation controller: invoke `RotateValidator` after the external handover
+  process is ready. Temporary encryption keys and transaction forwarding are
+  outside DLP.
 - Verifier: watch selections, fetch DA, replay execution, approve or challenge.
 - Challenger: detect divergence, raise a challenge with a salted hash, then
   reveal the challenged state and salt. Large revealed data may use a challenger
@@ -749,20 +835,19 @@ commitment expires.
 
 **Why is there a VerifierRegistry but no OperatorRegistry?**
 
-DLP selects verifiers from a registered verifier list. For v2 MVP the selection
-is round-robin, so DLP needs an ordered list plus a cursor.
-Operators are not selected by DLP. Operators submit commitments themselves, so
-DLP only needs to derive and check the operator's `OperatorBond` PDA.
+DLP selects verifiers from a cluster-scoped registered verifier list. For v2
+MVP the selection is round-robin, so DLP needs an ordered list plus a cursor.
+The operator is the `DelegationCluster.current_validator`, so DLP resolves it
+from the delegation-bound cluster and checks that cluster's `OperatorBond` PDA.
 
 **Can the same identity be both operator and verifier?**
 
-Yes. The same pubkey can register for both roles, but it must register each role
-separately: `RegisterOperator` creates `OperatorBond`, and `RegisterVerifier`
-creates `VerifierBond`.
+Yes. A cluster's current validator can also register as a verifier, but the
+roles and bonds remain separate and cluster-scoped.
 
 **Can an operator verify its own commitment?**
 
-No. `PostCommitment` must exclude the commitment operator from
+No. `PostCommitment` must exclude the posting validator from
 `selected_verifiers`, even if the same pubkey is registered as a verifier.
 
 **Why keep VerifierBond separate from VerifierRegistry?**
@@ -794,3 +879,5 @@ instructions.
 - Operator slash amount and challenger payout amount.
 - Whether verifier slashing for bad approvals is in initial DLP v2 or later.
 - Which multisig program/account signs as `resolver`.
+- How stable `cluster_id` values are allocated and authenticated before
+  `InitDelegationCluster`.
