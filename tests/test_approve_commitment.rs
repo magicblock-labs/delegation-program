@@ -2,12 +2,12 @@ use dlp_api::{
     pda::delegation_record_pda_from_delegated_account,
     v2::{
         instruction_builder::{
-            approve_commitment, register_operator, register_verifier,
-            submit_commitment, update_verifier_registry, write_state_buffer,
+            approve_commitment, propose_commitment, register_operator,
+            register_verifier, update_verifier_registry, write_state_buffer,
         },
         pda::pending_commitment_pda,
-        PendingCommitment, RegisterOperatorArgs, RegisterVerifierArgs,
-        SubmitCommitmentArgs, UpdateVerifierRegistryArgs,
+        PendingCommitment, ProposeCommitmentArgs, RegisterOperatorArgs,
+        RegisterVerifierArgs, UpdateVerifierRegistryArgs,
         VerifierRegistryAction, WriteStateBufferArgs,
     },
 };
@@ -35,9 +35,9 @@ use crate::fixtures::{
 #[tokio::test]
 async fn test_approve_commitment() {
     let mut env = setup_approve_commitment_env(1).await;
-    let args = submit_commitment_args();
+    let args = propose_commitment_args();
 
-    submit(
+    propose(
         &mut env.banks,
         &env.payer,
         &env.operator,
@@ -82,9 +82,9 @@ async fn test_approve_commitment() {
 #[tokio::test]
 async fn test_approve_commitment_duplicate_is_noop() {
     let mut env = setup_approve_commitment_env(1).await;
-    let args = submit_commitment_args();
+    let args = propose_commitment_args();
 
-    submit(
+    propose(
         &mut env.banks,
         &env.payer,
         &env.operator,
@@ -135,9 +135,9 @@ async fn test_approve_commitment_duplicate_is_noop() {
 #[tokio::test]
 async fn test_approve_commitment_fails_with_wrong_verifier() {
     let mut env = setup_approve_commitment_env(2).await;
-    let args = submit_commitment_args();
+    let args = propose_commitment_args();
 
-    submit(
+    propose(
         &mut env.banks,
         &env.payer,
         &env.operator,
@@ -163,9 +163,9 @@ async fn test_approve_commitment_fails_with_wrong_verifier() {
 #[tokio::test]
 async fn test_approve_commitment_fails_without_verifier_signature() {
     let mut env = setup_approve_commitment_env(1).await;
-    let args = submit_commitment_args();
+    let args = propose_commitment_args();
 
-    submit(
+    propose(
         &mut env.banks,
         &env.payer,
         &env.operator,
@@ -198,9 +198,9 @@ async fn test_approve_commitment_fails_without_verifier_signature() {
 #[tokio::test]
 async fn test_approve_commitment_fails_with_instruction_data() {
     let mut env = setup_approve_commitment_env(1).await;
-    let args = submit_commitment_args();
+    let args = propose_commitment_args();
 
-    submit(
+    propose(
         &mut env.banks,
         &env.payer,
         &env.operator,
@@ -334,7 +334,7 @@ async fn setup_approve_commitment_env(
         &operator,
         delegated_account,
         WriteStateBufferArgs {
-            commit_id: submit_commitment_args().commit_id,
+            commit_id: propose_commitment_args().commit_id,
             total_len: state_data().len() as u32,
             offset: 0,
             chunk: state_data(),
@@ -433,8 +433,8 @@ async fn register_and_add_verifier(
     banks.process_transaction(tx).await.unwrap();
 }
 
-fn submit_commitment_args() -> SubmitCommitmentArgs {
-    SubmitCommitmentArgs {
+fn propose_commitment_args() -> ProposeCommitmentArgs {
+    ProposeCommitmentArgs {
         commit_id: 1,
         lamports: 1_000,
         owner: Pubkey::new_unique(),
@@ -471,20 +471,20 @@ fn state_data() -> Vec<u8> {
     vec![1, 2, 3, 4]
 }
 
-async fn submit(
+async fn propose(
     banks: &mut BanksClient,
     payer: &Keypair,
     operator: &Keypair,
     delegation_cluster: Pubkey,
     delegated_account: Pubkey,
-    args: SubmitCommitmentArgs,
+    args: ProposeCommitmentArgs,
 ) -> Result<(), solana_program_test::BanksClientError> {
     let latest_blockhash: Hash = banks.get_latest_blockhash().await.unwrap();
     let blockhash = banks
         .get_new_latest_blockhash(&latest_blockhash)
         .await
         .unwrap();
-    let ix = submit_commitment(
+    let ix = propose_commitment(
         operator.pubkey(),
         delegation_cluster,
         delegated_account,
