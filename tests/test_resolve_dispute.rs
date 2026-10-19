@@ -5,16 +5,16 @@ use dlp_api::{
     },
     v2::{
         instruction_builder::{
-            challenger_reveal, raise_challenge, register_operator,
-            register_verifier, resolve_dispute, submit_commitment,
+            challenger_reveal, propose_commitment, raise_challenge,
+            register_operator, register_verifier, resolve_dispute,
             update_delegation_cluster, update_verifier_registry,
             write_state_buffer,
         },
         pda::{challenge_pda, operator_bond_pda, pending_commitment_pda},
         Challenge, ChallengeConfig, ChallengerRevealArgs, OperatorBond,
-        OperatorStatus, PendingCommitment, RaiseChallengeArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs, ResolveDisputeArgs,
-        SubmitCommitmentArgs, UpdateDelegationClusterArgs,
+        OperatorStatus, PendingCommitment, ProposeCommitmentArgs,
+        RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
+        ResolveDisputeArgs, UpdateDelegationClusterArgs,
         UpdateVerifierRegistryArgs, VerifierRegistryAction,
         WriteStateBufferArgs,
         CHALLENGE_OUTCOME_CHALLENGER_CORRECT_OPERATOR_SLASHED,
@@ -214,7 +214,7 @@ async fn test_resolve_dispute_fails_with_wrong_resolver() {
 #[tokio::test]
 async fn test_resolve_dispute_fails_before_mismatched_reveal() {
     let mut env = setup_resolve_dispute_env().await;
-    submit(&mut env).await.unwrap();
+    propose(&mut env).await.unwrap();
 
     let data_hash = account_data_hash(&[4, 3, 2, 1]);
     let reveal_args = valid_reveal_args(
@@ -442,7 +442,7 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
 }
 
 async fn open_dispute(env: &mut ResolveDisputeEnv) -> ChallengerRevealArgs {
-    submit(env).await.unwrap();
+    propose(env).await.unwrap();
 
     let challenger_data = vec![4, 3, 2, 1];
     let reveal_args = valid_reveal_args(
@@ -469,12 +469,12 @@ async fn open_dispute(env: &mut ResolveDisputeEnv) -> ChallengerRevealArgs {
     reveal_args
 }
 
-async fn submit(env: &mut ResolveDisputeEnv) -> Result<(), BanksClientError> {
-    let ix = submit_commitment(
+async fn propose(env: &mut ResolveDisputeEnv) -> Result<(), BanksClientError> {
+    let ix = propose_commitment(
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        SubmitCommitmentArgs {
+        ProposeCommitmentArgs {
             commit_id: env.commit_id,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
