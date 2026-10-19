@@ -5,14 +5,17 @@ use dlp_api::{
     },
     v2::{
         instruction_builder::{
-            challenger_reveal, post_commitment, raise_challenge,
-            register_operator, register_verifier, resolve_dispute,
-            update_verifier_registry, write_state_buffer,
+            challenger_reveal, raise_challenge, register_operator,
+            register_verifier, resolve_dispute, submit_commitment,
+            update_delegation_cluster, update_verifier_registry,
+            write_state_buffer,
         },
         pda::{challenge_pda, operator_bond_pda, pending_commitment_pda},
-        Challenge, ChallengerRevealArgs, OperatorBond, OperatorStatus,
-        PendingCommitment, PostCommitmentArgs, RaiseChallengeArgs,
+        Challenge, ChallengeConfig, ChallengerRevealArgs, OperatorBond,
+        OperatorStatus, PendingCommitment, RaiseChallengeArgs,
         RegisterOperatorArgs, RegisterVerifierArgs, ResolveDisputeArgs,
+        SubmitCommitmentArgs, UpdateDelegationClusterArgs,
+        UpdateVerifierRegistryArgs, VerifierRegistryAction,
         WriteStateBufferArgs,
         CHALLENGE_OUTCOME_CHALLENGER_CORRECT_OPERATOR_SLASHED,
         CHALLENGE_OUTCOME_OPERATOR_CORRECT_CHALLENGER_SLASHED,
@@ -25,7 +28,6 @@ use dlp_api::{
         PENDING_COMMITMENT_STATUS_RESOLVED_OPERATOR,
         RESOLVED_STATE_SOURCE_CHALLENGER_REVEAL,
         RESOLVED_STATE_SOURCE_OPERATOR_COMMITMENT,
-        VERIFIER_REGISTRY_ACTION_ADD,
     },
 };
 use solana_program::{native_token::LAMPORTS_PER_SOL, rent::Rent};
@@ -48,7 +50,7 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
-    v2::{initialize_protocol_config, valid_protocol_config_args},
+    v2::{challenge_cluster_args, initialize_delegation_cluster},
 };
 
 const CHALLENGE_STAKE: u64 = 10_000;
@@ -60,13 +62,26 @@ async fn test_resolve_dispute_operator_correct_slashes_challenger_and_selects_op
     let mut env = setup_resolve_dispute_env().await;
     open_dispute(&mut env).await;
 
+    let mut updated_config = env.challenge_config.clone();
+    updated_config.resolver = Pubkey::new_unique();
+    let ix = update_delegation_cluster(
+        env.config_authority.pubkey(),
+        env.delegation_cluster,
+        UpdateDelegationClusterArgs {
+            challenge_config: Some(updated_config),
+        },
+    );
+    process_ix(&mut env.context, ix, &[&env.config_authority])
+        .await
+        .unwrap();
+
     let fee_vault_before =
         account_lamports(&mut env.context, fees_vault_pda()).await;
     let challenger_before =
         account_lamports(&mut env.context, env.challenger.pubkey()).await;
     let operator_bond_before = read_operator_bond(&mut env).await;
 
-    resolve_v2_dispute(
+    resolve(
         &mut env,
         ResolveDisputeArgs {
             decision: DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
@@ -126,7 +141,7 @@ async fn test_resolve_dispute_challenger_correct_refunds_challenger_and_slashes_
         account_lamports(&mut env.context, env.challenger.pubkey()).await;
     let operator_bond_before = read_operator_bond(&mut env).await;
 
-    resolve_v2_dispute(
+    resolve(
         &mut env,
         ResolveDisputeArgs {
             decision: DISPUTE_DECISION_CHALLENGER_STATE_CORRECT,
@@ -182,7 +197,7 @@ async fn test_resolve_dispute_fails_with_wrong_resolver() {
 
     let ix = resolve_dispute(
         env.operator.pubkey(),
-        env.operator.pubkey(),
+        env.delegation_cluster,
         env.challenger.pubkey(),
         env.delegated_account,
         env.commit_id,
@@ -199,7 +214,7 @@ async fn test_resolve_dispute_fails_with_wrong_resolver() {
 #[tokio::test]
 async fn test_resolve_dispute_fails_before_mismatched_reveal() {
     let mut env = setup_resolve_dispute_env().await;
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
 
     let data_hash = account_data_hash(&[4, 3, 2, 1]);
     let reveal_args = valid_reveal_args(
@@ -207,7 +222,7 @@ async fn test_resolve_dispute_fails_before_mismatched_reveal() {
         env.committed_owner,
         data_hash,
     );
-    raise_v2_challenge_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
+    raise_for_reveal(&mut env, &reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
 
@@ -217,7 +232,7 @@ async fn test_resolve_dispute_fails_before_mismatched_reveal() {
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL
     );
 
-    assert!(resolve_v2_dispute(
+    assert!(resolve(
         &mut env,
         ResolveDisputeArgs {
             decision: DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
@@ -234,7 +249,7 @@ async fn test_resolve_dispute_fails_with_wrong_operator_bond() {
 
     let mut ix = resolve_dispute(
         env.resolver.pubkey(),
-        env.operator.pubkey(),
+        env.delegation_cluster,
         env.challenger.pubkey(),
         env.delegated_account,
         env.commit_id,
@@ -242,7 +257,7 @@ async fn test_resolve_dispute_fails_with_wrong_operator_bond() {
             decision: DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
         },
     );
-    ix.accounts[3].pubkey = operator_bond_pda(&env.other_operator.pubkey());
+    ix.accounts[3].pubkey = challenge_address(&env);
 
     assert!(process_ix(&mut env.context, ix, &[&env.resolver])
         .await
@@ -256,7 +271,7 @@ async fn test_resolve_dispute_fails_with_wrong_fee_vault() {
 
     let mut ix = resolve_dispute(
         env.resolver.pubkey(),
-        env.operator.pubkey(),
+        env.delegation_cluster,
         env.challenger.pubkey(),
         env.delegated_account,
         env.commit_id,
@@ -276,23 +291,23 @@ async fn test_resolve_dispute_fails_with_invalid_decision() {
     let mut env = setup_resolve_dispute_env().await;
     open_dispute(&mut env).await;
 
-    assert!(
-        resolve_v2_dispute(&mut env, ResolveDisputeArgs { decision: 99 })
-            .await
-            .is_err()
-    );
+    assert!(resolve(&mut env, ResolveDisputeArgs { decision: 99 })
+        .await
+        .is_err());
 }
 
 struct ResolveDisputeEnv {
     context: ProgramTestContext,
+    config_authority: Keypair,
     resolver: Keypair,
     operator: Keypair,
-    other_operator: Keypair,
     challenger: Keypair,
+    delegation_cluster: Pubkey,
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
     commit_id: u64,
+    challenge_config: ChallengeConfig,
 }
 
 async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
@@ -302,10 +317,16 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
     let authority = Keypair::new();
     let resolver = Keypair::new();
     let operator = Keypair::new();
-    let other_operator = Keypair::new();
     let verifier = Keypair::new();
     let challenger = Keypair::new();
     let delegated_account = Pubkey::new_unique();
+    let mut cluster_args = challenge_cluster_args(operator.pubkey());
+    let challenge_config = cluster_args.challenge_config.as_mut().unwrap();
+    challenge_config.resolver = resolver.pubkey();
+    challenge_config.min_operator_bond = OPERATOR_STAKE;
+    let delegation_cluster =
+        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
+    let challenge_config = cluster_args.challenge_config.clone().unwrap();
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;
     let operator_state_data = vec![9, 8, 7, 6, 5];
@@ -315,7 +336,6 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
     add_lamport_account(&mut program_test, authority.pubkey());
     add_lamport_account(&mut program_test, resolver.pubkey());
     add_lamport_account(&mut program_test, operator.pubkey());
-    add_lamport_account(&mut program_test, other_operator.pubkey());
     add_lamport_account(&mut program_test, verifier.pubkey());
     add_lamport_account(&mut program_test, challenger.pubkey());
     add_protocol_fee_vault(&mut program_test);
@@ -335,7 +355,7 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: create_delegation_record_data(
-                operator.pubkey(),
+                delegation_cluster,
                 committed_owner,
                 Some(record_lamports),
             ),
@@ -360,38 +380,39 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
     );
 
     let mut context = program_test.start_with_context().await;
-    let mut config_args = valid_protocol_config_args();
-    config_args.resolver = resolver.pubkey();
-    initialize_protocol_config(
+    initialize_delegation_cluster(
         &context.banks_client,
         &context.payer,
         &authority,
         context.last_blockhash,
-        config_args.clone(),
+        cluster_args.clone(),
     )
     .await;
 
-    register_v2_operator(&mut context, &operator, &authority, OPERATOR_STAKE)
-        .await
-        .unwrap();
-    register_v2_operator(
+    register_operator_for_cluster(
         &mut context,
-        &other_operator,
+        &operator,
         &authority,
+        delegation_cluster,
         OPERATOR_STAKE,
     )
     .await
     .unwrap();
-    register_and_add_v2_verifier(
+    register_and_add_verifier(
         &mut context,
         &verifier,
         &authority,
-        config_args.min_verifier_bond,
+        delegation_cluster,
+        cluster_args
+            .challenge_config
+            .as_ref()
+            .unwrap()
+            .min_verifier_bond,
     )
     .await
     .unwrap();
 
-    write_v2_state_buffer(
+    write_state(
         &mut context,
         &operator,
         delegated_account,
@@ -407,19 +428,21 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
 
     ResolveDisputeEnv {
         context,
+        config_authority: authority,
         resolver,
         operator,
-        other_operator,
         challenger,
+        delegation_cluster,
         delegated_account,
         committed_owner,
         committed_lamports,
         commit_id,
+        challenge_config,
     }
 }
 
 async fn open_dispute(env: &mut ResolveDisputeEnv) -> ChallengerRevealArgs {
-    post_v2_commitment(env).await.unwrap();
+    submit(env).await.unwrap();
 
     let challenger_data = vec![4, 3, 2, 1];
     let reveal_args = valid_reveal_args(
@@ -430,10 +453,10 @@ async fn open_dispute(env: &mut ResolveDisputeEnv) -> ChallengerRevealArgs {
     write_challenger_state_buffer(env, challenger_data)
         .await
         .unwrap();
-    raise_v2_challenge_for_reveal(env, &reveal_args, CHALLENGE_STAKE)
+    raise_for_reveal(env, &reveal_args, CHALLENGE_STAKE)
         .await
         .unwrap();
-    reveal_v2_challenge(env, reveal_args.clone()).await.unwrap();
+    reveal(env, reveal_args.clone()).await.unwrap();
 
     let pending = read_pending_commitment(env).await;
     assert_eq!(
@@ -446,13 +469,12 @@ async fn open_dispute(env: &mut ResolveDisputeEnv) -> ChallengerRevealArgs {
     reveal_args
 }
 
-async fn post_v2_commitment(
-    env: &mut ResolveDisputeEnv,
-) -> Result<(), BanksClientError> {
-    let ix = post_commitment(
+async fn submit(env: &mut ResolveDisputeEnv) -> Result<(), BanksClientError> {
+    let ix = submit_commitment(
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
-        PostCommitmentArgs {
+        SubmitCommitmentArgs {
             commit_id: env.commit_id,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
@@ -464,7 +486,7 @@ async fn post_v2_commitment(
     process_ix(&mut env.context, ix, &[&env.operator]).await
 }
 
-async fn raise_v2_challenge_for_reveal(
+async fn raise_for_reveal(
     env: &mut ResolveDisputeEnv,
     reveal_args: &ChallengerRevealArgs,
     stake_lamports: u64,
@@ -472,6 +494,7 @@ async fn raise_v2_challenge_for_reveal(
     let pending = read_pending_commitment(env).await;
     let ix = raise_challenge(
         env.challenger.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
         RaiseChallengeArgs {
@@ -491,13 +514,14 @@ async fn raise_v2_challenge_for_reveal(
     process_ix(&mut env.context, ix, &[&env.challenger]).await
 }
 
-async fn reveal_v2_challenge(
+async fn reveal(
     env: &mut ResolveDisputeEnv,
     args: ChallengerRevealArgs,
 ) -> Result<(), BanksClientError> {
     let ix = challenger_reveal(
         env.challenger.pubkey(),
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
         args,
@@ -506,13 +530,13 @@ async fn reveal_v2_challenge(
     process_ix(&mut env.context, ix, &[&env.challenger]).await
 }
 
-async fn resolve_v2_dispute(
+async fn resolve(
     env: &mut ResolveDisputeEnv,
     args: ResolveDisputeArgs,
 ) -> Result<(), BanksClientError> {
     let ix = resolve_dispute(
         env.resolver.pubkey(),
-        env.operator.pubkey(),
+        env.delegation_cluster,
         env.challenger.pubkey(),
         env.delegated_account,
         env.commit_id,
@@ -526,7 +550,7 @@ async fn write_challenger_state_buffer(
     env: &mut ResolveDisputeEnv,
     data: Vec<u8>,
 ) -> Result<(), BanksClientError> {
-    write_v2_state_buffer(
+    write_state(
         &mut env.context,
         &env.challenger,
         env.delegated_account,
@@ -540,39 +564,44 @@ async fn write_challenger_state_buffer(
     .await
 }
 
-async fn register_v2_operator(
+async fn register_operator_for_cluster(
     context: &mut ProgramTestContext,
     operator: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) -> Result<(), BanksClientError> {
     let ix = register_operator(
         operator.pubkey(),
         authority.pubkey(),
-        RegisterOperatorArgs { amount_lamports },
+        delegation_cluster,
+        RegisterOperatorArgs { stake_lamports },
     );
 
     process_ix(context, ix, &[operator, authority]).await
 }
 
-async fn register_and_add_v2_verifier(
+async fn register_and_add_verifier(
     context: &mut ProgramTestContext,
     verifier: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) -> Result<(), BanksClientError> {
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
-        RegisterVerifierArgs { amount_lamports },
+        delegation_cluster,
+        RegisterVerifierArgs { stake_lamports },
     );
     process_ix(context, ix, &[verifier, authority]).await?;
 
     let ix = update_verifier_registry(
         authority.pubkey(),
+        delegation_cluster,
         verifier.pubkey(),
-        dlp_api::v2::UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+        UpdateVerifierRegistryArgs {
+            action: VerifierRegistryAction::Add.value(),
             weight: 1,
         },
     );
@@ -580,7 +609,7 @@ async fn register_and_add_v2_verifier(
     process_ix(context, ix, &[authority]).await
 }
 
-async fn write_v2_state_buffer(
+async fn write_state(
     context: &mut ProgramTestContext,
     authority: &Keypair,
     account: Pubkey,
@@ -693,7 +722,7 @@ async fn read_operator_bond(
     let account = env
         .context
         .banks_client
-        .get_account(operator_bond_pda(&env.operator.pubkey()))
+        .get_account(operator_bond_pda(&env.delegation_cluster))
         .await
         .unwrap()
         .unwrap();

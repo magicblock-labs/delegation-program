@@ -8,10 +8,7 @@ use crate::{
     compat::{Compatize, Modernize},
     pda::fees_vault_pda,
     v2::{
-        pda::{
-            challenge_pda, operator_bond_pda, pending_commitment_pda,
-            protocol_config_pda,
-        },
+        pda::{challenge_pda, operator_bond_pda, pending_commitment_pda},
         DlpV2Instruction, ResolveDisputeArgs,
     },
 };
@@ -19,7 +16,7 @@ use crate::{
 /// Builds the instruction that applies a resolver decision for a v2 challenge.
 pub fn resolve_dispute(
     resolver: Pubkey,
-    operator: Pubkey,
+    delegation_cluster: Pubkey,
     challenger: Pubkey,
     account: Pubkey,
     commit_id: u64,
@@ -44,11 +41,11 @@ pub fn resolve_dispute(
                 false,
             ),
             AccountMeta::new(
-                operator_bond_pda(&operator.compatize()).modernize(),
+                operator_bond_pda(&delegation_cluster.compatize()).modernize(),
                 false,
             ),
             AccountMeta::new(challenger, false),
-            AccountMeta::new_readonly(protocol_config_pda().modernize(), false),
+            AccountMeta::new_readonly(delegation_cluster, false),
             AccountMeta::new(fees_vault_pda().modernize(), false),
         ],
         data: [
