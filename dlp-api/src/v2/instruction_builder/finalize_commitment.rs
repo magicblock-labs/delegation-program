@@ -19,6 +19,7 @@ use crate::{
 /// Builds the instruction that finalizes one approved v2 commitment.
 pub fn finalize_commitment(
     operator: Pubkey,
+    delegation_cluster: Pubkey,
     account: Pubkey,
     commit_id: u64,
 ) -> Instruction {
@@ -55,6 +56,7 @@ pub fn finalize_commitment(
                 .modernize(),
                 false,
             ),
+            AccountMeta::new_readonly(delegation_cluster, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: DlpV2Instruction::FinalizeCommitment.to_vec(),

@@ -2,22 +2,23 @@ use dlp_api::{
     error::DlpError,
     state::{DelegationMetadataFast, DelegationRecord, UndelegationRequester},
     v2::{
-        pda::{PENDING_COMMITMENT_SEED, STATE_BUFFER_SEED},
-        PendingCommitment, SelectedVerifier, StateBuffer,
-        PENDING_COMMITMENT_STATUS_ACTIVE, PENDING_COMMITMENT_STATUS_FINALIZED,
+        pda::{
+            DELEGATION_CLUSTER_SEED, PENDING_COMMITMENT_SEED, STATE_BUFFER_SEED,
+        },
+        DelegationCluster, PendingCommitment, PendingCommitmentView,
+        StateBuffer, PENDING_COMMITMENT_STATUS_ACTIVE,
+        PENDING_COMMITMENT_STATUS_FINALIZED,
     },
 };
 use pinocchio::{
-    address::Address,
     error::ProgramError,
     sysvars::{clock::Clock, rent::Rent, Sysvar},
     AccountView, ProgramResult,
 };
 use pinocchio_system::instructions as system;
 use wheels::{
-    layout::{Decodable, Encodable},
-    require_eq, require_eq_keys, require_ge, require_gt, require_n_accounts,
-    require_signer,
+    layout::Decodable, require, require_eq, require_eq_keys, require_ge,
+    require_gt, require_n_accounts, require_signer,
 };
 
 use crate::{
@@ -38,7 +39,8 @@ use crate::{
 /// 3: `[writable]`         DelegationRecord PDA
 /// 4: `[writable]`         DelegationMetadata PDA
 /// 5: `[]`                 finalized StateBuffer PDA
-/// 6: `[]`                 system program, required by system CPI
+/// 6: `[]`                 DelegationCluster PDA
+/// 7: `[]`                 system program, required by system CPI
 #[inline(never)]
 pub fn process_finalize_commitment(
     accounts: &[AccountView],
@@ -51,8 +53,9 @@ pub fn process_finalize_commitment(
         delegation_record,
         delegation_metadata,
         state_buffer,
+        delegation_cluster,
         _system_program,
-    ] = require_n_accounts!(accounts, 7);
+    ] = require_n_accounts!(accounts, 8);
 
     require_eq!(data.len(), 0, ProgramError::InvalidInstructionData);
     require_signer!(operator);
@@ -71,12 +74,22 @@ pub fn process_finalize_commitment(
         "pending commitment",
     )?;
 
-    let mut pending = load_pending_commitment(pending_commitment)?;
+    let pending_data = pending_commitment.try_borrow()?;
+    let pending = PendingCommitment::decode(pending_data.as_ref())?;
     validate_pending_commitment(
         &pending,
         pending_commitment,
         operator,
         delegated_account,
+    )?;
+
+    let delegation_cluster_data = delegation_cluster.try_borrow()?;
+    let delegation_cluster_state =
+        DelegationCluster::decode(delegation_cluster_data.as_ref())?;
+    validate_delegation_cluster(
+        &delegation_cluster_state,
+        delegation_cluster,
+        &pending,
     )?;
 
     require_initialized_delegation_record(
@@ -85,7 +98,7 @@ pub fn process_finalize_commitment(
         true,
     )?;
     require_eq_keys!(
-        &Address::from(pending.delegation_record.to_bytes()),
+        pending.delegation_record(),
         delegation_record.address(),
         ProgramError::InvalidAccountData
     );
@@ -95,7 +108,7 @@ pub fn process_finalize_commitment(
         true,
     )?;
 
-    let commit_id_bytes = pending.commit_id.to_le_bytes();
+    let commit_id_bytes = pending.commit_id().to_le_bytes();
     require_initialized_pda(
         state_buffer,
         &[
@@ -109,9 +122,12 @@ pub fn process_finalize_commitment(
         "state buffer",
     )?;
 
-    let record_lamports =
-        validate_delegation_record(delegation_record, operator, &pending)?;
-    validate_delegation_metadata(delegation_metadata, pending.commit_id)?;
+    let record_lamports = validate_delegation_record(
+        delegation_record,
+        delegation_cluster,
+        &pending,
+    )?;
+    validate_delegation_metadata(delegation_metadata, pending.commit_id())?;
 
     let state_buffer_data = state_buffer.try_borrow()?;
     let raw_state = validate_state_buffer(
@@ -126,7 +142,7 @@ pub fn process_finalize_commitment(
         operator,
         delegated_account,
         record_lamports,
-        pending.lamports,
+        pending.lamports(),
     )?;
     require_rent_exempt(delegated_account)?;
 
@@ -143,80 +159,39 @@ pub fn process_finalize_commitment(
                 &mut delegation_record_data,
             )
             .map_err(to_pinocchio_program_error)?;
-        delegation_record_state.lamports = pending.lamports;
+        delegation_record_state.lamports = pending.lamports();
     }
 
     {
         let mut metadata =
             DelegationMetadataFast::from_account(delegation_metadata)?;
-        metadata.set_last_commit_id(pending.commit_id);
+        metadata.set_last_commit_id(pending.commit_id());
     }
 
-    pending.status = PENDING_COMMITMENT_STATUS_FINALIZED;
-    pending.encode_to(pending_commitment.try_borrow_mut()?.as_mut())?;
+    drop(delegation_cluster_data);
+    drop(pending_data);
+    *PendingCommitment::decode_mut(pending_commitment)?.status_mut()? =
+        PENDING_COMMITMENT_STATUS_FINALIZED;
 
     Ok(())
 }
 
-fn load_pending_commitment(
-    pending_commitment: &AccountView,
-) -> Result<PendingCommitment, ProgramError> {
-    let pending_data = pending_commitment.try_borrow()?;
-    let pending_view = PendingCommitment::decode(pending_data.as_ref())?;
-
-    if pending_view.discriminator() != PendingCommitment::DISCRIMINATOR {
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    Ok(PendingCommitment {
-        discriminator: PendingCommitment::DISCRIMINATOR,
-        status: pending_view.status(),
-        operator_identity: *pending_view.operator_identity(),
-        operator_bond: *pending_view.operator_bond(),
-        account_pubkey: *pending_view.account_pubkey(),
-        commit_id: pending_view.commit_id(),
-        delegation_record: *pending_view.delegation_record(),
-        da_pointer_hash: *pending_view.da_pointer_hash(),
-        account_state_hash: *pending_view.account_state_hash(),
-        data_hash: *pending_view.data_hash(),
-        lamports: pending_view.lamports(),
-        owner: *pending_view.owner(),
-        state_commitment_hash: *pending_view.state_commitment_hash(),
-        verifier_registry: *pending_view.verifier_registry(),
-        challenge_window_id: pending_view.challenge_window_id(),
-        posted_slot: pending_view.posted_slot(),
-        activation_slot: pending_view.activation_slot(),
-        challenge_window_end_slot: pending_view.challenge_window_end_slot(),
-        approval_count: pending_view.approval_count(),
-        approval_threshold: pending_view.approval_threshold(),
-        active_challenge: pending_view.active_challenge().cloned(),
-        resolved_state_source: pending_view.resolved_state_source(),
-        er_slot: pending_view.er_slot(),
-        _pad_before_selected_verifiers: [0; 7],
-        selected_verifiers: pending_view
-            .selected_verifiers()
-            .iter()
-            .map(|verifier| SelectedVerifier {
-                verifier_identity: *verifier.verifier_identity(),
-                approved: verifier.approved(),
-                _pad_after_approved: [0; 7],
-            })
-            .collect(),
-    })
-}
-
 fn validate_pending_commitment(
-    pending: &PendingCommitment,
+    pending: &PendingCommitmentView<'_>,
     pending_commitment: &AccountView,
     operator: &AccountView,
     delegated_account: &AccountView,
 ) -> ProgramResult {
-    let commit_id_bytes = pending.commit_id.to_le_bytes();
+    if pending.discriminator() != PendingCommitment::DISCRIMINATOR {
+        return Err(ProgramError::InvalidAccountData);
+    }
+
+    let commit_id_bytes = pending.commit_id().to_le_bytes();
     require_initialized_pda(
         pending_commitment,
         &[
             PENDING_COMMITMENT_SEED,
-            pending.account_pubkey.as_ref(),
+            pending.account_pubkey().as_ref(),
             &commit_id_bytes,
         ],
         &crate::fast::ID,
@@ -224,58 +199,89 @@ fn validate_pending_commitment(
         "pending commitment",
     )?;
     require_eq_keys!(
-        &Address::from(pending.operator_identity.to_bytes()),
+        pending.operator_identity(),
         operator.address(),
         DlpError::InvalidAuthority
     );
     require_eq_keys!(
-        &Address::from(pending.account_pubkey.to_bytes()),
+        pending.account_pubkey(),
         delegated_account.address(),
         DlpError::InvalidDelegatedAccount
     );
     require_eq!(
-        pending.status,
+        pending.status(),
         PENDING_COMMITMENT_STATUS_ACTIVE,
         ProgramError::InvalidInstructionData
     );
     require_eq!(
-        pending.active_challenge.is_none(),
+        pending.active_challenge().is_none(),
         true,
         ProgramError::InvalidInstructionData
     );
     require_eq!(
-        pending.resolved_state_source.is_none(),
+        pending.resolved_state_source().is_none(),
         true,
         ProgramError::InvalidInstructionData
     );
     require_ge!(
-        pending.approval_count,
-        pending.approval_threshold,
+        pending.approval_count(),
+        pending.approval_threshold(),
         ProgramError::InvalidInstructionData
     );
     require_eq!(
-        pending.approval_threshold,
+        pending.approval_threshold(),
         1,
         ProgramError::InvalidAccountData
     );
     require_eq!(
-        pending.selected_verifiers.len(),
+        pending.selected_verifiers().len(),
         1,
         ProgramError::InvalidAccountData
     );
     require_eq!(
         pending
-            .selected_verifiers
+            .selected_verifiers()
             .get(0)
             .ok_or(ProgramError::InvalidAccountData)?
-            .approved,
+            .approved(),
         true,
         ProgramError::InvalidInstructionData
     );
     require_gt!(
         Clock::get()?.slot,
-        pending.challenge_window_end_slot,
+        pending.challenge_window_end_slot(),
         ProgramError::InvalidInstructionData
+    );
+
+    Ok(())
+}
+
+fn validate_delegation_cluster(
+    delegation_cluster: &dlp_api::v2::DelegationClusterView<'_>,
+    delegation_cluster_account: &AccountView,
+    pending: &PendingCommitmentView<'_>,
+) -> ProgramResult {
+    if delegation_cluster.discriminator() != DelegationCluster::DISCRIMINATOR {
+        return Err(ProgramError::InvalidAccountData);
+    }
+    require_initialized_pda(
+        delegation_cluster_account,
+        &[
+            DELEGATION_CLUSTER_SEED,
+            delegation_cluster.cluster_id().as_ref(),
+        ],
+        &crate::fast::ID,
+        false,
+        "delegation cluster",
+    )?;
+    require_eq_keys!(
+        delegation_cluster_account.address(),
+        pending.delegation_cluster(),
+        ProgramError::InvalidAccountData
+    );
+    require!(
+        delegation_cluster.challenge_config().is_some(),
+        ProgramError::InvalidAccountData
     );
 
     Ok(())
@@ -283,8 +289,8 @@ fn validate_pending_commitment(
 
 fn validate_delegation_record(
     delegation_record: &AccountView,
-    operator: &AccountView,
-    pending: &PendingCommitment,
+    delegation_cluster: &AccountView,
+    pending: &PendingCommitmentView<'_>,
 ) -> Result<u64, ProgramError> {
     let delegation_record_data = delegation_record.try_borrow()?;
     let delegation_record_state =
@@ -294,13 +300,13 @@ fn validate_delegation_record(
         .map_err(to_pinocchio_program_error)?;
 
     require_eq_keys!(
-        &Address::from(delegation_record_state.authority.to_bytes()),
-        operator.address(),
+        &delegation_record_state.authority,
+        delegation_cluster.address(),
         DlpError::InvalidAuthority
     );
     require_eq_keys!(
-        &Address::from(delegation_record_state.owner.to_bytes()),
-        &Address::from(pending.owner.to_bytes()),
+        &delegation_record_state.owner,
+        pending.owner(),
         ProgramError::InvalidAccountData
     );
 
@@ -333,7 +339,7 @@ fn validate_state_buffer<'a>(
     data: &'a [u8],
     operator: &AccountView,
     delegated_account: &AccountView,
-    pending: &PendingCommitment,
+    pending: &PendingCommitmentView<'_>,
 ) -> Result<&'a [u8], ProgramError> {
     let state = StateBuffer::decode(data)?;
 
@@ -352,7 +358,7 @@ fn validate_state_buffer<'a>(
     );
     require_eq!(
         state.commit_id(),
-        pending.commit_id,
+        pending.commit_id(),
         ProgramError::InvalidInstructionData
     );
     require_eq!(
@@ -367,7 +373,7 @@ fn validate_state_buffer<'a>(
     );
     require_eq!(
         state.data_hash(),
-        &pending.data_hash,
+        pending.data_hash(),
         ProgramError::InvalidInstructionData
     );
 

@@ -6,14 +6,15 @@ use dlp_api::{
     state::{DelegationMetadata, DelegationRecord},
     v2::{
         instruction_builder::{
-            approve_commitment, finalize_commitment, post_commitment,
-            register_operator, register_verifier, update_verifier_registry,
+            approve_commitment, finalize_commitment, register_operator,
+            register_verifier, submit_commitment, update_verifier_registry,
             write_state_buffer,
         },
         pda::pending_commitment_pda,
-        PendingCommitment, PostCommitmentArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, WriteStateBufferArgs,
-        PENDING_COMMITMENT_STATUS_FINALIZED, VERIFIER_REGISTRY_ACTION_ADD,
+        PendingCommitment, RegisterOperatorArgs, RegisterVerifierArgs,
+        SubmitCommitmentArgs, UpdateVerifierRegistryArgs,
+        VerifierRegistryAction, WriteStateBufferArgs,
+        PENDING_COMMITMENT_STATUS_FINALIZED,
     },
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
@@ -36,7 +37,7 @@ mod fixtures;
 
 use crate::fixtures::{
     create_delegation_metadata_data, create_delegation_record_data,
-    v2::{initialize_protocol_config, valid_protocol_config_args},
+    v2::{challenge_cluster_args, initialize_delegation_cluster},
 };
 
 #[tokio::test]
@@ -48,10 +49,10 @@ async fn test_finalize_commitment() {
     )
     .await;
 
-    post_v2_commitment(&mut env).await.unwrap();
-    approve_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
-    finalize_v2_commitment(&mut env).await.unwrap();
+    finalize(&mut env).await.unwrap();
 
     let pending_commitment = read_pending_commitment(&mut env).await;
     assert_eq!(
@@ -85,10 +86,10 @@ async fn test_finalize_commitment_fails_before_window_closes() {
     )
     .await;
 
-    post_v2_commitment(&mut env).await.unwrap();
-    approve_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
 
-    assert!(finalize_v2_commitment(&mut env).await.is_err());
+    assert!(finalize(&mut env).await.is_err());
 }
 
 #[tokio::test]
@@ -100,10 +101,10 @@ async fn test_finalize_commitment_fails_without_approval() {
     )
     .await;
 
-    post_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
-    assert!(finalize_v2_commitment(&mut env).await.is_err());
+    assert!(finalize(&mut env).await.is_err());
 }
 
 #[tokio::test]
@@ -118,12 +119,13 @@ async fn test_finalize_commitment_fails_with_wrong_operator() {
     add_lamport_account_to_context(&mut env.context, wrong_operator.pubkey())
         .await;
 
-    post_v2_commitment(&mut env).await.unwrap();
-    approve_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
     let ix = finalize_commitment(
         wrong_operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
     );
@@ -139,11 +141,11 @@ async fn test_finalize_commitment_fails_with_owner_mismatch() {
         setup_finalize_commitment_env(LAMPORTS_PER_SOL, LAMPORTS_PER_SOL, true)
             .await;
 
-    post_v2_commitment(&mut env).await.unwrap();
-    approve_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
-    assert!(finalize_v2_commitment(&mut env).await.is_err());
+    assert!(finalize(&mut env).await.is_err());
 }
 
 #[tokio::test]
@@ -155,13 +157,13 @@ async fn test_finalize_commitment_lamport_increase() {
     )
     .await;
 
-    post_v2_commitment(&mut env).await.unwrap();
-    approve_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
     let operator_balance_before =
         balance(&mut env.context, env.operator.pubkey()).await;
-    finalize_v2_commitment(&mut env).await.unwrap();
+    finalize(&mut env).await.unwrap();
 
     assert_eq!(
         balance(&mut env.context, env.operator.pubkey()).await,
@@ -186,13 +188,13 @@ async fn test_finalize_commitment_lamport_decrease() {
     )
     .await;
 
-    post_v2_commitment(&mut env).await.unwrap();
-    approve_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
 
     let operator_balance_before =
         balance(&mut env.context, env.operator.pubkey()).await;
-    finalize_v2_commitment(&mut env).await.unwrap();
+    finalize(&mut env).await.unwrap();
 
     assert_eq!(
         balance(&mut env.context, env.operator.pubkey()).await,
@@ -217,18 +219,19 @@ async fn test_finalize_commitment_fails_twice() {
     )
     .await;
 
-    post_v2_commitment(&mut env).await.unwrap();
-    approve_v2_commitment(&mut env).await.unwrap();
+    submit(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
     warp_past_challenge_window(&mut env).await;
-    finalize_v2_commitment(&mut env).await.unwrap();
+    finalize(&mut env).await.unwrap();
 
-    assert!(finalize_v2_commitment(&mut env).await.is_err());
+    assert!(finalize(&mut env).await.is_err());
 }
 
 struct FinalizeCommitmentEnv {
     context: ProgramTestContext,
     operator: Keypair,
     verifier: Keypair,
+    delegation_cluster: Pubkey,
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
@@ -248,6 +251,9 @@ async fn setup_finalize_commitment_env(
     let operator = Keypair::new();
     let verifier = Keypair::new();
     let delegated_account = Pubkey::new_unique();
+    let cluster_args = challenge_cluster_args(operator.pubkey());
+    let delegation_cluster =
+        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
     let account_owner = Pubkey::new_unique();
     let committed_owner = if owner_mismatch {
         Pubkey::new_unique()
@@ -276,7 +282,7 @@ async fn setup_finalize_commitment_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: create_delegation_record_data(
-                operator.pubkey(),
+                delegation_cluster,
                 account_owner,
                 Some(record_lamports),
             ),
@@ -301,34 +307,36 @@ async fn setup_finalize_commitment_env(
     );
 
     let mut context = program_test.start_with_context().await;
-    let config_args = valid_protocol_config_args();
-    initialize_protocol_config(
+    initialize_delegation_cluster(
         &context.banks_client,
         &context.payer,
         &authority,
         context.last_blockhash,
-        config_args.clone(),
+        cluster_args.clone(),
     )
     .await;
 
-    register_v2_operator(
+    let challenge_config = cluster_args.challenge_config.unwrap();
+    register_operator_for_cluster(
         &mut context,
         &operator,
         &authority,
-        config_args.min_operator_bond,
+        delegation_cluster,
+        challenge_config.min_operator_bond,
     )
     .await
     .unwrap();
-    register_and_add_v2_verifier(
+    register_and_add_verifier(
         &mut context,
         &verifier,
         &authority,
-        config_args.min_verifier_bond,
+        delegation_cluster,
+        challenge_config.min_verifier_bond,
     )
     .await
     .unwrap();
 
-    write_v2_state_buffer(
+    write_state(
         &mut context,
         &operator,
         delegated_account,
@@ -346,6 +354,7 @@ async fn setup_finalize_commitment_env(
         context,
         operator,
         verifier,
+        delegation_cluster,
         delegated_account,
         committed_owner,
         committed_lamports,
@@ -354,13 +363,14 @@ async fn setup_finalize_commitment_env(
     }
 }
 
-async fn post_v2_commitment(
+async fn submit(
     env: &mut FinalizeCommitmentEnv,
 ) -> Result<(), BanksClientError> {
-    let ix = post_commitment(
+    let ix = submit_commitment(
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
-        PostCommitmentArgs {
+        SubmitCommitmentArgs {
             commit_id: env.commit_id,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
@@ -372,11 +382,12 @@ async fn post_v2_commitment(
     process_ix(&mut env.context, ix, &[&env.operator]).await
 }
 
-async fn approve_v2_commitment(
+async fn approve(
     env: &mut FinalizeCommitmentEnv,
 ) -> Result<(), BanksClientError> {
     let ix = approve_commitment(
         env.verifier.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
     );
@@ -384,11 +395,12 @@ async fn approve_v2_commitment(
     process_ix(&mut env.context, ix, &[&env.verifier]).await
 }
 
-async fn finalize_v2_commitment(
+async fn finalize(
     env: &mut FinalizeCommitmentEnv,
 ) -> Result<(), BanksClientError> {
     let ix = finalize_commitment(
         env.operator.pubkey(),
+        env.delegation_cluster,
         env.delegated_account,
         env.commit_id,
     );
@@ -396,39 +408,44 @@ async fn finalize_v2_commitment(
     process_ix(&mut env.context, ix, &[&env.operator]).await
 }
 
-async fn register_v2_operator(
+async fn register_operator_for_cluster(
     context: &mut ProgramTestContext,
     operator: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) -> Result<(), BanksClientError> {
     let ix = register_operator(
         operator.pubkey(),
         authority.pubkey(),
-        RegisterOperatorArgs { amount_lamports },
+        delegation_cluster,
+        RegisterOperatorArgs { stake_lamports },
     );
 
     process_ix(context, ix, &[operator, authority]).await
 }
 
-async fn register_and_add_v2_verifier(
+async fn register_and_add_verifier(
     context: &mut ProgramTestContext,
     verifier: &Keypair,
     authority: &Keypair,
-    amount_lamports: u64,
+    delegation_cluster: Pubkey,
+    stake_lamports: u64,
 ) -> Result<(), BanksClientError> {
     let ix = register_verifier(
         verifier.pubkey(),
         authority.pubkey(),
-        RegisterVerifierArgs { amount_lamports },
+        delegation_cluster,
+        RegisterVerifierArgs { stake_lamports },
     );
     process_ix(context, ix, &[verifier, authority]).await?;
 
     let ix = update_verifier_registry(
         authority.pubkey(),
+        delegation_cluster,
         verifier.pubkey(),
-        dlp_api::v2::UpdateVerifierRegistryArgs {
-            action: VERIFIER_REGISTRY_ACTION_ADD,
+        UpdateVerifierRegistryArgs {
+            action: VerifierRegistryAction::Add.value(),
             weight: 1,
         },
     );
@@ -436,7 +453,7 @@ async fn register_and_add_v2_verifier(
     process_ix(context, ix, &[authority]).await
 }
 
-async fn write_v2_state_buffer(
+async fn write_state(
     context: &mut ProgramTestContext,
     operator: &Keypair,
     account: Pubkey,
