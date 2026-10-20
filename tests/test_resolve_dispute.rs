@@ -5,7 +5,8 @@ use dlp_api::{
     },
     v2::{
         instruction_builder::{
-            challenger_reveal, propose_commitment, raise_challenge,
+            challenger_reveal, finalize_challenger_commitment,
+            finalize_commitment, propose_commitment, raise_challenge,
             register_operator, register_verifier, resolve_dispute,
             update_delegation_cluster, update_verifier_registry,
             write_state_buffer,
@@ -24,6 +25,7 @@ use dlp_api::{
         DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
         PENDING_COMMITMENT_STATUS_AWAITING_DISPUTE_RESOLUTION,
+        PENDING_COMMITMENT_STATUS_FINALIZED,
         PENDING_COMMITMENT_STATUS_RESOLVED_CHALLENGER,
         PENDING_COMMITMENT_STATUS_RESOLVED_OPERATOR,
         RESOLVED_STATE_SOURCE_CHALLENGER_REVEAL,
@@ -127,6 +129,41 @@ async fn test_resolve_dispute_operator_correct_slashes_challenger_and_selects_op
         operator_bond_after.account_lamports,
         operator_bond_before.account_lamports
     );
+
+    let ix = finalize_challenger_commitment(
+        env.challenger.pubkey(),
+        env.delegation_cluster,
+        env.delegated_account,
+        env.commit_id,
+    );
+    assert!(process_ix(&mut env.context, ix, &[&env.challenger])
+        .await
+        .is_err());
+
+    let ix = finalize_commitment(
+        env.operator.pubkey(),
+        env.delegation_cluster,
+        env.delegated_account,
+        env.commit_id,
+    );
+    process_ix(&mut env.context, ix, &[&env.operator])
+        .await
+        .unwrap();
+
+    assert_eq!(
+        read_pending_commitment(&mut env).await.status,
+        PENDING_COMMITMENT_STATUS_FINALIZED
+    );
+    assert_eq!(
+        env.context
+            .banks_client
+            .get_account(env.delegated_account)
+            .await
+            .unwrap()
+            .unwrap()
+            .data,
+        env.operator_state_data
+    );
 }
 
 #[tokio::test]
@@ -187,6 +224,41 @@ async fn test_resolve_dispute_challenger_correct_refunds_challenger_and_slashes_
     assert_eq!(
         operator_bond_after.account_lamports,
         operator_bond_before.account_lamports - OPERATOR_STAKE
+    );
+
+    let ix = finalize_commitment(
+        env.operator.pubkey(),
+        env.delegation_cluster,
+        env.delegated_account,
+        env.commit_id,
+    );
+    assert!(process_ix(&mut env.context, ix, &[&env.operator])
+        .await
+        .is_err());
+
+    let ix = finalize_challenger_commitment(
+        env.challenger.pubkey(),
+        env.delegation_cluster,
+        env.delegated_account,
+        env.commit_id,
+    );
+    process_ix(&mut env.context, ix, &[&env.challenger])
+        .await
+        .unwrap();
+
+    assert_eq!(
+        read_pending_commitment(&mut env).await.status,
+        PENDING_COMMITMENT_STATUS_FINALIZED
+    );
+    assert_eq!(
+        env.context
+            .banks_client
+            .get_account(env.delegated_account)
+            .await
+            .unwrap()
+            .unwrap()
+            .data,
+        env.challenger_state_data
     );
 }
 
@@ -308,6 +380,8 @@ struct ResolveDisputeEnv {
     committed_lamports: u64,
     commit_id: u64,
     challenge_config: ChallengeConfig,
+    operator_state_data: Vec<u8>,
+    challenger_state_data: Vec<u8>,
 }
 
 async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
@@ -330,6 +404,7 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;
     let operator_state_data = vec![9, 8, 7, 6, 5];
+    let challenger_state_data = vec![4, 3, 2, 1];
     let record_lamports = LAMPORTS_PER_SOL;
     let committed_lamports = LAMPORTS_PER_SOL;
 
@@ -438,19 +513,20 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
         committed_lamports,
         commit_id,
         challenge_config,
+        operator_state_data,
+        challenger_state_data,
     }
 }
 
-async fn open_dispute(env: &mut ResolveDisputeEnv) -> ChallengerRevealArgs {
+async fn open_dispute(env: &mut ResolveDisputeEnv) {
     propose(env).await.unwrap();
 
-    let challenger_data = vec![4, 3, 2, 1];
     let reveal_args = valid_reveal_args(
         env.committed_lamports,
         env.committed_owner,
-        account_data_hash(&challenger_data),
+        account_data_hash(&env.challenger_state_data),
     );
-    write_challenger_state_buffer(env, challenger_data)
+    write_challenger_state_buffer(env, env.challenger_state_data.clone())
         .await
         .unwrap();
     raise_for_reveal(env, &reveal_args, CHALLENGE_STAKE)
@@ -465,8 +541,6 @@ async fn open_dispute(env: &mut ResolveDisputeEnv) -> ChallengerRevealArgs {
     );
     let challenge = read_challenge(env).await;
     assert_eq!(challenge.status, CHALLENGE_STATUS_AWAITING_RESOLVER);
-
-    reveal_args
 }
 
 async fn propose(env: &mut ResolveDisputeEnv) -> Result<(), BanksClientError> {
