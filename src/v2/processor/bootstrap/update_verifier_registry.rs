@@ -127,6 +127,7 @@ pub fn process_update_verifier_registry(
         .push(&VerifierRegistryEntry {
             verifier_identity: *verifier_identity,
             verifier_bond: *verifier_bond_key,
+            stake_lamports: verifier_bond_state.stake_lamports(),
             weight: args.weight(),
         })?;
 

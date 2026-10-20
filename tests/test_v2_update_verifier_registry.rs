@@ -95,6 +95,7 @@ async fn test_update_verifier_registry_adds_verifier() {
         *entry.verifier_bond(),
         verifier_bond_pda(&delegation_cluster, &verifier.pubkey())
     );
+    assert_eq!(entry.stake_lamports(), min_verifier_bond);
     assert_eq!(entry.weight(), 1);
 }
 

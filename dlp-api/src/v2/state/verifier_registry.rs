@@ -31,6 +31,10 @@ pub struct VerifierRegistryEntry {
     /// Verifier identity selectable by DLP.
     pub verifier_identity: Pubkey,
 
+    /// Bonded stake recorded when this entry was last updated.
+    /// Future bond-changing instructions must keep this value synchronized.
+    pub stake_lamports: u64,
+
     /// Selection weight. Keep as 1 until weighted selection is implemented.
     pub weight: u64,
 }
