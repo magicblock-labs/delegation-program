@@ -1,3 +1,4 @@
+mod challenge;
 mod delegation_cluster;
 mod operator_bond;
 mod pending_commitment;
@@ -5,6 +6,7 @@ mod state_buffer;
 mod verifier_bond;
 mod verifier_registry;
 
+pub use challenge::*;
 pub use delegation_cluster::*;
 pub use operator_bond::*;
 pub use pending_commitment::*;
