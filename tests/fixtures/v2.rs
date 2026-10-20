@@ -54,6 +54,26 @@ pub async fn initialize_delegation_cluster(
     args: InitDelegationClusterArgs,
 ) -> Pubkey {
     let cluster_identity = Keypair::new();
+    initialize_delegation_cluster_with_identity(
+        banks,
+        payer,
+        config_authority,
+        &cluster_identity,
+        blockhash,
+        args,
+    )
+    .await
+}
+
+#[allow(dead_code)]
+pub async fn initialize_delegation_cluster_with_identity(
+    banks: &BanksClient,
+    payer: &Keypair,
+    config_authority: &Keypair,
+    cluster_identity: &Keypair,
+    blockhash: Hash,
+    args: InitDelegationClusterArgs,
+) -> Pubkey {
     let delegation_cluster = delegation_cluster_pda(&cluster_identity.pubkey());
     let ix = init_delegation_cluster(
         config_authority.pubkey(),
@@ -63,7 +83,7 @@ pub async fn initialize_delegation_cluster(
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[payer, config_authority, &cluster_identity],
+        &[payer, config_authority, cluster_identity],
         blockhash,
     );
 
