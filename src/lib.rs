@@ -2,6 +2,9 @@
 
 extern crate dlp_api;
 pub use ::solana_program;
+
+pub type RequireError = dlp_api::error::DlpError;
+
 #[allow(unused_imports)]
 pub(crate) use dlp_api::diff;
 #[allow(unused_imports)]
@@ -25,13 +28,16 @@ pub(crate) use dlp_api::{
 pub use dlp_api::{id, ID};
 #[allow(unused_imports)]
 pub(crate) use dlp_api::{
-    require, require_eq, require_eq_keys, require_ge, require_gt,
-    require_initialized_pda, require_initialized_pda_fast, require_le,
-    require_lt, require_n_accounts, require_n_accounts_with_optionals,
-    require_owned_by, require_pda, require_signer, require_some,
+    require_initialized_pda, require_initialized_pda_fast, require_pda,
 };
 #[cfg(feature = "logging")]
 use solana_program::msg;
+#[allow(unused_imports)]
+pub(crate) use wheels::{
+    require, require_eq, require_eq_keys, require_ge, require_gt, require_le,
+    require_lt, require_n_accounts, require_n_accounts_with_optionals,
+    require_owned_by, require_signer, require_some,
+};
 #[cfg(feature = "processor")]
 use {
     dlp_api::discriminator::DlpDiscriminator,
@@ -43,6 +49,9 @@ use {
 
 #[cfg(feature = "processor")]
 mod processor;
+
+#[cfg(feature = "processor")]
+mod v2;
 
 #[allow(unused_imports)]
 pub(crate) use diff::*;
@@ -76,16 +85,25 @@ pub fn fast_process_instruction(
     accounts: &[pinocchio::AccountView],
     data: &[u8],
 ) -> Option<pinocchio::ProgramResult> {
+    let Some((&tag, v2_data)) = data.split_first() else {
+        return Some(Err(
+            pinocchio::error::ProgramError::InvalidInstructionData,
+        ));
+    };
+
+    if let Ok(ix) = dlp_api::v2::DlpV2Instruction::try_from(tag) {
+        return Some(v2::process_instruction(accounts, v2_data, ix));
+    }
+
     if data.len() < 8 {
         return Some(Err(
             pinocchio::error::ProgramError::InvalidInstructionData,
         ));
     }
 
-    let (discriminator_bytes, data) = data.split_at(8);
+    let (_, data) = data.split_at(8);
 
-    let discriminator = match DlpDiscriminator::try_from(discriminator_bytes[0])
-    {
+    let discriminator = match DlpDiscriminator::try_from(tag) {
         Ok(discriminator) => discriminator,
         Err(_) => {
             pinocchio_log::log!("Failed to read and parse discriminator");
@@ -98,6 +116,17 @@ pub fn fast_process_instruction(
     #[cfg(feature = "logging")]
     msg!("Processing instruction: {:?}", discriminator);
 
+    process_v1_fast_instruction(discriminator, program_id, accounts, data)
+}
+
+#[cfg(feature = "processor")]
+#[inline(never)]
+fn process_v1_fast_instruction(
+    discriminator: DlpDiscriminator,
+    program_id: &pinocchio::Address,
+    accounts: &[pinocchio::AccountView],
+    data: &[u8],
+) -> Option<pinocchio::ProgramResult> {
     match discriminator {
         DlpDiscriminator::Delegate => Some(processor::fast::process_delegate(
             program_id, accounts, data,
@@ -169,12 +198,21 @@ pub fn slow_process_instruction(
     accounts: &[AccountInfo],
     data: &[u8],
 ) -> ProgramResult {
+    let Some((&tag, _)) = data.split_first() else {
+        return Err(ProgramError::InvalidInstructionData);
+    };
+
+    if dlp_api::v2::DlpV2Instruction::try_from(tag).is_ok() {
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
     if data.len() < 8 {
         return Err(ProgramError::InvalidInstructionData);
     }
 
-    let (tag, data) = data.split_at(8);
-    let ix = DlpDiscriminator::try_from(tag[0])
+    let (_, data) = data.split_at(8);
+
+    let ix = DlpDiscriminator::try_from(tag)
         .or(Err(ProgramError::InvalidInstructionData))?;
 
     match ix {

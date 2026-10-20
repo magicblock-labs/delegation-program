@@ -1933,7 +1933,7 @@ version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a75b8549488b4715defcb0d8a8a1c1c76a80661b5fa106b4ca0e7fce59d7d875"
 dependencies = [
- "five8_core 0.1.2",
+ "five8_core",
 ]
 
 [[package]]
@@ -1942,7 +1942,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "23f76610e969fa1784327ded240f1e28a3fd9520c9cec93b636fcf62dd37f772"
 dependencies = [
- "five8_core 1.0.0",
+ "five8_core",
 ]
 
 [[package]]
@@ -1951,7 +1951,7 @@ version = "0.1.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "26dec3da8bc3ef08f2c04f61eab298c3ab334523e55f076354d6d6f613799a7b"
 dependencies = [
- "five8_core 0.1.2",
+ "five8_core",
 ]
 
 [[package]]
@@ -1960,7 +1960,7 @@ version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1a0f1728185f277989ca573a402716ae0beaaea3f76a8ff87ef9dd8fb19436c5"
 dependencies = [
- "five8_core 1.0.0",
+ "five8_core",
 ]
 
 [[package]]
@@ -1968,12 +1968,6 @@ name = "five8_core"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2551bf44bc5f776c15044b9b94153a00198be06743e262afaaa61f11ac7523a5"
-
-[[package]]
-name = "five8_core"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "059c31d7d36c43fe39d89e55711858b4da8be7eb6dabac23c7289b1a19489406"
 
 [[package]]
 name = "flate2"
@@ -3126,8 +3120,9 @@ dependencies = [
  "solana-system-interface 2.0.0",
  "static_assertions",
  "strum 0.28.0",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
  "tokio",
+ "wheels",
 ]
 
 [[package]]
@@ -3161,7 +3156,8 @@ dependencies = [
  "spl-token-interface",
  "static_assertions",
  "strum 0.28.0",
- "thiserror 2.0.18",
+ "thiserror 1.0.69",
+ "wheels",
 ]
 
 [[package]]
@@ -9026,6 +9022,28 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "52f5ee44c96cf55f1b349600768e3ece3a8f26010c05265ab73f945bb1a2eb9d"
 dependencies = [
  "rustls-pki-types",
+]
+
+[[package]]
+name = "wheels"
+version = "0.1.0"
+source = "git+https://github.com/magicblock-labs/magicblock-wheels.git?branch=snawaz%2Fnested-layout-options#5c4f690288acb95f662734edc0853e7c0e2f9f1c"
+dependencies = [
+ "bytemuck",
+ "pinocchio 0.10.2",
+ "pinocchio-log",
+ "solana-address 2.6.1",
+ "wheels-macros",
+]
+
+[[package]]
+name = "wheels-macros"
+version = "0.1.0"
+source = "git+https://github.com/magicblock-labs/magicblock-wheels.git?branch=snawaz%2Fnested-layout-options#5c4f690288acb95f662734edc0853e7c0e2f9f1c"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 2.0.117",
 ]
 
 [[package]]
