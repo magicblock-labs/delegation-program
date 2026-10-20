@@ -199,7 +199,7 @@ Seed strings are placeholders until frozen.
 | `VerifierBond` | `["verifier-bond", delegation_cluster, verifier]` | Verifier stake isolated to one cluster. |
 | `VerifierRegistry` | `["verifier-registry", delegation_cluster]` | Verifiers selectable for one challenge-enabled cluster. |
 | `PendingCommitment` | `["pending-commitment", account, commit_id]` | Main commitment state machine. |
-| `StateBuffer` | `["state-buffer", account, commit_id, authority]` | Chunked full account data opened by operator or challenger. |
+| `StateBuffer` | `["state-buffer", account, commit_id, authority]` | Chunked state payload opened by an operator or challenger. The payload may be full `Account::data` bytes or an encoded diff. |
 | `Challenge` | `["challenge", account, commit_id, challenger]` | One challenge against one pending commitment. |
 | `PayoutTimelock` | `["payout-timelock", challenge]` | Delayed payout for correct challenger. |
 
@@ -333,27 +333,35 @@ pub struct VerifierRegistry {
     /// All registered verifiers DLP can select for this cluster.
     pub entries: Vec<VerifierRegistryEntry>,
 }
-// Review: account size must be bounded before implementation. If the verifier
-// set can grow large, replace this Vec with a Merkleized or paged registry.
+// Review: the MVP registry is not bounded. Before production, cap its entry
+// count or replace this Vec with a Merkleized or paged registry.
 
 pub struct VerifierRegistryEntry {
     /// Verifier identity selectable by DLP.
     pub verifier_identity: Pubkey,
-    /// Bond account proving this verifier has active stake.
-    pub verifier_bond: Pubkey,
+    /// Bonded stake copied when this entry was last updated.
+    pub stake_lamports: u64,
     /// Keep as 1 for equal-weight selection.
     pub weight: u64,
 }
+// Review: every bond-changing instruction must keep `stake_lamports`
+// synchronized until selection reads the bond accounts directly.
 // Review: keep `weight` only if weighted selection is in scope. For equal
 // selection, removing it makes selection easier to review.
 
 pub enum PendingCommitmentStatus {
     /// Verifiers were selected and the challenge window is open.
     Active,
-    /// A challenger opened a different state and resolver must decide.
-    Challenged,
-    /// Resolver chose which opened state can finalize.
-    Resolved,
+    /// Reserved for the MIMD operator-response phase omitted by this MVP.
+    AwaitingOperatorResponse,
+    /// A challenge was raised and its hidden state must be revealed.
+    AwaitingChallengerReveal,
+    /// Challenger state differs and the resolver must decide.
+    AwaitingDisputeResolution,
+    /// Resolver selected the operator commitment.
+    ResolvedOperator,
+    /// Resolver selected the challenger reveal.
+    ResolvedChallenger,
     /// Final state was applied to the base layer.
     Finalized,
     /// Commitment can no longer finalize.
@@ -363,9 +371,9 @@ pub enum PendingCommitmentStatus {
 }
 pub enum ResolvedStateSource {
     /// Finalize using the operator state buffer used at ProposeCommitment.
-    OperatorState,
+    OperatorCommitment,
     /// Finalize using challenger-opened state after resolution.
-    ChallengerState,
+    ChallengerReveal,
 }
 
 /// PDA: `["pending-commitment", account, commit_id]`
@@ -411,11 +419,6 @@ pub struct PendingCommitment {
     pub activation_slot: u64,
     /// Slot when approval/challenge window closes.
     pub challenge_window_end_slot: u64,
-    /// Verifiers selected by round-robin for this commitment.
-    /// Later registry changes do not rewrite this list.
-    pub selected_verifiers: Vec<Pubkey>,
-    /// One bit per selected verifier.
-    pub approval_bitmap: Vec<u8>,
     /// Number of unique selected verifiers that approved.
     pub approval_count: u16,
     /// Threshold copied from DelegationCluster when the commitment is posted.
@@ -433,6 +436,18 @@ pub struct PendingCommitment {
     /// Which opened state finalization must use after dispute resolution.
     /// `None` means happy-path finalization uses the operator state.
     pub resolved_state_source: Option<ResolvedStateSource>,
+    /// ER slot that produced this commitment, when available.
+    pub er_slot: Option<u64>,
+    /// Verifiers selected by round-robin for this commitment.
+    /// Later registry changes do not rewrite this list.
+    pub selected_verifiers: Vec<SelectedVerifier>,
+}
+
+pub struct SelectedVerifier {
+    /// Selected verifier identity.
+    pub verifier_identity: Pubkey,
+    /// Whether this verifier approved this commitment.
+    pub approved: bool,
 }
 // Review: `da_pointer_hash` is not enough by itself. Verifiers/resolver need an
 // independent way to fetch replay inputs, not only operator-provided data.
@@ -444,34 +459,33 @@ pub struct PendingCommitment {
 /// Frozen by: final `WriteStateBuffer` chunk.
 /// Closed by: `CloseTerminalAccounts`.
 ///
-/// Fixed header for opened full account data.
-///
-/// Raw account data starts immediately after this header in the same account.
+/// Header and extendable bytes for an opened state payload.
 pub struct StateBuffer {
     /// Signer allowed to write this buffer.
     /// Operator authority is used for the commitment state.
     /// Challenger authority is used for the challenged state.
     pub authority: Pubkey,
 
-    /// Account whose data is being opened.
+    /// Account whose state payload is being opened.
     pub account_pubkey: Pubkey,
 
     /// Commitment this buffer belongs to.
     pub commit_id: u64,
 
-    /// Hash of the raw uploaded data. Zero until finalized.
+    /// Hash of the uploaded payload. Zero until finalized.
     pub data_hash: [u8; 32],
 
     /// Expected total byte length.
     pub total_len: u32,
 
-    /// Bytes written so far.
-    pub written_len: u32,
-
     /// Set only after the full buffer is written and data_hash is computed.
     pub finalized: bool,
+
+    /// Active payload bytes written so far. `payload.len()` is the written
+    /// length; account-backed capacity may be larger while writing proceeds.
+    pub payload: Vec<u8>,
 }
-// Review: `total_len` and account size need hard caps.
+// The implementation caps both total account size and growth per write.
 
 pub enum ChallengeStatus {
     /// Challenger has committed to a hash and must reveal the state.
@@ -482,20 +496,11 @@ pub enum ChallengeStatus {
     Terminal,
 }
 
-pub struct OpenedState {
-    /// Opened lamports value.
-    pub lamports: u64,
-    /// Opened owner value.
-    pub owner: Pubkey,
-    /// Hash of opened account data.
-    pub data_hash: [u8; 32],
-    /// Hash of opened lamports, owner, and data_hash.
-    pub account_state_hash: [u8; 32],
-    /// Finalized buffer containing the full account data, when needed.
-    pub state_buffer: Option<Pubkey>,
-}
-
 pub enum ChallengeOutcome {
+    /// No terminal outcome has been selected yet.
+    None,
+    /// Reveal did not open the committed challenge hash.
+    InvalidReveal,
     /// Reveal matched operator state; challenger pays match penalty.
     MatchingStateChallengerPenalized,
     /// Resolver chose operator; challenger loses stake.
@@ -512,22 +517,30 @@ pub enum ChallengeOutcome {
 pub struct Challenge {
     /// Current state-machine state for this challenge.
     pub status: ChallengeStatus,
+    /// Terminal result, or None before resolution.
+    pub outcome: ChallengeOutcome,
     /// PendingCommitment being challenged.
     pub pending_commitment: Pubkey,
     /// Challenger that posted the hidden challenge hash.
     pub challenger_identity: Pubkey,
+    /// State commitment hash copied from PendingCommitment at raise time.
+    pub state_commitment_hash: [u8; 32],
     /// Salted hash binding the challenger state to this challenge.
     pub challenge_hash: [u8; 32],
+    /// Challenger-opened lamports value. Zero until reveal.
+    pub challenger_lamports: u64,
+    /// Challenger-opened owner. Default pubkey until reveal.
+    pub challenger_owner: Pubkey,
+    /// Challenger-opened payload hash. Zero until reveal.
+    pub challenger_data_hash: [u8; 32],
+    /// Challenger StateBuffer used for reveal. Default pubkey until reveal.
+    pub challenger_state_buffer: Pubkey,
     /// Stake locked by this challenge.
     pub challenger_stake_lamports: u64,
     /// Slot when challenge was raised.
     pub raised_slot: u64,
     /// Slot after which an unrevealed challenge can be timed out.
     pub reveal_deadline_slot: u64,
-    /// Challenger-opened state after `ChallengerReveal`.
-    pub challenger_state: Option<OpenedState>,
-    /// Terminal outcome once challenge can no longer change.
-    pub outcome: Option<ChallengeOutcome>,
 }
 // Review: PDA includes `challenger`, but DLP v2 allows only one active
 // challenge per PendingCommitment. Either enforce `active_challenge` strictly or
@@ -571,11 +584,11 @@ Authority-gated setup and admission instructions for permissioned v2.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `InitDelegationCluster`<ul><li>ix-data: <code>cluster_id, current_validator, validator_rotation_authority, challenge_config</code></li><li>accounts: <strong>config authority signer, DelegationCluster, optional VerifierRegistry, system program</strong></li></ul> | Cluster config authority | Creates one cluster and stores its stable identity, active validator, and optional challenge policy. `Some(challenge_config)` requires and creates the cluster registry; `None` omits that account. |
-| `UpdateDelegationCluster`<ul><li>ix-data: <code>params</code></li><li>accounts: <strong>config authority signer, DelegationCluster</strong></li></ul> | Cluster config authority | Updates mutable policy used by future commitments. It cannot change `cluster_id`, switch the presence of `challenge_config`, or replace the validator through this instruction. Existing pending commitments keep the values copied into their accounts. |
+| `InitDelegationCluster`<ul><li>ix-data: <code>current_validator, validator_rotation_authority, challenge_config</code></li><li>accounts: <strong>config authority signer, cluster identity signer, DelegationCluster, system program, optional VerifierRegistry</strong></li></ul> | Cluster config authority and cluster identity | Creates one cluster and stores its stable identity, active validator, and optional challenge policy. The signing cluster identity supplies `cluster_id`. `Some(challenge_config)` requires and creates the trailing cluster registry; `None` omits that account. |
+| `UpdateDelegationCluster`<ul><li>ix-data: <code>challenge_config</code></li><li>accounts: <strong>config authority signer, DelegationCluster</strong></li></ul> | Cluster config authority | Updates mutable policy used by future commitments. It cannot change `cluster_id`, switch the presence of `challenge_config`, or replace the validator through this instruction. Existing pending commitments keep the values copied into their accounts. |
 | `RegisterOperator`<ul><li>ix-data: <code>stake_lamports</code></li><li>accounts: <strong>current validator signer, config authority signer, OperatorBond, DelegationCluster</strong></li></ul> | Current validator, cluster config authority | Requires `Challenge` mode, creates the cluster's `OperatorBond` PDA at `["operator-bond", delegation_cluster]`, and deposits slashable stake. The bond remains with the cluster when its validator rotates. |
 | `RegisterVerifier`<ul><li>ix-data: <code>stake_lamports</code></li><li>accounts: <strong>verifier signer, config authority signer, VerifierBond, DelegationCluster</strong></li></ul> | Verifier, cluster config authority | Requires `Challenge` mode, creates a cluster-scoped `VerifierBond` PDA at `["verifier-bond", delegation_cluster, verifier]`, and deposits slashable stake. Permissioned v2 requires configured approval before the verifier can enter that cluster's registry. |
-| `UpdateVerifierRegistry`<ul><li>ix-data: <code>update</code></li><li>accounts: <strong>config authority signer, DelegationCluster, VerifierRegistry, VerifierBond accounts</strong></li></ul> | Cluster config authority | Requires `Challenge` mode and adds or removes verifiers in the cluster's registry. Cross-cluster bonds, invalid entries, duplicates, and inactive verifiers are rejected. |
+| `UpdateVerifierRegistry`<ul><li>ix-data: <code>action, weight</code></li><li>accounts: <strong>config authority signer, DelegationCluster, VerifierRegistry, VerifierBond, system program</strong></li></ul> | Cluster config authority | Requires `Challenge` mode. The MVP implements only `Add` with weight 1; `Remove` remains deferred. Cross-cluster bonds, invalid entries, duplicates, and inactive verifiers are rejected. |
 
 ### Core Runtime Instructions
 
@@ -583,13 +596,13 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `WriteStateBuffer`<ul><li>ix-data: <code>buffer_write</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_id, authority]` seed pattern. The instruction remains cluster-neutral; consuming instructions validate the authority and cluster relationship. |
-| `ProposeCommitment`<ul><li>ix-data: <code>commitment</code></li><li>accounts: <strong>current validator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, DelegationCluster, VerifierRegistry</strong></li></ul> | Current validator | Requires `Challenge` mode, verifies the delegation's cluster and current validator, consumes only cluster-scoped bond and registry accounts, selects verifiers, and starts the challenge window. |
+| `WriteStateBuffer`<ul><li>ix-data: <code>commit_id, total_len, offset, chunk</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_id, authority]` seed pattern. The instruction remains cluster-neutral; consuming instructions validate the payload, authority, and cluster relationship. |
+| `ProposeCommitment`<ul><li>ix-data: <code>commit_id, lamports, owner, da_pointer_hash, er_slot</code></li><li>accounts: <strong>current validator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, DelegationMetadata, DelegationCluster, VerifierRegistry, system program</strong></li></ul> | Current validator | Requires `Challenge` mode, verifies the delegation's cluster and current validator, consumes only cluster-scoped bond and registry accounts, selects verifiers, and starts the challenge window. `DelegationRecord` and `DelegationMetadata` are temporary v1-layout dependencies until their v2 replacement exists. |
 | `ApproveCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from the selected verifier. v2 MVP requires exactly one selected verifier, so no verifier index is needed. Duplicate approvals do not increase the count. |
-| `RaiseChallenge`<ul><li>ix-data: <code>challenge_hash, stake_lamports</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, system program</strong></li></ul> | Challenger | Requires the cluster stored by the pending commitment, locks challenger stake, stores the salted `challenge_hash`, and blocks normal finalization until reveal, timeout, or resolution. It does not consume challenger state bytes. |
-| `ChallengerReveal`<ul><li>ix-data: <code>revealed_state</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, optional finalized challenger StateBuffer, protocol fee vault</strong></li></ul> | Challenger | Opens the challenged state and salt, validates the stored cluster and `challenge_hash`, compares against the operator state, penalizes matching challenges, or moves mismatches to resolver decision. |
-| `ResolveDispute`<ul><li>ix-data: <code>decision</code></li><li>accounts: <strong>resolver signer, Challenge, PendingCommitment, DelegationCluster, OperatorBond, fee vault, optional PayoutTimelock</strong></li></ul> | Resolver multisig | Requires the resolver and cluster stored by the pending commitment, then applies the multisig decision for a valid mismatch. |
-| `FinalizeCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>operator or cranker, PendingCommitment, delegated account, DelegationRecord/metadata, DelegationCluster, selected StateBuffer, optional Challenge</strong></li></ul> | Operator or cranker | Requires `Challenge` mode and the delegation-bound cluster, then applies the operator state on the happy path or the resolver-selected state after dispute resolution. |
+| `RaiseChallenge`<ul><li>ix-data: <code>state_commitment_hash, challenge_hash, stake_lamports</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, system program</strong></li></ul> | Challenger | Requires the cluster stored by the pending commitment, locks challenger stake, stores the salted `challenge_hash`, and blocks normal finalization until reveal, timeout, or resolution. It does not consume challenger state bytes. |
+| `ChallengerReveal`<ul><li>ix-data: <code>lamports, owner, data_hash, salt</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, finalized operator StateBuffer, finalized challenger StateBuffer, DelegationCluster, protocol fee vault</strong></li></ul> | Challenger | Opens the challenged state and salt, validates both state buffers and the stored `challenge_hash`, penalizes invalid or matching reveals, or moves mismatches to resolver decision. |
+| `ResolveDispute`<ul><li>ix-data: <code>decision</code></li><li>accounts: <strong>resolver signer, Challenge, PendingCommitment, OperatorBond, challenger, DelegationCluster, protocol fee vault</strong></li></ul> | Resolver multisig | Requires the resolver and cluster stored by the pending commitment, then applies the decision immediately. Operator-correct sends challenger stake to the fee vault; challenger-correct refunds challenger stake and sends the operator's recorded stake to the fee vault. No payout timelock is created by the MVP. |
+| `FinalizeCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>selected state authority signer, PendingCommitment, delegated account, DelegationRecord, DelegationMetadata, selected StateBuffer, DelegationCluster, system program, optional Challenge</strong></li></ul> | Operator on the happy/operator-resolved path; challenger on the challenger-resolved path | Requires `Challenge` mode and the delegation-bound cluster, validates that the signer owns the selected state buffer, then applies the operator state on the happy path or the resolver-selected state after dispute resolution. |
 
 ### Low-Priority Instructions
 
@@ -600,7 +613,6 @@ These instructions can be skipped while implementing the first usable v2 flow.
 | `RotateValidator`<ul><li>ix-data: <code>new_validator</code></li><li>accounts: <strong>validator rotation authority signer, DelegationCluster</strong></li></ul> | External rotation controller | Deferred. Replaces the cluster's current validator. DLP enforces the signer and account update; key handover and transaction forwarding are external responsibilities. |
 | `RequestStakeWithdrawal`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, DelegationCluster</strong></li></ul> | Operator or verifier | Low priority. Marks cluster-scoped stake as exiting. The stake cannot be withdrawn until the configured delay passes and no locks remain. |
 | `WithdrawStake`<ul><li>ix-data: <code>actor_kind</code></li><li>accounts: <strong>actor signer, OperatorBond or VerifierBond, DelegationCluster</strong></li></ul> | Operator or verifier | Low priority. Withdraws unlocked stake after the exit delay. Slashed or locked stake stays in the protocol. |
-| `FinalizeStateBuffer`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>authority signer, StateBuffer, PendingCommitment</strong></li></ul> | Buffer authority | Low priority. Useful only if we want buffer finalization to be a separate instruction instead of the final `WriteStateBuffer` chunk freezing the buffer. |
 | `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, DelegationCluster</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to the commitment's cluster policy, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
 | `MarkChallengerRevealTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge, fee vault</strong></li></ul> | Cranker | Deferred. Closes an unrevealed challenge after the reveal timeout, applies the configured challenger penalty, and unblocks or expires the pending commitment according to final policy. |
 | `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Low priority. Needed only if dispute payouts are delayed through `PayoutTimelock`; otherwise `ResolveDispute` can pay immediately. |
@@ -621,17 +633,19 @@ These instructions are not part of the current v2 MVP flow.
 DLP owns the buffer account because the buffer is part of the fraud-proof state
 machine, not only temporary transport.
 
-The first write creates the `StateBuffer` PDA, writes the fixed header, and
-allocates enough space for the first chunk. Later writes grow the same PDA as
-needed and append more bytes. Each write must use `offset == written_len`; this
-keeps the MVP simple and avoids a separate chunks bitmap account. Retries can
-repeat the same offset if the previous transaction failed.
+The first write creates the `StateBuffer` PDA, writes the fixed fields, and
+allocates up to the maximum account growth allowed in one instruction. Later
+writes grow the same PDA by at most that limit and append more bytes. Each new
+write must use `offset == payload.len()`; this keeps the MVP simple and avoids a
+separate chunks bitmap account. An exact old chunk may be repeated as an
+idempotent retry.
 
 The account layout is:
 
 ```text
-StateBuffer header
-raw opened account data bytes
+StateBuffer fixed fields
+extendable payload length and capacity metadata
+active payload bytes
 ```
 
 `WriteStateBuffer` is authority-specific, not operator-specific. It must only
@@ -656,8 +670,9 @@ If future protocol flows need multiple buffer purposes for the same
 and matching header field. Reusing the same address space for unrelated opened
 state can create collisions or confused-consumer bugs.
 
-When `written_len == total_len`, `WriteStateBuffer` hashes the raw data and sets
-`finalized = true`. After that, the buffer cannot be changed.
+When `payload.len() == total_len`, `WriteStateBuffer` hashes the payload and sets
+`finalized = true`. After that, the buffer cannot accept new bytes; exact
+duplicate retries remain valid.
 
 Consuming instructions must check:
 
@@ -666,8 +681,8 @@ Consuming instructions must check:
 - buffer commitment matches the `PendingCommitment`;
 - authority matches the operator for `ProposeCommitment` and happy-path
   `FinalizeCommitment`;
-- authority matches the challenger for `ChallengerReveal` when a challenger
-  buffer is supplied.
+- authority matches the challenger for the challenger buffer consumed by
+  `ChallengerReveal`.
 
 Future optimization: allow out-of-order or parallel chunk writes by adding a
 small bitmap inside the `StateBuffer` account. Do this only if sequential writes
@@ -676,15 +691,15 @@ are too slow.
 ### Key Instruction Data
 
 ```rust
-pub struct WriteStateBufferData<'a> {
+pub struct WriteStateBufferArgs<'a> {
     pub commit_id: u64,
     pub total_len: u32,
-    /// Must equal StateBuffer.written_len.
+    /// Must equal StateBuffer.payload.len(), unless retrying an exact old chunk.
     pub offset: u32,
     pub chunk: &'a [u8],
 }
 
-pub struct ProposeCommitmentData {
+pub struct ProposeCommitmentArgs {
     pub commit_id: u64,
     pub lamports: u64,
     pub owner: Pubkey,
@@ -692,12 +707,13 @@ pub struct ProposeCommitmentData {
     pub er_slot: Option<u64>,
 }
 
-pub struct RaiseChallengeData {
+pub struct RaiseChallengeArgs {
+    pub state_commitment_hash: [u8; 32],
     pub challenge_hash: [u8; 32],
     pub stake_lamports: u64,
 }
 
-pub struct ChallengerRevealData {
+pub struct ChallengerRevealArgs {
     pub lamports: u64,
     pub owner: Pubkey,
     pub data_hash: [u8; 32],
@@ -709,7 +725,7 @@ pub enum DisputeDecision {
     ChallengerStateCorrect,
 }
 
-pub struct ResolveDisputeData {
+pub struct ResolveDisputeArgs {
     pub decision: DisputeDecision,
 }
 ```
@@ -737,15 +753,16 @@ pub struct ResolveDisputeData {
   `match_penalty_bps`, selects verifiers with round-robin, increments
   `VerifierRegistry.next_selection_index` by the number of scanned registry
   entries, and starts the challenge window.
-- Verifier selection uses all registered verifiers except the commitment
-  operator. If no verifier remains, `ProposeCommitment` rejects.
+- Verifier selection uses registered verifiers whose synchronized stake still
+  satisfies the cluster's current minimum, excluding the commitment operator.
+  If no eligible verifier remains, `ProposeCommitment` rejects.
 - v2 MVP requires
   `DelegationCluster.challenge_config.verifiers_per_commitment == 1` and
   `DelegationCluster.challenge_config.approval_threshold == 1`.
   `ProposeCommitment` therefore selects exactly one verifier; if no verifier other
   than the operator exists, it rejects. Multi-verifier approval can be added
-  later by relaxing config validation and adding an index or bitmap to
-  `ApproveCommitment`.
+  later by relaxing config validation and extending approval lookup over the
+  stored `SelectedVerifier` entries.
 - `UpdateVerifierRegistry` mutates the registry. It affects future commitments
   only; it does not change `selected_verifiers` already stored on a pending
   commitment.
