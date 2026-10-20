@@ -2,6 +2,7 @@ use crate::compat::Pubkey;
 
 pub const DELEGATION_CLUSTER_SEED: &[u8] = b"delegation-cluster";
 pub const OPERATOR_BOND_SEED: &[u8] = b"operator-bond";
+pub const VERIFIER_BOND_SEED: &[u8] = b"verifier-bond";
 pub const VERIFIER_REGISTRY_SEED: &[u8] = b"verifier-registry";
 
 // TODO (snawaz): Precompute these addresses if PDA derivation becomes const-safe.
@@ -25,6 +26,21 @@ pub fn verifier_registry_pda(delegation_cluster: &Pubkey) -> Pubkey {
 pub fn operator_bond_pda(delegation_cluster: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         &[OPERATOR_BOND_SEED, delegation_cluster.as_ref()],
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn verifier_bond_pda(
+    delegation_cluster: &Pubkey,
+    verifier: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
+        &[
+            VERIFIER_BOND_SEED,
+            delegation_cluster.as_ref(),
+            verifier.as_ref(),
+        ],
         &crate::id(),
     )
     .0
