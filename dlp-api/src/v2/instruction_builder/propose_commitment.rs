@@ -7,7 +7,10 @@ use wheels::layout::Encodable;
 
 use crate::{
     compat::{Compatize, Modernize},
-    pda::delegation_record_pda_from_delegated_account,
+    pda::{
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+    },
     v2::{
         pda::{
             operator_bond_pda, pending_commitment_pda, state_buffer_pda,
@@ -49,6 +52,13 @@ pub fn propose_commitment(
             AccountMeta::new_readonly(account, false),
             AccountMeta::new_readonly(
                 delegation_record_pda_from_delegated_account(
+                    &account.compatize(),
+                )
+                .modernize(),
+                false,
+            ),
+            AccountMeta::new_readonly(
+                delegation_metadata_pda_from_delegated_account(
                     &account.compatize(),
                 )
                 .modernize(),

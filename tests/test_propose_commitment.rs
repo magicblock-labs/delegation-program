@@ -1,5 +1,8 @@
 use dlp_api::{
-    pda::delegation_record_pda_from_delegated_account,
+    pda::{
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+    },
     v2::{
         instruction_builder::{
             propose_commitment, register_operator, register_verifier,
@@ -29,13 +32,19 @@ use wheels::layout::Decodable;
 mod fixtures;
 
 use crate::fixtures::{
+    create_delegation_metadata_data_with_commit_id,
     create_delegation_record_data,
     v2::{challenge_cluster_args, initialize_delegation_cluster},
 };
 
 #[tokio::test]
 async fn test_propose_commitment() {
-    let mut env = setup_propose_commitment_env(2, true, false).await;
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 2,
+        register_operator_as_verifier: true,
+        ..Default::default()
+    })
+    .await;
     let args = propose_commitment_args();
 
     propose(&mut env, args.clone()).await.unwrap();
@@ -133,7 +142,12 @@ async fn test_propose_commitment() {
 
 #[tokio::test]
 async fn test_propose_commitment_fails_twice() {
-    let mut env = setup_propose_commitment_env(2, true, false).await;
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 2,
+        register_operator_as_verifier: true,
+        ..Default::default()
+    })
+    .await;
     let args = propose_commitment_args();
 
     propose(&mut env, args.clone()).await.unwrap();
@@ -143,7 +157,11 @@ async fn test_propose_commitment_fails_twice() {
 
 #[tokio::test]
 async fn test_propose_commitment_fails_without_validator_signature() {
-    let env = setup_propose_commitment_env(2, false, false).await;
+    let env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 2,
+        ..Default::default()
+    })
+    .await;
     let args = propose_commitment_args();
     let mut ix = propose_commitment(
         env.operator.pubkey(),
@@ -166,14 +184,23 @@ async fn test_propose_commitment_fails_without_validator_signature() {
 
 #[tokio::test]
 async fn test_propose_commitment_fails_without_enough_verifiers() {
-    let mut env = setup_propose_commitment_env(0, true, false).await;
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        register_operator_as_verifier: true,
+        ..Default::default()
+    })
+    .await;
 
     assert!(propose(&mut env, propose_commitment_args()).await.is_err());
 }
 
 #[tokio::test]
 async fn test_propose_commitment_fails_without_state_buffer() {
-    let mut env = setup_propose_commitment_env(2, true, false).await;
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 2,
+        register_operator_as_verifier: true,
+        ..Default::default()
+    })
+    .await;
     let mut args = propose_commitment_args();
     args.commit_id = 99;
 
@@ -182,7 +209,67 @@ async fn test_propose_commitment_fails_without_state_buffer() {
 
 #[tokio::test]
 async fn test_propose_commitment_fails_with_wrong_delegation_authority() {
-    let mut env = setup_propose_commitment_env(2, true, true).await;
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 2,
+        register_operator_as_verifier: true,
+        wrong_delegation_authority: true,
+        ..Default::default()
+    })
+    .await;
+
+    assert!(propose(&mut env, propose_commitment_args()).await.is_err());
+}
+
+#[tokio::test]
+async fn test_propose_commitment_rejects_wrong_owner() {
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 2,
+        register_operator_as_verifier: true,
+        ..Default::default()
+    })
+    .await;
+    let mut args = propose_commitment_args();
+    args.owner = Pubkey::new_unique();
+
+    assert!(propose(&mut env, args).await.is_err());
+}
+
+#[tokio::test]
+async fn test_propose_commitment_rejects_out_of_order_commit_id() {
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 2,
+        register_operator_as_verifier: true,
+        ..Default::default()
+    })
+    .await;
+    let mut args = propose_commitment_args();
+    args.commit_id = 2;
+    write_state(
+        &mut env.banks,
+        &env.payer,
+        &env.operator,
+        env.delegated_account,
+        WriteStateBufferArgs {
+            commit_id: args.commit_id,
+            total_len: state_data().len() as u32,
+            offset: 0,
+            chunk: state_data(),
+        },
+    )
+    .await;
+
+    assert!(propose(&mut env, args).await.is_err());
+}
+
+#[tokio::test]
+async fn test_propose_commitment_rejects_undelegating_account() {
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 2,
+        register_operator_as_verifier: true,
+        undelegation_requested: true,
+        ..Default::default()
+    })
+    .await;
 
     assert!(propose(&mut env, propose_commitment_args()).await.is_err());
 }
@@ -197,24 +284,30 @@ struct ProposeCommitmentEnv {
     challenge_config: ChallengeConfig,
 }
 
-async fn setup_propose_commitment_env(
+#[derive(Default)]
+struct ProposeCommitmentSetup {
     verifier_count: usize,
     register_operator_as_verifier: bool,
     wrong_delegation_authority: bool,
+    undelegation_requested: bool,
+}
+
+async fn setup_propose_commitment_env(
+    setup: ProposeCommitmentSetup,
 ) -> ProposeCommitmentEnv {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
     let authority = Keypair::new();
     let operator = Keypair::new();
-    let verifiers = (0..verifier_count)
+    let verifiers = (0..setup.verifier_count)
         .map(|_| Keypair::new())
         .collect::<Vec<_>>();
     let delegated_account = Pubkey::new_unique();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
         dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
-    let delegation_authority = if wrong_delegation_authority {
+    let delegation_authority = if setup.wrong_delegation_authority {
         Pubkey::new_unique()
     } else {
         delegation_cluster
@@ -242,8 +335,23 @@ async fn setup_propose_commitment_env(
             lamports: LAMPORTS_PER_SOL,
             data: create_delegation_record_data(
                 delegation_authority,
-                Pubkey::new_unique(),
+                propose_commitment_args().owner,
                 Some(LAMPORTS_PER_SOL),
+            ),
+            owner: dlp_api::ID,
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+    program_test.add_account(
+        delegation_metadata_pda_from_delegated_account(&delegated_account),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: create_delegation_metadata_data_with_commit_id(
+                authority.pubkey(),
+                &[b"test-pda"],
+                setup.undelegation_requested,
+                0,
             ),
             owner: dlp_api::ID,
             executable: false,
@@ -272,7 +380,7 @@ async fn setup_propose_commitment_env(
     )
     .await;
 
-    if register_operator_as_verifier {
+    if setup.register_operator_as_verifier {
         register_and_add_verifier(
             &banks,
             &payer,
@@ -406,7 +514,7 @@ fn propose_commitment_args() -> ProposeCommitmentArgs {
     ProposeCommitmentArgs {
         commit_id: 1,
         lamports: 1_000,
-        owner: Pubkey::new_unique(),
+        owner: Pubkey::new_from_array([7; 32]),
         da_pointer_hash: [9; 32],
         er_slot: Some(42),
     }

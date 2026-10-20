@@ -1,6 +1,6 @@
 use dlp_api::{
     error::DlpError,
-    state::DelegationRecord,
+    state::{DelegationMetadataRef, DelegationRecord, UndelegationRequester},
     v2::{
         pda::{
             DELEGATION_CLUSTER_SEED, OPERATOR_BOND_SEED,
@@ -31,6 +31,7 @@ use crate::{
         utils::pda::{create_pda, AccountSpace},
     },
     requires::{
+        require_initialized_delegation_metadata,
         require_initialized_delegation_record, require_initialized_pda,
         require_owned_pda, require_uninitialized_pda, StandardCtx,
     },
@@ -45,9 +46,10 @@ use crate::{
 /// 3: `[]`                 finalized StateBuffer PDA
 /// 4: `[]`                 delegated account
 /// 5: `[]`                 DelegationRecord PDA
-/// 6: `[]`                 DelegationCluster PDA
-/// 7: `[writable]`         VerifierRegistry PDA
-/// 8: `[]`                 system program, required by system CPI
+/// 6: `[]`                 DelegationMetadata PDA
+/// 7: `[]`                 DelegationCluster PDA
+/// 8: `[writable]`         VerifierRegistry PDA
+/// 9: `[]`                 system program, required by system CPI
 #[inline(never)]
 pub fn process_propose_commitment(
     accounts: &[AccountView],
@@ -60,10 +62,11 @@ pub fn process_propose_commitment(
         state_buffer,
         delegated_account,
         delegation_record,
+        delegation_metadata,
         delegation_cluster,
         verifier_registry,
         _system_program,
-    ] = require_n_accounts!(accounts, 9);
+    ] = require_n_accounts!(accounts, 10);
 
     let args = ProposeCommitmentArgs::decode(data)?;
 
@@ -117,6 +120,11 @@ pub fn process_propose_commitment(
         delegation_record,
         false,
     )?;
+    require_initialized_delegation_metadata(
+        delegated_account,
+        delegation_metadata,
+        false,
+    )?;
     require_initialized_pda(
         verifier_registry,
         &[
@@ -161,7 +169,32 @@ pub fn process_propose_commitment(
         delegation_cluster.address(),
         DlpError::InvalidAuthority
     );
+    require_eq_keys!(
+        &delegation_record_state.owner,
+        args.owner(),
+        ProgramError::InvalidAccountData
+    );
     drop(delegation_record_data);
+
+    let delegation_metadata =
+        DelegationMetadataRef::from_account(delegation_metadata)?;
+    require_eq!(
+        args.commit_id(),
+        delegation_metadata
+            .last_commit_id()
+            .checked_add(1)
+            .ok_or(DlpError::Overflow)?,
+        DlpError::NonceOutOfOrder
+    );
+    match delegation_metadata.undelegation_requester()? {
+        UndelegationRequester::None => {}
+        UndelegationRequester::Validator => {
+            return Err(DlpError::AlreadyUndelegated.into());
+        }
+        UndelegationRequester::OwnerProgram => {
+            return Err(DlpError::OwnerRequestedUndelegation.into());
+        }
+    }
 
     let verifier_registry_data = verifier_registry.try_borrow()?;
     let verifier_registry_view =

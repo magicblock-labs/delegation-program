@@ -1,7 +1,11 @@
 use std::ptr;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use pinocchio::{account::RefMut, error::ProgramError, AccountView};
+use pinocchio::{
+    account::{Ref, RefMut},
+    error::ProgramError,
+    AccountView,
+};
 use wheels::require_ge;
 
 use super::discriminator::{AccountDiscriminator, AccountWithDiscriminator};
@@ -68,30 +72,43 @@ pub struct DelegationMetadataFast<'a> {
     data: RefMut<'a, [u8]>,
 }
 
+pub struct DelegationMetadataRef<'a> {
+    data: Ref<'a, [u8]>,
+}
+
+impl<'a> DelegationMetadataRef<'a> {
+    pub fn from_account(
+        account: &'a AccountView,
+    ) -> Result<Self, ProgramError> {
+        require_metadata_len(account)?;
+        Ok(Self {
+            data: account.try_borrow()?,
+        })
+    }
+
+    pub fn last_commit_id(&self) -> u64 {
+        read_last_commit_id(&self.data)
+    }
+
+    pub fn undelegation_requester(
+        &self,
+    ) -> Result<UndelegationRequester, ProgramError> {
+        read_undelegation_requester(&self.data)
+    }
+}
+
 impl<'a> DelegationMetadataFast<'a> {
     pub fn from_account(
         account: &'a AccountView,
     ) -> Result<Self, ProgramError> {
-        require_ge!(
-            account.data_len(),
-            AccountDiscriminator::SPACE
-            + 8  // last_commit_id
-            + 1  // undelegation_requester
-            + 32 // rent_payer
-            + 4, // seeds (at least 4)
-            ProgramError::InvalidAccountData
-        );
-
+        require_metadata_len(account)?;
         Ok(Self {
             data: account.try_borrow_mut()?,
         })
     }
 
     pub fn last_commit_id(&self) -> u64 {
-        unsafe {
-            ptr::read(self.data.as_ptr().add(AccountDiscriminator::SPACE)
-                as *const u64)
-        }
+        read_last_commit_id(&self.data)
     }
 
     pub fn set_last_commit_id(&mut self, val: u64) {
@@ -117,9 +134,7 @@ impl<'a> DelegationMetadataFast<'a> {
     pub fn undelegation_requester(
         &self,
     ) -> Result<UndelegationRequester, ProgramError> {
-        UndelegationRequester::try_from_byte(
-            self.data[AccountDiscriminator::SPACE + 8],
-        )
+        read_undelegation_requester(&self.data)
     }
 
     pub fn set_undelegation_requester(&mut self, val: UndelegationRequester) {
@@ -134,6 +149,31 @@ impl<'a> DelegationMetadataFast<'a> {
         self.set_undelegation_requester(val);
         Ok(previous)
     }
+}
+
+fn require_metadata_len(account: &AccountView) -> Result<(), ProgramError> {
+    require_ge!(
+        account.data_len(),
+        AccountDiscriminator::SPACE
+        + 8  // last_commit_id
+        + 1  // undelegation_requester
+        + 32 // rent_payer
+        + 4, // seeds (at least 4)
+        ProgramError::InvalidAccountData
+    );
+    Ok(())
+}
+
+fn read_last_commit_id(data: &[u8]) -> u64 {
+    unsafe {
+        ptr::read(data.as_ptr().add(AccountDiscriminator::SPACE) as *const u64)
+    }
+}
+
+fn read_undelegation_requester(
+    data: &[u8],
+) -> Result<UndelegationRequester, ProgramError> {
+    UndelegationRequester::try_from_byte(data[AccountDiscriminator::SPACE + 8])
 }
 
 impl AccountWithDiscriminator for DelegationMetadata {
