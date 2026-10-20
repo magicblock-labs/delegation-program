@@ -6,11 +6,13 @@ use dlp_api::{
     v2::{
         instruction_builder::{
             propose_commitment, register_operator, register_verifier,
-            update_verifier_registry, write_state_buffer,
+            update_delegation_cluster, update_verifier_registry,
+            write_state_buffer,
         },
         pda::{pending_commitment_pda, verifier_registry_pda},
         ChallengeConfig, PendingCommitment, ProposeCommitmentArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs, UpdateVerifierRegistryArgs,
+        RegisterOperatorArgs, RegisterVerifierArgs,
+        UpdateDelegationClusterArgs, UpdateVerifierRegistryArgs,
         VerifierRegistry, VerifierRegistryAction, WriteStateBufferArgs,
         PENDING_COMMITMENT_STATUS_ACTIVE,
     },
@@ -194,6 +196,33 @@ async fn test_propose_commitment_fails_without_enough_verifiers() {
 }
 
 #[tokio::test]
+async fn test_propose_commitment_rejects_verifier_below_updated_minimum() {
+    let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
+        verifier_count: 1,
+        ..Default::default()
+    })
+    .await;
+    env.challenge_config.min_verifier_bond += 1;
+
+    let ix = update_delegation_cluster(
+        env.authority.pubkey(),
+        env.delegation_cluster,
+        UpdateDelegationClusterArgs {
+            challenge_config: Some(env.challenge_config.clone()),
+        },
+    );
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&env.payer.pubkey()),
+        &[&env.payer, &env.authority],
+        env.banks.get_latest_blockhash().await.unwrap(),
+    );
+    env.banks.process_transaction(tx).await.unwrap();
+
+    assert!(propose(&mut env, propose_commitment_args()).await.is_err());
+}
+
+#[tokio::test]
 async fn test_propose_commitment_fails_without_state_buffer() {
     let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
         verifier_count: 2,
@@ -277,6 +306,7 @@ async fn test_propose_commitment_rejects_undelegating_account() {
 struct ProposeCommitmentEnv {
     banks: BanksClient,
     payer: Keypair,
+    authority: Keypair,
     operator: Keypair,
     verifiers: Vec<Keypair>,
     delegation_cluster: Pubkey,
@@ -421,6 +451,7 @@ async fn setup_propose_commitment_env(
     ProposeCommitmentEnv {
         banks,
         payer,
+        authority,
         operator,
         verifiers,
         delegation_cluster,

@@ -215,6 +215,7 @@ pub fn process_propose_commitment(
         verifier_registry_view.next_selection_index(),
         challenge_config.verifiers_per_commitment() as usize,
         current_validator.address(),
+        challenge_config.min_verifier_bond(),
     )?;
 
     require_ge!(
@@ -420,6 +421,7 @@ fn copy_verifier_entries(
         .map(|entry| VerifierRegistryEntry {
             verifier_identity: *entry.verifier_identity(),
             verifier_bond: *entry.verifier_bond(),
+            stake_lamports: entry.stake_lamports(),
             weight: entry.weight(),
         })
         .collect()
@@ -430,6 +432,7 @@ fn select_verifiers_round_robin(
     next_selection_index: u64,
     verifiers_per_commitment: usize,
     operator: &Address,
+    min_verifier_bond: u64,
 ) -> Result<(Vec<SelectedVerifier>, usize), ProgramError> {
     if entries.is_empty() || verifiers_per_commitment == 0 {
         return Err(ProgramError::InvalidInstructionData);
@@ -445,7 +448,9 @@ fn select_verifiers_round_robin(
         let index = (start + scanned_count) % entries.len();
         let entry = &entries[index];
 
-        if entry.verifier_identity != *operator {
+        if entry.verifier_identity != *operator
+            && entry.stake_lamports >= min_verifier_bond
+        {
             selected.push(SelectedVerifier {
                 verifier_identity: entry.verifier_identity,
                 approved: false,
