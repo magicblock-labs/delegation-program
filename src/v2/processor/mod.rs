@@ -8,6 +8,7 @@ use pinocchio::{AccountView, ProgramResult};
 pub use bootstrap::*;
 pub use fraud_proofs::*;
 
+#[inline(never)]
 pub fn process_instruction(
     accounts: &[AccountView],
     data: &[u8],
@@ -28,6 +29,9 @@ pub fn process_instruction(
         }
         DlpV2Instruction::UpdateDelegationCluster => {
             process_update_delegation_cluster(accounts, data)
+        }
+        DlpV2Instruction::ProposeCommitment => {
+            process_propose_commitment(accounts, data)
         }
         DlpV2Instruction::WriteStateBuffer => {
             process_write_state_buffer(accounts, data)
