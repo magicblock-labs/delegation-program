@@ -6,7 +6,7 @@ use solana_sdk_ids::system_program;
 use wheels::layout::Encodable;
 
 use crate::{
-    compat::Modernize,
+    compat::{Compatize, Modernize},
     v2::{
         pda::{delegation_cluster_pda, verifier_registry_pda},
         DlpV2Instruction, InitDelegationClusterArgs,
@@ -21,7 +21,8 @@ pub fn init_delegation_cluster(
     cluster_identity: Pubkey,
     args: InitDelegationClusterArgs,
 ) -> Instruction {
-    let delegation_cluster = delegation_cluster_pda(&cluster_identity);
+    let delegation_cluster =
+        delegation_cluster_pda(&cluster_identity.compatize());
     let mut accounts = vec![
         AccountMeta::new(config_authority, true),
         AccountMeta::new_readonly(cluster_identity.modernize(), true),
