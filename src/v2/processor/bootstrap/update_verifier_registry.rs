@@ -87,7 +87,6 @@ pub fn process_update_verifier_registry(
     validate_verifier_can_be_added(&challenge_config, &verifier_bond_state)?;
 
     let verifier_identity = verifier_bond_state.verifier_identity();
-    let verifier_bond_key = verifier_bond.address();
 
     {
         let verifier_registry_data = verifier_registry.try_borrow()?;
@@ -103,14 +102,11 @@ pub fn process_update_verifier_registry(
             delegation_cluster.address(),
             ProgramError::InvalidAccountData
         );
-        // CHECKPOINT: this treats verifier identity and verifier bond as
-        // separate unique registry keys. Revisit if bond rotation should keep
-        // the same identity entry instead of rejecting either duplicate.
         require!(
-            !verifier_registry_view.entries().iter().any(|entry| {
-                entry.verifier_identity() == verifier_identity
-                    || entry.verifier_bond() == verifier_bond_key
-            }),
+            !verifier_registry_view
+                .entries()
+                .iter()
+                .any(|entry| entry.verifier_identity() == verifier_identity),
             ProgramError::AccountAlreadyInitialized
         );
     }
@@ -126,7 +122,6 @@ pub fn process_update_verifier_registry(
         .entries_mut()?
         .push(&VerifierRegistryEntry {
             verifier_identity: *verifier_identity,
-            verifier_bond: *verifier_bond_key,
             stake_lamports: verifier_bond_state.stake_lamports(),
             weight: args.weight(),
         })?;

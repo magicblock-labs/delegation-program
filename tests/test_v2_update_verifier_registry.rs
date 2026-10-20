@@ -30,14 +30,7 @@ async fn test_update_verifier_registry_adds_verifier() {
         .as_ref()
         .unwrap()
         .min_verifier_bond;
-    let delegation_cluster =
-        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
-    let (_, expected_verifier_registry_bump) = Pubkey::find_program_address(
-        &[VERIFIER_REGISTRY_SEED, delegation_cluster.as_ref()],
-        &dlp_api::id(),
-    );
-
-    initialize_delegation_cluster(
+    let delegation_cluster = initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
@@ -45,6 +38,10 @@ async fn test_update_verifier_registry_adds_verifier() {
         cluster_args,
     )
     .await;
+    let (_, expected_verifier_registry_bump) = Pubkey::find_program_address(
+        &[VERIFIER_REGISTRY_SEED, delegation_cluster.as_ref()],
+        &dlp_api::id(),
+    );
     fund_and_register_verifier(
         &banks,
         &payer,
@@ -91,10 +88,6 @@ async fn test_update_verifier_registry_adds_verifier() {
     assert_eq!(verifier_registry.entries().len(), 1);
     let entry = verifier_registry.entries().iter().next().unwrap();
     assert_eq!(*entry.verifier_identity(), verifier.pubkey());
-    assert_eq!(
-        *entry.verifier_bond(),
-        verifier_bond_pda(&delegation_cluster, &verifier.pubkey())
-    );
     assert_eq!(entry.stake_lamports(), min_verifier_bond);
     assert_eq!(entry.weight(), 1);
 }
