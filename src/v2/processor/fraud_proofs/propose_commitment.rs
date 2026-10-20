@@ -8,8 +8,7 @@ use dlp_api::{
         },
         ChallengeConfigView, DelegationCluster, OperatorBond, OperatorStatus,
         PendingCommitment, ProposeCommitmentArgs, SelectedVerifier,
-        StateBuffer, VerifierRegistry, VerifierRegistryEntry,
-        PENDING_COMMITMENT_STATUS_ACTIVE,
+        StateBuffer, VerifierRegistry, PENDING_COMMITMENT_STATUS_ACTIVE,
     },
 };
 use pinocchio::{
@@ -209,9 +208,8 @@ pub fn process_propose_commitment(
         ProgramError::InvalidAccountData
     );
 
-    let entries = copy_verifier_entries(&verifier_registry_view);
     let (selected_verifiers, scanned_count) = select_verifiers_round_robin(
-        &entries,
+        &verifier_registry_view,
         verifier_registry_view.next_selection_index(),
         challenge_config.verifiers_per_commitment() as usize,
         current_validator.address(),
@@ -224,16 +222,10 @@ pub fn process_propose_commitment(
         ProgramError::InvalidInstructionData
     );
 
-    let updated_registry = VerifierRegistry {
-        discriminator: VerifierRegistry::DISCRIMINATOR,
-        bump: verifier_registry_view.bump(),
-        delegation_cluster: *verifier_registry_view.delegation_cluster(),
-        next_selection_index: verifier_registry_view
-            .next_selection_index()
-            .checked_add(scanned_count as u64)
-            .ok_or(DlpError::Overflow)?,
-        entries,
-    };
+    let next_selection_index = verifier_registry_view
+        .next_selection_index()
+        .checked_add(scanned_count as u64)
+        .ok_or(DlpError::Overflow)?;
     drop(verifier_registry_data);
 
     let clock = Clock::get()?;
@@ -319,7 +311,9 @@ pub fn process_propose_commitment(
 
     pending_commitment_state
         .encode_to(pending_commitment.try_borrow_mut()?.as_mut())?;
-    updated_registry.encode_to(verifier_registry.try_borrow_mut()?.as_mut())?;
+    VerifierRegistry::decode_mut(verifier_registry)?
+        .next_selection_index_mut()?
+        .set(next_selection_index)?;
 
     Ok(())
 }
@@ -412,28 +406,14 @@ fn validate_state_buffer(
     Ok(*state_buffer.data_hash())
 }
 
-fn copy_verifier_entries(
-    registry: &dlp_api::v2::VerifierRegistryView<'_>,
-) -> Vec<VerifierRegistryEntry> {
-    registry
-        .entries()
-        .iter()
-        .map(|entry| VerifierRegistryEntry {
-            verifier_identity: *entry.verifier_identity(),
-            verifier_bond: *entry.verifier_bond(),
-            stake_lamports: entry.stake_lamports(),
-            weight: entry.weight(),
-        })
-        .collect()
-}
-
 fn select_verifiers_round_robin(
-    entries: &[VerifierRegistryEntry],
+    registry: &dlp_api::v2::VerifierRegistryView<'_>,
     next_selection_index: u64,
     verifiers_per_commitment: usize,
     operator: &Address,
     min_verifier_bond: u64,
 ) -> Result<(Vec<SelectedVerifier>, usize), ProgramError> {
+    let entries = registry.entries();
     if entries.is_empty() || verifiers_per_commitment == 0 {
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -446,13 +426,14 @@ fn select_verifiers_round_robin(
         && selected.len() < verifiers_per_commitment
     {
         let index = (start + scanned_count) % entries.len();
-        let entry = &entries[index];
+        let entry =
+            entries.get(index).ok_or(ProgramError::InvalidAccountData)?;
 
-        if entry.verifier_identity != *operator
-            && entry.stake_lamports >= min_verifier_bond
+        if entry.verifier_identity() != operator
+            && entry.stake_lamports() >= min_verifier_bond
         {
             selected.push(SelectedVerifier {
-                verifier_identity: entry.verifier_identity,
+                verifier_identity: *entry.verifier_identity(),
                 approved: false,
                 _pad_after_approved: [0; 7],
             });

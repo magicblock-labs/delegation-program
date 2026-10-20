@@ -9,7 +9,10 @@ use dlp_api::{
             update_delegation_cluster, update_verifier_registry,
             write_state_buffer,
         },
-        pda::{pending_commitment_pda, verifier_registry_pda},
+        pda::{
+            delegation_cluster_pda, pending_commitment_pda,
+            verifier_registry_pda,
+        },
         ChallengeConfig, PendingCommitment, ProposeCommitmentArgs,
         RegisterOperatorArgs, RegisterVerifierArgs,
         UpdateDelegationClusterArgs, UpdateVerifierRegistryArgs,
@@ -36,7 +39,7 @@ mod fixtures;
 use crate::fixtures::{
     create_delegation_metadata_data_with_commit_id,
     create_delegation_record_data,
-    v2::{challenge_cluster_args, initialize_delegation_cluster},
+    v2::{challenge_cluster_args, initialize_delegation_cluster_with_identity},
 };
 
 #[tokio::test]
@@ -334,9 +337,9 @@ async fn setup_propose_commitment_env(
         .map(|_| Keypair::new())
         .collect::<Vec<_>>();
     let delegated_account = Pubkey::new_unique();
+    let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
-    let delegation_cluster =
-        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
+    let delegation_cluster = delegation_cluster_pda(&cluster_identity.pubkey());
     let delegation_authority = if setup.wrong_delegation_authority {
         Pubkey::new_unique()
     } else {
@@ -390,10 +393,11 @@ async fn setup_propose_commitment_env(
     );
 
     let (mut banks, payer, blockhash) = program_test.start().await;
-    initialize_delegation_cluster(
+    initialize_delegation_cluster_with_identity(
         &banks,
         &payer,
         &authority,
+        &cluster_identity,
         blockhash,
         cluster_args.clone(),
     )
