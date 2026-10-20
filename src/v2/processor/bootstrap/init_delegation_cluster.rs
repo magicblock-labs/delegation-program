@@ -20,8 +20,8 @@ use crate::{
 };
 use wheels::{
     layout::{Decodable, Encodable},
-    require_eq, require_le, require_n_accounts, require_ne, require_ne_keys,
-    require_signer,
+    require_eq, require_le, require_n_accounts_with_optionals, require_ne,
+    require_ne_keys, require_signer,
 };
 
 /// Initialize one delegation cluster and, when challenge-enabled, its verifier
@@ -29,39 +29,42 @@ use wheels::{
 ///
 /// Direct-mode accounts:
 /// 0: `[signer, writable]` config authority and rent payer
-/// 1: `[writable]`         DelegationCluster PDA
-/// 2: `[]`                 system program, required by system CPI
-///
-/// Challenge-mode accounts insert the writable VerifierRegistry PDA at index 2.
+/// 1: `[signer]`           stable cluster identity
+/// 2: `[writable]`         DelegationCluster PDA
+/// 3: `[]`                 system program, required by system CPI
+/// 4: `[writable]`         VerifierRegistry PDA, optional in challenge mode
 #[inline(never)]
 pub fn process_init_delegation_cluster(
     accounts: &[AccountView],
     data: &[u8],
 ) -> ProgramResult {
+    let (
+        [config_authority, cluster_identity, delegation_cluster, _system_program],
+        optional_accounts,
+    ) = require_n_accounts_with_optionals!(accounts, 4);
+    let verifier_registry = match optional_accounts.len() {
+        0 => None,
+        1 => Some(&optional_accounts[0]),
+        _ => return Err(ProgramError::InvalidInstructionData),
+    };
+
     let args = InitDelegationClusterArgs::decode(data)?;
     let challenge_config = args.challenge_config();
-
-    let (config_authority, delegation_cluster, verifier_registry) =
-        if challenge_config.is_some() {
-            let [config_authority, delegation_cluster, verifier_registry, _system_program] =
-                require_n_accounts!(accounts, 4);
-            (
-                config_authority,
-                delegation_cluster,
-                Some(verifier_registry),
-            )
-        } else {
-            let [config_authority, delegation_cluster, _system_program] =
-                require_n_accounts!(accounts, 3);
-            (config_authority, delegation_cluster, None)
-        };
+    require_eq!(
+        verifier_registry.is_some(),
+        challenge_config.is_some(),
+        ProgramError::InvalidInstructionData
+    );
 
     require_signer!(config_authority);
+    require_signer!(cluster_identity);
+    // CHECKPOINT: A signer-backed cluster identity prevents namespace claims
+    // without introducing a global allocator. A registry could replace this.
     validate_init_args(&args, challenge_config.as_ref())?;
 
     let delegation_cluster_bump = require_uninitialized_pda(
         delegation_cluster,
-        &[DELEGATION_CLUSTER_SEED, args.cluster_id().as_ref()],
+        &[DELEGATION_CLUSTER_SEED, cluster_identity.address().as_ref()],
         &crate::fast::ID,
         true,
         StandardCtx::new("delegation cluster"),
@@ -95,7 +98,7 @@ pub fn process_init_delegation_cluster(
         AccountSpace::CurrentRent(delegation_cluster_len),
         &[Signer::from(&[
             Seed::from(DELEGATION_CLUSTER_SEED),
-            Seed::from(args.cluster_id().as_ref()),
+            Seed::from(cluster_identity.address().as_ref()),
             Seed::from(&[delegation_cluster_bump]),
         ])],
         config_authority,
@@ -104,7 +107,7 @@ pub fn process_init_delegation_cluster(
     DelegationCluster {
         discriminator: DelegationCluster::DISCRIMINATOR,
         bump: delegation_cluster_bump,
-        cluster_id: *args.cluster_id(),
+        cluster_id: *cluster_identity.address(),
         config_authority: *config_authority.address(),
         validator_rotation_authority: *args.validator_rotation_authority(),
         current_validator: *args.current_validator(),
@@ -157,11 +160,6 @@ fn validate_init_args(
 ) -> ProgramResult {
     let default_pubkey = Pubkey::default();
 
-    require_ne_keys!(
-        args.cluster_id(),
-        &default_pubkey,
-        ProgramError::InvalidInstructionData
-    );
     require_ne_keys!(
         args.current_validator(),
         &default_pubkey,

@@ -26,16 +26,20 @@ mod fixtures;
 
 #[tokio::test]
 async fn test_init_challenge_delegation_cluster() {
-    let (banks, payer, config_authority, blockhash) =
+    let (banks, payer, config_authority, cluster_identity, blockhash) =
         setup_program_test_env().await;
     let args = challenge_cluster_args();
-    let delegation_cluster = delegation_cluster_pda(&args.cluster_id);
+    let delegation_cluster = delegation_cluster_pda(&cluster_identity.pubkey());
     let verifier_registry = verifier_registry_pda(&delegation_cluster);
-    let ix = init_delegation_cluster(config_authority.pubkey(), args.clone());
+    let ix = init_delegation_cluster(
+        config_authority.pubkey(),
+        cluster_identity.pubkey(),
+        args.clone(),
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[&payer, &config_authority],
+        &[&payer, &config_authority, &cluster_identity],
         blockhash,
     );
 
@@ -50,7 +54,7 @@ async fn test_init_challenge_delegation_cluster() {
         DelegationCluster::decode(&delegation_cluster_account.data).unwrap();
     let challenge_config = cluster.challenge_config().unwrap();
     let (_, expected_cluster_bump) = Pubkey::find_program_address(
-        &[DELEGATION_CLUSTER_SEED, args.cluster_id.as_ref()],
+        &[DELEGATION_CLUSTER_SEED, cluster_identity.pubkey().as_ref()],
         &dlp_api::id(),
     );
 
@@ -60,7 +64,7 @@ async fn test_init_challenge_delegation_cluster() {
     );
     assert_eq!(cluster.discriminator(), DelegationCluster::DISCRIMINATOR);
     assert_eq!(cluster.bump(), expected_cluster_bump);
-    assert_eq!(*cluster.cluster_id(), args.cluster_id);
+    assert_eq!(*cluster.cluster_id(), cluster_identity.pubkey());
     assert_eq!(*cluster.config_authority(), config_authority.pubkey());
     assert_eq!(
         *cluster.validator_rotation_authority(),
@@ -135,16 +139,20 @@ async fn test_init_challenge_delegation_cluster() {
 
 #[tokio::test]
 async fn test_init_direct_delegation_cluster() {
-    let (banks, payer, config_authority, blockhash) =
+    let (banks, payer, config_authority, cluster_identity, blockhash) =
         setup_program_test_env().await;
     let args = direct_cluster_args();
-    let delegation_cluster = delegation_cluster_pda(&args.cluster_id);
+    let delegation_cluster = delegation_cluster_pda(&cluster_identity.pubkey());
     let verifier_registry = verifier_registry_pda(&delegation_cluster);
-    let ix = init_delegation_cluster(config_authority.pubkey(), args);
+    let ix = init_delegation_cluster(
+        config_authority.pubkey(),
+        cluster_identity.pubkey(),
+        args,
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[&payer, &config_authority],
+        &[&payer, &config_authority, &cluster_identity],
         blockhash,
     );
 
@@ -172,25 +180,30 @@ async fn test_init_direct_delegation_cluster() {
 
 #[tokio::test]
 async fn test_init_delegation_cluster_fails_twice() {
-    let (banks, payer, config_authority, blockhash) =
+    let (banks, payer, config_authority, cluster_identity, blockhash) =
         setup_program_test_env().await;
     let args = challenge_cluster_args();
 
     let tx = Transaction::new_signed_with_payer(
         &[init_delegation_cluster(
             config_authority.pubkey(),
+            cluster_identity.pubkey(),
             args.clone(),
         )],
         Some(&payer.pubkey()),
-        &[&payer, &config_authority],
+        &[&payer, &config_authority, &cluster_identity],
         blockhash,
     );
     banks.process_transaction(tx).await.unwrap();
 
     let tx = Transaction::new_signed_with_payer(
-        &[init_delegation_cluster(config_authority.pubkey(), args)],
+        &[init_delegation_cluster(
+            config_authority.pubkey(),
+            cluster_identity.pubkey(),
+            args,
+        )],
         Some(&payer.pubkey()),
-        &[&payer, &config_authority],
+        &[&payer, &config_authority, &cluster_identity],
         banks.get_latest_blockhash().await.unwrap(),
     );
 
@@ -199,31 +212,11 @@ async fn test_init_delegation_cluster_fails_twice() {
 
 #[tokio::test]
 async fn test_init_delegation_cluster_rejects_wrong_cluster_pda() {
-    let (banks, payer, config_authority, blockhash) =
+    let (banks, payer, config_authority, cluster_identity, blockhash) =
         setup_program_test_env().await;
     let mut ix = init_delegation_cluster(
         config_authority.pubkey(),
-        challenge_cluster_args(),
-    );
-
-    ix.accounts[1].pubkey = Pubkey::new_unique();
-
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&payer.pubkey()),
-        &[&payer, &config_authority],
-        blockhash,
-    );
-
-    assert!(banks.process_transaction(tx).await.is_err());
-}
-
-#[tokio::test]
-async fn test_init_delegation_cluster_rejects_wrong_registry_pda() {
-    let (banks, payer, config_authority, blockhash) =
-        setup_program_test_env().await;
-    let mut ix = init_delegation_cluster(
-        config_authority.pubkey(),
+        cluster_identity.pubkey(),
         challenge_cluster_args(),
     );
 
@@ -232,7 +225,29 @@ async fn test_init_delegation_cluster_rejects_wrong_registry_pda() {
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[&payer, &config_authority],
+        &[&payer, &config_authority, &cluster_identity],
+        blockhash,
+    );
+
+    assert!(banks.process_transaction(tx).await.is_err());
+}
+
+#[tokio::test]
+async fn test_init_delegation_cluster_rejects_wrong_registry_pda() {
+    let (banks, payer, config_authority, cluster_identity, blockhash) =
+        setup_program_test_env().await;
+    let mut ix = init_delegation_cluster(
+        config_authority.pubkey(),
+        cluster_identity.pubkey(),
+        challenge_cluster_args(),
+    );
+
+    ix.accounts[4].pubkey = Pubkey::new_unique();
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &config_authority, &cluster_identity],
         blockhash,
     );
 
@@ -241,10 +256,11 @@ async fn test_init_delegation_cluster_rejects_wrong_registry_pda() {
 
 #[tokio::test]
 async fn test_init_delegation_cluster_requires_authority_signature() {
-    let (banks, payer, config_authority, blockhash) =
+    let (banks, payer, config_authority, cluster_identity, blockhash) =
         setup_program_test_env().await;
     let mut ix = init_delegation_cluster(
         config_authority.pubkey(),
+        cluster_identity.pubkey(),
         challenge_cluster_args(),
     );
 
@@ -253,7 +269,29 @@ async fn test_init_delegation_cluster_requires_authority_signature() {
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[&payer],
+        &[&payer, &cluster_identity],
+        blockhash,
+    );
+
+    assert!(banks.process_transaction(tx).await.is_err());
+}
+
+#[tokio::test]
+async fn test_init_delegation_cluster_requires_cluster_identity_signature() {
+    let (banks, payer, config_authority, cluster_identity, blockhash) =
+        setup_program_test_env().await;
+    let mut ix = init_delegation_cluster(
+        config_authority.pubkey(),
+        cluster_identity.pubkey(),
+        challenge_cluster_args(),
+    );
+
+    ix.accounts[1].is_signer = false;
+
+    let tx = Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&payer.pubkey()),
+        &[&payer, &config_authority],
         blockhash,
     );
 
@@ -262,7 +300,7 @@ async fn test_init_delegation_cluster_requires_authority_signature() {
 
 #[tokio::test]
 async fn test_init_delegation_cluster_rejects_invalid_challenge_config() {
-    let (banks, payer, config_authority, blockhash) =
+    let (banks, payer, config_authority, cluster_identity, blockhash) =
         setup_program_test_env().await;
     let mut args = challenge_cluster_args();
 
@@ -272,9 +310,13 @@ async fn test_init_delegation_cluster_rejects_invalid_challenge_config() {
         .verifiers_per_commitment = 2;
 
     let tx = Transaction::new_signed_with_payer(
-        &[init_delegation_cluster(config_authority.pubkey(), args)],
+        &[init_delegation_cluster(
+            config_authority.pubkey(),
+            cluster_identity.pubkey(),
+            args,
+        )],
         Some(&payer.pubkey()),
-        &[&payer, &config_authority],
+        &[&payer, &config_authority, &cluster_identity],
         blockhash,
     );
 
@@ -283,7 +325,6 @@ async fn test_init_delegation_cluster_rejects_invalid_challenge_config() {
 
 fn direct_cluster_args() -> InitDelegationClusterArgs {
     InitDelegationClusterArgs {
-        cluster_id: Pubkey::new_unique(),
         current_validator: Pubkey::new_unique(),
         validator_rotation_authority: Pubkey::new_unique(),
         challenge_config: None,
@@ -310,11 +351,13 @@ fn challenge_cluster_args() -> InitDelegationClusterArgs {
     }
 }
 
-async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
+async fn setup_program_test_env(
+) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new("dlp", dlp_api::ID, None);
     program_test.prefer_bpf(true);
 
     let config_authority = Keypair::new();
+    let cluster_identity = Keypair::new();
     program_test.add_account(
         config_authority.pubkey(),
         Account {
@@ -325,7 +368,17 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
             rent_epoch: 0,
         },
     );
+    program_test.add_account(
+        cluster_identity.pubkey(),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
 
     let (banks, payer, blockhash) = program_test.start().await;
-    (banks, payer, config_authority, blockhash)
+    (banks, payer, config_authority, cluster_identity, blockhash)
 }

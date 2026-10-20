@@ -14,14 +14,19 @@ use crate::{
 };
 
 /// Builds the instruction that creates one delegation cluster.
+///
+/// The cluster identity must sign to prove control of its PDA namespace.
 pub fn init_delegation_cluster(
     config_authority: Pubkey,
+    cluster_identity: Pubkey,
     args: InitDelegationClusterArgs,
 ) -> Instruction {
-    let delegation_cluster = delegation_cluster_pda(&args.cluster_id);
+    let delegation_cluster = delegation_cluster_pda(&cluster_identity);
     let mut accounts = vec![
         AccountMeta::new(config_authority, true),
+        AccountMeta::new_readonly(cluster_identity.modernize(), true),
         AccountMeta::new(delegation_cluster.modernize(), false),
+        AccountMeta::new_readonly(system_program::id(), false),
     ];
 
     if args.challenge_config.is_some() {
@@ -30,8 +35,6 @@ pub fn init_delegation_cluster(
             false,
         ));
     }
-
-    accounts.push(AccountMeta::new_readonly(system_program::id(), false));
 
     Instruction {
         program_id: crate::id().modernize(),

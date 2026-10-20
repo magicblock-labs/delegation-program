@@ -5,9 +5,6 @@ use crate::{compat::Pubkey, v2::ChallengeConfig};
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[variable_offset_layout(buffer_offset = 1)]
 pub struct InitDelegationClusterArgs {
-    /// Stable identifier used to derive the delegation cluster PDA.
-    pub cluster_id: Pubkey,
-
     /// Validator initially authorized to act for the cluster.
     pub current_validator: Pubkey,
 
