@@ -6,7 +6,7 @@ use solana_sdk_ids::system_program;
 use wheels::layout::Encodable;
 
 use crate::{
-    compat::Modernize,
+    compat::{Compatize, Modernize},
     v2::{pda::verifier_bond_pda, DlpV2Instruction, RegisterVerifierArgs},
 };
 
@@ -23,7 +23,11 @@ pub fn register_verifier(
             AccountMeta::new(verifier, true),
             AccountMeta::new_readonly(config_authority, true),
             AccountMeta::new(
-                verifier_bond_pda(&delegation_cluster, &verifier).modernize(),
+                verifier_bond_pda(
+                    &delegation_cluster.compatize(),
+                    &verifier.compatize(),
+                )
+                .modernize(),
                 false,
             ),
             AccountMeta::new_readonly(delegation_cluster, false),
