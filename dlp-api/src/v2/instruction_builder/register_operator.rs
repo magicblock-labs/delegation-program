@@ -6,7 +6,7 @@ use solana_sdk_ids::system_program;
 use wheels::layout::Encodable;
 
 use crate::{
-    compat::Modernize,
+    compat::{Compatize, Modernize},
     v2::{pda::operator_bond_pda, DlpV2Instruction, RegisterOperatorArgs},
 };
 
@@ -23,7 +23,7 @@ pub fn register_operator(
             AccountMeta::new(current_validator, true),
             AccountMeta::new_readonly(config_authority, true),
             AccountMeta::new(
-                operator_bond_pda(&delegation_cluster).modernize(),
+                operator_bond_pda(&delegation_cluster.compatize()).modernize(),
                 false,
             ),
             AccountMeta::new_readonly(delegation_cluster, false),
