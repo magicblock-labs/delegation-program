@@ -32,7 +32,7 @@ pub fn propose_commitment(
         accounts: vec![
             AccountMeta::new(current_validator, true),
             AccountMeta::new_readonly(
-                operator_bond_pda(&delegation_cluster).modernize(),
+                operator_bond_pda(&delegation_cluster.compatize()).modernize(),
                 false,
             ),
             AccountMeta::new(
@@ -66,7 +66,8 @@ pub fn propose_commitment(
             ),
             AccountMeta::new_readonly(delegation_cluster, false),
             AccountMeta::new(
-                verifier_registry_pda(&delegation_cluster).modernize(),
+                verifier_registry_pda(&delegation_cluster.compatize())
+                    .modernize(),
                 false,
             ),
             AccountMeta::new_readonly(system_program::id(), false),
