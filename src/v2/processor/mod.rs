@@ -25,5 +25,8 @@ pub fn process_instruction(
         DlpV2Instruction::UpdateVerifierRegistry => {
             process_update_verifier_registry(accounts, data)
         }
+        DlpV2Instruction::UpdateDelegationCluster => {
+            process_update_delegation_cluster(accounts, data)
+        }
     }
 }
