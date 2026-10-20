@@ -30,15 +30,7 @@ async fn test_register_operator() {
         .as_ref()
         .unwrap()
         .min_operator_bond;
-    let delegation_cluster =
-        dlp_api::v2::pda::delegation_cluster_pda(&cluster_args.cluster_id);
-    let (operator_bond_address, expected_operator_bond_bump) =
-        Pubkey::find_program_address(
-            &[OPERATOR_BOND_SEED, delegation_cluster.as_ref()],
-            &dlp_api::id(),
-        );
-
-    initialize_delegation_cluster(
+    let delegation_cluster = initialize_delegation_cluster(
         &banks,
         &payer,
         &authority,
@@ -46,6 +38,11 @@ async fn test_register_operator() {
         cluster_args,
     )
     .await;
+    let (operator_bond_address, expected_operator_bond_bump) =
+        Pubkey::find_program_address(
+            &[OPERATOR_BOND_SEED, delegation_cluster.as_ref()],
+            &dlp_api::id(),
+        );
     fund_operator(&banks, &payer, &operator).await;
 
     let blockhash = banks.get_latest_blockhash().await.unwrap();

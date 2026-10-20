@@ -17,7 +17,6 @@ pub fn direct_cluster_args(
     current_validator: Pubkey,
 ) -> InitDelegationClusterArgs {
     InitDelegationClusterArgs {
-        cluster_id: Pubkey::new_unique(),
         current_validator,
         validator_rotation_authority: Pubkey::new_unique(),
         challenge_config: None,
@@ -54,12 +53,17 @@ pub async fn initialize_delegation_cluster(
     blockhash: Hash,
     args: InitDelegationClusterArgs,
 ) -> Pubkey {
-    let delegation_cluster = delegation_cluster_pda(&args.cluster_id);
-    let ix = init_delegation_cluster(config_authority.pubkey(), args);
+    let cluster_identity = Keypair::new();
+    let delegation_cluster = delegation_cluster_pda(&cluster_identity.pubkey());
+    let ix = init_delegation_cluster(
+        config_authority.pubkey(),
+        cluster_identity.pubkey(),
+        args,
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
-        &[payer, config_authority],
+        &[payer, config_authority, &cluster_identity],
         blockhash,
     );
 
