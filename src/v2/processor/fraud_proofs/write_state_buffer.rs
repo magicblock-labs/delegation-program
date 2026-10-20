@@ -139,15 +139,29 @@ pub fn process_write_state_buffer(
 fn validate_args(
     args: &dlp_api::v2::WriteStateBufferArgsView<'_>,
 ) -> Result<(usize, usize), ProgramError> {
-    require_ne!(args.total_len(), 0, ProgramError::InvalidInstructionData);
     require_le!(
         args.total_len(),
         StateBuffer::MAX_TOTAL_PAYLOAD_LEN,
         ProgramError::InvalidInstructionData
     );
-    require_ne!(args.chunk().len(), 0, ProgramError::InvalidInstructionData);
-
     let offset = args.offset() as usize;
+
+    // An account with no data can still carry lamports and require a commitment.
+    if args.total_len() == 0 {
+        require_eq!(
+            args.chunk().len(),
+            0,
+            ProgramError::InvalidInstructionData
+        );
+        require_eq!(offset, 0, ProgramError::InvalidInstructionData);
+    } else {
+        require_ne!(
+            args.chunk().len(),
+            0,
+            ProgramError::InvalidInstructionData
+        );
+    }
+
     let write_end = offset
         .checked_add(args.chunk().len())
         .ok_or(DlpError::Overflow)?;

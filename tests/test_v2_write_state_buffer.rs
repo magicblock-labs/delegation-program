@@ -66,6 +66,46 @@ async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
 }
 
 #[tokio::test]
+async fn test_write_state_buffer_empty_payload_finalizes() {
+    let mut env = setup_write_state_buffer_env().await;
+    let commit_id = 16;
+
+    write_buffer(
+        &mut env.banks,
+        &env.payer,
+        &env.writer,
+        env.delegated.pubkey(),
+        WriteStateBufferArgs {
+            commit_id,
+            total_len: 0,
+            offset: 0,
+            chunk: vec![],
+        },
+    )
+    .await
+    .unwrap();
+
+    let state_buffer = state_buffer_pda(
+        &env.delegated.pubkey(),
+        commit_id,
+        &env.writer.pubkey(),
+    );
+    let state_buffer_account =
+        env.banks.get_account(state_buffer).await.unwrap().unwrap();
+    let state = StateBuffer::decode(&state_buffer_account.data).unwrap();
+
+    assert_eq!(
+        state_buffer_account.data.len(),
+        StateBuffer::PAYLOAD_BYTES_OFFSET
+    );
+    assert_eq!(state.total_len(), 0);
+    assert!(state.finalized());
+    assert_eq!(*state.data_hash(), account_data_hash(&[]));
+    assert!(state.payload().is_empty());
+    assert_eq!(state.payload().capacity(), 0);
+}
+
+#[tokio::test]
 async fn test_write_state_buffer_multiple_chunks_finalize() {
     let mut env = setup_write_state_buffer_env().await;
     let commit_id = 8;
