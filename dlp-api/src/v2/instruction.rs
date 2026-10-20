@@ -7,6 +7,8 @@ use strum::IntoStaticStr;
 pub enum DlpV2Instruction {
     /// Creates one delegation cluster and its optional verifier registry.
     InitDelegationCluster = 100,
+    /// Registers one operator and deposits its initial stake.
+    RegisterOperator = 101,
 }
 
 impl DlpV2Instruction {
