@@ -35,6 +35,8 @@ pub enum DlpV2Instruction {
     ResolveDispute = 111,
     /// Delegates an account to one delegation cluster.
     Delegate = 112,
+    /// Commits and immediately applies inline state for a Direct cluster.
+    CommitFinalize = 113,
 }
 
 impl DlpV2Instruction {
