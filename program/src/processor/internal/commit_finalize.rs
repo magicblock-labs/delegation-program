@@ -42,7 +42,7 @@ pub(crate) struct CommitFinalizeInput<'a> {
     pub(crate) state_update: CommitStateUpdate<'a>,
 }
 
-pub(crate) fn process_commit_finalize_internal(
+pub(crate) fn apply_commit_finalize(
     current_validator: &AccountView,
     delegated_account: &AccountView,
     delegation_state: &AccountView,

@@ -3,8 +3,8 @@ use dpi::{CommitFinalizeArgs, CommitPayloadKind};
 use pinocchio::{error::ProgramError, AccountView, ProgramResult};
 use wheels::{layout::Decodable, require_eq, require_n_accounts};
 
-use super::{
-    process_commit_finalize_internal, CommitFinalizeInput, CommitStateUpdate,
+use crate::processor::internal::{
+    apply_commit_finalize, CommitFinalizeInput, CommitStateUpdate,
 };
 
 /// Commit and immediately apply one state update for a Direct cluster.
@@ -46,7 +46,7 @@ pub fn process_commit_finalize(
         _ => return Err(ProgramError::InvalidInstructionData),
     };
 
-    process_commit_finalize_internal(
+    apply_commit_finalize(
         current_validator,
         delegated_account,
         delegation_state,

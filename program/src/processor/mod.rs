@@ -3,6 +3,7 @@ mod bootstrap;
 mod delegate;
 mod direct;
 mod fraud_proofs;
+pub(crate) mod internal;
 
 pub use bootstrap::*;
 pub use delegate::*;
