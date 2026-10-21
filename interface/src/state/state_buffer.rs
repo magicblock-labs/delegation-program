@@ -11,6 +11,9 @@ pub struct StateBuffer {
     /// Account type marker.
     pub discriminator: [u8; 8],
 
+    /// Canonical PDA bump for this buffer.
+    pub bump: u8,
+
     /// Writer that owns this opened buffer.
     ///
     /// This is the operator identity for an operator commitment buffer, or the
@@ -32,7 +35,10 @@ pub struct StateBuffer {
     /// Once true, buffer content cannot change except exact duplicate retries.
     pub finalized: bool,
 
-    /// Active payload bytes for `ProposeCommitment` or `RaiseChallenge`.
+    /// Keeps `payload` four-byte aligned for zero-copy diff decoding.
+    pub payload_alignment_padding: [u8; 2],
+
+    /// Active payload bytes for commitment, challenge, or direct finalization.
     ///
     /// This is not a serialized Solana account. Depending on the flow, it can
     /// be the delegated account's complete `Account::data` bytes or an encoded

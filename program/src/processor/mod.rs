@@ -59,5 +59,16 @@ pub fn process_instruction(
         DlpV2Instruction::CommitFinalize => {
             process_commit_finalize(accounts, data)
         }
+        DlpV2Instruction::CommitFinalizeFromBuffer => {
+            process_commit_finalize_from_buffer(accounts, data)
+        }
+        DlpV2Instruction::PrepareCommitFinalize => {
+            process_prepare_commit_finalize(accounts, data)
+        }
     }
+}
+
+pub(crate) fn state_buffer_payload_hash(payload: &[u8]) -> [u8; 32] {
+    solana_sha256_hasher::hashv(&[b"magicblock.account_data.v1", payload])
+        .to_bytes()
 }
