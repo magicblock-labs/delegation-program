@@ -1,6 +1,7 @@
 use crate::compat::Pubkey;
 
 pub const DELEGATION_CLUSTER_SEED: &[u8] = b"delegation-cluster";
+pub const DELEGATION_STATE_SEED: &[u8] = b"delegation-state";
 pub const OPERATOR_BOND_SEED: &[u8] = b"operator-bond";
 pub const VERIFIER_BOND_SEED: &[u8] = b"verifier-bond";
 pub const VERIFIER_REGISTRY_SEED: &[u8] = b"verifier-registry";
@@ -13,6 +14,14 @@ pub const CHALLENGE_SEED: &[u8] = b"challenge";
 pub fn delegation_cluster_pda(cluster_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         &[DELEGATION_CLUSTER_SEED, cluster_id.as_ref()],
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn delegation_state_pda(delegated_account: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[DELEGATION_STATE_SEED, delegated_account.as_ref()],
         &crate::id(),
     )
     .0

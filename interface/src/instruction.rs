@@ -33,6 +33,8 @@ pub enum DlpV2Instruction {
     ChallengerReveal = 110,
     /// Applies resolver decision for a v2 challenge.
     ResolveDispute = 111,
+    /// Delegates an account to one delegation cluster.
+    Delegate = 112,
 }
 
 impl DlpV2Instruction {
