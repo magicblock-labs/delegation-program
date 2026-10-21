@@ -1,6 +1,6 @@
 name: Propose Program Upgrade
 
-# Builds dlp verifiably and opens a Squads proposal that upgrades the program
+# Builds delegation_program verifiably and opens a Squads proposal that upgrades the program
 # and records its otter-verify PDA. Members approve and execute in Squads.
 #
 # Each cluster is a GitHub environment named <cluster>-program-upgrade with:
@@ -44,6 +44,6 @@ jobs:
           proposer-keypair: ${{ secrets.SQUADS_PROPOSER_KEYPAIR }}
           multisig: ${{ vars.SQUADS_MULTISIG_PDA }}
           program-id: DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh
-          library-name: dlp
+          library-name: delegation_program
           proposal-name: ${{ inputs.proposal_name }}
           dry-run: ${{ inputs.dry_run }}

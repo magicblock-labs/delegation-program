@@ -1,74 +1,70 @@
 # Delegation program
 
-Delegation module for https://arxiv.org/pdf/2311.02650.pdf
+Delegation program for MagicBlock Ephemeral Rollups, based on the
+[protocol paper](https://arxiv.org/pdf/2311.02650.pdf).
 
-## Public Api
+## Repository layout
 
-- [`Instruction Builders`](dlp-api/src/instruction_builder/) – utilities to generate Instructions.
-- [`Args`](dlp-api/src/args/) – Instructions arguments structures.
-- [`Consts`](dlp-api/src/consts.rs) – Program constants.
-- [`Errors`](dlp-api/src/error.rs) – Custom program errors.
+This repository is a Cargo workspace with three independently versioned
+packages:
 
-## Program
+- [`program/`](program/) contains the on-chain program.
+- [`interface/`](interface/) contains the public wire types, account layouts,
+  PDA helpers, CPI helpers, and instruction builders.
+- [`client/`](client/) contains off-chain diff and encryption helpers.
 
-- [`Entrypoint`](src/lib.rs) – The program entrypoint.
-- [`Processors`](src/processor/) – Instruction implementations.
+Anchor integration tests live in
+[`integration-tests/anchor/`](integration-tests/anchor/). Design documents,
+release documentation, IDLs, and audit reports live under [`docs/`](docs/),
+[`idl/`](idl/), and [`audits/`](audits/).
 
-## Important Instructions
+## Build and test
 
-- [`Delegate`](src/processor/fast/delegate.rs) - Delegate an account
-- [`CommitState`](src/processor/fast/commit_state.rs) – Commit a new state
-- [`Finalize`](src/processor/fast/finalize.rs) – Finalize a new state
-- [`Undelegate`](src/processor/fast/undelegate.rs) – Undelegate an account
-
-## Tests
-
-To run the test suite, use the Solana toolchain:
+Build the Rust workspace:
 
 ```bash
-cargo test-sbf --features unit_test_config
+cargo build --workspace
 ```
 
-For line coverage, use llvm-cov:
+Run the on-chain program tests with the Solana toolchain:
 
 ```bash
-cargo llvm-cov --test test_commit_state
+cargo test-sbf --manifest-path program/Cargo.toml --features unit_test_config
 ```
 
-(llvm-cov currently does not work with instructions with CPIs e.g.: delegate, undelegate)
-
-## Integration Tests
-
-The integration tests are located in the `tests/integration` directory.
-The tests consist of a Bolt/Anchor program that uses the delegation program to delegate, commit, and undelegate accounts.
-This can be also used a reference for how to interact with the program.
-
-To run the integration test, use Bolt or Anchor:
+Run the Anchor integration tests after building the program:
 
 ```bash
-cd tests/integration && bolt test
+cargo build-sbf --manifest-path program/Cargo.toml
+npm --prefix integration-tests/anchor install
+./scripts/run-anchor-tests.sh
 ```
 
-or:
+For line coverage, use `cargo llvm-cov`, for example:
 
 ```bash
-cd tests/integration && anchor test
+cargo llvm-cov --manifest-path program/Cargo.toml --test test_commit_state
 ```
 
-## Upgrading the Program
+`llvm-cov` currently does not work with instructions that perform CPIs, such
+as delegate and undelegate.
 
-Upgrades go through a Squads multisig whose vault holds the upgrade authority. CI only proposes them.
+## Upgrading the program
 
-1. Run **Actions → Propose Program Upgrade** with the target `cluster` (start with `dry_run`). It builds `dlp` verifiably, uploads a buffer and opens a Squads proposal that upgrades the program and records its verified build. The job summary shows the proposal number and the executable hash.
-2. Members review and approve:
-   - **mainnet:** in the [Squads app](https://app.squads.so);
-   - **devnet:** with the shared command-line tools, run locally with your own keypair:
+Upgrades go through a Squads multisig whose vault holds the upgrade authority.
+CI only proposes them.
 
-   ```bash
-   node approve.mjs --multisig <MULTISIG> --keypair <your keypair> <proposal #> --hash <executable hash>
-   ```
+1. Run **Actions -> Propose Program Upgrade** with the target `cluster` (start
+   with `dry_run`). It builds `delegation_program` verifiably, uploads a buffer,
+   and opens a Squads proposal that upgrades the program and records its
+   verified build. The job summary shows the proposal number and executable
+   hash.
+2. Members review and approve the proposal in the Squads app for mainnet. For
+   devnet, members can use the shared command-line tools with their own keypair.
+3. Once approved, any member with Execute permission executes it.
+4. For mainnet, run **Actions -> Verify Program (Remote)**. OtterSec rebuilds
+   the recorded commit and verifies it against the deployed binary.
 
-3. Once approved, any member with Execute executes it.
-4. **mainnet:** run **Actions → Verify Program (Remote)**. OtterSec rebuilds the recorded commit and, if it matches the deployed binary, explorers show the program as verified. Every upgrade needs this step again.
-
-See the [squads-program-upgrade action](https://github.com/magicblock-labs/.github/tree/main/actions/squads-program-upgrade#approving-and-managing-the-multisig-devnet) for setup, membership changes, and the per-cluster GitHub environments.
+See the [squads-program-upgrade action](https://github.com/magicblock-labs/.github/tree/main/actions/squads-program-upgrade#approving-and-managing-the-multisig-devnet)
+for setup, membership changes, and per-cluster GitHub environments. See the
+[release process](docs/releases/process.md) for package and tag conventions.

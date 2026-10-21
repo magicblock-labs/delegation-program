@@ -8,10 +8,9 @@ untracked/
 *.anchor
 *.bolt
 *.yarn
-tests/integration/target
-!tests/integration/target/deploy/test_delegation-keypair.json
-tests/integration/node_modules
-tests/integration/test-ledger
+integration-tests/anchor/target
+integration-tests/anchor/node_modules
+integration-tests/anchor/test-ledger
 **/*.rs.bk
 
 sdk/ts/lib

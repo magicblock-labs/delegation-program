@@ -1,0 +1,84 @@
+name: Publish delegation program client crate
+
+on:
+  release:
+    types: [published]
+  push:
+    branches:
+      - "release/client/v*"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Run cargo publish in dry-run mode
+        required: true
+        default: "true"
+        type: choice
+        options: ["true", "false"]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  rust_version: 1.94.1
+  DRY_RUN: "false"
+
+jobs:
+  publish:
+    if: github.event_name != 'release' || startsWith(github.event.release.tag_name, 'delegation-program-client@v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check release tag
+        if: github.event_name == 'release'
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          python3 - <<'PY'
+          import os
+          import tomllib
+
+          with open("client/Cargo.toml", "rb") as manifest:
+              version = tomllib.load(manifest)["package"]["version"]
+          expected = f"delegation-program-client@v{version}"
+          actual = os.environ["RELEASE_TAG"]
+          if actual != expected:
+              raise SystemExit(f"::error::Release tag {actual!r} must match {expected!r}")
+          PY
+
+      - name: Install Rust
+        run: rustup toolchain install ${{ env.rust_version }} --profile minimal --component rustfmt --component clippy
+
+      - name: Check formatting
+        run: cargo +${{ env.rust_version }} fmt -- --check
+
+      - name: Run Clippy
+        run: cargo +${{ env.rust_version }} clippy --manifest-path client/Cargo.toml --all-targets -- --deny=warnings
+
+      - name: Run tests
+        run: |
+          cargo +${{ env.rust_version }} test --manifest-path client/Cargo.toml
+          cargo +${{ env.rust_version }} test --manifest-path client/Cargo.toml --no-default-features --features diff
+          cargo +${{ env.rust_version }} test --manifest-path client/Cargo.toml --no-default-features --features encryption
+
+      - name: Use dry run for release branches
+        if: github.event_name == 'push'
+        run: echo "DRY_RUN=true" >> "$GITHUB_ENV"
+
+      - name: Use selected manual mode
+        if: github.event_name == 'workflow_dispatch'
+        run: echo "DRY_RUN=${{ inputs.dry_run }}" >> "$GITHUB_ENV"
+
+      - name: Publish crate
+        env:
+          CRATES_TOKEN: ${{ secrets.CRATES_TOKEN }}
+        run: |
+          flags=()
+          if [ "$DRY_RUN" = "true" ]; then
+            flags+=(--dry-run --no-verify)
+          fi
+          cargo +${{ env.rust_version }} publish \
+            --manifest-path client/Cargo.toml \
+            --token "$CRATES_TOKEN" \
+            "${flags[@]}"

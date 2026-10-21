@@ -1,0 +1,37 @@
+[package]
+name = "magicblock-delegation-program-client"
+description = "Off-chain helpers for the MagicBlock delegation program"
+version = "0.1.0"
+authors = ["Magicblock Labs <dev@magicblock.gg>"]
+edition = "2021"
+license = "MIT"
+homepage = "https://www.magicblock.gg/"
+documentation = "https://docs.magicblock.gg/"
+repository = "https://github.com/magicblock-labs/delegation-program"
+keywords = ["solana", "crypto", "delegation", "ephemeral-rollups", "magicblock"]
+
+[lib]
+name = "delegation_program_client"
+
+[features]
+default = ["diff", "encryption"]
+diff = ["dep:rkyv", "magicblock-delegation-program-interface/diff"]
+encryption = [
+    "dep:libsodium-rs",
+    "dep:solana-keypair",
+    "dep:solana-signer",
+    "magicblock-delegation-program-interface/instruction",
+]
+
+[dependencies]
+magicblock-delegation-program-interface = { path = "../interface", version = "0.1.0", default-features = false }
+libsodium-rs = { version = "0.2.0", optional = true }
+rkyv = { version = "0.7.45", optional = true }
+solana-keypair = { version = "3.1.0", optional = true }
+solana-program = { version = "4.0.0" }
+solana-sdk-ids = "3.1.0"
+solana-signer = { version = "3.0.0", optional = true }
+thiserror = { version = ">=1" }
+
+[dev-dependencies]
+spl-token = { package = "spl-token-interface", version = "2.0.0" }

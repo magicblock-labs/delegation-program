@@ -53,7 +53,7 @@ jobs:
       - name: Run fmt
         run: rustup component add --toolchain nightly-x86_64-unknown-linux-gnu rustfmt && cargo +nightly fmt -- --check
       - name: Run clippy
-        run: cargo clippy -- --deny=warnings
+        run: cargo clippy --workspace -- --deny=warnings
 
   test:
     needs: [install, lint]
@@ -80,34 +80,38 @@ jobs:
         run: df -h
 
       - name: run build
-        run: |
-          cargo build
+        run: cargo build --workspace
 
-      - name: run tests (dlp-api cargo test)
-        run: |
-          cd dlp-api
-          cargo test
+      - name: run interface tests
+        run: cargo test --manifest-path interface/Cargo.toml
 
-      - name: run tests (dlp-api cargo test --features backward-compat)
-        run: |
-          cd dlp-api
-          cargo test --features backward-compat
+      - name: run interface tests with backward compatibility
+        run: cargo test --manifest-path interface/Cargo.toml --features backward-compat
+
+      - name: run client tests
+        run: cargo test --manifest-path client/Cargo.toml
+
+      - name: run client diff tests
+        run: cargo test --manifest-path client/Cargo.toml --no-default-features --features diff
+
+      - name: run client encryption tests
+        run: cargo test --manifest-path client/Cargo.toml --no-default-features --features encryption
 
       - name: run tests (cargo test-sbf)
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          cargo test-sbf --features unit_test_config
+          cargo test-sbf --manifest-path program/Cargo.toml --features unit_test_config
 
       - name: compile production version for integration tests
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          cargo build-sbf
+          cargo build-sbf --manifest-path program/Cargo.toml
 
       - name: clean up before integration tests
         run: |
-          cp target/deploy/dlp.so /tmp/dlp.so
+          cp target/deploy/delegation_program.so /tmp/delegation_program.so
           rm -rf target
-          mkdir -p target/deploy && cp /tmp/dlp.so target/deploy/dlp.so
+          mkdir -p target/deploy && cp /tmp/delegation_program.so target/deploy/delegation_program.so
           rm -rf ~/.cache
           rm -rf ~/.cargo/registry
           df -h
@@ -115,7 +119,6 @@ jobs:
       - name: run integration tests
         run: |
           export PATH="/home/runner/.local/share/solana/install/active_release/bin:$PATH"
-          cd tests/integration 
           cargo install --locked --version ${{ env.anchor_version }} anchor-cli
-          npm install
-          anchor test
+          npm --prefix integration-tests/anchor install
+          ./scripts/run-anchor-tests.sh

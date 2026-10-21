@@ -1,0 +1,64 @@
+[package]
+name = "magicblock-delegation-program-interface"
+
+authors = ["Magicblock Labs <dev@magicblock.gg>"]
+description = "Public interface for the MagicBlock delegation program"
+documentation = "https://docs.magicblock.gg/"
+edition = "2021"
+homepage = "https://www.magicblock.gg/"
+keywords = ["crypto", "delegation", "ephemeral-rollups", "magicblock", "solana"]
+license = "MIT"
+repository = "https://github.com/magicblock-labs/delegation-program"
+version = "0.1.0"
+
+[lib]
+name = "delegation_program_interface"
+
+[features]
+backward-compat = ["dep:borsh-compat", "dep:solana-pubkey-compat"]
+cpi = []
+diff = []
+instruction = []
+unit_test_config = []
+# Default to offchain-friendly build
+default = ["cpi", "diff", "instruction"]
+
+[dependencies]
+bincode = { version = "^1.3" }
+borsh-compat = { package = "borsh", version = "0.10.4", optional = true }
+borsh-current = { package = "borsh", version = "1.5" }
+bytemuck = { version = ">=1", features = ["derive"] }
+const-crypto = "0.3.0"
+num_enum = "^0.7.2"
+serde = { version = "1.0.228", default-features = false, features = ["derive"] }
+static_assertions = "1.1.0"
+strum = { version = "0.28", features = ["derive"] }
+thiserror = { version = ">=1" }
+
+pinocchio = { version = "0.10.1" }
+pinocchio-log = { version = "0.5.1" }
+pinocchio-system = { version = "0.5.0" }
+
+solana-address = { version = "2.0.0", features = [
+    "bytemuck",
+    "curve25519",
+    "decode",
+    "std",
+    "syscalls"
+] }
+solana-instruction = "3.1.0"
+solana-loader-v3-interface = { version = "7.0.0", features = ["serde"] }
+solana-program = { version = "4.0.0" }
+solana-pubkey-compat = { package = "solana-pubkey", version = "2.4", features = [
+    "borsh",
+    "bytemuck",
+    "curve25519"
+], optional = true }
+solana-sdk-ids = "3.1.0"
+solana-sha256-hasher = "3.1.0"
+solana-system-interface = { version = "3.0.0", features = ["bincode"] }
+wheels = { version = "0.1.0", git = "https://github.com/magicblock-labs/magicblock-wheels.git", branch = "snawaz/nested-layout-options" }
+
+[dev-dependencies]
+rand = { version = "0.8.5", features = ["small_rng"] }
+solana-pubkey = "4.2.0"
