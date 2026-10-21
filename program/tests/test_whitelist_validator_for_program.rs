@@ -1,8 +1,6 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use dpi::{
-    pda::program_config_from_program_id, state::ProgramConfig,
-};
+use delegation_program_interface as dpi;
+use dpi::{pda::program_config_from_program_id, state::ProgramConfig};
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -102,11 +100,8 @@ async fn test_remove_validator_for_program() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
     let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 

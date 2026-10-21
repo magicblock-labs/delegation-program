@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     args::{CommitFinalizeArgs, CommitStateArgs, DelegateArgs},
     pda::{
@@ -102,10 +102,7 @@ async fn test_commit_finalize_lamports_settlement() {
         setup_program_for_delegate_base_increase(initial_lamports).await;
 
     // Assign delegated account to the delegation program.
-    let assign_ix = system_instruction::assign(
-        &delegated.pubkey(),
-        &dpi::id(),
-    );
+    let assign_ix = system_instruction::assign(&delegated.pubkey(), &dpi::id());
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
         Some(&payer.pubkey()),
@@ -125,17 +122,16 @@ async fn test_commit_finalize_lamports_settlement() {
 
     // Delegate the account.
     {
-        let delegate_ix =
-            dpi::instruction_builder::delegate(
-                payer.pubkey(),
-                delegated.pubkey(),
-                None,
-                DelegateArgs {
-                    commit_frequency_ms: u32::MAX,
-                    seeds: vec![],
-                    validator: Some(validator.pubkey()),
-                },
-            );
+        let delegate_ix = dpi::instruction_builder::delegate(
+            payer.pubkey(),
+            delegated.pubkey(),
+            None,
+            DelegateArgs {
+                commit_frequency_ms: u32::MAX,
+                seeds: vec![],
+                validator: Some(validator.pubkey()),
+            },
+        );
         let delegate_tx = Transaction::new_signed_with_payer(
             &[delegate_ix],
             Some(&payer.pubkey()),
@@ -184,13 +180,12 @@ async fn test_commit_finalize_lamports_settlement() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         };
-        let (commit_ix, _) =
-            dpi::instruction_builder::commit_finalize(
-                validator.pubkey(),
-                delegated.pubkey(),
-                &mut args,
-                &[],
-            );
+        let (commit_ix, _) = dpi::instruction_builder::commit_finalize(
+            validator.pubkey(),
+            delegated.pubkey(),
+            &mut args,
+            &[],
+        );
         let commit_tx = Transaction::new_signed_with_payer(
             &[commit_ix],
             Some(&payer.pubkey()),
@@ -235,13 +230,12 @@ async fn test_commit_finalize_lamports_settlement() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         };
-        let (commit_ix, _) =
-            dpi::instruction_builder::commit_finalize(
-                validator.pubkey(),
-                delegated.pubkey(),
-                &mut args,
-                &[],
-            );
+        let (commit_ix, _) = dpi::instruction_builder::commit_finalize(
+            validator.pubkey(),
+            delegated.pubkey(),
+            &mut args,
+            &[],
+        );
         let commit_tx = Transaction::new_signed_with_payer(
             &[commit_ix],
             Some(&payer.pubkey()),
@@ -289,13 +283,12 @@ async fn test_commit_finalize_lamports_settlement() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         };
-        let (commit_ix, _) =
-            dpi::instruction_builder::commit_finalize(
-                validator.pubkey(),
-                delegated.pubkey(),
-                &mut args,
-                &[],
-            );
+        let (commit_ix, _) = dpi::instruction_builder::commit_finalize(
+            validator.pubkey(),
+            delegated.pubkey(),
+            &mut args,
+            &[],
+        );
         let commit_tx = Transaction::new_signed_with_payer(
             &[commit_ix],
             Some(&payer.pubkey()),
@@ -343,13 +336,12 @@ async fn test_commit_finalize_lamports_settlement() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         };
-        let (commit_ix, _) =
-            dpi::instruction_builder::commit_finalize(
-                validator.pubkey(),
-                delegated.pubkey(),
-                &mut args,
-                &[],
-            );
+        let (commit_ix, _) = dpi::instruction_builder::commit_finalize(
+            validator.pubkey(),
+            delegated.pubkey(),
+            &mut args,
+            &[],
+        );
         let commit_tx = Transaction::new_signed_with_payer(
             &[commit_ix],
             Some(&payer.pubkey()),
@@ -391,10 +383,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
         setup_program_for_delegate_base_increase(initial_lamports).await;
 
     // Assign delegated account to the delegation program.
-    let assign_ix = system_instruction::assign(
-        &delegated.pubkey(),
-        &dpi::id(),
-    );
+    let assign_ix = system_instruction::assign(&delegated.pubkey(), &dpi::id());
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
         Some(&payer.pubkey()),
@@ -412,17 +401,16 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
     // Delegate the account.
     {
-        let delegate_ix =
-            dpi::instruction_builder::delegate(
-                payer.pubkey(),
-                delegated.pubkey(),
-                None,
-                DelegateArgs {
-                    commit_frequency_ms: u32::MAX,
-                    seeds: vec![],
-                    validator: Some(validator.pubkey()),
-                },
-            );
+        let delegate_ix = dpi::instruction_builder::delegate(
+            payer.pubkey(),
+            delegated.pubkey(),
+            None,
+            DelegateArgs {
+                commit_frequency_ms: u32::MAX,
+                seeds: vec![],
+                validator: Some(validator.pubkey()),
+            },
+        );
         let delegate_tx = Transaction::new_signed_with_payer(
             &[delegate_ix],
             Some(&payer.pubkey()),
@@ -1100,11 +1088,8 @@ async fn setup_program_for_delegate_base_increase(
         initial_lamports
     );
 
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let delegated = Keypair::new();
@@ -1302,11 +1287,8 @@ struct SetupProgramCommitTestEnvArgs {
 async fn setup_program_for_commit_test_env(
     args: SetupProgramCommitTestEnvArgs,
 ) -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let validator_keypair =

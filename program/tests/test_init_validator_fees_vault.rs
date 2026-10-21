@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::pda::validator_fees_vault_pda_from_validator;
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
@@ -61,11 +61,8 @@ async fn test_init_validator_fees_vault() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let admin_keypair = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);

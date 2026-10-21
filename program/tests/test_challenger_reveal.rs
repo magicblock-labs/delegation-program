@@ -366,11 +366,8 @@ struct ChallengerRevealEnv {
 }
 
 async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let authority = Keypair::new();
@@ -381,9 +378,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(
-            &cluster_identity.pubkey(),
-        );
+        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;
     let operator_state_data = vec![9, 8, 7, 6, 5];

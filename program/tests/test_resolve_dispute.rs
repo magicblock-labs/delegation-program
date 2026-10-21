@@ -386,11 +386,8 @@ struct ResolveDisputeEnv {
 }
 
 async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let authority = Keypair::new();
@@ -405,9 +402,7 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
     challenge_config.resolver = resolver.pubkey();
     challenge_config.min_operator_bond = OPERATOR_STAKE;
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(
-            &cluster_identity.pubkey(),
-        );
+        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let challenge_config = cluster_args.challenge_config.clone().unwrap();
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;

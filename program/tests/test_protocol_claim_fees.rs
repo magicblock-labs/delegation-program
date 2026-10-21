@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::pda::fees_vault_pda;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{BanksClient, ProgramTest};
@@ -22,10 +22,7 @@ async fn test_protocol_claim_fees() {
     let fees_vault_pda = fees_vault_pda();
 
     // Submit the claim fees tx
-    let ix =
-        dpi::instruction_builder::protocol_claim_fees(
-            admin.pubkey(),
-        );
+    let ix = dpi::instruction_builder::protocol_claim_fees(admin.pubkey());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -52,11 +49,8 @@ async fn test_protocol_claim_fees() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let admin_keypair = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);

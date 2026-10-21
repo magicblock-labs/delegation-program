@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::pda::{
     delegation_record_pda_from_delegated_account,
     magic_fee_vault_pda_from_validator,
@@ -39,11 +39,10 @@ async fn setup_vault(
     );
     banks.process_transaction(tx).await.unwrap();
 
-    let ix =
-        dpi::instruction_builder::init_magic_fee_vault(
-            payer.pubkey(),
-            validator.pubkey(),
-        );
+    let ix = dpi::instruction_builder::init_magic_fee_vault(
+        payer.pubkey(),
+        validator.pubkey(),
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -196,11 +195,8 @@ async fn test_delegate_magic_fee_vault_fails_with_wrong_validator() {
 
 async fn setup_program_test_env(
 ) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let admin_keypair = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);

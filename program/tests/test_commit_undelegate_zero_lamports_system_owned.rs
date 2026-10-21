@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     args::CommitStateArgs,
     pda::{
@@ -36,10 +36,7 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
 
     // Assert that the account is delegated, with some lamports and owned by dlp
     assert!(delegated_account_before.lamports > 0);
-    assert_eq!(
-        delegated_account_before.owner,
-        dpi::id()
-    );
+    assert_eq!(delegated_account_before.owner, dpi::id());
 
     let commit_args = CommitStateArgs {
         data: vec![],
@@ -48,13 +45,12 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
         lamports: 0,
     };
 
-    let ix_commit =
-        dpi::instruction_builder::commit_state(
-            validator.pubkey(),
-            DELEGATED_PDA_ID,
-            DELEGATED_PDA_OWNER_ID,
-            commit_args,
-        );
+    let ix_commit = dpi::instruction_builder::commit_state(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        commit_args,
+    );
     let tx_commit = Transaction::new_signed_with_payer(
         &[ix_commit],
         Some(&validator.pubkey()),
@@ -64,18 +60,16 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
     let res_commit = banks.process_transaction(tx_commit).await;
     assert!(res_commit.is_ok());
 
-    let ix_finalize =
-        dpi::instruction_builder::finalize(
-            validator.pubkey(),
-            DELEGATED_PDA_ID,
-        );
-    let ix_undelegate =
-        dpi::instruction_builder::undelegate(
-            validator.pubkey(),
-            DELEGATED_PDA_ID,
-            DELEGATED_PDA_OWNER_ID,
-            validator.pubkey(),
-        );
+    let ix_finalize = dpi::instruction_builder::finalize(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+    );
+    let ix_undelegate = dpi::instruction_builder::undelegate(
+        validator.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        validator.pubkey(),
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix_finalize, ix_undelegate],
         Some(&validator.pubkey()),
@@ -116,11 +110,8 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
     let validator = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 

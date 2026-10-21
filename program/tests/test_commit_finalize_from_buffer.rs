@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     args::CommitFinalizeArgs,
     pda::{
@@ -167,11 +167,8 @@ async fn setup_program_test_env(
     pda_data: Vec<u8>,
     pda_new_state: Vec<u8>,
 ) -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let validator_keypair =

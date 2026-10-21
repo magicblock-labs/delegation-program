@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::pda::{
     commit_record_pda_from_delegated_account,
     commit_state_pda_from_delegated_account,
@@ -41,20 +41,18 @@ async fn test_finalize_and_undelegate() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Create the finalize tx
-    let ix_finalize =
-        dpi::instruction_builder::finalize(
-            authority.pubkey(),
-            DELEGATED_PDA_ID,
-        );
+    let ix_finalize = dpi::instruction_builder::finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+    );
 
     // Create the undelegate tx
-    let ix_undelegate =
-        dpi::instruction_builder::undelegate(
-            authority.pubkey(),
-            DELEGATED_PDA_ID,
-            DELEGATED_PDA_OWNER_ID,
-            authority.pubkey(),
-        );
+    let ix_undelegate = dpi::instruction_builder::undelegate(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        DELEGATED_PDA_OWNER_ID,
+        authority.pubkey(),
+    );
 
     // Submit the transaction
     let tx = Transaction::new_signed_with_payer(
@@ -94,11 +92,8 @@ async fn test_finalize_and_undelegate() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
     let authority = crate::fixtures::keypair_from_bytes(&TEST_AUTHORITY);
 

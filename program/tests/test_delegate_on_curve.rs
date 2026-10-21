@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     args::DelegateArgs,
     pda::{
@@ -32,10 +32,8 @@ async fn test_delegate_on_curve() {
     let delegated_account = alt_payer.pubkey();
 
     // Create transaction to change the owner of alt_payer
-    let change_owner_ix = system_instruction::assign(
-        &alt_payer.pubkey(),
-        &dpi::id(),
-    );
+    let change_owner_ix =
+        system_instruction::assign(&alt_payer.pubkey(), &dpi::id());
 
     let change_owner_tx = Transaction::new_signed_with_payer(
         &[change_owner_ix],
@@ -54,10 +52,7 @@ async fn test_delegate_on_curve() {
         .await
         .unwrap()
         .unwrap();
-    assert_eq!(
-        updated_alt_payer_account.owner,
-        dpi::id()
-    );
+    assert_eq!(updated_alt_payer_account.owner, dpi::id());
 
     // Submit the delegate tx
     let ix = dpi::instruction_builder::delegate(
@@ -104,9 +99,7 @@ async fn test_delegate_on_curve() {
         .await
         .unwrap()
         .unwrap();
-    assert!(delegation_metadata_account
-        .owner
-        .eq(&dpi::id()));
+    assert!(delegation_metadata_account.owner.eq(&dpi::id()));
 
     // Assert that the delegation record exists and can be parsed
     let delegation_record_account = banks
@@ -132,9 +125,7 @@ async fn test_delegate_on_curve() {
         .await
         .unwrap()
         .unwrap();
-    assert!(delegation_metadata
-        .owner
-        .eq(&dpi::id()));
+    assert!(delegation_metadata.owner.eq(&dpi::id()));
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(
             &delegation_metadata.data,
@@ -147,11 +138,8 @@ async fn test_delegate_on_curve() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
     let payer_alt = crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR);
 

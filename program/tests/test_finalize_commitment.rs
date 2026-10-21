@@ -235,11 +235,8 @@ async fn setup_finalize_commitment_env(
     record_lamports: u64,
     committed_lamports: u64,
 ) -> FinalizeCommitmentEnv {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let authority = Keypair::new();
@@ -249,9 +246,7 @@ async fn setup_finalize_commitment_env(
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(
-            &cluster_identity.pubkey(),
-        );
+        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let account_owner = Pubkey::new_unique();
     let committed_owner = account_owner;
     let commit_id = 1;

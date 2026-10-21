@@ -247,11 +247,8 @@ struct ApproveCommitmentEnv {
 async fn setup_approve_commitment_env(
     verifier_count: usize,
 ) -> ApproveCommitmentEnv {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let authority = Keypair::new();
@@ -263,9 +260,7 @@ async fn setup_approve_commitment_env(
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(
-            &cluster_identity.pubkey(),
-        );
+        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
 
     add_lamport_account(&mut program_test, authority.pubkey());
     add_lamport_account(&mut program_test, operator.pubkey());

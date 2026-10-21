@@ -1,9 +1,7 @@
-use delegation_program_interface as dpi;
 use std::cmp::Ordering;
 
-pub(crate) use dpi::diff::{
-    DiffSet, OffsetInData, SizeChanged,
-};
+use delegation_program_interface as dpi;
+pub(crate) use dpi::diff::{DiffSet, OffsetInData, SizeChanged};
 use pinocchio::error::ProgramError;
 use wheels::{require_eq, require_le};
 

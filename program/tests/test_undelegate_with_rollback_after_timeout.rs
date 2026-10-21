@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     consts::EXTERNAL_UNDELEGATE_DISCRIMINATOR,
     error::DlpError,
@@ -234,11 +234,7 @@ async fn setup_request_timeout_env(
 ) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::default();
     program_test.prefer_bpf(true);
-    program_test.add_program(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    program_test.add_program("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(false);
     program_test.add_program(
         "rollback-wrapper",
@@ -412,10 +408,7 @@ fn rollback_from_owner_program(
                 false,
             ),
             AccountMeta::new(commit_reimbursement, false),
-            AccountMeta::new_readonly(
-                dpi::id(),
-                false,
-            ),
+            AccountMeta::new_readonly(dpi::id(), false),
         ],
         data: vec![0],
     }
@@ -452,13 +445,12 @@ fn process_rollback(
 
     let delegated_data = delegated_account.try_borrow_data()?.to_vec();
 
-    let ix =
-        dpi::instruction_builder::undelegate_with_rollback_after_timeout(
-            *delegated_account.key,
-            *owner_program.key,
-            *delegation_rent_payer.key,
-            *commit_reimbursement.key,
-        );
+    let ix = dpi::instruction_builder::undelegate_with_rollback_after_timeout(
+        *delegated_account.key,
+        *owner_program.key,
+        *delegation_rent_payer.key,
+        *commit_reimbursement.key,
+    );
     let (_, bump) = Pubkey::find_program_address(&[TEST_PDA_SEED], program_id);
     let bump_seed = [bump];
     invoke_signed(

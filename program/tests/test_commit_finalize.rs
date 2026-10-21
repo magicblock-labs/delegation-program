@@ -1,6 +1,6 @@
-use delegation_program_interface as dpi;
 use assertables::assert_ge;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     args::CommitFinalizeArgs,
     diff::compute_diff,
@@ -57,24 +57,23 @@ async fn run_test_commit_finalize(
     let new_account_balance =
         solana_program::rent::Rent::default().minimum_balance(new_state.len());
 
-    let (ix, pdas) =
-        dpi::instruction_builder::commit_finalize(
-            authority.pubkey(),
-            DELEGATED_PDA_ID,
-            &mut CommitFinalizeArgs {
-                commit_id: 1,
-                allow_undelegation: true.into(),
-                data_is_diff: data_is_diff.into(),
-                lamports: new_account_balance,
-                bumps: Default::default(),
-                reserved_padding: Default::default(),
-            },
-            &if data_is_diff {
-                compute_diff(&old_state, &new_state).to_vec()
-            } else {
-                new_state.clone()
-            },
-        );
+    let (ix, pdas) = dpi::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: true.into(),
+            data_is_diff: data_is_diff.into(),
+            lamports: new_account_balance,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+        &if data_is_diff {
+            compute_diff(&old_state, &new_state).to_vec()
+        } else {
+            new_state.clone()
+        },
+    );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&authority.pubkey()),
@@ -144,20 +143,19 @@ async fn test_commit_finalize_out_of_order() {
 
     let new_account_balance = 1_000_000;
 
-    let (ix, _pdas) =
-        dpi::instruction_builder::commit_finalize(
-            authority.pubkey(),
-            DELEGATED_PDA_ID,
-            &mut CommitFinalizeArgs {
-                commit_id: 2, // this is the min value which will cause NonceOutOfOrder
-                allow_undelegation: true.into(),
-                data_is_diff: false.into(),
-                lamports: new_account_balance,
-                bumps: Default::default(),
-                reserved_padding: Default::default(),
-            },
-            &new_state,
-        );
+    let (ix, _pdas) = dpi::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        &mut CommitFinalizeArgs {
+            commit_id: 2, // this is the min value which will cause NonceOutOfOrder
+            allow_undelegation: true.into(),
+            data_is_diff: false.into(),
+            lamports: new_account_balance,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+        &new_state,
+    );
 
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -300,20 +298,19 @@ async fn test_commit_finalize_lamports_increase() {
         )
         .await;
 
-    let (ix, pdas) =
-        dpi::instruction_builder::commit_finalize(
-            authority.pubkey(),
-            DELEGATED_PDA_ID,
-            &mut CommitFinalizeArgs {
-                commit_id: 1,
-                allow_undelegation: false.into(),
-                data_is_diff: false.into(),
-                lamports: commit_lamports,
-                bumps: Default::default(),
-                reserved_padding: Default::default(),
-            },
-            &[1; 8],
-        );
+    let (ix, pdas) = dpi::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: false.into(),
+            data_is_diff: false.into(),
+            lamports: commit_lamports,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+        &[1; 8],
+    );
 
     let before_validator_lamports = banks
         .get_account(authority.pubkey())
@@ -379,20 +376,19 @@ async fn test_commit_finalize_lamports_decrease() {
         )
         .await;
 
-    let (ix, pdas) =
-        dpi::instruction_builder::commit_finalize(
-            authority.pubkey(),
-            DELEGATED_PDA_ID,
-            &mut CommitFinalizeArgs {
-                commit_id: 1,
-                allow_undelegation: false.into(),
-                data_is_diff: false.into(),
-                lamports: commit_lamports,
-                bumps: Default::default(),
-                reserved_padding: Default::default(),
-            },
-            &[2; 8],
-        );
+    let (ix, pdas) = dpi::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: false.into(),
+            data_is_diff: false.into(),
+            lamports: commit_lamports,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+        &[2; 8],
+    );
 
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -443,20 +439,19 @@ async fn test_commit_finalize_rejects_underfunded_account() {
         )
         .await;
 
-    let (ix, pdas) =
-        dpi::instruction_builder::commit_finalize(
-            authority.pubkey(),
-            DELEGATED_PDA_ID,
-            &mut CommitFinalizeArgs {
-                commit_id: 1,
-                allow_undelegation: false.into(),
-                data_is_diff: false.into(),
-                lamports: commit_lamports,
-                bumps: Default::default(),
-                reserved_padding: Default::default(),
-            },
-            &vec![3; data_len],
-        );
+    let (ix, pdas) = dpi::instruction_builder::commit_finalize(
+        authority.pubkey(),
+        DELEGATED_PDA_ID,
+        &mut CommitFinalizeArgs {
+            commit_id: 1,
+            allow_undelegation: false.into(),
+            data_is_diff: false.into(),
+            lamports: commit_lamports,
+            bumps: Default::default(),
+            reserved_padding: Default::default(),
+        },
+        &vec![3; data_len],
+    );
 
     let tx = Transaction::new_signed_with_payer(
         &[ix],

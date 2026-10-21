@@ -93,9 +93,7 @@ pub fn fast_process_instruction(
         ));
     };
 
-    if let Ok(ix) =
-        dpi::v2::DlpV2Instruction::try_from(tag)
-    {
+    if let Ok(ix) = dpi::v2::DlpV2Instruction::try_from(tag) {
         return Some(v2::process_instruction(accounts, v2_data, ix));
     }
 
@@ -206,8 +204,7 @@ pub fn slow_process_instruction(
         return Err(ProgramError::InvalidInstructionData);
     };
 
-    if dpi::v2::DlpV2Instruction::try_from(tag).is_ok()
-    {
+    if dpi::v2::DlpV2Instruction::try_from(tag).is_ok() {
         return Err(ProgramError::InvalidInstructionData);
     }
 

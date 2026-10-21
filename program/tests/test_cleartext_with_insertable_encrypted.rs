@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     args::{
         EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedInstruction,
@@ -94,10 +94,9 @@ fn test_cleartext_with_insertable_encrypted_actions() {
     assert_eq!(actions.inserted_non_signers, 4);
     assert_eq!(actions.instructions.len(), 3);
 
-    let is_encrypted =
-        |ix: &dpi::args::MaybeEncryptedInstruction| {
-            !ix.data.suffix.as_bytes().is_empty()
-        };
+    let is_encrypted = |ix: &dpi::args::MaybeEncryptedInstruction| {
+        !ix.data.suffix.as_bytes().is_empty()
+    };
 
     assert!(!is_encrypted(&actions.instructions[0]));
     assert!(is_encrypted(&actions.instructions[1]));

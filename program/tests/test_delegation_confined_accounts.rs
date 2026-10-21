@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     args::DelegateArgs, error::DlpError,
     pda::delegation_record_pda_from_delegated_account, state::DelegationRecord,
@@ -23,10 +23,7 @@ mod fixtures;
 async fn test_delegation_confined_accounts_rejects_system_validator() {
     let (banks, payer, delegated, blockhash) = setup_program_test_env().await;
 
-    let assign_ix = system_instruction::assign(
-        &delegated.pubkey(),
-        &dpi::id(),
-    );
+    let assign_ix = system_instruction::assign(&delegated.pubkey(), &dpi::id());
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
         Some(&delegated.pubkey()),
@@ -74,10 +71,7 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
 async fn test_delegation_confined_accounts_allows_system_validator() {
     let (banks, payer, delegated, blockhash) = setup_program_test_env().await;
 
-    let assign_ix = system_instruction::assign(
-        &delegated.pubkey(),
-        &dpi::id(),
-    );
+    let assign_ix = system_instruction::assign(&delegated.pubkey(), &dpi::id());
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
         Some(&delegated.pubkey()),
@@ -122,11 +116,8 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
     let delegated = crate::fixtures::keypair_from_bytes(&ON_CURVE_KEYPAIR);
 

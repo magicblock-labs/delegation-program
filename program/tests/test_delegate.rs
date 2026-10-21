@@ -1,5 +1,5 @@
-use delegation_program_interface as dpi;
 use delegation_program::solana_program;
+use delegation_program_interface as dpi;
 use dpi::{
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
@@ -76,9 +76,7 @@ async fn test_delegate() {
         .await
         .unwrap()
         .unwrap();
-    assert!(delegation_metadata_account
-        .owner
-        .eq(&dpi::id()));
+    assert!(delegation_metadata_account.owner.eq(&dpi::id()));
     assert_eq!(
         delegation_metadata_account.lamports,
         legacy_rent(delegation_metadata_account.data.len())
@@ -109,11 +107,8 @@ fn legacy_rent(space: usize) -> u64 {
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
 
     program_test.prefer_bpf(true);
     let payer_alt = Keypair::new();
@@ -184,10 +179,7 @@ fn delegate_from_wrapper_program(
             AccountMeta::new(delegation_metadata_pda, false),
             AccountMeta::new(delegated_account, false),
             AccountMeta::new_readonly(DELEGATED_PDA_OWNER_ID, false),
-            AccountMeta::new_readonly(
-                dpi::id(),
-                false,
-            ),
+            AccountMeta::new_readonly(dpi::id(), false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
         data: EXTERNAL_DELEGATE_INSTRUCTION_DISCRIMINATOR.to_vec(),

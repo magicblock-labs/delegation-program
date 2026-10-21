@@ -329,11 +329,8 @@ struct ProposeCommitmentSetup {
 async fn setup_propose_commitment_env(
     setup: ProposeCommitmentSetup,
 ) -> ProposeCommitmentEnv {
-    let mut program_test = ProgramTest::new(
-        "delegation_program",
-        dpi::ID,
-        None,
-    );
+    let mut program_test =
+        ProgramTest::new("delegation_program", dpi::ID, None);
     program_test.prefer_bpf(true);
 
     let authority = Keypair::new();
