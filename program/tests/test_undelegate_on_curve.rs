@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::pda::{
+use dpi::pda::{
     delegation_metadata_pda_from_delegated_account,
     delegation_record_pda_from_delegated_account, fees_vault_pda,
     validator_fees_vault_pda_from_validator,
@@ -32,7 +33,7 @@ async fn test_undelegate_on_curve() {
     );
 
     // Submit the undelegate tx
-    let ix = delegation_program_interface::instruction_builder::undelegate(
+    let ix = dpi::instruction_builder::undelegate(
         validator.pubkey(),
         delegated_on_curve.pubkey(),
         system_program::id(),
@@ -74,7 +75,7 @@ async fn test_undelegate_on_curve() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -87,7 +88,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -103,7 +104,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -117,7 +118,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -141,7 +142,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -153,7 +154,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },

@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     consts::EXTERNAL_UNDELEGATE_DISCRIMINATOR,
     error::DlpError,
     pda::{
@@ -235,7 +236,7 @@ async fn setup_request_timeout_env(
     program_test.prefer_bpf(true);
     program_test.add_program(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(false);
@@ -286,7 +287,7 @@ fn add_delegated_account(program_test: &mut ProgramTest) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: DELEGATED_PDA.into(),
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -307,7 +308,7 @@ fn add_delegation_accounts(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -324,7 +325,7 @@ fn add_delegation_accounts(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -341,7 +342,7 @@ fn add_request_account(program_test: &mut ProgramTest, expires_at_slot: u64) {
         Account {
             lamports: Rent::default().minimum_balance(request_data.len()),
             data: request_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -357,7 +358,7 @@ fn add_pending_commit_accounts(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -369,7 +370,7 @@ fn add_pending_commit_accounts(
         Account {
             lamports: Rent::default().minimum_balance(commit_record_data.len()),
             data: commit_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -412,7 +413,7 @@ fn rollback_from_owner_program(
             ),
             AccountMeta::new(commit_reimbursement, false),
             AccountMeta::new_readonly(
-                delegation_program_interface::id(),
+                dpi::id(),
                 false,
             ),
         ],
@@ -452,7 +453,7 @@ fn process_rollback(
     let delegated_data = delegated_account.try_borrow_data()?.to_vec();
 
     let ix =
-        delegation_program_interface::instruction_builder::undelegate_with_rollback_after_timeout(
+        dpi::instruction_builder::undelegate_with_rollback_after_timeout(
             *delegated_account.key,
             *owner_program.key,
             *delegation_rent_payer.key,

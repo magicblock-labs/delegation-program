@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::CommitFinalizeArgs,
     pda::{
         delegation_metadata_pda_from_delegated_account,
@@ -39,7 +40,7 @@ async fn test_commit_finalize_from_buffer_perf() {
     let state_buffer_pda =
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
 
-    let (ix, pdas) = delegation_program_interface::instruction_builder::commit_finalize_from_buffer(
+    let (ix, pdas) = dpi::instruction_builder::commit_finalize_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         state_buffer_pda,
@@ -95,7 +96,7 @@ async fn test_commit_finalize_from_buffer_perf() {
 
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        delegation_program_interface::state::UndelegationRequester::Validator
+        dpi::state::UndelegationRequester::Validator
     );
 }
 
@@ -110,7 +111,7 @@ async fn test_commit_finalize_from_buffer_out_of_order() {
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
     let new_account_balance = 1_000_000;
 
-    let (ix, _pdas) = delegation_program_interface::instruction_builder::commit_finalize_from_buffer(
+    let (ix, _pdas) = dpi::instruction_builder::commit_finalize_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         state_buffer_pda,
@@ -168,7 +169,7 @@ async fn setup_program_test_env(
 ) -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -193,7 +194,7 @@ async fn setup_program_test_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: pda_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -208,7 +209,7 @@ async fn setup_program_test_env(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -223,7 +224,7 @@ async fn setup_program_test_env(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -235,7 +236,7 @@ async fn setup_program_test_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -250,7 +251,7 @@ async fn setup_program_test_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: pda_new_state,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },

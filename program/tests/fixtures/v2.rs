@@ -1,4 +1,5 @@
-use delegation_program_interface::v2::{
+use delegation_program_interface as dpi;
+use dpi::v2::{
     instruction_builder::init_delegation_cluster, pda::delegation_cluster_pda,
     ChallengeConfig, InitDelegationClusterArgs,
 };
@@ -94,7 +95,7 @@ pub async fn initialize_delegation_cluster_with_identity(
 pub async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);

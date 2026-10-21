@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account,
@@ -248,7 +249,7 @@ async fn setup_approve_commitment_env(
 ) -> ApproveCommitmentEnv {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -262,7 +263,7 @@ async fn setup_approve_commitment_env(
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        delegation_program_interface::v2::pda::delegation_cluster_pda(
+        dpi::v2::pda::delegation_cluster_pda(
             &cluster_identity.pubkey(),
         );
 
@@ -277,7 +278,7 @@ async fn setup_approve_commitment_env(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: state_data(),
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },
@@ -291,7 +292,7 @@ async fn setup_approve_commitment_env(
                 propose_commitment_args().owner,
                 Some(LAMPORTS_PER_SOL),
             ),
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },
@@ -306,7 +307,7 @@ async fn setup_approve_commitment_env(
                 false,
                 0,
             ),
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },

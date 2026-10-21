@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     pda::fees_vault_pda,
     v2::{
         instruction_builder::init_delegation_cluster,
@@ -55,7 +56,7 @@ async fn test_init_challenge_delegation_cluster() {
     let challenge_config = cluster.challenge_config().unwrap();
     let (_, expected_cluster_bump) = Pubkey::find_program_address(
         &[DELEGATION_CLUSTER_SEED, cluster_identity.pubkey().as_ref()],
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
 
     assert_eq!(
@@ -127,7 +128,7 @@ async fn test_init_challenge_delegation_cluster() {
         VerifierRegistry::decode(&verifier_registry_account.data).unwrap();
     let (_, expected_registry_bump) = Pubkey::find_program_address(
         &[VERIFIER_REGISTRY_SEED, delegation_cluster.as_ref()],
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
 
     assert_eq!(registry.discriminator(), VerifierRegistry::DISCRIMINATOR);
@@ -355,7 +356,7 @@ async fn setup_program_test_env(
 ) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);

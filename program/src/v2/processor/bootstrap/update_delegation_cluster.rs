@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     error::DlpError,
     v2::{
         pda::DELEGATION_CLUSTER_SEED, ChallengeConfig, DelegationCluster,

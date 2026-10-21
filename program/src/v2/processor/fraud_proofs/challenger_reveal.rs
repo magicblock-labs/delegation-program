@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     error::DlpError,
     v2::{
         pda::{
@@ -185,7 +186,7 @@ pub fn process_challenger_reveal(
 }
 
 fn validate_delegation_cluster(
-    delegation_cluster: &delegation_program_interface::v2::DelegationClusterView<'_>,
+    delegation_cluster: &dpi::v2::DelegationClusterView<'_>,
     delegation_cluster_account: &AccountView,
     pending: &PendingCommitmentView<'_>,
     protocol_fee_vault: &AccountView,
@@ -327,8 +328,8 @@ fn validate_challenge(
 
 fn validate_state_buffer(
     state_buffer: &AccountView,
-    authority: &delegation_program_interface::compat::Pubkey,
-    account_pubkey: &delegation_program_interface::compat::Pubkey,
+    authority: &dpi::compat::Pubkey,
+    account_pubkey: &dpi::compat::Pubkey,
     commit_id: u64,
     expected_data_hash: &[u8; 32],
 ) -> ProgramResult {
@@ -418,7 +419,7 @@ fn move_lamports(
 
 fn account_state_hash(
     lamports: u64,
-    owner: &delegation_program_interface::compat::Pubkey,
+    owner: &dpi::compat::Pubkey,
     data_hash: &[u8; 32],
 ) -> [u8; 32] {
     solana_sha256_hasher::hashv(&[
@@ -433,7 +434,7 @@ fn account_state_hash(
 fn challenge_hash(
     pending: &PendingCommitmentView<'_>,
     challenge: &ChallengeView<'_>,
-    args: &delegation_program_interface::v2::ChallengerRevealArgsView<'_>,
+    args: &dpi::v2::ChallengerRevealArgsView<'_>,
 ) -> [u8; 32] {
     solana_sha256_hasher::hashv(&[
         b"magicblock.challenge.v1",

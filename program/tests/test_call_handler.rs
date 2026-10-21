@@ -1,7 +1,9 @@
 #![allow(deprecated)]
 
+use delegation_program_interface as dpi;
+
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::CallHandlerArgs,
     compat::borsh::{to_vec, BorshDeserialize, BorshSerialize},
     ephemeral_balance_seeds_from_payer,
@@ -41,7 +43,7 @@ const UNDELEGATE_HANDLER_DISCRIMINATOR: [u8; 4] = [1, 0, 2, 0];
 
 // Mimic counter from test_delegation program
 #[derive(BorshSerialize, BorshDeserialize)]
-#[borsh(crate = "delegation_program_interface::compat::borsh")] // supported in borsh 1.0
+#[borsh(crate = "dpi::compat::borsh")] // supported in borsh 1.0
 pub struct Counter {
     pub count: u64,
 }
@@ -57,7 +59,7 @@ async fn setup_delegated_pda(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: state,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -72,7 +74,7 @@ async fn setup_delegated_pda(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data.clone(),
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -87,7 +89,7 @@ async fn setup_delegated_pda(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -105,7 +107,7 @@ async fn setup_commit_state(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: commit_state,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -117,7 +119,7 @@ async fn setup_commit_state(
         Account {
             lamports: Rent::default().minimum_balance(commit_record_data.len()),
             data: commit_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -137,7 +139,7 @@ async fn setup_invalid_escrow_account(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -146,7 +148,7 @@ async fn setup_invalid_escrow_account(
     // Setup the delegated record PDA
     let delegation_record_data = create_delegation_record_data(
         *authority_pubkey,
-        delegation_program_interface::id(),
+        dpi::id(),
         Some(LAMPORTS_PER_SOL),
     );
     program_test.add_account(
@@ -155,7 +157,7 @@ async fn setup_invalid_escrow_account(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -173,7 +175,7 @@ async fn setup_invalid_escrow_account(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -194,7 +196,7 @@ async fn setup_delegated_ephemeral_balance(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -212,7 +214,7 @@ async fn setup_delegated_ephemeral_balance(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -230,7 +232,7 @@ async fn setup_delegated_ephemeral_balance(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -260,7 +262,7 @@ async fn setup_ephemeral_balance(
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         processor!(delegation_program::slow_process_instruction),
     );
     program_test.prefer_bpf(true);
@@ -294,7 +296,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -305,7 +307,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -340,12 +342,12 @@ async fn test_finalize_call_handler() {
 
     let transfer_destination = Keypair::new();
     let finalize_ix =
-        delegation_program_interface::instruction_builder::finalize(
+        dpi::instruction_builder::finalize(
             validator.pubkey(),
             DELEGATED_PDA_ID,
         );
     let call_handler_ix =
-        delegation_program_interface::instruction_builder::call_handler(
+        dpi::instruction_builder::call_handler(
             validator.pubkey(),
             DELEGATED_PDA_OWNER_ID, // destination program
             payer.pubkey(),         // escrow authority
@@ -390,19 +392,19 @@ async fn test_undelegate_call_handler() {
 
     let transfer_destination = Keypair::new();
     let finalize_ix =
-        delegation_program_interface::instruction_builder::finalize(
+        dpi::instruction_builder::finalize(
             validator.pubkey(),
             DELEGATED_PDA_ID,
         );
     let undelegate_ix =
-        delegation_program_interface::instruction_builder::undelegate(
+        dpi::instruction_builder::undelegate(
             validator.pubkey(),
             DELEGATED_PDA_ID,
             DELEGATED_PDA_OWNER_ID,
             validator.pubkey(),
         );
     let call_handler_ix =
-        delegation_program_interface::instruction_builder::call_handler(
+        dpi::instruction_builder::call_handler(
             validator.pubkey(),
             DELEGATED_PDA_OWNER_ID, // destination program
             payer.pubkey(),         // escrow authority
@@ -460,12 +462,12 @@ async fn test_finalize_invalid_escrow_call_handler() {
     // Submit the finalize with handler tx
     let transfer_destination = Keypair::new();
     let finalize_ix =
-        delegation_program_interface::instruction_builder::finalize(
+        dpi::instruction_builder::finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
         );
     let call_handler_ix =
-        delegation_program_interface::instruction_builder::call_handler(
+        dpi::instruction_builder::call_handler(
             authority.pubkey(),
             DELEGATED_PDA_OWNER_ID, // destination program
             DELEGATED_PDA_ID,
@@ -497,12 +499,12 @@ async fn test_undelegate_invalid_escow_call_handler() {
     // Submit the finalize with handler tx
     let destination = Keypair::new();
     let finalize_ix =
-        delegation_program_interface::instruction_builder::finalize(
+        dpi::instruction_builder::finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
         );
     let finalize_call_handler_ix =
-        delegation_program_interface::instruction_builder::call_handler(
+        dpi::instruction_builder::call_handler(
             authority.pubkey(),
             DELEGATED_PDA_OWNER_ID, // handler program
             DELEGATED_PDA_ID,
@@ -514,14 +516,14 @@ async fn test_undelegate_invalid_escow_call_handler() {
         );
 
     let undelegate_ix =
-        delegation_program_interface::instruction_builder::undelegate(
+        dpi::instruction_builder::undelegate(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             DELEGATED_PDA_OWNER_ID,
             authority.pubkey(),
         );
     let undelegate_call_handler_ix =
-        delegation_program_interface::instruction_builder::call_handler(
+        dpi::instruction_builder::call_handler(
             authority.pubkey(),
             DELEGATED_PDA_OWNER_ID, // handler program
             DELEGATED_PDA_ID,

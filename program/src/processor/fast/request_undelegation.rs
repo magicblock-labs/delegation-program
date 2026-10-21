@@ -1,4 +1,5 @@
-use delegation_program_interface::consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS;
+use delegation_program_interface as dpi;
+use dpi::consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS;
 use pinocchio::{
     address::Address,
     cpi::Signer,

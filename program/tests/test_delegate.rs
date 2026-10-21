@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
         delegation_metadata_pda_from_delegated_account,
@@ -62,7 +63,7 @@ async fn test_delegate() {
     // Assert the PDA was delegated => owner is set to the delegation program
     let pda_account =
         banks.get_account(DELEGATED_PDA_ID).await.unwrap().unwrap();
-    assert!(pda_account.owner.eq(&delegation_program_interface::id()));
+    assert!(pda_account.owner.eq(&dpi::id()));
 
     // Assert the PDA data was not changed
     assert_eq!(pda_data_before_delegation, pda_account.data);
@@ -77,7 +78,7 @@ async fn test_delegate() {
         .unwrap();
     assert!(delegation_metadata_account
         .owner
-        .eq(&delegation_program_interface::id()));
+        .eq(&dpi::id()));
     assert_eq!(
         delegation_metadata_account.lamports,
         legacy_rent(delegation_metadata_account.data.len())
@@ -110,7 +111,7 @@ fn legacy_rent(space: usize) -> u64 {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
 
@@ -184,7 +185,7 @@ fn delegate_from_wrapper_program(
             AccountMeta::new(delegated_account, false),
             AccountMeta::new_readonly(DELEGATED_PDA_OWNER_ID, false),
             AccountMeta::new_readonly(
-                delegation_program_interface::id(),
+                dpi::id(),
                 false,
             ),
             AccountMeta::new_readonly(system_program::id(), false),

@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::pda::fees_vault_pda;
+use dpi::pda::fees_vault_pda;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
@@ -17,7 +18,7 @@ async fn test_init_fees_vault() {
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     let ix =
-        delegation_program_interface::instruction_builder::init_protocol_fees_vault(payer.pubkey());
+        dpi::instruction_builder::init_protocol_fees_vault(payer.pubkey());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),
@@ -36,7 +37,7 @@ async fn test_init_fees_vault() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);

@@ -1,8 +1,9 @@
+use delegation_program_interface as dpi;
 mod bootstrap;
 mod fraud_proofs;
 
 pub use bootstrap::*;
-use delegation_program_interface::v2::DlpV2Instruction;
+use dpi::v2::DlpV2Instruction;
 pub use fraud_proofs::*;
 use pinocchio::{AccountView, ProgramResult};
 

@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     consts::PROTOCOL_FEES_PERCENTAGE,
     pda::{fees_vault_pda, validator_fees_vault_pda_from_validator},
 };
@@ -48,7 +49,7 @@ async fn test_validator_claim_fees() {
     // Submit the withdrawal tx
     let withdrawal_amount = 100000;
     let ix =
-        delegation_program_interface::instruction_builder::validator_claim_fees(
+        dpi::instruction_builder::validator_claim_fees(
             validator.pubkey(),
             Some(withdrawal_amount),
         );
@@ -92,7 +93,7 @@ async fn test_validator_claim_fees() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -115,7 +116,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -127,7 +128,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },

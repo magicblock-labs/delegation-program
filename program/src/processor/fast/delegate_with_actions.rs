@@ -1,4 +1,5 @@
-use delegation_program_interface::compat::borsh;
+use delegation_program_interface as dpi;
+use dpi::compat::borsh;
 use pinocchio::{
     address::address_eq,
     cpi::{Seed, Signer},

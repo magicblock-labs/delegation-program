@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     error::DlpError,
     state::{DelegationMetadataFast, DelegationRecord, UndelegationRequester},
     v2::{
@@ -334,7 +335,7 @@ fn validate_happy_path(pending: &PendingCommitmentView<'_>) -> ProgramResult {
 }
 
 fn validate_delegation_cluster(
-    delegation_cluster: &delegation_program_interface::v2::DelegationClusterView<'_>,
+    delegation_cluster: &dpi::v2::DelegationClusterView<'_>,
     delegation_cluster_account: &AccountView,
     pending: &PendingCommitmentView<'_>,
 ) -> ProgramResult {
@@ -367,7 +368,7 @@ fn validate_delegation_cluster(
 fn validate_delegation_record(
     delegation_record: &AccountView,
     delegation_cluster: &AccountView,
-    expected_owner: &delegation_program_interface::compat::Pubkey,
+    expected_owner: &dpi::compat::Pubkey,
 ) -> Result<u64, ProgramError> {
     let delegation_record_data = delegation_record.try_borrow()?;
     let delegation_record_state =
@@ -496,7 +497,7 @@ fn settle_lamports(
 
 struct SelectedState<'a> {
     lamports: u64,
-    owner: &'a delegation_program_interface::compat::Pubkey,
+    owner: &'a dpi::compat::Pubkey,
     data_hash: &'a [u8; 32],
 }
 

@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::pda::magic_fee_vault_pda_from_validator;
+use dpi::pda::magic_fee_vault_pda_from_validator;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
 use solana_sdk::{
@@ -20,7 +21,7 @@ async fn test_init_magic_fee_vault() {
         setup_program_test_env().await;
 
     // Initialize the validator fees vault first (prerequisite)
-    let ix = delegation_program_interface::instruction_builder::init_validator_fees_vault(
+    let ix = dpi::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         admin.pubkey(),
         validator.pubkey(),
@@ -35,7 +36,7 @@ async fn test_init_magic_fee_vault() {
 
     // Initialize the magic fee vault
     let ix =
-        delegation_program_interface::instruction_builder::init_magic_fee_vault(
+        dpi::instruction_builder::init_magic_fee_vault(
             payer.pubkey(),
             validator.pubkey(),
         );
@@ -63,7 +64,7 @@ async fn test_init_magic_fee_vault_fails_without_validator_fees_vault() {
 
     // Skip initializing the validator fees vault — should fail
     let ix =
-        delegation_program_interface::instruction_builder::init_magic_fee_vault(
+        dpi::instruction_builder::init_magic_fee_vault(
             payer.pubkey(),
             validator.pubkey(),
         );
@@ -92,7 +93,7 @@ async fn setup_program_test_env(
 ) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);

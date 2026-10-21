@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     error::DlpError,
     v2::{pda::STATE_BUFFER_SEED, StateBuffer, WriteStateBufferArgs},
 };
@@ -137,7 +138,7 @@ pub fn process_write_state_buffer(
 }
 
 fn validate_args(
-    args: &delegation_program_interface::v2::WriteStateBufferArgsView<'_>,
+    args: &dpi::v2::WriteStateBufferArgsView<'_>,
 ) -> Result<(usize, usize), ProgramError> {
     require_le!(
         args.total_len(),
@@ -179,7 +180,7 @@ fn write_chunk(
     authority: &AccountView,
     delegated_account: &AccountView,
     state_buffer_account: &AccountView,
-    args: &delegation_program_interface::v2::WriteStateBufferArgsView<'_>,
+    args: &dpi::v2::WriteStateBufferArgsView<'_>,
     offset: usize,
     write_end: usize,
 ) -> ProgramResult {
@@ -253,7 +254,7 @@ fn validate_state_buffer(
     state_buffer_account: &AccountView,
     authority: &AccountView,
     delegated_account: &AccountView,
-    args: &delegation_program_interface::v2::WriteStateBufferArgsView<'_>,
+    args: &dpi::v2::WriteStateBufferArgsView<'_>,
 ) -> Result<StateBufferFields, ProgramError> {
     let account_data = state_buffer_account.try_borrow()?;
     let state = StateBuffer::decode(account_data.as_ref())?;

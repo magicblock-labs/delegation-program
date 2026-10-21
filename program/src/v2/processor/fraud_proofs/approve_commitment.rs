@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     error::DlpError,
     v2::{
         pda::{PENDING_COMMITMENT_SEED, VERIFIER_BOND_SEED},
@@ -110,8 +111,8 @@ pub fn process_approve_commitment(
 }
 
 fn validate_verifier_bond(
-    verifier_bond: &delegation_program_interface::v2::VerifierBondView<'_>,
-    delegation_cluster: &delegation_program_interface::compat::Pubkey,
+    verifier_bond: &dpi::v2::VerifierBondView<'_>,
+    delegation_cluster: &dpi::compat::Pubkey,
     verifier: &AccountView,
 ) -> ProgramResult {
     if verifier_bond.discriminator() != VerifierBond::DISCRIMINATOR {
@@ -142,7 +143,7 @@ fn validate_verifier_bond(
 }
 
 fn validate_pending_commitment(
-    pending_commitment: &delegation_program_interface::v2::PendingCommitmentView<'_>,
+    pending_commitment: &dpi::v2::PendingCommitmentView<'_>,
     pending_commitment_account: &AccountView,
     verifier: &AccountView,
 ) -> ProgramResult {

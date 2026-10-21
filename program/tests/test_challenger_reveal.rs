@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account, fees_vault_pda,
@@ -367,7 +368,7 @@ struct ChallengerRevealEnv {
 async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -380,7 +381,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        delegation_program_interface::v2::pda::delegation_cluster_pda(
+        dpi::v2::pda::delegation_cluster_pda(
             &cluster_identity.pubkey(),
         );
     let committed_owner = Pubkey::new_unique();
@@ -400,7 +401,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
         Account {
             lamports: record_lamports,
             data: vec![1, 2],
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },
@@ -414,7 +415,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
                 committed_owner,
                 Some(record_lamports),
             ),
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },
@@ -428,7 +429,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
                 &[],
                 false,
             ),
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },
@@ -773,7 +774,7 @@ fn add_protocol_fee_vault(program_test: &mut ProgramTest) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![0; 8],
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },

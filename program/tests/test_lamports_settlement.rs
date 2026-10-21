@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::{CommitFinalizeArgs, CommitStateArgs, DelegateArgs},
     pda::{
         commit_record_pda_from_delegated_account,
@@ -103,7 +104,7 @@ async fn test_commit_finalize_lamports_settlement() {
     // Assign delegated account to the delegation program.
     let assign_ix = system_instruction::assign(
         &delegated.pubkey(),
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
@@ -125,7 +126,7 @@ async fn test_commit_finalize_lamports_settlement() {
     // Delegate the account.
     {
         let delegate_ix =
-            delegation_program_interface::instruction_builder::delegate(
+            dpi::instruction_builder::delegate(
                 payer.pubkey(),
                 delegated.pubkey(),
                 None,
@@ -184,7 +185,7 @@ async fn test_commit_finalize_lamports_settlement() {
             reserved_padding: Default::default(),
         };
         let (commit_ix, _) =
-            delegation_program_interface::instruction_builder::commit_finalize(
+            dpi::instruction_builder::commit_finalize(
                 validator.pubkey(),
                 delegated.pubkey(),
                 &mut args,
@@ -205,7 +206,7 @@ async fn test_commit_finalize_lamports_settlement() {
         );
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because there is no tx"
         );
 
@@ -235,7 +236,7 @@ async fn test_commit_finalize_lamports_settlement() {
             reserved_padding: Default::default(),
         };
         let (commit_ix, _) =
-            delegation_program_interface::instruction_builder::commit_finalize(
+            dpi::instruction_builder::commit_finalize(
                 validator.pubkey(),
                 delegated.pubkey(),
                 &mut args,
@@ -256,7 +257,7 @@ async fn test_commit_finalize_lamports_settlement() {
         );
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because there is no tx"
         );
 
@@ -289,7 +290,7 @@ async fn test_commit_finalize_lamports_settlement() {
             reserved_padding: Default::default(),
         };
         let (commit_ix, _) =
-            delegation_program_interface::instruction_builder::commit_finalize(
+            dpi::instruction_builder::commit_finalize(
                 validator.pubkey(),
                 delegated.pubkey(),
                 &mut args,
@@ -310,7 +311,7 @@ async fn test_commit_finalize_lamports_settlement() {
         );
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because tx deals with increased lamports value"
         );
 
@@ -343,7 +344,7 @@ async fn test_commit_finalize_lamports_settlement() {
             reserved_padding: Default::default(),
         };
         let (commit_ix, _) =
-            delegation_program_interface::instruction_builder::commit_finalize(
+            dpi::instruction_builder::commit_finalize(
                 validator.pubkey(),
                 delegated.pubkey(),
                 &mut args,
@@ -364,7 +365,7 @@ async fn test_commit_finalize_lamports_settlement() {
         );
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
+            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
             "validator_fees_vault_balance must have increased by 9590 now"
         );
 
@@ -392,7 +393,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
     // Assign delegated account to the delegation program.
     let assign_ix = system_instruction::assign(
         &delegated.pubkey(),
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
@@ -412,7 +413,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
     // Delegate the account.
     {
         let delegate_ix =
-            delegation_program_interface::instruction_builder::delegate(
+            dpi::instruction_builder::delegate(
                 payer.pubkey(),
                 delegated.pubkey(),
                 None,
@@ -486,7 +487,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because there is no tx"
         );
 
@@ -531,7 +532,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because there is no tx"
         );
 
@@ -578,7 +579,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because tx deals with increased lamports value"
         );
 
@@ -625,7 +626,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
+            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
             "validator_fees_vault_balance must have increased by 9590 now"
         );
 
@@ -997,7 +998,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
         delegation_record_pda_from_delegated_account(&args.delegated_account);
 
     // Submit the undelegate tx
-    let ix = delegation_program_interface::instruction_builder::undelegate(
+    let ix = dpi::instruction_builder::undelegate(
         args.authority.pubkey(),
         args.delegated_account,
         args.owner_program,
@@ -1045,7 +1046,7 @@ struct FinalizeNewStateArgs<'a> {
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = delegation_program_interface::instruction_builder::finalize(
+    let ix = dpi::instruction_builder::finalize(
         args.authority.pubkey(),
         args.delegated_account,
     );
@@ -1065,7 +1066,7 @@ async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
         .await
         .unwrap()
         .unwrap();
-    assert!(pda_account.owner.eq(&delegation_program_interface::id()));
+    assert!(pda_account.owner.eq(&dpi::id()));
 }
 
 struct CommitNewStateArgs<'a> {
@@ -1093,15 +1094,15 @@ async fn setup_program_for_delegate_base_increase(
     initial_lamports: u64,
 ) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
     assert!(
-        initial_lamports >= delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+        initial_lamports >= dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
         "Please pass lamports >= {}, but passed: {}",
-        delegation_program_interface::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+        dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
         initial_lamports
     );
 
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -1136,7 +1137,7 @@ async fn setup_program_for_delegate_base_increase(
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -1161,7 +1162,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     };
 
     // Commit the state for the delegated account
-    let ix = delegation_program_interface::instruction_builder::commit_state(
+    let ix = dpi::instruction_builder::commit_state(
         args.authority.pubkey(),
         args.delegated_account,
         args.delegated_account_owner,
@@ -1231,7 +1232,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap();
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        delegation_program_interface::state::UndelegationRequester::Validator
+        dpi::state::UndelegationRequester::Validator
     );
 }
 
@@ -1248,7 +1249,7 @@ async fn commit_state_with_nonce(args: CommitStateWithNonceArgs<'_>) {
         lamports: args.new_delegated_account_lamports,
     };
 
-    let ix = delegation_program_interface::instruction_builder::commit_state(
+    let ix = dpi::instruction_builder::commit_state(
         args.authority.pubkey(),
         args.delegated_account,
         args.delegated_account_owner,
@@ -1274,7 +1275,7 @@ struct FinalizeWithFeePayerArgs<'a> {
 }
 
 async fn finalize_with_fee_payer(args: FinalizeWithFeePayerArgs<'_>) {
-    let ix = delegation_program_interface::instruction_builder::finalize(
+    let ix = dpi::instruction_builder::finalize(
         args.authority.pubkey(),
         args.delegated_account,
     );
@@ -1303,7 +1304,7 @@ async fn setup_program_for_commit_test_env(
 ) -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -1328,7 +1329,7 @@ async fn setup_program_for_commit_test_env(
         Account {
             lamports: args.delegated_account_current_lamports,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -1345,7 +1346,7 @@ async fn setup_program_for_commit_test_env(
         Account {
             lamports: Rent::default().minimum_balance(data.len()),
             data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -1363,7 +1364,7 @@ async fn setup_program_for_commit_test_env(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -1375,7 +1376,7 @@ async fn setup_program_for_commit_test_env(
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -1387,7 +1388,7 @@ async fn setup_program_for_commit_test_env(
         Account {
             lamports: args.validator_vault_init_lamports,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },

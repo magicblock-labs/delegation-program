@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     error::DlpError,
     v2::{
         pda::{
@@ -176,7 +177,7 @@ pub fn process_resolve_dispute(
 }
 
 fn validate_delegation_cluster(
-    delegation_cluster: &delegation_program_interface::v2::DelegationClusterView<'_>,
+    delegation_cluster: &dpi::v2::DelegationClusterView<'_>,
     delegation_cluster_account: &AccountView,
     pending: &PendingCommitmentView<'_>,
     resolver: &AccountView,

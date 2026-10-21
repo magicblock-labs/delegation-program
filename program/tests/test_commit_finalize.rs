@@ -1,6 +1,7 @@
+use delegation_program_interface as dpi;
 use assertables::assert_ge;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::CommitFinalizeArgs,
     diff::compute_diff,
     error::DlpError,
@@ -57,7 +58,7 @@ async fn run_test_commit_finalize(
         solana_program::rent::Rent::default().minimum_balance(new_state.len());
 
     let (ix, pdas) =
-        delegation_program_interface::instruction_builder::commit_finalize(
+        dpi::instruction_builder::commit_finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             &mut CommitFinalizeArgs {
@@ -130,7 +131,7 @@ async fn run_test_commit_finalize(
 
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        delegation_program_interface::state::UndelegationRequester::Validator
+        dpi::state::UndelegationRequester::Validator
     );
 }
 
@@ -144,7 +145,7 @@ async fn test_commit_finalize_out_of_order() {
     let new_account_balance = 1_000_000;
 
     let (ix, _pdas) =
-        delegation_program_interface::instruction_builder::commit_finalize(
+        dpi::instruction_builder::commit_finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             &mut CommitFinalizeArgs {
@@ -231,7 +232,7 @@ async fn setup_program_test_env_with_record_lamports(
         Account {
             lamports: record_lamports,
             data: pda_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -246,7 +247,7 @@ async fn setup_program_test_env_with_record_lamports(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -265,7 +266,7 @@ async fn setup_program_test_env_with_record_lamports(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -277,7 +278,7 @@ async fn setup_program_test_env_with_record_lamports(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -300,7 +301,7 @@ async fn test_commit_finalize_lamports_increase() {
         .await;
 
     let (ix, pdas) =
-        delegation_program_interface::instruction_builder::commit_finalize(
+        dpi::instruction_builder::commit_finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             &mut CommitFinalizeArgs {
@@ -379,7 +380,7 @@ async fn test_commit_finalize_lamports_decrease() {
         .await;
 
     let (ix, pdas) =
-        delegation_program_interface::instruction_builder::commit_finalize(
+        dpi::instruction_builder::commit_finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             &mut CommitFinalizeArgs {
@@ -443,7 +444,7 @@ async fn test_commit_finalize_rejects_underfunded_account() {
         .await;
 
     let (ix, pdas) =
-        delegation_program_interface::instruction_builder::commit_finalize(
+        dpi::instruction_builder::commit_finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             &mut CommitFinalizeArgs {

@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     error::DlpError,
     v2::{
         pda::{
@@ -157,9 +158,9 @@ pub fn process_raise_challenge(
 }
 
 fn validate_delegation_cluster(
-    delegation_cluster: &delegation_program_interface::v2::DelegationClusterView<'_>,
+    delegation_cluster: &dpi::v2::DelegationClusterView<'_>,
     delegation_cluster_account: &AccountView,
-    pending: &delegation_program_interface::v2::PendingCommitmentView<'_>,
+    pending: &dpi::v2::PendingCommitmentView<'_>,
 ) -> ProgramResult {
     if delegation_cluster.discriminator() != DelegationCluster::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
@@ -188,9 +189,9 @@ fn validate_delegation_cluster(
 }
 
 fn validate_pending_commitment(
-    pending_commitment: &delegation_program_interface::v2::PendingCommitmentView<'_>,
+    pending_commitment: &dpi::v2::PendingCommitmentView<'_>,
     pending_commitment_account: &AccountView,
-    args: &delegation_program_interface::v2::RaiseChallengeArgsView<'_>,
+    args: &dpi::v2::RaiseChallengeArgsView<'_>,
     current_slot: u64,
 ) -> ProgramResult {
     if pending_commitment.discriminator() != PendingCommitment::DISCRIMINATOR {

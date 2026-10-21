@@ -1,4 +1,5 @@
-use delegation_program_interface::v2::{
+use delegation_program_interface as dpi;
+use dpi::v2::{
     instruction_builder::write_state_buffer, pda::state_buffer_pda,
     StateBuffer, WriteStateBufferArgs,
 };
@@ -563,7 +564,7 @@ async fn create_delegated_account(
         &delegated.pubkey(),
         lamports,
         8,
-        &delegation_program_interface::ID,
+        &dpi::ID,
     );
     let blockhash = fresh_blockhash(banks).await;
     let tx = Transaction::new_signed_with_payer(

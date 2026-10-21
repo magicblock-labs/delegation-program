@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::{
         EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedInstruction,
         MaybeEncryptedIxData, MaybeEncryptedPubkey, PostDelegationActions,
@@ -94,7 +95,7 @@ fn test_cleartext_with_insertable_encrypted_actions() {
     assert_eq!(actions.instructions.len(), 3);
 
     let is_encrypted =
-        |ix: &delegation_program_interface::args::MaybeEncryptedInstruction| {
+        |ix: &dpi::args::MaybeEncryptedInstruction| {
             !ix.data.suffix.as_bytes().is_empty()
         };
 

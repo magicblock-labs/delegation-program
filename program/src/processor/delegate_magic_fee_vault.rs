@@ -1,4 +1,5 @@
-use delegation_program_interface::compat::borsh::{self};
+use delegation_program_interface as dpi;
+use dpi::compat::borsh::{self};
 use solana_sdk_ids::system_program;
 
 use crate::{

@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account,
@@ -134,7 +135,7 @@ async fn test_finalize_commitment_fails_with_owner_mismatch() {
             Pubkey::new_unique(),
             Some(LAMPORTS_PER_SOL),
         ),
-        owner: delegation_program_interface::ID,
+        owner: dpi::ID,
         executable: false,
         rent_epoch: 0,
     });
@@ -236,7 +237,7 @@ async fn setup_finalize_commitment_env(
 ) -> FinalizeCommitmentEnv {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -248,7 +249,7 @@ async fn setup_finalize_commitment_env(
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        delegation_program_interface::v2::pda::delegation_cluster_pda(
+        dpi::v2::pda::delegation_cluster_pda(
             &cluster_identity.pubkey(),
         );
     let account_owner = Pubkey::new_unique();
@@ -265,7 +266,7 @@ async fn setup_finalize_commitment_env(
         Account {
             lamports: record_lamports,
             data: vec![1, 2],
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },
@@ -279,7 +280,7 @@ async fn setup_finalize_commitment_env(
                 account_owner,
                 Some(record_lamports),
             ),
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },
@@ -293,7 +294,7 @@ async fn setup_finalize_commitment_env(
                 &[],
                 false,
             ),
-            owner: delegation_program_interface::ID,
+            owner: dpi::ID,
             executable: false,
             rent_epoch: 0,
         },

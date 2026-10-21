@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     pda::fees_vault_pda,
     v2::{
         instruction_builder::update_delegation_cluster,
@@ -69,7 +70,7 @@ async fn test_update_delegation_cluster() {
     let expected_config = update_args.challenge_config.as_ref().unwrap();
     let (_, expected_bump) = Pubkey::find_program_address(
         &[DELEGATION_CLUSTER_SEED, cluster_id.as_ref()],
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
 
     assert_eq!(cluster.discriminator(), DelegationCluster::DISCRIMINATOR);

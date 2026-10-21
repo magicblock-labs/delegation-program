@@ -1,4 +1,5 @@
-use delegation_program_interface::v2::{
+use delegation_program_interface as dpi;
+use dpi::v2::{
     instruction_builder::register_operator, pda::OPERATOR_BOND_SEED,
     OperatorBond, OperatorStatus, RegisterOperatorArgs,
 };
@@ -41,7 +42,7 @@ async fn test_register_operator() {
     let (operator_bond_address, expected_operator_bond_bump) =
         Pubkey::find_program_address(
             &[OPERATOR_BOND_SEED, delegation_cluster.as_ref()],
-            &delegation_program_interface::id(),
+            &dpi::id(),
         );
     fund_operator(&banks, &payer, &operator).await;
 

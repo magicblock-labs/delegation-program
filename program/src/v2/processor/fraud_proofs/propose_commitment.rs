@@ -1,4 +1,5 @@
-use delegation_program_interface::{
+use delegation_program_interface as dpi;
+use dpi::{
     error::DlpError,
     state::{DelegationMetadataRef, DelegationRecord, UndelegationRequester},
     v2::{
@@ -319,7 +320,7 @@ pub fn process_propose_commitment(
 }
 
 fn validate_operator_bond(
-    operator_bond: &delegation_program_interface::v2::OperatorBondView<'_>,
+    operator_bond: &dpi::v2::OperatorBondView<'_>,
     delegation_cluster: &AccountView,
 ) -> ProgramResult {
     if operator_bond.discriminator() != OperatorBond::DISCRIMINATOR {
@@ -345,7 +346,7 @@ fn validate_operator_bond(
 }
 
 fn validate_delegation_cluster<'a>(
-    delegation_cluster: &delegation_program_interface::v2::DelegationClusterView<'a>,
+    delegation_cluster: &dpi::v2::DelegationClusterView<'a>,
     current_validator: &AccountView,
 ) -> Result<ChallengeConfigView<'a>, ProgramError> {
     if delegation_cluster.discriminator() != DelegationCluster::DISCRIMINATOR {
@@ -369,7 +370,7 @@ fn validate_delegation_cluster<'a>(
 }
 
 fn validate_state_buffer(
-    state_buffer: &delegation_program_interface::v2::StateBufferView<'_>,
+    state_buffer: &dpi::v2::StateBufferView<'_>,
     operator: &AccountView,
     delegated_account: &AccountView,
     commit_id: u64,
@@ -407,7 +408,7 @@ fn validate_state_buffer(
 }
 
 fn select_verifiers_round_robin(
-    registry: &delegation_program_interface::v2::VerifierRegistryView<'_>,
+    registry: &dpi::v2::VerifierRegistryView<'_>,
     next_selection_index: u64,
     verifiers_per_commitment: usize,
     operator: &Address,
@@ -451,7 +452,7 @@ fn select_verifiers_round_robin(
 
 fn account_state_hash(
     lamports: u64,
-    owner: &delegation_program_interface::compat::Pubkey,
+    owner: &dpi::compat::Pubkey,
     data_hash: &[u8; 32],
 ) -> [u8; 32] {
     solana_sha256_hasher::hashv(&[

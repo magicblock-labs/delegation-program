@@ -1,4 +1,5 @@
-use delegation_program_interface::v2::{
+use delegation_program_interface as dpi;
+use dpi::v2::{
     instruction_builder::{register_verifier, update_verifier_registry},
     pda::{verifier_bond_pda, verifier_registry_pda, VERIFIER_REGISTRY_SEED},
     RegisterVerifierArgs, UpdateVerifierRegistryArgs, VerifierRegistry,
@@ -40,7 +41,7 @@ async fn test_update_verifier_registry_adds_verifier() {
     .await;
     let (_, expected_verifier_registry_bump) = Pubkey::find_program_address(
         &[VERIFIER_REGISTRY_SEED, delegation_cluster.as_ref()],
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
     fund_and_register_verifier(
         &banks,

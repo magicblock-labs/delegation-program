@@ -1,6 +1,7 @@
+use delegation_program_interface as dpi;
 use std::cmp::Ordering;
 
-pub(crate) use delegation_program_interface::diff::{
+pub(crate) use dpi::diff::{
     DiffSet, OffsetInData, SizeChanged,
 };
 use pinocchio::error::ProgramError;
@@ -164,7 +165,7 @@ fn apply_diff_impl(
 #[cfg(test)]
 mod tests {
 
-    use delegation_program_interface::diff::{compute_diff, DiffSet};
+    use dpi::diff::{compute_diff, DiffSet};
     use rand::{
         rngs::{OsRng, StdRng},
         seq::IteratorRandom,

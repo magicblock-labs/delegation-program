@@ -1,4 +1,5 @@
-use delegation_program_interface::v2::{
+use delegation_program_interface as dpi;
+use dpi::v2::{
     instruction_builder::register_verifier, pda::VERIFIER_BOND_SEED,
     RegisterVerifierArgs, VerifierBond, VerifierStatus,
 };
@@ -45,7 +46,7 @@ async fn test_register_verifier() {
                 delegation_cluster.as_ref(),
                 verifier.pubkey().as_ref(),
             ],
-            &delegation_program_interface::id(),
+            &dpi::id(),
         );
 
     fund_verifier(&banks, &payer, &verifier).await;

@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::DelegateArgs,
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
@@ -33,7 +34,7 @@ async fn test_delegate_on_curve() {
     // Create transaction to change the owner of alt_payer
     let change_owner_ix = system_instruction::assign(
         &alt_payer.pubkey(),
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
 
     let change_owner_tx = Transaction::new_signed_with_payer(
@@ -55,11 +56,11 @@ async fn test_delegate_on_curve() {
         .unwrap();
     assert_eq!(
         updated_alt_payer_account.owner,
-        delegation_program_interface::id()
+        dpi::id()
     );
 
     // Submit the delegate tx
-    let ix = delegation_program_interface::instruction_builder::delegate(
+    let ix = dpi::instruction_builder::delegate(
         payer.pubkey(),
         delegated_account,
         None,
@@ -93,7 +94,7 @@ async fn test_delegate_on_curve() {
     // Assert the PDA was delegated => owner is set to the delegation program
     let pda_account =
         banks.get_account(delegated_account).await.unwrap().unwrap();
-    assert!(pda_account.owner.eq(&delegation_program_interface::id()));
+    assert!(pda_account.owner.eq(&dpi::id()));
 
     // Assert that the PDA seeds account exists
     let delegation_metadata_pda =
@@ -105,7 +106,7 @@ async fn test_delegate_on_curve() {
         .unwrap();
     assert!(delegation_metadata_account
         .owner
-        .eq(&delegation_program_interface::id()));
+        .eq(&dpi::id()));
 
     // Assert that the delegation record exists and can be parsed
     let delegation_record_account = banks
@@ -133,7 +134,7 @@ async fn test_delegate_on_curve() {
         .unwrap();
     assert!(delegation_metadata
         .owner
-        .eq(&delegation_program_interface::id()));
+        .eq(&dpi::id()));
     let delegation_metadata =
         DelegationMetadata::try_from_bytes_with_discriminator(
             &delegation_metadata.data,
@@ -141,14 +142,14 @@ async fn test_delegate_on_curve() {
         .unwrap();
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        delegation_program_interface::state::UndelegationRequester::None
+        dpi::state::UndelegationRequester::None
     );
 }
 
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);

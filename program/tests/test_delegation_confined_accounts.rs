@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::DelegateArgs, error::DlpError,
     pda::delegation_record_pda_from_delegated_account, state::DelegationRecord,
 };
@@ -24,7 +25,7 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
 
     let assign_ix = system_instruction::assign(
         &delegated.pubkey(),
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
@@ -35,7 +36,7 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
     let assign_res = banks.process_transaction(assign_tx).await;
     assert!(assign_res.is_ok());
 
-    let ix = delegation_program_interface::instruction_builder::delegate(
+    let ix = dpi::instruction_builder::delegate(
         payer.pubkey(),
         delegated.pubkey(),
         None,
@@ -75,7 +76,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
 
     let assign_ix = system_instruction::assign(
         &delegated.pubkey(),
-        &delegation_program_interface::id(),
+        &dpi::id(),
     );
     let assign_tx = Transaction::new_signed_with_payer(
         &[assign_ix],
@@ -86,7 +87,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
     let assign_res = banks.process_transaction(assign_tx).await;
     assert!(assign_res.is_ok());
 
-    let ix = delegation_program_interface::instruction_builder::delegate_with_any_validator(
+    let ix = dpi::instruction_builder::delegate_with_any_validator(
         payer.pubkey(),
         delegated.pubkey(),
         None,
@@ -123,7 +124,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);

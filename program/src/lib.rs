@@ -1,12 +1,12 @@
 #![allow(unexpected_cfgs)]
 
-extern crate delegation_program_interface;
+extern crate delegation_program_interface as dpi;
 pub use ::solana_program;
 
-pub type RequireError = delegation_program_interface::error::DlpError;
+pub type RequireError = dpi::error::DlpError;
 
 #[allow(unused_imports)]
-pub(crate) use delegation_program_interface::{
+pub(crate) use dpi::{
     account_size_class, args, compact, consts, discriminator, error, pda,
     pod_view, requires, state,
 };
@@ -14,7 +14,7 @@ pub(crate) use delegation_program_interface::{
 #[cfg(feature = "diff")]
 mod diff;
 #[allow(unused_imports)]
-pub(crate) use delegation_program_interface::{
+pub(crate) use dpi::{
     commit_record_seeds_from_delegated_account,
     commit_state_seeds_from_delegated_account,
     delegate_buffer_seeds_from_delegated_account,
@@ -26,9 +26,9 @@ pub(crate) use delegation_program_interface::{
     undelegation_request_seeds_from_delegated_account,
     validator_fees_vault_seeds_from_validator,
 };
-pub use delegation_program_interface::{id, ID};
+pub use dpi::{id, ID};
 #[allow(unused_imports)]
-pub(crate) use delegation_program_interface::{
+pub(crate) use dpi::{
     require_initialized_pda, require_initialized_pda_fast, require_pda,
 };
 #[cfg(feature = "logging")]
@@ -41,7 +41,7 @@ pub(crate) use wheels::{
 };
 #[cfg(feature = "processor")]
 use {
-    delegation_program_interface::discriminator::DlpDiscriminator,
+    dpi::discriminator::DlpDiscriminator,
     solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult,
         program_error::ProgramError, pubkey::Pubkey,
@@ -94,7 +94,7 @@ pub fn fast_process_instruction(
     };
 
     if let Ok(ix) =
-        delegation_program_interface::v2::DlpV2Instruction::try_from(tag)
+        dpi::v2::DlpV2Instruction::try_from(tag)
     {
         return Some(v2::process_instruction(accounts, v2_data, ix));
     }
@@ -206,7 +206,7 @@ pub fn slow_process_instruction(
         return Err(ProgramError::InvalidInstructionData);
     };
 
-    if delegation_program_interface::v2::DlpV2Instruction::try_from(tag).is_ok()
+    if dpi::v2::DlpV2Instruction::try_from(tag).is_ok()
     {
         return Err(ProgramError::InvalidInstructionData);
     }

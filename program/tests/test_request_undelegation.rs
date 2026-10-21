@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::{CommitFinalizeArgs, CommitStateArgs},
     consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
     error::DlpError,
@@ -74,7 +75,7 @@ async fn test_request_undelegation_creates_request_and_is_idempotent() {
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let request_account =
         banks.get_account(request_pda).await.unwrap().unwrap();
-    assert_eq!(request_account.owner, delegation_program_interface::id());
+    assert_eq!(request_account.owner, dpi::id());
 
     let request = UndelegationRequest::try_from_bytes_with_discriminator(
         &request_account.data,
@@ -131,7 +132,7 @@ async fn test_request_undelegation_rejects_missing_delegated_signer() {
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
     let ix = Instruction {
-        program_id: delegation_program_interface::id(),
+        program_id: dpi::id(),
         accounts: vec![
             AccountMeta::new(payer.pubkey(), true),
             AccountMeta::new(DELEGATED_PDA_ID, false),
@@ -149,7 +150,7 @@ async fn test_request_undelegation_rejects_missing_delegated_signer() {
             ),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: delegation_program_interface::discriminator::DlpDiscriminator::RequestUndelegation
+        data: dpi::discriminator::DlpDiscriminator::RequestUndelegation
             .to_vec(),
     };
 
@@ -179,7 +180,7 @@ async fn test_request_undelegation_rejects_on_curve_delegated_account() {
     .await;
 
     let ix =
-        delegation_program_interface::instruction_builder::request_undelegation(
+        dpi::instruction_builder::request_undelegation(
             payer.pubkey(),
             delegated_account,
             system_program::id(),
@@ -216,11 +217,11 @@ async fn test_undelegate_with_request_closes_request() {
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
 
     let ix_finalize =
-        delegation_program_interface::instruction_builder::finalize(
+        dpi::instruction_builder::finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
         );
-    let ix_undelegate = delegation_program_interface::instruction_builder::undelegate_with_request(
+    let ix_undelegate = dpi::instruction_builder::undelegate_with_request(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -256,7 +257,7 @@ async fn test_commit_state_rejects_owner_request_without_allow() {
     let request_ix =
         request_undelegation_from_owner_program(authority.pubkey());
     let commit_ix =
-        delegation_program_interface::instruction_builder::commit_state(
+        dpi::instruction_builder::commit_state(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             DELEGATED_PDA_OWNER_ID,
@@ -294,7 +295,7 @@ async fn test_commit_state_preserves_owner_request_with_allow() {
     let request_ix =
         request_undelegation_from_owner_program(authority.pubkey());
     let commit_ix =
-        delegation_program_interface::instruction_builder::commit_state(
+        dpi::instruction_builder::commit_state(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             DELEGATED_PDA_OWNER_ID,
@@ -345,7 +346,7 @@ async fn test_commit_finalize_rejects_owner_request_without_allow() {
         reserved_padding: Default::default(),
     };
     let (commit_finalize_ix, _) =
-        delegation_program_interface::instruction_builder::commit_finalize(
+        dpi::instruction_builder::commit_finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             &mut args,
@@ -386,7 +387,7 @@ async fn test_commit_finalize_preserves_owner_request_with_allow() {
         reserved_padding: Default::default(),
     };
     let (commit_finalize_ix, _) =
-        delegation_program_interface::instruction_builder::commit_finalize(
+        dpi::instruction_builder::commit_finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             &mut args,
@@ -434,7 +435,7 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
     banks.process_transaction(request_tx).await.unwrap();
 
     let finalize_ix =
-        delegation_program_interface::instruction_builder::finalize(
+        dpi::instruction_builder::finalize(
             authority.pubkey(),
             DELEGATED_PDA_ID,
         );
@@ -447,7 +448,7 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
     banks.process_transaction(finalize_tx).await.unwrap();
 
     let undelegate_ix =
-        delegation_program_interface::instruction_builder::undelegate(
+        dpi::instruction_builder::undelegate(
             authority.pubkey(),
             DELEGATED_PDA_ID,
             DELEGATED_PDA_OWNER_ID,
@@ -516,7 +517,7 @@ fn imaginary_program_processor_requesting_undelegation_through_cpi(
     }
 
     let mut ix =
-        delegation_program_interface::instruction_builder::request_undelegation(
+        dpi::instruction_builder::request_undelegation(
             *payer.key,
             *delegated_account.key,
             *program_id,
@@ -574,7 +575,7 @@ fn request_undelegation_from_owner_program(
             ),
             AccountMeta::new_readonly(system_program::id(), false),
             AccountMeta::new_readonly(
-                delegation_program_interface::id(),
+                dpi::id(),
                 false,
             ),
         ],
@@ -617,7 +618,7 @@ struct SetupContext {
 async fn setup_env(config: SetupConfig) -> SetupContext {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -723,7 +724,7 @@ fn add_delegated_account(program_test: &mut ProgramTest, pubkey: Pubkey) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -749,7 +750,7 @@ fn add_delegation_accounts_with_metadata(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -766,7 +767,7 @@ fn add_delegation_accounts_with_metadata(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -783,7 +784,7 @@ fn add_commit_accounts(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: COMMIT_NEW_STATE_ACCOUNT_DATA.into(),
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -795,7 +796,7 @@ fn add_commit_accounts(
         Account {
             lamports: Rent::default().minimum_balance(commit_record_data.len()),
             data: commit_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -825,7 +826,7 @@ fn add_fee_accounts(program_test: &mut ProgramTest, authority: Pubkey) {
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -835,7 +836,7 @@ fn add_fee_accounts(program_test: &mut ProgramTest, authority: Pubkey) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -852,7 +853,7 @@ fn add_request_account(
         Account {
             lamports: Rent::default().minimum_balance(request_data.len()),
             data: request_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },

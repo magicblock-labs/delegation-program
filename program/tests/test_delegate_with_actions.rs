@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::{DelegateArgs, DelegateWithActionsArgs},
     compact,
     compat::borsh::BorshDeserialize,
@@ -202,7 +203,7 @@ fn test_delegate_with_actions_builder_encrypts_and_decrypts_accounts_and_data()
     let ix = &args.actions.instructions[0];
 
     let clear_meta = match ix.accounts[0] {
-        delegation_program_interface::args::MaybeEncryptedAccountMeta::ClearText(meta) => meta,
+        dpi::args::MaybeEncryptedAccountMeta::ClearText(meta) => meta,
         _ => panic!("expected cleartext account meta for signer"),
     };
     assert_eq!(clear_meta.key(), 0);

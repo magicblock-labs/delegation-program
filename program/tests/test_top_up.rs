@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     args::DelegateEphemeralBalanceArgs,
     ephemeral_balance_seeds_from_payer,
     pda::{
@@ -31,7 +32,7 @@ async fn test_top_up_ephemeral_balance() {
     // Setup
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = delegation_program_interface::instruction_builder::top_up_ephemeral_balance(
+    let ix = dpi::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         payer.pubkey(),
         None,
@@ -66,7 +67,7 @@ async fn test_top_up_ephemeral_balance_for_pubkey() {
 
     let pubkey = Keypair::new().pubkey();
 
-    let ix = delegation_program_interface::instruction_builder::top_up_ephemeral_balance(
+    let ix = dpi::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         pubkey,
         None,
@@ -99,14 +100,14 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Top-up Ix
-    let ix = delegation_program_interface::instruction_builder::top_up_ephemeral_balance(
+    let ix = dpi::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         payer.pubkey(),
         None,
         None,
     );
     // Delegate ephemeral balance Ix
-    let delegate_ix = delegation_program_interface::instruction_builder::delegate_ephemeral_balance(
+    let delegate_ix = dpi::instruction_builder::delegate_ephemeral_balance(
         payer.pubkey(),
         payer.pubkey(),
         DelegateEphemeralBalanceArgs::default(),
@@ -130,7 +131,7 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(balance_account.owner, delegation_program_interface::id());
+    assert_eq!(balance_account.owner, dpi::id());
     assert!(balance_account.lamports > 0);
 
     // Check the delegation record PDA has system program as owner
@@ -158,14 +159,14 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
     let pubkey = key.pubkey();
 
     // Top-up Ix
-    let ix = delegation_program_interface::instruction_builder::top_up_ephemeral_balance(
+    let ix = dpi::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         pubkey,
         None,
         None,
     );
     // Delegate ephemeral balance Ix
-    let delegate_ix = delegation_program_interface::instruction_builder::delegate_ephemeral_balance(
+    let delegate_ix = dpi::instruction_builder::delegate_ephemeral_balance(
         payer.pubkey(),
         pubkey,
         DelegateEphemeralBalanceArgs::default(),
@@ -188,7 +189,7 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
         .unwrap()
         .unwrap();
 
-    assert_eq!(balance_account.owner, delegation_program_interface::id());
+    assert_eq!(balance_account.owner, dpi::id());
     assert!(balance_account.lamports > 0);
 }
 
@@ -207,10 +208,10 @@ async fn test_undelegate() {
         .unwrap()
         .owner;
 
-    assert_eq!(ephemeral_balance_owner, delegation_program_interface::id());
+    assert_eq!(ephemeral_balance_owner, dpi::id());
 
     // Undelegate ephemeral balance Ix
-    let ix = delegation_program_interface::instruction_builder::undelegate(
+    let ix = dpi::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance_pda,
         system_program::id(),
@@ -260,14 +261,14 @@ async fn test_undelegate_and_close() {
         .lamports;
 
     // Undelegate ephemeral balance Ix
-    let ix = delegation_program_interface::instruction_builder::undelegate(
+    let ix = dpi::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance_pda,
         system_program::id(),
         validator.pubkey(),
     );
 
-    let ix_close = delegation_program_interface::instruction_builder::close_ephemeral_balance(
+    let ix_close = dpi::instruction_builder::close_ephemeral_balance(
         payer_alt.pubkey(),
         0,
     );
@@ -301,7 +302,7 @@ async fn test_undelegate_and_close() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
@@ -340,7 +341,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: Rent::default().minimum_balance(0),
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -352,7 +353,7 @@ async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -376,7 +377,7 @@ async fn setup_ephemeral_balance(
         Account {
             lamports: LAMPORTS_PER_SOL,
             data: vec![],
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -394,7 +395,7 @@ async fn setup_ephemeral_balance(
             lamports: Rent::default()
                 .minimum_balance(delegation_record_data.len()),
             data: delegation_record_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },
@@ -412,7 +413,7 @@ async fn setup_ephemeral_balance(
             lamports: Rent::default()
                 .minimum_balance(delegation_metadata_data.len()),
             data: delegation_metadata_data,
-            owner: delegation_program_interface::id(),
+            owner: dpi::id(),
             executable: false,
             rent_epoch: 0,
         },

@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::{
+use dpi::{
     consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
     state::{
         CommitRecord, DelegationMetadata, DelegationRecord, ProgramConfig,

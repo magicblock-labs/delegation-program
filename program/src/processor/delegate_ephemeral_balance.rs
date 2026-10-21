@@ -1,4 +1,5 @@
-use delegation_program_interface::compat::borsh::{self, BorshDeserialize};
+use delegation_program_interface as dpi;
+use dpi::compat::borsh::{self, BorshDeserialize};
 use solana_sdk_ids::system_program;
 use solana_system_interface::instruction as system_instruction;
 

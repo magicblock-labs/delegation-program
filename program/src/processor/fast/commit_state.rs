@@ -1,4 +1,5 @@
-use delegation_program_interface::compat::borsh::BorshDeserialize;
+use delegation_program_interface as dpi;
+use dpi::compat::borsh::BorshDeserialize;
 use pinocchio::{
     address::address_eq, cpi::Signer, error::ProgramError, instruction::seeds,
     AccountView, Address, ProgramResult,

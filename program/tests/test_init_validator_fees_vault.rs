@@ -1,5 +1,6 @@
+use delegation_program_interface as dpi;
 use delegation_program::solana_program;
-use delegation_program_interface::pda::validator_fees_vault_pda_from_validator;
+use dpi::pda::validator_fees_vault_pda_from_validator;
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
 };
@@ -21,7 +22,7 @@ async fn test_init_validator_fees_vault() {
     let (banks, payer, admin, blockhash) = setup_program_test_env().await;
 
     let validator_identity = Pubkey::new_unique();
-    let ix = delegation_program_interface::instruction_builder::init_validator_fees_vault(
+    let ix = dpi::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         admin.pubkey(),
         validator_identity,
@@ -44,7 +45,7 @@ async fn test_init_validator_fees_vault() {
 
     // Assert record cannot be created if the admin is not the correct one
     let validator_identity = Pubkey::new_unique();
-    let ix = delegation_program_interface::instruction_builder::init_validator_fees_vault(
+    let ix = dpi::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         payer.pubkey(),
         validator_identity,
@@ -62,7 +63,7 @@ async fn test_init_validator_fees_vault() {
 async fn setup_program_test_env() -> (BanksClient, Keypair, Keypair, Hash) {
     let mut program_test = ProgramTest::new(
         "delegation_program",
-        delegation_program_interface::ID,
+        dpi::ID,
         None,
     );
     program_test.prefer_bpf(true);
