@@ -1,22 +1,21 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    pda::{
-        delegation_metadata_pda_from_delegated_account,
-        delegation_record_pda_from_delegated_account,
+    instruction_builder::{
+        approve_commitment, finalize_commitment, propose_commitment,
+        register_operator, register_verifier, update_verifier_registry,
+        write_state_buffer,
     },
-    state::{DelegationMetadata, DelegationRecord},
-    v2::{
-        instruction_builder::{
-            approve_commitment, finalize_commitment, propose_commitment,
-            register_operator, register_verifier, update_verifier_registry,
-            write_state_buffer,
+    legacy::{
+        pda::{
+            delegation_metadata_pda_from_delegated_account,
+            delegation_record_pda_from_delegated_account,
         },
-        pda::pending_commitment_pda,
-        PendingCommitment, ProposeCommitmentArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, UpdateVerifierRegistryArgs,
-        VerifierRegistryAction, WriteStateBufferArgs,
-        PENDING_COMMITMENT_STATUS_FINALIZED,
+        state::{DelegationMetadata, DelegationRecord},
     },
+    pda::pending_commitment_pda,
+    PendingCommitment, ProposeCommitmentArgs, RegisterOperatorArgs,
+    RegisterVerifierArgs, UpdateVerifierRegistryArgs, VerifierRegistryAction,
+    WriteStateBufferArgs, PENDING_COMMITMENT_STATUS_FINALIZED,
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program_test::{
@@ -246,7 +245,7 @@ async fn setup_finalize_commitment_env(
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
+        dpi::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let account_owner = Pubkey::new_unique();
     let committed_owner = account_owner;
     let commit_id = 1;

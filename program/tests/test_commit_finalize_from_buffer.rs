@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     args::CommitFinalizeArgs,
     pda::{
         delegation_metadata_pda_from_delegated_account,
@@ -40,19 +40,20 @@ async fn test_commit_finalize_from_buffer_perf() {
     let state_buffer_pda =
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
 
-    let (ix, pdas) = dpi::instruction_builder::commit_finalize_from_buffer(
-        authority.pubkey(),
-        DELEGATED_PDA_ID,
-        state_buffer_pda,
-        &mut CommitFinalizeArgs {
-            commit_id: 1,
-            allow_undelegation: true.into(),
-            data_is_diff: false.into(),
-            lamports: new_account_balance,
-            bumps: Default::default(),
-            reserved_padding: Default::default(),
-        },
-    );
+    let (ix, pdas) =
+        dpi::legacy::instruction_builder::commit_finalize_from_buffer(
+            authority.pubkey(),
+            DELEGATED_PDA_ID,
+            state_buffer_pda,
+            &mut CommitFinalizeArgs {
+                commit_id: 1,
+                allow_undelegation: true.into(),
+                data_is_diff: false.into(),
+                lamports: new_account_balance,
+                bumps: Default::default(),
+                reserved_padding: Default::default(),
+            },
+        );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&authority.pubkey()),
@@ -96,7 +97,7 @@ async fn test_commit_finalize_from_buffer_perf() {
 
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        dpi::state::UndelegationRequester::Validator
+        dpi::legacy::state::UndelegationRequester::Validator
     );
 }
 
@@ -111,19 +112,20 @@ async fn test_commit_finalize_from_buffer_out_of_order() {
         Pubkey::find_program_address(&[b"state_buffer"], &authority.pubkey()).0;
     let new_account_balance = 1_000_000;
 
-    let (ix, _pdas) = dpi::instruction_builder::commit_finalize_from_buffer(
-        authority.pubkey(),
-        DELEGATED_PDA_ID,
-        state_buffer_pda,
-        &mut CommitFinalizeArgs {
-            commit_id: 2, // this is the min value which will cause NonceOutOfOrder
-            allow_undelegation: true.into(),
-            data_is_diff: false.into(),
-            lamports: new_account_balance,
-            bumps: Default::default(),
-            reserved_padding: Default::default(),
-        },
-    );
+    let (ix, _pdas) =
+        dpi::legacy::instruction_builder::commit_finalize_from_buffer(
+            authority.pubkey(),
+            DELEGATED_PDA_ID,
+            state_buffer_pda,
+            &mut CommitFinalizeArgs {
+                commit_id: 2, // this is the min value which will cause NonceOutOfOrder
+                allow_undelegation: true.into(),
+                data_is_diff: false.into(),
+                lamports: new_account_balance,
+                bumps: Default::default(),
+                reserved_padding: Default::default(),
+            },
+        );
 
     let tx = Transaction::new_signed_with_payer(
         &[ix],

@@ -1,13 +1,15 @@
-mod commit_record;
-mod delegation_metadata;
-mod delegation_record;
-mod program_config;
-mod undelegation_request;
-mod utils;
+mod challenge;
+mod delegation_cluster;
+mod operator_bond;
+mod pending_commitment;
+mod state_buffer;
+mod verifier_bond;
+mod verifier_registry;
 
-pub use commit_record::*;
-pub use delegation_metadata::*;
-pub use delegation_record::*;
-pub use program_config::*;
-pub use undelegation_request::*;
-pub use utils::*;
+pub use challenge::*;
+pub use delegation_cluster::*;
+pub use operator_bond::*;
+pub use pending_commitment::*;
+pub use state_buffer::*;
+pub use verifier_bond::*;
+pub use verifier_registry::*;

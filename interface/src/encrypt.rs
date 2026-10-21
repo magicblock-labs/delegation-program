@@ -1,12 +1,14 @@
 use crate::{
-    args::{
-        EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
-        MaybeEncryptedPubkey,
-    },
     encryption::EncryptionError,
-    instruction_builder::{
-        Encrypt, EncryptableAccountMeta, EncryptableIxData, EncryptablePubkey,
-        PostDelegationInstruction,
+    legacy::{
+        args::{
+            EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
+            MaybeEncryptedPubkey,
+        },
+        instruction_builder::{
+            Encrypt, EncryptableAccountMeta, EncryptableIxData,
+            EncryptablePubkey, PostDelegationInstruction,
+        },
     },
     solana_program::{instruction::AccountMeta, pubkey::Pubkey},
 };
@@ -72,11 +74,12 @@ impl Encrypt for crate::compact::EncryptableAccountMeta {
 }
 
 impl Encrypt for Vec<PostDelegationInstruction> {
-    type Output = (crate::args::PostDelegationActions, Vec<AccountMeta>);
+    type Output =
+        (crate::legacy::args::PostDelegationActions, Vec<AccountMeta>);
     type Error = EncryptionError;
 
     fn encrypt(self, validator: &Pubkey) -> Result<Self::Output, Self::Error> {
-        use crate::args::MaybeEncryptedInstruction;
+        use crate::legacy::args::MaybeEncryptedInstruction;
 
         let mut signers: Vec<AccountMeta> = Vec::new();
 
@@ -194,7 +197,7 @@ impl Encrypt for Vec<PostDelegationInstruction> {
             .collect();
 
         Ok((
-            crate::args::PostDelegationActions {
+            crate::legacy::args::PostDelegationActions {
                 inserted_signers: 0,
                 inserted_non_signers: 0,
                 signers: signers.iter().map(|s| s.pubkey.to_bytes()).collect(),

@@ -1,13 +1,16 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
 use dpi::{
-    args::{
-        EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedInstruction,
-        MaybeEncryptedIxData, MaybeEncryptedPubkey, PostDelegationActions,
-    },
     compact::{AccountMeta as CompactAccountMeta, ClearTextWithInsertable},
-    instruction_builder::{
-        Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
+    legacy::{
+        args::{
+            EncryptedBuffer, MaybeEncryptedAccountMeta,
+            MaybeEncryptedInstruction, MaybeEncryptedIxData,
+            MaybeEncryptedPubkey, PostDelegationActions,
+        },
+        instruction_builder::{
+            Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
+        },
     },
     Decrypt, DecryptError,
 };
@@ -94,7 +97,7 @@ fn test_cleartext_with_insertable_encrypted_actions() {
     assert_eq!(actions.inserted_non_signers, 4);
     assert_eq!(actions.instructions.len(), 3);
 
-    let is_encrypted = |ix: &dpi::args::MaybeEncryptedInstruction| {
+    let is_encrypted = |ix: &dpi::legacy::args::MaybeEncryptedInstruction| {
         !ix.data.suffix.as_bytes().is_empty()
     };
 

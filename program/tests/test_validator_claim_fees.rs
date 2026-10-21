@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     consts::PROTOCOL_FEES_PERCENTAGE,
     pda::{fees_vault_pda, validator_fees_vault_pda_from_validator},
 };
@@ -48,7 +48,7 @@ async fn test_validator_claim_fees() {
 
     // Submit the withdrawal tx
     let withdrawal_amount = 100000;
-    let ix = dpi::instruction_builder::validator_claim_fees(
+    let ix = dpi::legacy::instruction_builder::validator_claim_fees(
         validator.pubkey(),
         Some(withdrawal_amount),
     );

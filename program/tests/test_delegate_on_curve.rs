@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     args::DelegateArgs,
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
@@ -55,7 +55,7 @@ async fn test_delegate_on_curve() {
     assert_eq!(updated_alt_payer_account.owner, dpi::id());
 
     // Submit the delegate tx
-    let ix = dpi::instruction_builder::delegate(
+    let ix = dpi::legacy::instruction_builder::delegate(
         payer.pubkey(),
         delegated_account,
         None,
@@ -133,7 +133,7 @@ async fn test_delegate_on_curve() {
         .unwrap();
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        dpi::state::UndelegationRequester::None
+        dpi::legacy::state::UndelegationRequester::None
     );
 }
 

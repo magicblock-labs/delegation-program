@@ -1,14 +1,16 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
 use dpi::{
-    consts::EXTERNAL_UNDELEGATE_DISCRIMINATOR,
     error::DlpError,
-    pda::{
-        commit_record_pda_from_delegated_account,
-        commit_state_pda_from_delegated_account,
-        delegation_metadata_pda_from_delegated_account,
-        delegation_record_pda_from_delegated_account,
-        undelegation_request_pda_from_delegated_account,
+    legacy::{
+        consts::EXTERNAL_UNDELEGATE_DISCRIMINATOR,
+        pda::{
+            commit_record_pda_from_delegated_account,
+            commit_state_pda_from_delegated_account,
+            delegation_metadata_pda_from_delegated_account,
+            delegation_record_pda_from_delegated_account,
+            undelegation_request_pda_from_delegated_account,
+        },
     },
 };
 use solana_program::{
@@ -445,7 +447,7 @@ fn process_rollback(
 
     let delegated_data = delegated_account.try_borrow_data()?.to_vec();
 
-    let ix = dpi::instruction_builder::undelegate_with_rollback_after_timeout(
+    let ix = dpi::legacy::instruction_builder::undelegate_with_rollback_after_timeout(
         *delegated_account.key,
         *owner_program.key,
         *delegation_rent_payer.key,

@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::pda::{
+use dpi::legacy::pda::{
     delegation_metadata_pda_from_delegated_account,
     delegation_record_pda_from_delegated_account, fees_vault_pda,
     validator_fees_vault_pda_from_validator,
@@ -33,7 +33,7 @@ async fn test_undelegate_on_curve() {
     );
 
     // Submit the undelegate tx
-    let ix = dpi::instruction_builder::undelegate(
+    let ix = dpi::legacy::instruction_builder::undelegate(
         validator.pubkey(),
         delegated_on_curve.pubkey(),
         system_program::id(),

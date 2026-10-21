@@ -1,30 +1,26 @@
 pub use ::solana_program;
 
-pub mod compat;
-
-pub mod account_size_class;
 pub mod args;
 pub mod compact;
-pub mod consts;
+pub mod compat;
 
 #[cfg(feature = "diff")]
 pub mod diff;
 
-pub mod discriminator;
 pub mod error;
+pub mod instruction;
+pub mod legacy;
 pub mod pda;
-pub mod pod_view;
 pub mod requires;
 pub mod state;
-pub mod v2;
-
-pub use account_size_class::*;
-
-#[cfg(feature = "cpi")]
-pub mod cpi;
 
 #[cfg(feature = "instruction")]
 pub mod instruction_builder;
+
+pub use args::*;
+pub use instruction::*;
+pub use pda::*;
+pub use state::*;
 
 #[cfg(feature = "encryption")]
 pub mod decrypt;

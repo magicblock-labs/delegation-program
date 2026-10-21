@@ -1,15 +1,17 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
 use dpi::{
-    args::DelegateEphemeralBalanceArgs,
     ephemeral_balance_seeds_from_payer,
-    pda::{
-        delegation_metadata_pda_from_delegated_account,
-        delegation_record_pda_from_delegated_account,
-        ephemeral_balance_pda_from_payer, fees_vault_pda,
-        validator_fees_vault_pda_from_validator,
+    legacy::{
+        args::DelegateEphemeralBalanceArgs,
+        pda::{
+            delegation_metadata_pda_from_delegated_account,
+            delegation_record_pda_from_delegated_account,
+            ephemeral_balance_pda_from_payer, fees_vault_pda,
+            validator_fees_vault_pda_from_validator,
+        },
+        state::DelegationRecord,
     },
-    state::DelegationRecord,
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{BanksClient, ProgramTest};
@@ -32,7 +34,7 @@ async fn test_top_up_ephemeral_balance() {
     // Setup
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
-    let ix = dpi::instruction_builder::top_up_ephemeral_balance(
+    let ix = dpi::legacy::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         payer.pubkey(),
         None,
@@ -67,7 +69,7 @@ async fn test_top_up_ephemeral_balance_for_pubkey() {
 
     let pubkey = Keypair::new().pubkey();
 
-    let ix = dpi::instruction_builder::top_up_ephemeral_balance(
+    let ix = dpi::legacy::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         pubkey,
         None,
@@ -100,18 +102,19 @@ async fn test_top_up_ephemeral_balance_and_delegate() {
     let (banks, payer, _, blockhash) = setup_program_test_env().await;
 
     // Top-up Ix
-    let ix = dpi::instruction_builder::top_up_ephemeral_balance(
+    let ix = dpi::legacy::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         payer.pubkey(),
         None,
         None,
     );
     // Delegate ephemeral balance Ix
-    let delegate_ix = dpi::instruction_builder::delegate_ephemeral_balance(
-        payer.pubkey(),
-        payer.pubkey(),
-        DelegateEphemeralBalanceArgs::default(),
-    );
+    let delegate_ix =
+        dpi::legacy::instruction_builder::delegate_ephemeral_balance(
+            payer.pubkey(),
+            payer.pubkey(),
+            DelegateEphemeralBalanceArgs::default(),
+        );
 
     let tx = Transaction::new_signed_with_payer(
         &[ix, delegate_ix],
@@ -159,18 +162,19 @@ async fn test_top_up_ephemeral_balance_and_delegate_for_pubkey() {
     let pubkey = key.pubkey();
 
     // Top-up Ix
-    let ix = dpi::instruction_builder::top_up_ephemeral_balance(
+    let ix = dpi::legacy::instruction_builder::top_up_ephemeral_balance(
         payer.pubkey(),
         pubkey,
         None,
         None,
     );
     // Delegate ephemeral balance Ix
-    let delegate_ix = dpi::instruction_builder::delegate_ephemeral_balance(
-        payer.pubkey(),
-        pubkey,
-        DelegateEphemeralBalanceArgs::default(),
-    );
+    let delegate_ix =
+        dpi::legacy::instruction_builder::delegate_ephemeral_balance(
+            payer.pubkey(),
+            pubkey,
+            DelegateEphemeralBalanceArgs::default(),
+        );
 
     let tx = Transaction::new_signed_with_payer(
         &[ix, delegate_ix],
@@ -211,7 +215,7 @@ async fn test_undelegate() {
     assert_eq!(ephemeral_balance_owner, dpi::id());
 
     // Undelegate ephemeral balance Ix
-    let ix = dpi::instruction_builder::undelegate(
+    let ix = dpi::legacy::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance_pda,
         system_program::id(),
@@ -261,14 +265,14 @@ async fn test_undelegate_and_close() {
         .lamports;
 
     // Undelegate ephemeral balance Ix
-    let ix = dpi::instruction_builder::undelegate(
+    let ix = dpi::legacy::instruction_builder::undelegate(
         validator.pubkey(),
         ephemeral_balance_pda,
         system_program::id(),
         validator.pubkey(),
     );
 
-    let ix_close = dpi::instruction_builder::close_ephemeral_balance(
+    let ix_close = dpi::legacy::instruction_builder::close_ephemeral_balance(
         payer_alt.pubkey(),
         0,
     );

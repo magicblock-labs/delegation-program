@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     args::CommitStateArgs,
     pda::{
         commit_record_pda_from_delegated_account,
@@ -45,7 +45,7 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
         lamports: 0,
     };
 
-    let ix_commit = dpi::instruction_builder::commit_state(
+    let ix_commit = dpi::legacy::instruction_builder::commit_state(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -60,11 +60,11 @@ async fn test_commit_and_undelegate_zero_lamports_system_owned_account() {
     let res_commit = banks.process_transaction(tx_commit).await;
     assert!(res_commit.is_ok());
 
-    let ix_finalize = dpi::instruction_builder::finalize(
+    let ix_finalize = dpi::legacy::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let ix_undelegate = dpi::instruction_builder::undelegate(
+    let ix_undelegate = dpi::legacy::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

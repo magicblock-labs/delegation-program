@@ -1,16 +1,14 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
 use dpi::{
-    pda::fees_vault_pda,
-    v2::{
-        instruction_builder::init_delegation_cluster,
-        pda::{
-            delegation_cluster_pda, verifier_registry_pda,
-            DELEGATION_CLUSTER_SEED, VERIFIER_REGISTRY_SEED,
-        },
-        ChallengeConfig, DelegationCluster, InitDelegationClusterArgs,
-        VerifierRegistry,
+    instruction_builder::init_delegation_cluster,
+    legacy::pda::fees_vault_pda,
+    pda::{
+        delegation_cluster_pda, verifier_registry_pda, DELEGATION_CLUSTER_SEED,
+        VERIFIER_REGISTRY_SEED,
     },
+    ChallengeConfig, DelegationCluster, InitDelegationClusterArgs,
+    VerifierRegistry,
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{BanksClient, ProgramTest};

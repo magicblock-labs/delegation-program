@@ -1,25 +1,21 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    pda::{
+    instruction_builder::{
+        propose_commitment, register_operator, register_verifier,
+        update_delegation_cluster, update_verifier_registry,
+        write_state_buffer,
+    },
+    legacy::pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account,
     },
-    v2::{
-        instruction_builder::{
-            propose_commitment, register_operator, register_verifier,
-            update_delegation_cluster, update_verifier_registry,
-            write_state_buffer,
-        },
-        pda::{
-            delegation_cluster_pda, pending_commitment_pda,
-            verifier_registry_pda,
-        },
-        ChallengeConfig, PendingCommitment, ProposeCommitmentArgs,
-        RegisterOperatorArgs, RegisterVerifierArgs,
-        UpdateDelegationClusterArgs, UpdateVerifierRegistryArgs,
-        VerifierRegistry, VerifierRegistryAction, WriteStateBufferArgs,
-        PENDING_COMMITMENT_STATUS_ACTIVE,
+    pda::{
+        delegation_cluster_pda, pending_commitment_pda, verifier_registry_pda,
     },
+    ChallengeConfig, PendingCommitment, ProposeCommitmentArgs,
+    RegisterOperatorArgs, RegisterVerifierArgs, UpdateDelegationClusterArgs,
+    UpdateVerifierRegistryArgs, VerifierRegistry, VerifierRegistryAction,
+    WriteStateBufferArgs, PENDING_COMMITMENT_STATUS_ACTIVE,
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program_test::{

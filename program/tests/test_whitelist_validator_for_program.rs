@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{pda::program_config_from_program_id, state::ProgramConfig};
+use dpi::legacy::{pda::program_config_from_program_id, state::ProgramConfig};
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{read_file, BanksClient, ProgramTest};
 use solana_sdk::{
@@ -19,7 +19,7 @@ async fn test_whitelist_validator_for_program() {
     // Setup
     let (banks, _, validator, blockhash) = setup_program_test_env().await;
 
-    let ix = dpi::instruction_builder::whitelist_validator_for_program(
+    let ix = dpi::legacy::instruction_builder::whitelist_validator_for_program(
         validator.pubkey(),
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID,
@@ -53,7 +53,7 @@ async fn test_remove_validator_for_program() {
     // Setup
     let (banks, _, validator, blockhash) = setup_program_test_env().await;
 
-    let ix = dpi::instruction_builder::whitelist_validator_for_program(
+    let ix = dpi::legacy::instruction_builder::whitelist_validator_for_program(
         validator.pubkey(),
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID,
@@ -70,7 +70,7 @@ async fn test_remove_validator_for_program() {
     assert!(res.is_ok());
 
     // Remove the validator
-    let ix = dpi::instruction_builder::whitelist_validator_for_program(
+    let ix = dpi::legacy::instruction_builder::whitelist_validator_for_program(
         validator.pubkey(),
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID,

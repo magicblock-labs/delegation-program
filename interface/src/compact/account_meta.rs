@@ -6,7 +6,7 @@ use borsh::{BorshDeserialize, BorshSerialize};
 use serde::{Deserialize, Serialize};
 
 use crate::{
-    args::MaybeEncryptedAccountMeta, compact::ClearText, compat::borsh,
+    compact::ClearText, compat::borsh, legacy::args::MaybeEncryptedAccountMeta,
 };
 
 const ACCOUNT_INDEX_MASK: u8 = 0b0011_1111;

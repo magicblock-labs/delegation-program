@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::pda::{
+use dpi::legacy::pda::{
     delegation_metadata_pda_from_delegated_account,
     delegation_record_pda_from_delegated_account,
 };
@@ -31,7 +31,7 @@ async fn test_undelegate_confined_account() {
     let data_before = delegated_before.data.clone();
 
     // Submit the admin-only undelegate (confined) tx
-    let ix = dpi::instruction_builder::undelegate_confined_account(
+    let ix = dpi::legacy::instruction_builder::undelegate_confined_account(
         admin.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

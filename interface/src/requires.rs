@@ -8,7 +8,7 @@ use wheels::require_eq_keys;
 
 use crate::{
     error::DlpError,
-    pda::{
+    legacy::pda::{
         self, program_config_from_program_id,
         validator_fees_vault_pda_from_validator,
     },
@@ -624,7 +624,7 @@ pub fn require_authorization(
 
         require_eq_keys!(
             &Address::from(
-                crate::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes()
+                crate::legacy::consts::DEFAULT_VALIDATOR_IDENTITY.to_bytes()
             ),
             admin.address(),
             ProgramError::IncorrectAuthority
@@ -636,7 +636,7 @@ pub fn require_authorization(
     {
         // Derive and validate program data address
         require_eq_keys!(
-            &crate::consts::DELEGATION_PROGRAM_DATA_ID,
+            &crate::legacy::consts::DELEGATION_PROGRAM_DATA_ID,
             program_data.address(),
             ProgramError::IncorrectAuthority
         );

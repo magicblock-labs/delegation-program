@@ -1,19 +1,24 @@
-mod call_handler;
-mod commit_state;
-mod delegate;
-mod delegate_ephemeral_balance;
-mod delegate_with_actions;
-mod top_up_ephemeral_balance;
-mod types;
-mod validator_claim_fees;
-mod whitelist_validator_for_program;
+// V2 processors decode args from `instruction_data[1..]` after the one-byte
+// instruction tag, so v2 instruction args use `buffer_offset = 1`.
 
-pub use call_handler::*;
-pub use commit_state::*;
-pub use delegate::*;
-pub use delegate_ephemeral_balance::*;
-pub use delegate_with_actions::*;
-pub use top_up_ephemeral_balance::*;
-pub use types::*;
-pub use validator_claim_fees::*;
-pub use whitelist_validator_for_program::*;
+mod challenger_reveal;
+mod init_delegation_cluster;
+mod propose_commitment;
+mod raise_challenge;
+mod register_operator;
+mod register_verifier;
+mod resolve_dispute;
+mod update_delegation_cluster;
+mod update_verifier_registry;
+mod write_state_buffer;
+
+pub use challenger_reveal::*;
+pub use init_delegation_cluster::*;
+pub use propose_commitment::*;
+pub use raise_challenge::*;
+pub use register_operator::*;
+pub use register_verifier::*;
+pub use resolve_dispute::*;
+pub use update_delegation_cluster::*;
+pub use update_verifier_registry::*;
+pub use write_state_buffer::*;

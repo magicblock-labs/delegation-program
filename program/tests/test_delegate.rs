@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     pda::{
         delegate_buffer_pda_from_delegated_account_and_owner_program,
         delegation_metadata_pda_from_delegated_account,

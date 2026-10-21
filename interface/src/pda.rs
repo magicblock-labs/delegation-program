@@ -1,221 +1,95 @@
 use crate::compat::Pubkey;
 
-pub const DELEGATION_RECORD_TAG: &[u8] = b"delegation";
-#[macro_export]
-macro_rules! delegation_record_seeds_from_delegated_account {
-    ($delegated_account: expr) => {
+pub const DELEGATION_CLUSTER_SEED: &[u8] = b"delegation-cluster";
+pub const OPERATOR_BOND_SEED: &[u8] = b"operator-bond";
+pub const VERIFIER_BOND_SEED: &[u8] = b"verifier-bond";
+pub const VERIFIER_REGISTRY_SEED: &[u8] = b"verifier-registry";
+pub const STATE_BUFFER_SEED: &[u8] = b"state-buffer";
+pub const PENDING_COMMITMENT_SEED: &[u8] = b"pending-commitment";
+pub const CHALLENGE_SEED: &[u8] = b"challenge";
+
+// TODO (snawaz): Precompute these addresses if PDA derivation becomes const-safe.
+
+pub fn delegation_cluster_pda(cluster_id: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[DELEGATION_CLUSTER_SEED, cluster_id.as_ref()],
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn verifier_registry_pda(delegation_cluster: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[VERIFIER_REGISTRY_SEED, delegation_cluster.as_ref()],
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn operator_bond_pda(delegation_cluster: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[OPERATOR_BOND_SEED, delegation_cluster.as_ref()],
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn verifier_bond_pda(
+    delegation_cluster: &Pubkey,
+    verifier: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
         &[
-            $crate::pda::DELEGATION_RECORD_TAG,
-            &$delegated_account.as_ref(),
-        ]
-    };
+            VERIFIER_BOND_SEED,
+            delegation_cluster.as_ref(),
+            verifier.as_ref(),
+        ],
+        &crate::id(),
+    )
+    .0
 }
 
-pub const DELEGATION_METADATA_TAG: &[u8] = b"delegation-metadata";
-#[macro_export]
-macro_rules! delegation_metadata_seeds_from_delegated_account {
-    ($delegated_account: expr) => {
+pub fn state_buffer_pda(
+    account: &Pubkey,
+    commit_id: u64,
+    authority: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
         &[
-            $crate::pda::DELEGATION_METADATA_TAG,
-            &$delegated_account.as_ref(),
-        ]
-    };
+            STATE_BUFFER_SEED,
+            account.as_ref(),
+            &commit_id.to_le_bytes(),
+            authority.as_ref(),
+        ],
+        &crate::id(),
+    )
+    .0
 }
 
-pub const COMMIT_STATE_TAG: &[u8] = b"state-diff";
-#[macro_export]
-macro_rules! commit_state_seeds_from_delegated_account {
-    ($delegated_account: expr) => {
-        &[$crate::pda::COMMIT_STATE_TAG, &$delegated_account.as_ref()]
-    };
-}
-
-pub const COMMIT_RECORD_TAG: &[u8] = b"commit-state-record";
-#[macro_export]
-macro_rules! commit_record_seeds_from_delegated_account {
-    ($delegated_account: expr) => {
-        &[$crate::pda::COMMIT_RECORD_TAG, &$delegated_account.as_ref()]
-    };
-}
-
-pub const DELEGATE_BUFFER_TAG: &[u8] = b"buffer";
-#[macro_export]
-macro_rules! delegate_buffer_seeds_from_delegated_account {
-    ($delegated_account: expr) => {
+pub fn pending_commitment_pda(account: &Pubkey, commit_id: u64) -> Pubkey {
+    Pubkey::find_program_address(
         &[
-            $crate::pda::DELEGATE_BUFFER_TAG,
-            &$delegated_account.as_ref(),
-        ]
-    };
+            PENDING_COMMITMENT_SEED,
+            account.as_ref(),
+            &commit_id.to_le_bytes(),
+        ],
+        &crate::id(),
+    )
+    .0
 }
 
-pub const UNDELEGATE_BUFFER_TAG: &[u8] = b"undelegate-buffer";
-#[macro_export]
-macro_rules! undelegate_buffer_seeds_from_delegated_account {
-    ($delegated_account: expr) => {
+pub fn challenge_pda(
+    account: &Pubkey,
+    commit_id: u64,
+    challenger: &Pubkey,
+) -> Pubkey {
+    Pubkey::find_program_address(
         &[
-            $crate::pda::UNDELEGATE_BUFFER_TAG,
-            &$delegated_account.as_ref(),
-        ]
-    };
-}
-
-pub const UNDELEGATION_REQUEST_TAG: &[u8] = b"undelegation-request";
-#[macro_export]
-macro_rules! undelegation_request_seeds_from_delegated_account {
-    ($delegated_account: expr) => {
-        &[
-            $crate::pda::UNDELEGATION_REQUEST_TAG,
-            &$delegated_account.as_ref(),
-        ]
-    };
-}
-
-#[macro_export]
-macro_rules! fees_vault_seeds {
-    () => {
-        &[b"fees-vault"]
-    };
-}
-
-pub const VALIDATOR_FEES_VAULT_TAG: &[u8] = b"v-fees-vault";
-#[macro_export]
-macro_rules! validator_fees_vault_seeds_from_validator {
-    ($validator: expr) => {
-        &[$crate::pda::VALIDATOR_FEES_VAULT_TAG, &$validator.as_ref()]
-    };
-}
-
-pub const PROGRAM_CONFIG_TAG: &[u8] = b"p-conf";
-#[macro_export]
-macro_rules! program_config_seeds_from_program_id {
-    ($program_id: expr) => {
-        &[$crate::pda::PROGRAM_CONFIG_TAG, &$program_id.as_ref()]
-    };
-}
-
-pub const MAGIC_FEE_VAULT_TAG: &[u8] = b"magic-fee-vault";
-#[macro_export]
-macro_rules! magic_fee_vault_seeds_from_validator {
-    ($validator: expr) => {
-        &[$crate::pda::MAGIC_FEE_VAULT_TAG, &$validator.as_ref()]
-    };
-}
-
-pub fn magic_fee_vault_pda_from_validator(validator: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(
-        magic_fee_vault_seeds_from_validator!(validator),
-        &crate::id(),
-    )
-    .0
-}
-
-pub const EPHEMERAL_BALANCE_TAG: &[u8] = b"balance";
-#[macro_export]
-macro_rules! ephemeral_balance_seeds_from_payer {
-    ($payer: expr, $index: expr) => {
-        &[
-            $crate::pda::EPHEMERAL_BALANCE_TAG,
-            &$payer.as_ref(),
-            &[$index],
-        ]
-    };
-}
-
-pub fn delegation_record_pda_from_delegated_account(
-    delegated_account: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        delegation_record_seeds_from_delegated_account!(delegated_account),
-        &crate::id(),
-    )
-    .0
-}
-
-pub fn delegation_metadata_pda_from_delegated_account(
-    delegated_account: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        delegation_metadata_seeds_from_delegated_account!(delegated_account),
-        &crate::id(),
-    )
-    .0
-}
-
-pub fn commit_state_pda_from_delegated_account(
-    delegated_account: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        commit_state_seeds_from_delegated_account!(delegated_account),
-        &crate::id(),
-    )
-    .0
-}
-
-pub fn commit_record_pda_from_delegated_account(
-    delegated_account: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        commit_record_seeds_from_delegated_account!(delegated_account),
-        &crate::id(),
-    )
-    .0
-}
-
-pub fn delegate_buffer_pda_from_delegated_account_and_owner_program(
-    delegated_account: &Pubkey,
-    owner_program: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        delegate_buffer_seeds_from_delegated_account!(delegated_account),
-        owner_program,
-    )
-    .0
-}
-
-pub fn undelegate_buffer_pda_from_delegated_account(
-    delegated_account: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        undelegate_buffer_seeds_from_delegated_account!(delegated_account),
-        &crate::id(),
-    )
-    .0
-}
-
-pub fn undelegation_request_pda_from_delegated_account(
-    delegated_account: &Pubkey,
-) -> Pubkey {
-    Pubkey::find_program_address(
-        undelegation_request_seeds_from_delegated_account!(delegated_account),
-        &crate::id(),
-    )
-    .0
-}
-
-pub fn fees_vault_pda() -> Pubkey {
-    Pubkey::find_program_address(fees_vault_seeds!(), &crate::id()).0
-}
-
-pub fn validator_fees_vault_pda_from_validator(validator: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(
-        validator_fees_vault_seeds_from_validator!(validator),
-        &crate::id(),
-    )
-    .0
-}
-
-pub fn program_config_from_program_id(program_id: &Pubkey) -> Pubkey {
-    Pubkey::find_program_address(
-        program_config_seeds_from_program_id!(program_id),
-        &crate::id(),
-    )
-    .0
-}
-
-pub fn ephemeral_balance_pda_from_payer(payer: &Pubkey, index: u8) -> Pubkey {
-    Pubkey::find_program_address(
-        ephemeral_balance_seeds_from_payer!(payer, index),
+            CHALLENGE_SEED,
+            account.as_ref(),
+            &commit_id.to_le_bytes(),
+            challenger.as_ref(),
+        ],
         &crate::id(),
     )
     .0

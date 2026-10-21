@@ -1,0 +1,90 @@
+use solana_program::{
+    instruction::{AccountMeta, Instruction},
+    pubkey::Pubkey,
+};
+use solana_sdk_ids::system_program;
+
+use crate::{
+    compat::{borsh::to_vec, Compatize, Modernize},
+    legacy::{
+        args::CommitDiffArgs,
+        discriminator::DlpDiscriminator,
+        pda::{
+            commit_record_pda_from_delegated_account,
+            commit_state_pda_from_delegated_account,
+            delegation_metadata_pda_from_delegated_account,
+            delegation_record_pda_from_delegated_account,
+            program_config_from_program_id,
+            validator_fees_vault_pda_from_validator,
+        },
+        total_size_budget, AccountSizeClass, DLP_PROGRAM_DATA_SIZE_CLASS,
+    },
+};
+
+/// Builds a commit state instruction.
+/// See [crate::processor::fast::process_commit_diff] for docs.
+pub fn commit_diff(
+    validator: Pubkey,
+    delegated_account: Pubkey,
+    delegated_account_owner: Pubkey,
+    commit_args: CommitDiffArgs,
+) -> Instruction {
+    let commit_args = to_vec(&commit_args).unwrap();
+    let validator_compat = validator.compatize();
+    let delegated_account_compat = delegated_account.compatize();
+    let delegated_account_owner_compat = delegated_account_owner.compatize();
+    let delegation_record_pda =
+        delegation_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
+    let commit_state_pda =
+        commit_state_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
+    let commit_record_pda =
+        commit_record_pda_from_delegated_account(&delegated_account_compat)
+            .modernize();
+    let validator_fees_vault_pda =
+        validator_fees_vault_pda_from_validator(&validator_compat).modernize();
+    let delegation_metadata_pda =
+        delegation_metadata_pda_from_delegated_account(
+            &delegated_account_compat,
+        )
+        .modernize();
+    let program_config_pda =
+        program_config_from_program_id(&delegated_account_owner_compat)
+            .modernize();
+    Instruction {
+        program_id: crate::id().modernize(),
+        accounts: vec![
+            AccountMeta::new(validator, true),
+            AccountMeta::new_readonly(delegated_account, false),
+            AccountMeta::new(commit_state_pda, false),
+            AccountMeta::new(commit_record_pda, false),
+            AccountMeta::new_readonly(delegation_record_pda, false),
+            AccountMeta::new(delegation_metadata_pda, false),
+            AccountMeta::new_readonly(validator_fees_vault_pda, false),
+            AccountMeta::new_readonly(program_config_pda, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: [DlpDiscriminator::CommitDiff.to_vec(), commit_args].concat(),
+    }
+}
+
+///
+/// Returns accounts-data-size budget for commit_diff instruction.
+///
+/// This value can be used with ComputeBudgetInstruction::SetLoadedAccountsDataSizeLimit
+///
+pub fn commit_diff_size_budget(delegated_account: AccountSizeClass) -> u32 {
+    total_size_budget(&[
+        DLP_PROGRAM_DATA_SIZE_CLASS,
+        AccountSizeClass::Tiny, // validator
+        delegated_account,      // delegated_account
+        delegated_account,      // commit_state_pda
+        AccountSizeClass::Tiny, // commit_record_pda
+        AccountSizeClass::Tiny, // delegation_record_pda
+        AccountSizeClass::Tiny, // delegation_metadata_pda
+        AccountSizeClass::Tiny, // validator_fees_vault_pda
+        AccountSizeClass::Tiny, // program_config_pda
+        AccountSizeClass::Tiny, // system_program
+    ])
+}

@@ -1,26 +1,24 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    pda::{
+    instruction_builder::{
+        challenger_reveal, propose_commitment, raise_challenge,
+        register_operator, register_verifier, update_delegation_cluster,
+        update_verifier_registry, write_state_buffer,
+    },
+    legacy::pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account, fees_vault_pda,
     },
-    v2::{
-        instruction_builder::{
-            challenger_reveal, propose_commitment, raise_challenge,
-            register_operator, register_verifier, update_delegation_cluster,
-            update_verifier_registry, write_state_buffer,
-        },
-        pda::{challenge_pda, pending_commitment_pda, state_buffer_pda},
-        Challenge, ChallengeConfig, ChallengerRevealArgs, PendingCommitment,
-        ProposeCommitmentArgs, RaiseChallengeArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, UpdateDelegationClusterArgs,
-        UpdateVerifierRegistryArgs, VerifierRegistryAction,
-        WriteStateBufferArgs, CHALLENGE_OUTCOME_INVALID_REVEAL,
-        CHALLENGE_OUTCOME_MATCHING_STATE_CHALLENGER_PENALIZED,
-        CHALLENGE_OUTCOME_NONE, CHALLENGE_STATUS_AWAITING_RESOLVER,
-        CHALLENGE_STATUS_TERMINAL, PENDING_COMMITMENT_STATUS_ACTIVE,
-        PENDING_COMMITMENT_STATUS_AWAITING_DISPUTE_RESOLUTION,
-    },
+    pda::{challenge_pda, pending_commitment_pda, state_buffer_pda},
+    Challenge, ChallengeConfig, ChallengerRevealArgs, PendingCommitment,
+    ProposeCommitmentArgs, RaiseChallengeArgs, RegisterOperatorArgs,
+    RegisterVerifierArgs, UpdateDelegationClusterArgs,
+    UpdateVerifierRegistryArgs, VerifierRegistryAction, WriteStateBufferArgs,
+    CHALLENGE_OUTCOME_INVALID_REVEAL,
+    CHALLENGE_OUTCOME_MATCHING_STATE_CHALLENGER_PENALIZED,
+    CHALLENGE_OUTCOME_NONE, CHALLENGE_STATUS_AWAITING_RESOLVER,
+    CHALLENGE_STATUS_TERMINAL, PENDING_COMMITMENT_STATUS_ACTIVE,
+    PENDING_COMMITMENT_STATUS_AWAITING_DISPUTE_RESOLUTION,
 };
 use solana_program::{native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{
@@ -378,7 +376,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
+        dpi::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;
     let operator_state_data = vec![9, 8, 7, 6, 5];

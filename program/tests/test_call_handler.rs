@@ -3,16 +3,18 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
 use dpi::{
-    args::CallHandlerArgs,
     compat::borsh::{to_vec, BorshDeserialize, BorshSerialize},
     ephemeral_balance_seeds_from_payer,
-    pda::{
-        commit_record_pda_from_delegated_account,
-        commit_state_pda_from_delegated_account,
-        delegation_metadata_pda_from_delegated_account,
-        delegation_record_pda_from_delegated_account,
-        ephemeral_balance_pda_from_payer, fees_vault_pda,
-        validator_fees_vault_pda_from_validator,
+    legacy::{
+        args::CallHandlerArgs,
+        pda::{
+            commit_record_pda_from_delegated_account,
+            commit_state_pda_from_delegated_account,
+            delegation_metadata_pda_from_delegated_account,
+            delegation_record_pda_from_delegated_account,
+            ephemeral_balance_pda_from_payer, fees_vault_pda,
+            validator_fees_vault_pda_from_validator,
+        },
     },
 };
 use solana_program::{
@@ -340,11 +342,11 @@ async fn test_finalize_call_handler() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dpi::instruction_builder::finalize(
+    let finalize_ix = dpi::legacy::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let call_handler_ix = dpi::instruction_builder::call_handler(
+    let call_handler_ix = dpi::legacy::instruction_builder::call_handler(
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         payer.pubkey(),         // escrow authority
@@ -388,17 +390,17 @@ async fn test_undelegate_call_handler() {
     let (banks, payer, validator, blockhash) = setup_program_test_env().await;
 
     let transfer_destination = Keypair::new();
-    let finalize_ix = dpi::instruction_builder::finalize(
+    let finalize_ix = dpi::legacy::instruction_builder::finalize(
         validator.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let undelegate_ix = dpi::instruction_builder::undelegate(
+    let undelegate_ix = dpi::legacy::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         validator.pubkey(),
     );
-    let call_handler_ix = dpi::instruction_builder::call_handler(
+    let call_handler_ix = dpi::legacy::instruction_builder::call_handler(
         validator.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         payer.pubkey(),         // escrow authority
@@ -455,11 +457,11 @@ async fn test_finalize_invalid_escrow_call_handler() {
 
     // Submit the finalize with handler tx
     let transfer_destination = Keypair::new();
-    let finalize_ix = dpi::instruction_builder::finalize(
+    let finalize_ix = dpi::legacy::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let call_handler_ix = dpi::instruction_builder::call_handler(
+    let call_handler_ix = dpi::legacy::instruction_builder::call_handler(
         authority.pubkey(),
         DELEGATED_PDA_OWNER_ID, // destination program
         DELEGATED_PDA_ID,
@@ -490,41 +492,43 @@ async fn test_undelegate_invalid_escow_call_handler() {
 
     // Submit the finalize with handler tx
     let destination = Keypair::new();
-    let finalize_ix = dpi::instruction_builder::finalize(
+    let finalize_ix = dpi::legacy::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let finalize_call_handler_ix = dpi::instruction_builder::call_handler(
-        authority.pubkey(),
-        DELEGATED_PDA_OWNER_ID, // handler program
-        DELEGATED_PDA_ID,
-        vec![AccountMeta::new(destination.pubkey(), false)],
-        CallHandlerArgs {
-            escrow_index: 0,
-            data: UNDELEGATE_HANDLER_DISCRIMINATOR.to_vec(),
-        },
-    );
+    let finalize_call_handler_ix =
+        dpi::legacy::instruction_builder::call_handler(
+            authority.pubkey(),
+            DELEGATED_PDA_OWNER_ID, // handler program
+            DELEGATED_PDA_ID,
+            vec![AccountMeta::new(destination.pubkey(), false)],
+            CallHandlerArgs {
+                escrow_index: 0,
+                data: UNDELEGATE_HANDLER_DISCRIMINATOR.to_vec(),
+            },
+        );
 
-    let undelegate_ix = dpi::instruction_builder::undelegate(
+    let undelegate_ix = dpi::legacy::instruction_builder::undelegate(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
         authority.pubkey(),
     );
-    let undelegate_call_handler_ix = dpi::instruction_builder::call_handler(
-        authority.pubkey(),
-        DELEGATED_PDA_OWNER_ID, // handler program
-        DELEGATED_PDA_ID,
-        vec![AccountMeta::new(destination.pubkey(), false)],
-        CallHandlerArgs {
-            escrow_index: 0,
-            data: [
-                UNDELEGATE_HANDLER_DISCRIMINATOR.to_vec(),
-                to_vec(&PRIZE).unwrap(),
-            ]
-            .concat(),
-        },
-    );
+    let undelegate_call_handler_ix =
+        dpi::legacy::instruction_builder::call_handler(
+            authority.pubkey(),
+            DELEGATED_PDA_OWNER_ID, // handler program
+            DELEGATED_PDA_ID,
+            vec![AccountMeta::new(destination.pubkey(), false)],
+            CallHandlerArgs {
+                escrow_index: 0,
+                data: [
+                    UNDELEGATE_HANDLER_DISCRIMINATOR.to_vec(),
+                    to_vec(&PRIZE).unwrap(),
+                ]
+                .concat(),
+            },
+        );
     let tx = Transaction::new_signed_with_payer(
         &[
             finalize_ix,

@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     consts::{COMMIT_FEE_LAMPORTS, SESSION_FEE_LAMPORTS},
     pda::{
         delegation_metadata_pda_from_delegated_account,
@@ -55,7 +55,7 @@ async fn test_commit_fees_on_undelegation() {
         .min(record_rent + metadata_rent);
     let expected_fees_vault_fee = expected_total_fees / 10;
 
-    let ix = dpi::instruction_builder::undelegate(
+    let ix = dpi::legacy::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

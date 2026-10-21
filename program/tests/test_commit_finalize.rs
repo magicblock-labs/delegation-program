@@ -2,15 +2,17 @@ use assertables::assert_ge;
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
 use dpi::{
-    args::CommitFinalizeArgs,
     diff::compute_diff,
     error::DlpError,
-    pda::{
-        delegation_metadata_pda_from_delegated_account,
-        delegation_record_pda_from_delegated_account,
-        validator_fees_vault_pda_from_validator,
+    legacy::{
+        args::CommitFinalizeArgs,
+        pda::{
+            delegation_metadata_pda_from_delegated_account,
+            delegation_record_pda_from_delegated_account,
+            validator_fees_vault_pda_from_validator,
+        },
+        state::{DelegationMetadata, DelegationRecord},
     },
-    state::{DelegationMetadata, DelegationRecord},
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{
@@ -57,7 +59,7 @@ async fn run_test_commit_finalize(
     let new_account_balance =
         solana_program::rent::Rent::default().minimum_balance(new_state.len());
 
-    let (ix, pdas) = dpi::instruction_builder::commit_finalize(
+    let (ix, pdas) = dpi::legacy::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {
@@ -130,7 +132,7 @@ async fn run_test_commit_finalize(
 
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        dpi::state::UndelegationRequester::Validator
+        dpi::legacy::state::UndelegationRequester::Validator
     );
 }
 
@@ -143,7 +145,7 @@ async fn test_commit_finalize_out_of_order() {
 
     let new_account_balance = 1_000_000;
 
-    let (ix, _pdas) = dpi::instruction_builder::commit_finalize(
+    let (ix, _pdas) = dpi::legacy::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {
@@ -298,7 +300,7 @@ async fn test_commit_finalize_lamports_increase() {
         )
         .await;
 
-    let (ix, pdas) = dpi::instruction_builder::commit_finalize(
+    let (ix, pdas) = dpi::legacy::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {
@@ -376,7 +378,7 @@ async fn test_commit_finalize_lamports_decrease() {
         )
         .await;
 
-    let (ix, pdas) = dpi::instruction_builder::commit_finalize(
+    let (ix, pdas) = dpi::legacy::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {
@@ -439,7 +441,7 @@ async fn test_commit_finalize_rejects_underfunded_account() {
         )
         .await;
 
-    let (ix, pdas) = dpi::instruction_builder::commit_finalize(
+    let (ix, pdas) = dpi::legacy::instruction_builder::commit_finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         &mut CommitFinalizeArgs {

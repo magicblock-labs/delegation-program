@@ -1,5 +1,5 @@
 use delegation_program_interface as dpi;
-use dpi::v2::{
+use dpi::{
     instruction_builder::init_delegation_cluster, pda::delegation_cluster_pda,
     ChallengeConfig, InitDelegationClusterArgs,
 };

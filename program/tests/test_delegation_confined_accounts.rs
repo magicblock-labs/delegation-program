@@ -1,8 +1,11 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
 use dpi::{
-    args::DelegateArgs, error::DlpError,
-    pda::delegation_record_pda_from_delegated_account, state::DelegationRecord,
+    error::DlpError,
+    legacy::{
+        args::DelegateArgs, pda::delegation_record_pda_from_delegated_account,
+        state::DelegationRecord,
+    },
 };
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
@@ -33,7 +36,7 @@ async fn test_delegation_confined_accounts_rejects_system_validator() {
     let assign_res = banks.process_transaction(assign_tx).await;
     assert!(assign_res.is_ok());
 
-    let ix = dpi::instruction_builder::delegate(
+    let ix = dpi::legacy::instruction_builder::delegate(
         payer.pubkey(),
         delegated.pubkey(),
         None,
@@ -81,7 +84,7 @@ async fn test_delegation_confined_accounts_allows_system_validator() {
     let assign_res = banks.process_transaction(assign_tx).await;
     assert!(assign_res.is_ok());
 
-    let ix = dpi::instruction_builder::delegate_with_any_validator(
+    let ix = dpi::legacy::instruction_builder::delegate_with_any_validator(
         payer.pubkey(),
         delegated.pubkey(),
         None,
