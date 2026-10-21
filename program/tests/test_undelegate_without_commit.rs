@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::pda::{
+use dpi::legacy::pda::{
     commit_state_pda_from_delegated_account,
     delegation_metadata_pda_from_delegated_account,
     delegation_record_pda_from_delegated_account, fees_vault_pda,
@@ -40,7 +40,7 @@ async fn test_undelegate_without_commit() {
         delegated_pda_state_before_undelegation.data.clone();
 
     // Submit the undelegate tx
-    let ix = dpi::instruction_builder::undelegate(
+    let ix = dpi::legacy::instruction_builder::undelegate(
         validator.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,

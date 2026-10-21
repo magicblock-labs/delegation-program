@@ -1,24 +1,22 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    pda::{
+    instruction_builder::{
+        approve_commitment, finalize_commitment, propose_commitment,
+        raise_challenge, register_operator, register_verifier,
+        update_delegation_cluster, update_verifier_registry,
+        write_state_buffer,
+    },
+    legacy::pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account,
     },
-    v2::{
-        instruction_builder::{
-            approve_commitment, finalize_commitment, propose_commitment,
-            raise_challenge, register_operator, register_verifier,
-            update_delegation_cluster, update_verifier_registry,
-            write_state_buffer,
-        },
-        pda::{challenge_pda, pending_commitment_pda},
-        Challenge, ChallengeConfig, PendingCommitment, ProposeCommitmentArgs,
-        RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
-        UpdateDelegationClusterArgs, UpdateVerifierRegistryArgs,
-        VerifierRegistryAction, WriteStateBufferArgs, CHALLENGE_OUTCOME_NONE,
-        CHALLENGE_STATUS_AWAITING_REVEAL,
-        PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
-    },
+    pda::{challenge_pda, pending_commitment_pda},
+    Challenge, ChallengeConfig, PendingCommitment, ProposeCommitmentArgs,
+    RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
+    UpdateDelegationClusterArgs, UpdateVerifierRegistryArgs,
+    VerifierRegistryAction, WriteStateBufferArgs, CHALLENGE_OUTCOME_NONE,
+    CHALLENGE_STATUS_AWAITING_REVEAL,
+    PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
 };
 use solana_program::{native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{
@@ -257,7 +255,7 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
+        dpi::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;
     let final_state_data = vec![9, 8, 7, 6, 5];

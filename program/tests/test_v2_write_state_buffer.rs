@@ -1,5 +1,5 @@
 use delegation_program_interface as dpi;
-use dpi::v2::{
+use dpi::{
     instruction_builder::write_state_buffer, pda::state_buffer_pda,
     StateBuffer, WriteStateBufferArgs,
 };

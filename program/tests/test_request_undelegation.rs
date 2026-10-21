@@ -1,18 +1,22 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
 use dpi::{
-    args::{CommitFinalizeArgs, CommitStateArgs},
-    consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
     error::DlpError,
-    pda::{
-        commit_record_pda_from_delegated_account,
-        commit_state_pda_from_delegated_account,
-        delegation_metadata_pda_from_delegated_account,
-        delegation_record_pda_from_delegated_account, fees_vault_pda,
-        undelegation_request_pda_from_delegated_account,
-        validator_fees_vault_pda_from_validator,
+    legacy::{
+        args::{CommitFinalizeArgs, CommitStateArgs},
+        consts::DEFAULT_UNDELEGATION_REQUEST_TIMEOUT_SLOTS,
+        pda::{
+            commit_record_pda_from_delegated_account,
+            commit_state_pda_from_delegated_account,
+            delegation_metadata_pda_from_delegated_account,
+            delegation_record_pda_from_delegated_account, fees_vault_pda,
+            undelegation_request_pda_from_delegated_account,
+            validator_fees_vault_pda_from_validator,
+        },
+        state::{
+            DelegationMetadata, UndelegationRequest, UndelegationRequester,
+        },
     },
-    state::{DelegationMetadata, UndelegationRequest, UndelegationRequester},
 };
 use solana_program::{
     account_info::AccountInfo,
@@ -150,7 +154,7 @@ async fn test_request_undelegation_rejects_missing_delegated_signer() {
             ),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: dpi::discriminator::DlpDiscriminator::RequestUndelegation
+        data: dpi::legacy::discriminator::DlpDiscriminator::RequestUndelegation
             .to_vec(),
     };
 
@@ -179,7 +183,7 @@ async fn test_request_undelegation_rejects_on_curve_delegated_account() {
     })
     .await;
 
-    let ix = dpi::instruction_builder::request_undelegation(
+    let ix = dpi::legacy::instruction_builder::request_undelegation(
         payer.pubkey(),
         delegated_account,
         system_program::id(),
@@ -215,16 +219,17 @@ async fn test_undelegate_with_request_closes_request() {
     let request_pda =
         undelegation_request_pda_from_delegated_account(&DELEGATED_PDA_ID);
 
-    let ix_finalize = dpi::instruction_builder::finalize(
+    let ix_finalize = dpi::legacy::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
-    let ix_undelegate = dpi::instruction_builder::undelegate_with_request(
-        authority.pubkey(),
-        DELEGATED_PDA_ID,
-        DELEGATED_PDA_OWNER_ID,
-        authority.pubkey(),
-    );
+    let ix_undelegate =
+        dpi::legacy::instruction_builder::undelegate_with_request(
+            authority.pubkey(),
+            DELEGATED_PDA_ID,
+            DELEGATED_PDA_OWNER_ID,
+            authority.pubkey(),
+        );
 
     let tx = Transaction::new_signed_with_payer(
         &[ix_finalize, ix_undelegate],
@@ -254,7 +259,7 @@ async fn test_commit_state_rejects_owner_request_without_allow() {
 
     let request_ix =
         request_undelegation_from_owner_program(authority.pubkey());
-    let commit_ix = dpi::instruction_builder::commit_state(
+    let commit_ix = dpi::legacy::instruction_builder::commit_state(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -291,7 +296,7 @@ async fn test_commit_state_preserves_owner_request_with_allow() {
 
     let request_ix =
         request_undelegation_from_owner_program(authority.pubkey());
-    let commit_ix = dpi::instruction_builder::commit_state(
+    let commit_ix = dpi::legacy::instruction_builder::commit_state(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -341,12 +346,13 @@ async fn test_commit_finalize_rejects_owner_request_without_allow() {
         bumps: Default::default(),
         reserved_padding: Default::default(),
     };
-    let (commit_finalize_ix, _) = dpi::instruction_builder::commit_finalize(
-        authority.pubkey(),
-        DELEGATED_PDA_ID,
-        &mut args,
-        &COMMIT_NEW_STATE_ACCOUNT_DATA,
-    );
+    let (commit_finalize_ix, _) =
+        dpi::legacy::instruction_builder::commit_finalize(
+            authority.pubkey(),
+            DELEGATED_PDA_ID,
+            &mut args,
+            &COMMIT_NEW_STATE_ACCOUNT_DATA,
+        );
     let tx = Transaction::new_signed_with_payer(
         &[request_ix, commit_finalize_ix],
         Some(&authority.pubkey()),
@@ -381,12 +387,13 @@ async fn test_commit_finalize_preserves_owner_request_with_allow() {
         bumps: Default::default(),
         reserved_padding: Default::default(),
     };
-    let (commit_finalize_ix, _) = dpi::instruction_builder::commit_finalize(
-        authority.pubkey(),
-        DELEGATED_PDA_ID,
-        &mut args,
-        &COMMIT_NEW_STATE_ACCOUNT_DATA,
-    );
+    let (commit_finalize_ix, _) =
+        dpi::legacy::instruction_builder::commit_finalize(
+            authority.pubkey(),
+            DELEGATED_PDA_ID,
+            &mut args,
+            &COMMIT_NEW_STATE_ACCOUNT_DATA,
+        );
     let tx = Transaction::new_signed_with_payer(
         &[request_ix, commit_finalize_ix],
         Some(&authority.pubkey()),
@@ -428,7 +435,7 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
     );
     banks.process_transaction(request_tx).await.unwrap();
 
-    let finalize_ix = dpi::instruction_builder::finalize(
+    let finalize_ix = dpi::legacy::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );
@@ -440,7 +447,7 @@ async fn test_undelegate_owner_program_request_without_request_accounts_rejected
     );
     banks.process_transaction(finalize_tx).await.unwrap();
 
-    let undelegate_ix = dpi::instruction_builder::undelegate(
+    let undelegate_ix = dpi::legacy::instruction_builder::undelegate(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -508,7 +515,7 @@ fn imaginary_program_processor_requesting_undelegation_through_cpi(
         return Err(ProgramError::IncorrectProgramId);
     }
 
-    let mut ix = dpi::instruction_builder::request_undelegation(
+    let mut ix = dpi::legacy::instruction_builder::request_undelegation(
         *payer.key,
         *delegated_account.key,
         *program_id,

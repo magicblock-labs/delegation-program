@@ -1,37 +1,33 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    pda::{
+    instruction_builder::{
+        challenger_reveal, finalize_challenger_commitment, finalize_commitment,
+        propose_commitment, raise_challenge, register_operator,
+        register_verifier, resolve_dispute, update_delegation_cluster,
+        update_verifier_registry, write_state_buffer,
+    },
+    legacy::pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account, fees_vault_pda,
     },
-    v2::{
-        instruction_builder::{
-            challenger_reveal, finalize_challenger_commitment,
-            finalize_commitment, propose_commitment, raise_challenge,
-            register_operator, register_verifier, resolve_dispute,
-            update_delegation_cluster, update_verifier_registry,
-            write_state_buffer,
-        },
-        pda::{challenge_pda, operator_bond_pda, pending_commitment_pda},
-        Challenge, ChallengeConfig, ChallengerRevealArgs, OperatorBond,
-        OperatorStatus, PendingCommitment, ProposeCommitmentArgs,
-        RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
-        ResolveDisputeArgs, UpdateDelegationClusterArgs,
-        UpdateVerifierRegistryArgs, VerifierRegistryAction,
-        WriteStateBufferArgs,
-        CHALLENGE_OUTCOME_CHALLENGER_CORRECT_OPERATOR_SLASHED,
-        CHALLENGE_OUTCOME_OPERATOR_CORRECT_CHALLENGER_SLASHED,
-        CHALLENGE_STATUS_AWAITING_RESOLVER, CHALLENGE_STATUS_TERMINAL,
-        DISPUTE_DECISION_CHALLENGER_STATE_CORRECT,
-        DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
-        PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
-        PENDING_COMMITMENT_STATUS_AWAITING_DISPUTE_RESOLUTION,
-        PENDING_COMMITMENT_STATUS_FINALIZED,
-        PENDING_COMMITMENT_STATUS_RESOLVED_CHALLENGER,
-        PENDING_COMMITMENT_STATUS_RESOLVED_OPERATOR,
-        RESOLVED_STATE_SOURCE_CHALLENGER_REVEAL,
-        RESOLVED_STATE_SOURCE_OPERATOR_COMMITMENT,
-    },
+    pda::{challenge_pda, operator_bond_pda, pending_commitment_pda},
+    Challenge, ChallengeConfig, ChallengerRevealArgs, OperatorBond,
+    OperatorStatus, PendingCommitment, ProposeCommitmentArgs,
+    RaiseChallengeArgs, RegisterOperatorArgs, RegisterVerifierArgs,
+    ResolveDisputeArgs, UpdateDelegationClusterArgs,
+    UpdateVerifierRegistryArgs, VerifierRegistryAction, WriteStateBufferArgs,
+    CHALLENGE_OUTCOME_CHALLENGER_CORRECT_OPERATOR_SLASHED,
+    CHALLENGE_OUTCOME_OPERATOR_CORRECT_CHALLENGER_SLASHED,
+    CHALLENGE_STATUS_AWAITING_RESOLVER, CHALLENGE_STATUS_TERMINAL,
+    DISPUTE_DECISION_CHALLENGER_STATE_CORRECT,
+    DISPUTE_DECISION_OPERATOR_STATE_CORRECT,
+    PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL,
+    PENDING_COMMITMENT_STATUS_AWAITING_DISPUTE_RESOLUTION,
+    PENDING_COMMITMENT_STATUS_FINALIZED,
+    PENDING_COMMITMENT_STATUS_RESOLVED_CHALLENGER,
+    PENDING_COMMITMENT_STATUS_RESOLVED_OPERATOR,
+    RESOLVED_STATE_SOURCE_CHALLENGER_REVEAL,
+    RESOLVED_STATE_SOURCE_OPERATOR_COMMITMENT,
 };
 use solana_program::{native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{
@@ -402,7 +398,7 @@ async fn setup_resolve_dispute_env() -> ResolveDisputeEnv {
     challenge_config.resolver = resolver.pubkey();
     challenge_config.min_operator_bond = OPERATOR_STAKE;
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
+        dpi::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let challenge_config = cluster_args.challenge_config.clone().unwrap();
     let committed_owner = Pubkey::new_unique();
     let commit_id = 1;

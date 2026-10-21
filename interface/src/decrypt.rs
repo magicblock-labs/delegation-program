@@ -3,12 +3,12 @@ use solana_signer::Signer;
 use thiserror::Error;
 
 use crate::{
-    args::{
+    compact,
+    encryption::{self, EncryptionError, KEY_LEN},
+    legacy::args::{
         MaybeEncryptedAccountMeta, MaybeEncryptedIxData, MaybeEncryptedPubkey,
         PostDelegationActions,
     },
-    compact,
-    encryption::{self, EncryptionError, KEY_LEN},
     solana_program::instruction::{AccountMeta, Instruction},
 };
 
@@ -280,7 +280,7 @@ mod tests {
 
     use super::*;
     use crate::{
-        instruction_builder::{
+        legacy::instruction_builder::{
             Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
         },
         solana_program::{instruction::AccountMeta, pubkey::Pubkey},

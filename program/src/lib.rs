@@ -6,31 +6,11 @@ pub use ::solana_program;
 pub type RequireError = dpi::error::DlpError;
 
 #[allow(unused_imports)]
-pub(crate) use dpi::{
-    account_size_class, args, compact, consts, discriminator, error, pda,
-    pod_view, requires, state,
-};
+pub(crate) use dpi::{compact, error, requires};
 
 #[cfg(feature = "diff")]
 mod diff;
-#[allow(unused_imports)]
-pub(crate) use dpi::{
-    commit_record_seeds_from_delegated_account,
-    commit_state_seeds_from_delegated_account,
-    delegate_buffer_seeds_from_delegated_account,
-    delegation_metadata_seeds_from_delegated_account,
-    delegation_record_seeds_from_delegated_account,
-    ephemeral_balance_seeds_from_payer, fees_vault_seeds,
-    magic_fee_vault_seeds_from_validator, program_config_seeds_from_program_id,
-    undelegate_buffer_seeds_from_delegated_account,
-    undelegation_request_seeds_from_delegated_account,
-    validator_fees_vault_seeds_from_validator,
-};
 pub use dpi::{id, ID};
-#[allow(unused_imports)]
-pub(crate) use dpi::{
-    require_initialized_pda, require_initialized_pda_fast, require_pda,
-};
 #[cfg(feature = "logging")]
 use solana_program::msg;
 #[allow(unused_imports)]
@@ -41,7 +21,7 @@ pub(crate) use wheels::{
 };
 #[cfg(feature = "processor")]
 use {
-    dpi::discriminator::DlpDiscriminator,
+    dpi::legacy::discriminator::DlpDiscriminator,
     solana_program::{
         account_info::AccountInfo, entrypoint::ProgramResult,
         program_error::ProgramError, pubkey::Pubkey,
@@ -49,10 +29,10 @@ use {
 };
 
 #[cfg(feature = "processor")]
-mod processor;
+mod legacy;
 
 #[cfg(feature = "processor")]
-mod v2;
+mod processor;
 
 #[cfg(feature = "diff")]
 #[allow(unused_imports)]
@@ -93,8 +73,8 @@ pub fn fast_process_instruction(
         ));
     };
 
-    if let Ok(ix) = dpi::v2::DlpV2Instruction::try_from(tag) {
-        return Some(v2::process_instruction(accounts, v2_data, ix));
+    if let Ok(ix) = dpi::DlpV2Instruction::try_from(tag) {
+        return Some(processor::process_instruction(accounts, v2_data, ix));
     }
 
     if data.len() < 8 {
@@ -130,63 +110,63 @@ fn process_v1_fast_instruction(
     data: &[u8],
 ) -> Option<pinocchio::ProgramResult> {
     match discriminator {
-        DlpDiscriminator::Delegate => Some(processor::fast::process_delegate(
-            program_id, accounts, data,
-        )),
+        DlpDiscriminator::Delegate => Some(
+            legacy::processor::fast::process_delegate(program_id, accounts, data),
+        ),
         DlpDiscriminator::DelegateWithAnyValidator => {
-            Some(processor::fast::process_delegate_with_any_validator(
+            Some(legacy::processor::fast::process_delegate_with_any_validator(
                 program_id, accounts, data,
             ))
         }
         DlpDiscriminator::DelegateWithActions => {
-            Some(processor::fast::process_delegate_with_actions(
+            Some(legacy::processor::fast::process_delegate_with_actions(
                 program_id, accounts, data,
             ))
         }
         DlpDiscriminator::CommitState => Some(
-            processor::fast::process_commit_state(program_id, accounts, data),
+            legacy::processor::fast::process_commit_state(program_id, accounts, data),
         ),
         DlpDiscriminator::CommitStateFromBuffer => {
-            Some(processor::fast::process_commit_state_from_buffer(
+            Some(legacy::processor::fast::process_commit_state_from_buffer(
                 program_id, accounts, data,
             ))
         }
         DlpDiscriminator::CommitDiff => Some(
-            processor::fast::process_commit_diff(program_id, accounts, data),
+            legacy::processor::fast::process_commit_diff(program_id, accounts, data),
         ),
         DlpDiscriminator::CommitDiffFromBuffer => {
-            Some(processor::fast::process_commit_diff_from_buffer(
+            Some(legacy::processor::fast::process_commit_diff_from_buffer(
                 program_id, accounts, data,
             ))
         }
         DlpDiscriminator::CommitFinalize => {
-            Some(processor::fast::process_commit_finalize(
+            Some(legacy::processor::fast::process_commit_finalize(
                 program_id, accounts, data,
             ))
         }
         DlpDiscriminator::CommitFinalizeFromBuffer => {
-            Some(processor::fast::process_commit_finalize_from_buffer(
+            Some(legacy::processor::fast::process_commit_finalize_from_buffer(
                 program_id, accounts, data,
             ))
         }
-        DlpDiscriminator::Finalize => Some(processor::fast::process_finalize(
-            program_id, accounts, data,
-        )),
+        DlpDiscriminator::Finalize => Some(
+            legacy::processor::fast::process_finalize(program_id, accounts, data),
+        ),
         DlpDiscriminator::Undelegate => Some(
-            processor::fast::process_undelegate(program_id, accounts, data),
+            legacy::processor::fast::process_undelegate(program_id, accounts, data),
         ),
         DlpDiscriminator::UndelegateConfinedAccount => {
-            Some(processor::fast::process_undelegate_confined_account(
+            Some(legacy::processor::fast::process_undelegate_confined_account(
                 program_id, accounts, data,
             ))
         }
         DlpDiscriminator::RequestUndelegation => {
-            Some(processor::fast::process_request_undelegation(
+            Some(legacy::processor::fast::process_request_undelegation(
                 program_id, accounts, data,
             ))
         }
         DlpDiscriminator::UndelegateWithRollbackAfterTimeout => Some(
-            processor::fast::process_undelegate_with_rollback_after_timeout(
+            legacy::processor::fast::process_undelegate_with_rollback_after_timeout(
                 program_id, accounts, data,
             ),
         ),
@@ -204,7 +184,7 @@ pub fn slow_process_instruction(
         return Err(ProgramError::InvalidInstructionData);
     };
 
-    if dpi::v2::DlpV2Instruction::try_from(tag).is_ok() {
+    if dpi::DlpV2Instruction::try_from(tag).is_ok() {
         return Err(ProgramError::InvalidInstructionData);
     }
 
@@ -219,59 +199,67 @@ pub fn slow_process_instruction(
 
     match ix {
         DlpDiscriminator::InitMagicFeeVault => {
-            processor::process_init_magic_fee_vault(program_id, accounts, data)?
+            legacy::processor::process_init_magic_fee_vault(
+                program_id, accounts, data,
+            )?
         }
         DlpDiscriminator::InitValidatorFeesVault => {
-            processor::process_init_validator_fees_vault(
+            legacy::processor::process_init_validator_fees_vault(
                 program_id, accounts, data,
             )?
         }
         DlpDiscriminator::InitProtocolFeesVault => {
-            processor::process_init_protocol_fees_vault(
+            legacy::processor::process_init_protocol_fees_vault(
                 program_id, accounts, data,
             )?
         }
         DlpDiscriminator::ValidatorClaimFees => {
-            processor::process_validator_claim_fees(program_id, accounts, data)?
+            legacy::processor::process_validator_claim_fees(
+                program_id, accounts, data,
+            )?
         }
         DlpDiscriminator::WhitelistValidatorForProgram => {
-            processor::process_whitelist_validator_for_program(
+            legacy::processor::process_whitelist_validator_for_program(
                 program_id, accounts, data,
             )?
         }
         DlpDiscriminator::TopUpEphemeralBalance => {
-            processor::process_top_up_ephemeral_balance(
+            legacy::processor::process_top_up_ephemeral_balance(
                 program_id, accounts, data,
             )?
         }
         DlpDiscriminator::DelegateEphemeralBalance => {
-            processor::process_delegate_ephemeral_balance(
+            legacy::processor::process_delegate_ephemeral_balance(
                 program_id, accounts, data,
             )?
         }
         DlpDiscriminator::DelegateMagicFeeVault => {
-            processor::process_delegate_magic_fee_vault(
+            legacy::processor::process_delegate_magic_fee_vault(
                 program_id, accounts, data,
             )?
         }
         DlpDiscriminator::CloseEphemeralBalance => {
-            processor::process_close_ephemeral_balance(
+            legacy::processor::process_close_ephemeral_balance(
                 program_id, accounts, data,
             )?
         }
         DlpDiscriminator::ProtocolClaimFees => {
-            processor::process_protocol_claim_fees(program_id, accounts, data)?
+            legacy::processor::process_protocol_claim_fees(
+                program_id, accounts, data,
+            )?
         }
         DlpDiscriminator::CloseValidatorFeesVault => {
-            processor::process_close_validator_fees_vault(
+            legacy::processor::process_close_validator_fees_vault(
                 program_id, accounts, data,
             )?
         }
         DlpDiscriminator::CallHandler => {
-            processor::process_call_handler(program_id, accounts, data)?
+            legacy::processor::process_call_handler(program_id, accounts, data)?
         }
         DlpDiscriminator::CallHandlerV2 => {
-            processor::process_call_handler_v2(program_id, accounts, data)?
+            legacy::processor::process_call_handler_v2(
+                program_id, accounts, data,
+            )?
         }
         _ => {
             #[cfg(feature = "logging")]

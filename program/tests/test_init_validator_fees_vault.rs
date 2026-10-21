@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::pda::validator_fees_vault_pda_from_validator;
+use dpi::legacy::pda::validator_fees_vault_pda_from_validator;
 use solana_program::{
     hash::Hash, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey,
 };
@@ -22,7 +22,7 @@ async fn test_init_validator_fees_vault() {
     let (banks, payer, admin, blockhash) = setup_program_test_env().await;
 
     let validator_identity = Pubkey::new_unique();
-    let ix = dpi::instruction_builder::init_validator_fees_vault(
+    let ix = dpi::legacy::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         admin.pubkey(),
         validator_identity,
@@ -45,7 +45,7 @@ async fn test_init_validator_fees_vault() {
 
     // Assert record cannot be created if the admin is not the correct one
     let validator_identity = Pubkey::new_unique();
-    let ix = dpi::instruction_builder::init_validator_fees_vault(
+    let ix = dpi::legacy::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         payer.pubkey(),
         validator_identity,

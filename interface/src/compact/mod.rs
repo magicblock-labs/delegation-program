@@ -5,7 +5,7 @@ pub use account_meta::*;
 pub use instruction::*;
 use pinocchio::Address;
 
-use crate::args::{
+use crate::legacy::args::{
     EncryptedBuffer, MaybeEncryptedInstruction, MaybeEncryptedIxData,
     MaybeEncryptedPubkey, PostDelegationActions,
 };
@@ -355,7 +355,7 @@ mod tests {
     use solana_pubkey::Pubkey;
 
     use super::*;
-    use crate::args::MaybeEncryptedAccountMeta;
+    use crate::legacy::args::MaybeEncryptedAccountMeta;
 
     fn pk(byte: u8) -> Pubkey {
         Pubkey::new_from_array([byte; 32])
@@ -461,8 +461,9 @@ mod tests {
             actions.validate_index(ix.program_id).unwrap();
 
             for account in &ix.accounts {
-                let crate::args::MaybeEncryptedAccountMeta::ClearText(meta) =
-                    account
+                let crate::legacy::args::MaybeEncryptedAccountMeta::ClearText(
+                    meta,
+                ) = account
                 else {
                     continue;
                 };

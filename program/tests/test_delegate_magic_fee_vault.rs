@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::pda::{
+use dpi::legacy::pda::{
     delegation_record_pda_from_delegated_account,
     magic_fee_vault_pda_from_validator,
 };
@@ -26,7 +26,7 @@ async fn setup_vault(
     validator: &Keypair,
     blockhash: Hash,
 ) {
-    let ix = dpi::instruction_builder::init_validator_fees_vault(
+    let ix = dpi::legacy::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         admin.pubkey(),
         validator.pubkey(),
@@ -39,7 +39,7 @@ async fn setup_vault(
     );
     banks.process_transaction(tx).await.unwrap();
 
-    let ix = dpi::instruction_builder::init_magic_fee_vault(
+    let ix = dpi::legacy::instruction_builder::init_magic_fee_vault(
         payer.pubkey(),
         validator.pubkey(),
     );
@@ -60,7 +60,7 @@ async fn test_delegate_magic_fee_vault() {
     setup_vault(&banks, &payer, &admin, &validator, blockhash).await;
 
     // Delegate the magic fee vault
-    let ix = dpi::instruction_builder::delegate_magic_fee_vault(
+    let ix = dpi::legacy::instruction_builder::delegate_magic_fee_vault(
         payer.pubkey(),
         validator.pubkey(),
     );
@@ -88,7 +88,7 @@ async fn test_delegate_magic_fee_vault_fails_without_fees_vault() {
         setup_program_test_env().await;
 
     // No validator fees vault or magic fee vault initialized — should fail
-    let ix = dpi::instruction_builder::delegate_magic_fee_vault(
+    let ix = dpi::legacy::instruction_builder::delegate_magic_fee_vault(
         payer.pubkey(),
         validator.pubkey(),
     );
@@ -119,7 +119,7 @@ async fn test_delegate_magic_fee_vault_fails_without_magic_fee_vault() {
         setup_program_test_env().await;
 
     // Init validator fees vault but NOT the magic fee vault
-    let ix = dpi::instruction_builder::init_validator_fees_vault(
+    let ix = dpi::legacy::instruction_builder::init_validator_fees_vault(
         payer.pubkey(),
         admin.pubkey(),
         validator.pubkey(),
@@ -132,7 +132,7 @@ async fn test_delegate_magic_fee_vault_fails_without_magic_fee_vault() {
     );
     banks.process_transaction(tx).await.unwrap();
 
-    let ix = dpi::instruction_builder::delegate_magic_fee_vault(
+    let ix = dpi::legacy::instruction_builder::delegate_magic_fee_vault(
         payer.pubkey(),
         validator.pubkey(),
     );
@@ -166,7 +166,7 @@ async fn test_delegate_magic_fee_vault_fails_with_wrong_validator() {
 
     // A different validator tries to delegate the vault
     let wrong_validator = Keypair::new();
-    let ix = dpi::instruction_builder::delegate_magic_fee_vault(
+    let ix = dpi::legacy::instruction_builder::delegate_magic_fee_vault(
         payer.pubkey(),
         wrong_validator.pubkey(),
     );

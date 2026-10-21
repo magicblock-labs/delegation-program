@@ -1,11 +1,9 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    pda::fees_vault_pda,
-    v2::{
-        instruction_builder::update_delegation_cluster,
-        pda::{delegation_cluster_pda, DELEGATION_CLUSTER_SEED},
-        ChallengeConfig, DelegationCluster, UpdateDelegationClusterArgs,
-    },
+    instruction_builder::update_delegation_cluster,
+    legacy::pda::fees_vault_pda,
+    pda::{delegation_cluster_pda, DELEGATION_CLUSTER_SEED},
+    ChallengeConfig, DelegationCluster, UpdateDelegationClusterArgs,
 };
 use solana_sdk::{
     pubkey::Pubkey,

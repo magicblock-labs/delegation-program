@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     pda::{
         commit_record_pda_from_delegated_account,
         commit_state_pda_from_delegated_account,
@@ -53,7 +53,7 @@ async fn test_finalize() {
     let new_state_data_before_finalize = new_state_before_finalize.data.clone();
 
     // Submit the finalize tx
-    let ix = dpi::instruction_builder::finalize(
+    let ix = dpi::legacy::instruction_builder::finalize(
         authority.pubkey(),
         DELEGATED_PDA_ID,
     );

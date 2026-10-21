@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::pda::fees_vault_pda;
+use dpi::legacy::pda::fees_vault_pda;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL, rent::Rent};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
@@ -22,7 +22,8 @@ async fn test_protocol_claim_fees() {
     let fees_vault_pda = fees_vault_pda();
 
     // Submit the claim fees tx
-    let ix = dpi::instruction_builder::protocol_claim_fees(admin.pubkey());
+    let ix =
+        dpi::legacy::instruction_builder::protocol_claim_fees(admin.pubkey());
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&payer.pubkey()),

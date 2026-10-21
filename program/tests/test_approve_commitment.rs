@@ -1,19 +1,17 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    pda::{
+    instruction_builder::{
+        approve_commitment, propose_commitment, register_operator,
+        register_verifier, update_verifier_registry, write_state_buffer,
+    },
+    legacy::pda::{
         delegation_metadata_pda_from_delegated_account,
         delegation_record_pda_from_delegated_account,
     },
-    v2::{
-        instruction_builder::{
-            approve_commitment, propose_commitment, register_operator,
-            register_verifier, update_verifier_registry, write_state_buffer,
-        },
-        pda::pending_commitment_pda,
-        PendingCommitment, ProposeCommitmentArgs, RegisterOperatorArgs,
-        RegisterVerifierArgs, UpdateVerifierRegistryArgs,
-        VerifierRegistryAction, WriteStateBufferArgs,
-    },
+    pda::pending_commitment_pda,
+    PendingCommitment, ProposeCommitmentArgs, RegisterOperatorArgs,
+    RegisterVerifierArgs, UpdateVerifierRegistryArgs, VerifierRegistryAction,
+    WriteStateBufferArgs,
 };
 use solana_program::native_token::LAMPORTS_PER_SOL;
 use solana_program_test::{
@@ -260,7 +258,7 @@ async fn setup_approve_commitment_env(
     let cluster_identity = Keypair::new();
     let cluster_args = challenge_cluster_args(operator.pubkey());
     let delegation_cluster =
-        dpi::v2::pda::delegation_cluster_pda(&cluster_identity.pubkey());
+        dpi::pda::delegation_cluster_pda(&cluster_identity.pubkey());
 
     add_lamport_account(&mut program_test, authority.pubkey());
     add_lamport_account(&mut program_test, operator.pubkey());

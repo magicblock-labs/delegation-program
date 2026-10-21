@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::pda::validator_fees_vault_pda_from_validator;
+use dpi::legacy::pda::validator_fees_vault_pda_from_validator;
 use solana_program::{hash::Hash, native_token::LAMPORTS_PER_SOL};
 use solana_program_test::{BanksClient, ProgramTest};
 use solana_sdk::{
@@ -23,7 +23,7 @@ async fn test_close_validator_fees_vault() {
         validator_fees_vault_pda_from_validator(&validator.pubkey());
 
     // Submit the close vault tx
-    let ix = dpi::instruction_builder::close_validator_fees_vault(
+    let ix = dpi::legacy::instruction_builder::close_validator_fees_vault(
         admin.pubkey(),
         admin.pubkey(),
         validator.pubkey(),

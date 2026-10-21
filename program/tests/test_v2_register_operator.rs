@@ -1,5 +1,5 @@
 use delegation_program_interface as dpi;
-use dpi::v2::{
+use dpi::{
     instruction_builder::register_operator, pda::OPERATOR_BOND_SEED,
     OperatorBond, OperatorStatus, RegisterOperatorArgs,
 };

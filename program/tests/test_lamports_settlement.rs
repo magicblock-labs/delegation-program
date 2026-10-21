@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     args::{CommitFinalizeArgs, CommitStateArgs, DelegateArgs},
     pda::{
         commit_record_pda_from_delegated_account,
@@ -122,7 +122,7 @@ async fn test_commit_finalize_lamports_settlement() {
 
     // Delegate the account.
     {
-        let delegate_ix = dpi::instruction_builder::delegate(
+        let delegate_ix = dpi::legacy::instruction_builder::delegate(
             payer.pubkey(),
             delegated.pubkey(),
             None,
@@ -180,7 +180,7 @@ async fn test_commit_finalize_lamports_settlement() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         };
-        let (commit_ix, _) = dpi::instruction_builder::commit_finalize(
+        let (commit_ix, _) = dpi::legacy::instruction_builder::commit_finalize(
             validator.pubkey(),
             delegated.pubkey(),
             &mut args,
@@ -201,7 +201,7 @@ async fn test_commit_finalize_lamports_settlement() {
         );
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because there is no tx"
         );
 
@@ -230,7 +230,7 @@ async fn test_commit_finalize_lamports_settlement() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         };
-        let (commit_ix, _) = dpi::instruction_builder::commit_finalize(
+        let (commit_ix, _) = dpi::legacy::instruction_builder::commit_finalize(
             validator.pubkey(),
             delegated.pubkey(),
             &mut args,
@@ -251,7 +251,7 @@ async fn test_commit_finalize_lamports_settlement() {
         );
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because there is no tx"
         );
 
@@ -283,7 +283,7 @@ async fn test_commit_finalize_lamports_settlement() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         };
-        let (commit_ix, _) = dpi::instruction_builder::commit_finalize(
+        let (commit_ix, _) = dpi::legacy::instruction_builder::commit_finalize(
             validator.pubkey(),
             delegated.pubkey(),
             &mut args,
@@ -304,7 +304,7 @@ async fn test_commit_finalize_lamports_settlement() {
         );
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because tx deals with increased lamports value"
         );
 
@@ -336,7 +336,7 @@ async fn test_commit_finalize_lamports_settlement() {
             bumps: Default::default(),
             reserved_padding: Default::default(),
         };
-        let (commit_ix, _) = dpi::instruction_builder::commit_finalize(
+        let (commit_ix, _) = dpi::legacy::instruction_builder::commit_finalize(
             validator.pubkey(),
             delegated.pubkey(),
             &mut args,
@@ -357,7 +357,7 @@ async fn test_commit_finalize_lamports_settlement() {
         );
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
+            dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
             "validator_fees_vault_balance must have increased by 9590 now"
         );
 
@@ -401,7 +401,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
     // Delegate the account.
     {
-        let delegate_ix = dpi::instruction_builder::delegate(
+        let delegate_ix = dpi::legacy::instruction_builder::delegate(
             payer.pubkey(),
             delegated.pubkey(),
             None,
@@ -475,7 +475,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because there is no tx"
         );
 
@@ -520,7 +520,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because there is no tx"
         );
 
@@ -567,7 +567,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+            dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
             "there must not be any change in fees_vault lamports because tx deals with increased lamports value"
         );
 
@@ -614,7 +614,7 @@ async fn test_commit_and_finalize_lamports_settlement() {
 
         assert_eq!(
             validator_fees_vault_balance(&base_banks, validator.pubkey()).await,
-            dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
+            dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS + 9590,
             "validator_fees_vault_balance must have increased by 9590 now"
         );
 
@@ -986,7 +986,7 @@ async fn undelegate(args: UndelegateArgs<'_>) {
         delegation_record_pda_from_delegated_account(&args.delegated_account);
 
     // Submit the undelegate tx
-    let ix = dpi::instruction_builder::undelegate(
+    let ix = dpi::legacy::instruction_builder::undelegate(
         args.authority.pubkey(),
         args.delegated_account,
         args.owner_program,
@@ -1034,7 +1034,7 @@ struct FinalizeNewStateArgs<'a> {
 }
 
 async fn finalize_new_state(args: FinalizeNewStateArgs<'_>) {
-    let ix = dpi::instruction_builder::finalize(
+    let ix = dpi::legacy::instruction_builder::finalize(
         args.authority.pubkey(),
         args.delegated_account,
     );
@@ -1082,9 +1082,10 @@ async fn setup_program_for_delegate_base_increase(
     initial_lamports: u64,
 ) -> (BanksClient, Keypair, Keypair, Keypair, Hash) {
     assert!(
-        initial_lamports >= dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+        initial_lamports
+            >= dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
         "Please pass lamports >= {}, but passed: {}",
-        dpi::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
+        dpi::legacy::consts::RENT_EXCEPTION_ZERO_BYTES_LAMPORTS,
         initial_lamports
     );
 
@@ -1147,7 +1148,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
     };
 
     // Commit the state for the delegated account
-    let ix = dpi::instruction_builder::commit_state(
+    let ix = dpi::legacy::instruction_builder::commit_state(
         args.authority.pubkey(),
         args.delegated_account,
         args.delegated_account_owner,
@@ -1217,7 +1218,7 @@ async fn commit_new_state(args: CommitNewStateArgs<'_>) {
         .unwrap();
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        dpi::state::UndelegationRequester::Validator
+        dpi::legacy::state::UndelegationRequester::Validator
     );
 }
 
@@ -1234,7 +1235,7 @@ async fn commit_state_with_nonce(args: CommitStateWithNonceArgs<'_>) {
         lamports: args.new_delegated_account_lamports,
     };
 
-    let ix = dpi::instruction_builder::commit_state(
+    let ix = dpi::legacy::instruction_builder::commit_state(
         args.authority.pubkey(),
         args.delegated_account,
         args.delegated_account_owner,
@@ -1260,7 +1261,7 @@ struct FinalizeWithFeePayerArgs<'a> {
 }
 
 async fn finalize_with_fee_payer(args: FinalizeWithFeePayerArgs<'_>) {
-    let ix = dpi::instruction_builder::finalize(
+    let ix = dpi::legacy::instruction_builder::finalize(
         args.authority.pubkey(),
         args.delegated_account,
     );

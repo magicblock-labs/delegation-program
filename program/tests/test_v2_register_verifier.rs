@@ -1,5 +1,5 @@
 use delegation_program_interface as dpi;
-use dpi::v2::{
+use dpi::{
     instruction_builder::register_verifier, pda::VERIFIER_BOND_SEED,
     RegisterVerifierArgs, VerifierBond, VerifierStatus,
 };

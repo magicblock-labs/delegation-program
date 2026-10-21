@@ -1,6 +1,6 @@
 use delegation_program::solana_program;
 use delegation_program_interface as dpi;
-use dpi::{
+use dpi::legacy::{
     args::CommitStateFromBufferArgs,
     pda::{
         commit_record_pda_from_delegated_account,
@@ -45,7 +45,7 @@ async fn test_commit_new_state_from_buffer() {
     };
 
     // Commit the state for the delegated account
-    let ix = dpi::instruction_builder::commit_state_from_buffer(
+    let ix = dpi::legacy::instruction_builder::commit_state_from_buffer(
         authority.pubkey(),
         DELEGATED_PDA_ID,
         DELEGATED_PDA_OWNER_ID,
@@ -104,7 +104,7 @@ async fn test_commit_new_state_from_buffer() {
         .unwrap();
     assert_eq!(
         delegation_metadata.undelegation_requester,
-        dpi::state::UndelegationRequester::Validator
+        dpi::legacy::state::UndelegationRequester::Validator
     );
 }
 
