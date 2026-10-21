@@ -19,7 +19,7 @@ pub enum DlpV2Instruction {
     ProposeCommitment = 105,
     /// Records approval from the selected verifier for a v2 commitment.
     ApproveCommitment = 106,
-    /// Writes full account-state bytes into a v2 state buffer.
+    /// Writes account-state payload bytes into a state buffer.
     ///
     /// TODO (snawaz/optimization): we can split this into two instructions such that 
     /// InitStateBuffer takes more arguments and AppendStateBuffer takes as less as
@@ -37,6 +37,10 @@ pub enum DlpV2Instruction {
     Delegate = 112,
     /// Commits and immediately applies inline state for a Direct cluster.
     CommitFinalize = 113,
+    /// Commits and applies state from a finalized buffer for a Direct cluster.
+    CommitFinalizeFromBuffer = 114,
+    /// Grows a delegated account by one step before a large direct finalization.
+    PrepareCommitFinalize = 115,
 }
 
 impl DlpV2Instruction {

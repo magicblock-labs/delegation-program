@@ -2,7 +2,8 @@ use delegation_program_interface as dpi;
 use dpi::{
     error::DlpError,
     pda::{DELEGATION_CLUSTER_SEED, DELEGATION_STATE_SEED},
-    DelegationCluster, DelegationState, UndelegationRequester,
+    DelegationCluster, DelegationClusterView, DelegationState,
+    DelegationStateView, UndelegationRequester,
 };
 use pinocchio::{
     address::address_eq,
@@ -56,75 +57,23 @@ pub(crate) fn apply_commit_finalize(
 
     let cluster_data = delegation_cluster.try_borrow()?;
     let cluster = DelegationCluster::decode(cluster_data.as_ref())?;
-    let cluster_bump = [cluster.bump()];
-    dpi::require_initialized_pda!(
-        delegation_cluster,
-        &[
-            DELEGATION_CLUSTER_SEED,
-            cluster.cluster_id().as_ref(),
-            &cluster_bump,
-        ],
-        &crate::fast::ID,
-        false
-    );
-    require_eq!(
-        &cluster.discriminator(),
-        &DelegationCluster::DISCRIMINATOR,
-        ProgramError::InvalidAccountData
-    );
-    require!(!cluster.paused(), ProgramError::InvalidAccountData);
-    require_eq!(
-        cluster.challenge_config().is_none(),
-        true,
-        ProgramError::InvalidInstructionData
-    );
-    require_eq_keys!(
-        cluster.current_validator(),
-        current_validator.address(),
-        DlpError::InvalidAuthority
-    );
+    validate_direct_cluster(current_validator, delegation_cluster, &cluster)?;
     drop(cluster_data);
 
     let state_data = delegation_state.try_borrow()?;
     let state = DelegationState::decode(state_data.as_ref())?;
-    let state_bump = [state.bump()];
-    dpi::require_initialized_pda!(
+    validate_commit_state(
+        delegated_account,
         delegation_state,
-        &[
-            DELEGATION_STATE_SEED,
-            delegated_account.address().as_ref(),
-            &state_bump,
-        ],
-        &crate::fast::ID,
-        true
-    );
-    require_eq!(
-        &state.discriminator(),
-        &DelegationState::DISCRIMINATOR,
-        ProgramError::InvalidAccountData
-    );
-    require_eq_keys!(
-        state.delegated_account(),
-        delegated_account.address(),
-        DlpError::InvalidDelegatedAccount
-    );
-    require_eq_keys!(
-        state.delegation_cluster(),
-        delegation_cluster.address(),
-        ProgramError::InvalidAccountData
-    );
+        delegation_cluster,
+        &state,
+        input.commit_id,
+        true,
+    )?;
     require_eq_keys!(
         state.original_owner(),
         input.owner,
         ProgramError::InvalidAccountData
-    );
-    require_eq!(
-        input.commit_id,
-        state
-            .last_commit_id()
-            .checked_add(1)
-            .ok_or(DlpError::Overflow)?,
-        DlpError::NonceOutOfOrder
     );
 
     let next_undelegation_requester = match state.undelegation_requester() {
@@ -184,6 +133,88 @@ pub(crate) fn apply_commit_finalize(
     state.lamports_mut()?.set(input.lamports)?;
     state.last_commit_id_mut()?.set(input.commit_id)?;
     *state.undelegation_requester_mut()? = next_undelegation_requester;
+
+    Ok(())
+}
+
+pub(crate) fn validate_direct_cluster(
+    current_validator: &AccountView,
+    delegation_cluster: &AccountView,
+    cluster: &DelegationClusterView<'_>,
+) -> ProgramResult {
+    let cluster_bump = [cluster.bump()];
+    dpi::require_initialized_pda!(
+        delegation_cluster,
+        &[
+            DELEGATION_CLUSTER_SEED,
+            cluster.cluster_id().as_ref(),
+            &cluster_bump,
+        ],
+        &crate::fast::ID,
+        false
+    );
+    require_eq!(
+        &cluster.discriminator(),
+        &DelegationCluster::DISCRIMINATOR,
+        ProgramError::InvalidAccountData
+    );
+    require!(!cluster.paused(), ProgramError::InvalidAccountData);
+    require_eq!(
+        cluster.challenge_config().is_none(),
+        true,
+        ProgramError::InvalidInstructionData
+    );
+    require_eq_keys!(
+        cluster.current_validator(),
+        current_validator.address(),
+        DlpError::InvalidAuthority
+    );
+
+    Ok(())
+}
+
+pub(crate) fn validate_commit_state(
+    delegated_account: &AccountView,
+    delegation_state: &AccountView,
+    delegation_cluster: &AccountView,
+    state: &DelegationStateView<'_>,
+    commit_id: u64,
+    is_writable: bool,
+) -> ProgramResult {
+    let state_bump = [state.bump()];
+    dpi::require_initialized_pda!(
+        delegation_state,
+        &[
+            DELEGATION_STATE_SEED,
+            delegated_account.address().as_ref(),
+            &state_bump,
+        ],
+        &crate::fast::ID,
+        is_writable
+    );
+    require_eq!(
+        &state.discriminator(),
+        &DelegationState::DISCRIMINATOR,
+        ProgramError::InvalidAccountData
+    );
+    require_eq_keys!(
+        state.delegated_account(),
+        delegated_account.address(),
+        DlpError::InvalidDelegatedAccount
+    );
+    require_eq_keys!(
+        state.delegation_cluster(),
+        delegation_cluster.address(),
+        ProgramError::InvalidAccountData
+    );
+    require_eq!(
+        commit_id,
+        state
+            .last_commit_id()
+            .checked_add(1)
+            .ok_or(DlpError::Overflow)?,
+        DlpError::NonceOutOfOrder
+    );
 
     Ok(())
 }
