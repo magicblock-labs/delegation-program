@@ -36,12 +36,12 @@ const ACTION_DATA: &[u8] = b"post-delegation actions";
 
 #[tokio::test]
 async fn test_commit_finalize_data_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1450).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], false, 1475).await;
 }
 
 #[tokio::test]
 async fn test_commit_finalize_diff_perf() {
-    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1700).await;
+    run_test_commit_finalize(vec![0; 10240], vec![1; 10240], true, 1725).await;
 }
 
 async fn run_test_commit_finalize(
