@@ -10,9 +10,8 @@ use wheels::{
     layout::Decodable, require_eq, require_eq_keys, require_n_accounts,
 };
 
-use crate::processor::{
-    internal::{apply_commit_finalize, CommitFinalizeInput, CommitStateUpdate},
-    state_buffer_payload_hash,
+use crate::processor::internal::{
+    apply_commit_finalize, CommitFinalizeInput, CommitStateUpdate,
 };
 
 /// Commit and apply one finalized StateBuffer for a Direct cluster.
@@ -146,9 +145,14 @@ fn validate_state_buffer(
     );
     require_eq!(
         buffer.data_hash(),
-        &state_buffer_payload_hash(buffer.payload().as_slice()),
+        &account_data_hash(buffer.payload().as_slice()),
         ProgramError::InvalidInstructionData
     );
 
     Ok(())
+}
+
+fn account_data_hash(data: &[u8]) -> [u8; 32] {
+    solana_sha256_hasher::hashv(&[b"magicblock.account_data.v1", data])
+        .to_bytes()
 }

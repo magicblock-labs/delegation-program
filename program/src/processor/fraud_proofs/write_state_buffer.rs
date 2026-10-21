@@ -16,7 +16,6 @@ use wheels::{
 
 use crate::{
     legacy::processor::fast::utils::pda::create_pda_with_rent_exempt_lamports,
-    processor::state_buffer_payload_hash,
     requires::{
         is_uninitialized_account, require_initialized_pda,
         require_uninitialized_pda, StandardCtx,
@@ -232,7 +231,7 @@ fn write_chunk(
             state.total_len() as usize,
             ProgramError::InvalidAccountData
         );
-        Some(state_buffer_payload_hash(payload.as_slice()))
+        Some(account_data_hash(payload.as_slice()))
     } else {
         None
     };
@@ -335,4 +334,9 @@ fn validate_duplicate_chunk(
     );
 
     Ok(())
+}
+
+fn account_data_hash(data: &[u8]) -> [u8; 32] {
+    solana_sha256_hasher::hashv(&[b"magicblock.account_data.v1", data])
+        .to_bytes()
 }
