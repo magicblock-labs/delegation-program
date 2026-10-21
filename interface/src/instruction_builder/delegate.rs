@@ -3,7 +3,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 use solana_sdk_ids::system_program;
-use wheels::layout::Encodable;
+use wheels::{layout::Encodable, DataLayoutError};
 
 use crate::{
     compat::{Compatize, Modernize},
@@ -19,7 +19,7 @@ pub fn delegate(
     original_owner: Pubkey,
     delegation_cluster: Pubkey,
     mut args: DelegateArgs,
-) -> Instruction {
+) -> Result<Instruction, DataLayoutError> {
     let (delegate_buffer, delegate_buffer_bump) = Pubkey::find_program_address(
         &[DELEGATE_BUFFER_TAG, delegated_account.as_ref()],
         &original_owner,
@@ -30,8 +30,9 @@ pub fn delegate(
     );
     args.delegate_buffer_bump = delegate_buffer_bump;
     args.delegation_state_bump = delegation_state_bump;
+    let data = [DlpV2Instruction::Delegate.to_vec(), args.encode()?].concat();
 
-    Instruction {
+    Ok(Instruction {
         program_id: crate::id().modernize(),
         accounts: vec![
             AccountMeta::new(payer, true),
@@ -46,7 +47,6 @@ pub fn delegate(
             AccountMeta::new_readonly(delegation_cluster, false),
             AccountMeta::new_readonly(system_program::id(), false),
         ],
-        data: [DlpV2Instruction::Delegate.to_vec(), args.encode().unwrap()]
-            .concat(),
-    }
+        data,
+    })
 }

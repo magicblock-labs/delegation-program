@@ -185,6 +185,11 @@ fn validate_delegated_account(
     );
 
     if is_on_curve_fast(delegated_account.address()) {
+        require_eq_keys!(
+            original_owner.address(),
+            &pinocchio_system::ID,
+            ProgramError::IncorrectProgramId
+        );
         require_eq!(seeds.len(), 0, ProgramError::InvalidInstructionData);
         require_eq!(
             args.delegated_account_bump(),

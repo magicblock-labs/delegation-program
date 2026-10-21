@@ -16,11 +16,14 @@ use solana_program::{
     pubkey::Pubkey,
     rent::Rent,
 };
-use solana_program_test::{processor, BanksClient, ProgramTest};
+use solana_program_test::{
+    processor, BanksClient, BanksClientError, ProgramTest,
+};
 use solana_sdk::{
     account::Account,
+    instruction::InstructionError,
     signature::{Keypair, Signer},
-    transaction::Transaction,
+    transaction::{Transaction, TransactionError},
 };
 use solana_sdk_ids::system_program;
 use wheels::layout::Decodable;
@@ -34,6 +37,7 @@ const OWNER_PROGRAM_ID: Pubkey =
     solana_sdk::pubkey!("4vJ9JU1bJJE96FWSJKvHsmmFADCg4gpZQff4EVRtnYHk");
 const DELEGATED_ACCOUNT_SEED: &[u8] = b"primary-delegated";
 const DELEGATED_ACCOUNT_DATA: &[u8] = b"primary account data";
+const DELEGATE_BUFFER_DATA: &[u8] = b"delegate buffer data";
 
 struct DelegateTestContext {
     banks: BanksClient,
@@ -72,7 +76,7 @@ async fn test_delegate_creates_cluster_bound_delegation_state() {
         .unwrap()
         .unwrap();
     assert_eq!(delegated_account.owner, dpi::id());
-    assert_eq!(delegated_account.data, DELEGATED_ACCOUNT_DATA);
+    assert_eq!(delegated_account.data, DELEGATE_BUFFER_DATA);
 
     let state_account = context
         .banks
@@ -121,7 +125,18 @@ async fn test_delegate_rejects_wrong_delegated_account_seeds() {
     )
     .await;
 
-    assert!(result.is_err());
+    assert!(
+        matches!(
+            &result,
+            Err(BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::InvalidSeeds
+                )
+            ))
+        ),
+        "unexpected result: {result:?}"
+    );
     assert!(context
         .banks
         .get_account(delegation_state_pda(
@@ -130,6 +145,74 @@ async fn test_delegate_rejects_wrong_delegated_account_seeds() {
         .await
         .unwrap()
         .is_none());
+}
+
+#[tokio::test]
+async fn test_delegate_rejects_non_system_owner_for_on_curve_account() {
+    let mut program_test = ProgramTest::default();
+    program_test.prefer_bpf(true);
+    program_test.add_program("delegation_program", dpi::ID, None);
+
+    let delegated_account = Keypair::new();
+    let config_authority = Keypair::new();
+    program_test.add_account(
+        delegated_account.pubkey(),
+        Account {
+            lamports: Rent::default().minimum_balance(0),
+            data: vec![],
+            owner: dpi::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+    program_test.add_account(
+        config_authority.pubkey(),
+        Account {
+            lamports: LAMPORTS_PER_SOL,
+            data: vec![],
+            owner: system_program::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
+
+    let (banks, payer, blockhash) = program_test.start().await;
+    let delegation_cluster = initialize_delegation_cluster(
+        &banks,
+        &payer,
+        &config_authority,
+        blockhash,
+        direct_cluster_args(Pubkey::new_unique()),
+    )
+    .await;
+    let instruction = delegate(
+        payer.pubkey(),
+        delegated_account.pubkey(),
+        OWNER_PROGRAM_ID,
+        delegation_cluster,
+        DelegateArgs::new(0, vec![]),
+    )
+    .unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&payer.pubkey()),
+        &[&payer, &delegated_account],
+        banks.get_latest_blockhash().await.unwrap(),
+    );
+    let result = banks.process_transaction(transaction).await;
+
+    assert!(
+        matches!(
+            &result,
+            Err(BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::IncorrectProgramId
+                )
+            ))
+        ),
+        "unexpected result: {result:?}"
+    );
 }
 
 async fn setup_delegate_test() -> DelegateTestContext {
@@ -171,8 +254,8 @@ async fn setup_delegate_test() -> DelegateTestContext {
         delegate_buffer,
         Account {
             lamports: Rent::default()
-                .minimum_balance(DELEGATED_ACCOUNT_DATA.len()),
-            data: DELEGATED_ACCOUNT_DATA.to_vec(),
+                .minimum_balance(DELEGATE_BUFFER_DATA.len()),
+            data: DELEGATE_BUFFER_DATA.to_vec(),
             owner: OWNER_PROGRAM_ID,
             executable: false,
             rent_epoch: 0,
@@ -218,7 +301,8 @@ async fn submit_delegate(
         OWNER_PROGRAM_ID,
         context.delegation_cluster,
         args,
-    );
+    )
+    .unwrap();
     let mut accounts = inner.accounts;
     accounts[1].is_signer = false;
     accounts.push(AccountMeta::new_readonly(dpi::id(), false));
