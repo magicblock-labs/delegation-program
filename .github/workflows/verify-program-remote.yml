@@ -1,6 +1,6 @@
 name: Verify Program (Remote)
 
-# Asks OtterSec to rebuild dlp from its otter-verify PDA, so explorers show it
+# Asks OtterSec to rebuild the delegation program from its otter-verify PDA, so explorers show it
 # as verified. Run it after each mainnet upgrade proposal executes in Squads.
 
 on:

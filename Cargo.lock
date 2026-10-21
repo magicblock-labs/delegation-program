@@ -3096,7 +3096,7 @@ dependencies = [
  "bytemuck",
  "const-crypto",
  "magicblock-delegation-program",
- "magicblock-delegation-program-api",
+ "magicblock-delegation-program-interface",
  "num_enum",
  "pinocchio 0.10.2",
  "pinocchio-associated-token-account",
@@ -3126,8 +3126,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "magicblock-delegation-program-api"
-version = "4.0.0"
+name = "magicblock-delegation-program-interface"
+version = "0.1.0"
 dependencies = [
  "bincode",
  "borsh 0.10.4",

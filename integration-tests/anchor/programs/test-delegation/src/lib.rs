@@ -1,0 +1,292 @@
+use anchor_lang::prelude::*;
+use ephemeral_rollups_sdk::anchor::{delegate, ephemeral};
+use ephemeral_rollups_sdk::cpi::DelegateConfig;
+
+declare_id!("3vAK9JQiDsKoQNwmcfeEng4Cnv22pYuj1ASfso7U4ukF");
+
+const DEFAULT_VALIDATOR_IDENTITY: Pubkey = pubkey!("tEsT3eV6RFCWs1BZ7AXTzasHqTtMnMLCB2tjQ42TDXD");
+pub const TEST_PDA_SEED: &[u8] = b"test-pda";
+pub const TEST_PDA_SEED_OTHER: &[u8] = b"test-pda-other";
+
+#[ephemeral]
+#[program]
+pub mod test_delegation {
+    use super::*;
+    use anchor_lang::system_program::{transfer, Transfer};
+    use ephemeral_rollups_sdk::types::DelegateAccountArgs;
+
+    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+        let counter = &mut ctx.accounts.counter;
+        counter.count = 0;
+        Ok(())
+    }
+
+    pub fn initialize_other(ctx: Context<InitializeOther>) -> Result<()> {
+        let counter = &mut ctx.accounts.counter;
+        counter.count = 0;
+        Ok(())
+    }
+
+    pub fn increment(ctx: Context<Increment>) -> Result<()> {
+        let counter = &mut ctx.accounts.counter;
+        counter.count += 1;
+        Ok(())
+    }
+
+    /// Delegate the account to the delegation program
+    pub fn delegate(ctx: Context<DelegateInput>) -> Result<()> {
+        ctx.accounts.delegate_pda(
+            &ctx.accounts.payer,
+            &[TEST_PDA_SEED],
+            DelegateConfig {
+                commit_frequency_ms: DelegateAccountArgs::default().commit_frequency_ms,
+                validator: Some(DEFAULT_VALIDATOR_IDENTITY),
+            },
+        )?;
+        Ok(())
+    }
+
+    /// Delegate two accounts to the delegation program
+    pub fn delegate_two(ctx: Context<DelegateInputTwo>) -> Result<()> {
+        ctx.accounts.delegate_pda(
+            &ctx.accounts.payer,
+            &[TEST_PDA_SEED],
+            DelegateConfig {
+                commit_frequency_ms: DelegateAccountArgs::default().commit_frequency_ms,
+                validator: Some(DEFAULT_VALIDATOR_IDENTITY),
+            },
+        )?;
+        ctx.accounts.delegate_pda_other(
+            &ctx.accounts.payer,
+            &[TEST_PDA_SEED_OTHER],
+            DelegateConfig {
+                commit_frequency_ms: DelegateAccountArgs::default().commit_frequency_ms,
+                validator: Some(DEFAULT_VALIDATOR_IDENTITY),
+            },
+        )?;
+        msg!(
+            "Delegated {:?}, owner {:?}",
+            ctx.accounts.pda.key(),
+            ctx.accounts.pda.owner
+        );
+        msg!(
+            "Delegated {:?}, owner {:?}",
+            ctx.accounts.pda_other.key(),
+            ctx.accounts.pda_other.owner
+        );
+        Ok(())
+    }
+
+    /// Delegation program call handler
+    #[instruction(discriminator = [1, 0, 1, 0])]
+    pub fn commit_base_action_handler(
+        ctx: Context<CommitBaseActionHandler>,
+        amount: u64,
+    ) -> Result<()> {
+        msg!("commit_base_action_handler!");
+        let transfer_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.escrow_account.to_account_info(),
+                to: ctx.accounts.destination_account.to_account_info(),
+            },
+        );
+
+        transfer(transfer_ctx, amount)
+    }
+
+    #[instruction(discriminator = [1, 0, 2, 0])]
+    pub fn undelegate_base_action_handler(
+        ctx: Context<UndelegateBaseActionHandler>,
+        amount: u64,
+    ) -> Result<()> {
+        msg!("undelegate_base_action_handler");
+        let transfer_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.escrow_account.to_account_info(),
+                to: ctx.accounts.destination_account.to_account_info(),
+            },
+        );
+        transfer(transfer_ctx, amount)?;
+
+        let counter_data = &mut ctx.accounts.counter.try_borrow_mut_data()?;
+        let mut counter = Counter::try_from_slice(&counter_data)?;
+        counter.count += 1;
+        counter_data.copy_from_slice(&counter.try_to_vec()?);
+
+        Ok(())
+    }
+
+    /// Delegation program call handler v2 (commit variant)
+    #[instruction(discriminator = [1, 0, 3, 0])]
+    pub fn commit_base_action_handler_v2(
+        ctx: Context<CommitBaseActionHandlerV2>,
+        amount: u64,
+    ) -> Result<()> {
+        msg!("commit_base_action_handler_v2!");
+        let transfer_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.escrow_account.to_account_info(),
+                to: ctx.accounts.destination_account.to_account_info(),
+            },
+        );
+
+        transfer(transfer_ctx, amount)
+    }
+
+    /// Delegation program call handler v2 (undelegate variant)
+    #[instruction(discriminator = [1, 0, 4, 0])]
+    pub fn undelegate_base_action_handler_v2(
+        ctx: Context<UndelegateBaseActionHandlerV2>,
+        amount: u64,
+    ) -> Result<()> {
+        msg!("undelegate_base_action_handler_v2");
+        let transfer_ctx = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            Transfer {
+                from: ctx.accounts.escrow_account.to_account_info(),
+                to: ctx.accounts.destination_account.to_account_info(),
+            },
+        );
+        transfer(transfer_ctx, amount)?;
+
+        let counter_data = &mut ctx.accounts.counter.try_borrow_mut_data()?;
+        let mut counter = Counter::try_from_slice(&counter_data)?;
+        counter.count += 1;
+        counter_data.copy_from_slice(&counter.try_to_vec()?);
+
+        Ok(())
+    }
+}
+
+pub fn transfer_from_undelegated(
+    undelegated_pda: &UncheckedAccount,
+    destination_pda: &AccountInfo,
+    amount: u64,
+) -> Result<()> {
+    if undelegated_pda.owner != &ID {
+        return Err(ProgramError::IllegalOwner.into());
+    }
+
+    **undelegated_pda.try_borrow_mut_lamports()? = undelegated_pda
+        .lamports()
+        .checked_sub(amount)
+        .ok_or(ProgramError::InsufficientFunds)?;
+
+    **destination_pda.try_borrow_mut_lamports()? = destination_pda
+        .lamports()
+        .checked_add(amount)
+        .ok_or(ProgramError::ArithmeticOverflow)?;
+
+    Ok(())
+}
+
+#[delegate]
+#[derive(Accounts)]
+pub struct DelegateInput<'info> {
+    pub payer: Signer<'info>,
+    /// CHECK: The pda to delegate
+    #[account(mut, del, seeds = [TEST_PDA_SEED], bump)]
+    pub pda: AccountInfo<'info>,
+}
+
+#[delegate]
+#[derive(Accounts)]
+pub struct DelegateInputTwo<'info> {
+    pub payer: Signer<'info>,
+    /// CHECK: The pda to delegate
+    #[account(mut, del, seeds = [TEST_PDA_SEED], bump)]
+    pub pda: AccountInfo<'info>,
+    /// CHECK: The other pda to delegate
+    #[account(mut, del, seeds = [TEST_PDA_SEED_OTHER], bump)]
+    pub pda_other: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct Initialize<'info> {
+    #[account(init, payer = user, space = 8 + 8, seeds = [TEST_PDA_SEED], bump)]
+    pub counter: Account<'info, Counter>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct InitializeOther<'info> {
+    #[account(init, payer = user, space = 8 + 8, seeds = [TEST_PDA_SEED_OTHER], bump)]
+    pub counter: Account<'info, Counter>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
+
+#[derive(Accounts)]
+pub struct Increment<'info> {
+    #[account(mut, seeds = [TEST_PDA_SEED], bump)]
+    pub counter: Account<'info, Counter>,
+}
+
+#[derive(Accounts)]
+pub struct CommitBaseActionHandler<'info> {
+    /// CHECK: The destination account to transfer lamports to
+    #[account(mut)]
+    pub destination_account: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    /// CHECK: The authority that owns the escrow account
+    pub escrow_authority: UncheckedAccount<'info>,
+    pub escrow_account: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UndelegateBaseActionHandler<'info> {
+    /// CHECK: The destination account to transfer lamports to
+    #[account(mut)]
+    pub destination_account: AccountInfo<'info>,
+    /// CHECK: fails in finalize stage due to ownership by the delegation program
+    pub counter: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+    /// CHECK: The authority that owns the escrow account
+    pub escrow_authority: UncheckedAccount<'info>,
+    pub escrow_account: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct CommitBaseActionHandlerV2<'info> {
+    /// CHECK: The destination account to transfer lamports to
+    #[account(mut)]
+    pub destination_account: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    /// CHECK: The source program passed through by call_handler_v2
+    pub source_program: UncheckedAccount<'info>,
+    /// CHECK: The authority that owns the escrow account
+    pub escrow_authority: UncheckedAccount<'info>,
+    pub escrow_account: Signer<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UndelegateBaseActionHandlerV2<'info> {
+    /// CHECK: The destination account to transfer lamports to
+    #[account(mut)]
+    pub destination_account: AccountInfo<'info>,
+    /// CHECK: fails in finalize stage due to ownership by the delegation program
+    pub counter: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+    /// CHECK: The source program passed through by call_handler_v2
+    pub source_program: UncheckedAccount<'info>,
+    /// CHECK: The authority that owns the escrow account
+    pub escrow_authority: UncheckedAccount<'info>,
+    pub escrow_account: Signer<'info>,
+}
+
+#[account]
+pub struct Counter {
+    pub count: u64,
+}
+
+mod delegation_program_utils {
+    use anchor_lang::prelude::*;
+
+    declare_id!("DELeGGvXpWV2fqJUhqcF5ZSYMS4JTLjteaAMARRSaeSh");
+}
