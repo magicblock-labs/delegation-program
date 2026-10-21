@@ -1,5 +1,5 @@
 [workspace]
-members = ["program", "interface", "client"]
+members = ["program", "interface"]
 default-members = ["program"]
 exclude = ["integration-tests/anchor"]
 resolver = "2"

@@ -5,7 +5,10 @@ on:
     types: [published]
   push:
     branches:
-      - "release/interface/v*"
+      - "release/v*"
+    paths:
+      - "interface/**"
+      - ".github/workflows/publish-interface-crate.yml"
   workflow_dispatch:
     inputs:
       dry_run:
@@ -60,6 +63,8 @@ jobs:
         run: |
           cargo +${{ env.rust_version }} test --manifest-path interface/Cargo.toml
           cargo +${{ env.rust_version }} test --manifest-path interface/Cargo.toml --features backward-compat
+          cargo +${{ env.rust_version }} test --manifest-path interface/Cargo.toml --no-default-features --features diff
+          cargo +${{ env.rust_version }} test --manifest-path interface/Cargo.toml --no-default-features --features encryption
 
       - name: Use dry run for release branches
         if: github.event_name == 'push'

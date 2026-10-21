@@ -1,16 +1,14 @@
 use delegation_program::solana_program;
-use delegation_program_client::{
-    instruction_builder::{
-        Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
-    },
-    Decrypt, DecryptError,
-};
 use delegation_program_interface::{
     args::{
         EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedInstruction,
         MaybeEncryptedIxData, MaybeEncryptedPubkey, PostDelegationActions,
     },
     compact::{AccountMeta as CompactAccountMeta, ClearTextWithInsertable},
+    instruction_builder::{
+        Encrypt, Encryptable, EncryptableFrom, PostDelegationInstruction,
+    },
+    Decrypt, DecryptError,
 };
 use solana_instruction::{AccountMeta as IxAccountMeta, Instruction};
 use solana_program::{

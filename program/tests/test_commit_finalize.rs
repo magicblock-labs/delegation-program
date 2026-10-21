@@ -1,8 +1,8 @@
 use assertables::assert_ge;
 use delegation_program::solana_program;
-use delegation_program_client::diff::compute_diff;
 use delegation_program_interface::{
     args::CommitFinalizeArgs,
+    diff::compute_diff,
     error::DlpError,
     pda::{
         delegation_metadata_pda_from_delegated_account,

@@ -81,7 +81,6 @@ rand = { version = "0.8.5", features = ["small_rng"], optional = true }
 assertables = "9.8.2"
 magicblock-delegation-program = { path = ".", features = ["unit_test_config"] }
 magicblock-delegation-program-interface = { path = "../interface" }
-magicblock-delegation-program-client = { path = "../client" }
 rand = { version = "=0.8.5", features = ["small_rng"] }
 solana-pubkey = "=3.0.0"
 solana-program-test = "=3.0.0"

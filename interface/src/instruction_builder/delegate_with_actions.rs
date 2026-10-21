@@ -1,13 +1,3 @@
-use delegation_program_interface::{
-    args::{DelegateArgs, DelegateWithActionsArgs},
-    compat::borsh::to_vec,
-    discriminator::DlpDiscriminator,
-    pda::{
-        delegate_buffer_pda_from_delegated_account_and_owner_program,
-        delegation_metadata_pda_from_delegated_account,
-        delegation_record_pda_from_delegated_account,
-    },
-};
 use solana_program::{
     instruction::{AccountMeta, Instruction},
     pubkey::Pubkey,
@@ -15,6 +5,16 @@ use solana_program::{
 use solana_sdk_ids::system_program;
 
 use super::types::{Encrypt, PostDelegationInstruction};
+use crate::{
+    args::{DelegateArgs, DelegateWithActionsArgs},
+    compat::{borsh::to_vec, Compatize, Modernize},
+    discriminator::DlpDiscriminator,
+    pda::{
+        delegate_buffer_pda_from_delegated_account_and_owner_program,
+        delegation_metadata_pda_from_delegated_account,
+        delegation_record_pda_from_delegated_account,
+    },
+};
 
 /// Builds the legacy delegate-with-actions instruction and encrypts its actions.
 pub fn delegate_with_actions(
@@ -26,27 +26,30 @@ pub fn delegate_with_actions(
 ) -> Instruction {
     let encrypt_key = delegate
         .validator
-        .expect("validator must be provided for encryption");
+        .expect("validator must be provided for encryption")
+        .modernize();
     let (actions, signers) = actions
         .encrypt(&encrypt_key)
         .expect("post-delegation actions encryption failed");
 
     Instruction {
-        program_id: delegation_program_interface::id(),
+        program_id: crate::id().modernize(),
         accounts: {
             let owner = owner.unwrap_or(system_program::id());
+            let delegated_account_compat = delegated_account.compatize();
+            let owner_compat = owner.compatize();
             let delegate_buffer_pda =
                 delegate_buffer_pda_from_delegated_account_and_owner_program(
-                    &delegated_account,
-                    &owner,
+                    &delegated_account_compat,
+                    &owner_compat,
                 );
             let delegation_record_pda =
                 delegation_record_pda_from_delegated_account(
-                    &delegated_account,
+                    &delegated_account_compat,
                 );
             let delegation_metadata_pda =
                 delegation_metadata_pda_from_delegated_account(
-                    &delegated_account,
+                    &delegated_account_compat,
                 );
 
             [
@@ -54,9 +57,12 @@ pub fn delegate_with_actions(
                     AccountMeta::new(payer, true),
                     AccountMeta::new(delegated_account, true),
                     AccountMeta::new_readonly(owner, false),
-                    AccountMeta::new(delegate_buffer_pda, false),
-                    AccountMeta::new(delegation_record_pda, false),
-                    AccountMeta::new(delegation_metadata_pda, false),
+                    AccountMeta::new(delegate_buffer_pda.modernize(), false),
+                    AccountMeta::new(delegation_record_pda.modernize(), false),
+                    AccountMeta::new(
+                        delegation_metadata_pda.modernize(),
+                        false,
+                    ),
                     AccountMeta::new_readonly(system_program::id(), false),
                 ],
                 signers,
@@ -120,24 +126,24 @@ mod tests {
         let accounts = &actions.instructions[0].accounts;
         assert!(matches!(
             accounts[2],
-            delegation_program_interface::args::MaybeEncryptedAccountMeta::Encrypted(_)
+            crate::args::MaybeEncryptedAccountMeta::Encrypted(_)
         ));
         assert!(matches!(
             accounts[4],
-            delegation_program_interface::args::MaybeEncryptedAccountMeta::Encrypted(_)
+            crate::args::MaybeEncryptedAccountMeta::Encrypted(_)
         ));
 
-        let delegation_program_interface::args::MaybeEncryptedAccountMeta::ClearText(a_meta) =
+        let crate::args::MaybeEncryptedAccountMeta::ClearText(a_meta) =
             accounts[0]
         else {
             panic!("expected cleartext account meta for a");
         };
-        let delegation_program_interface::args::MaybeEncryptedAccountMeta::ClearText(c_meta) =
+        let crate::args::MaybeEncryptedAccountMeta::ClearText(c_meta) =
             accounts[1]
         else {
             panic!("expected cleartext account meta for c");
         };
-        let delegation_program_interface::args::MaybeEncryptedAccountMeta::ClearText(e_meta) =
+        let crate::args::MaybeEncryptedAccountMeta::ClearText(e_meta) =
             accounts[3]
         else {
             panic!("expected cleartext account meta for e");

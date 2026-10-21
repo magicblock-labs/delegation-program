@@ -1,9 +1,8 @@
-use delegation_program_interface::args::{
-    EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
-    MaybeEncryptedPubkey,
-};
-
 use crate::{
+    args::{
+        EncryptedBuffer, MaybeEncryptedAccountMeta, MaybeEncryptedIxData,
+        MaybeEncryptedPubkey,
+    },
     encryption::EncryptionError,
     instruction_builder::{
         Encrypt, EncryptableAccountMeta, EncryptableIxData, EncryptablePubkey,
@@ -54,7 +53,7 @@ impl Encrypt for EncryptableIxData {
     }
 }
 
-impl Encrypt for delegation_program_interface::compact::EncryptableAccountMeta {
+impl Encrypt for crate::compact::EncryptableAccountMeta {
     type Output = MaybeEncryptedAccountMeta;
     type Error = EncryptionError;
 
@@ -73,14 +72,11 @@ impl Encrypt for delegation_program_interface::compact::EncryptableAccountMeta {
 }
 
 impl Encrypt for Vec<PostDelegationInstruction> {
-    type Output = (
-        delegation_program_interface::args::PostDelegationActions,
-        Vec<AccountMeta>,
-    );
+    type Output = (crate::args::PostDelegationActions, Vec<AccountMeta>);
     type Error = EncryptionError;
 
     fn encrypt(self, validator: &Pubkey) -> Result<Self::Output, Self::Error> {
-        use delegation_program_interface::args::MaybeEncryptedInstruction;
+        use crate::args::MaybeEncryptedInstruction;
 
         let mut signers: Vec<AccountMeta> = Vec::new();
 
@@ -154,11 +150,11 @@ impl Encrypt for Vec<PostDelegationInstruction> {
         }
 
         if signers.len() + non_signers.len()
-            > delegation_program_interface::compact::MAX_PUBKEYS as usize
+            > crate::compact::MAX_PUBKEYS as usize
         {
             panic!(
                 "delegate_with_actions supports at most {} unique pubkeys",
-                delegation_program_interface::compact::MAX_PUBKEYS
+                crate::compact::MAX_PUBKEYS
             );
         }
 
@@ -198,7 +194,7 @@ impl Encrypt for Vec<PostDelegationInstruction> {
             .collect();
 
         Ok((
-            delegation_program_interface::args::PostDelegationActions {
+            crate::args::PostDelegationActions {
                 inserted_signers: 0,
                 inserted_non_signers: 0,
                 signers: signers.iter().map(|s| s.pubkey.to_bytes()).collect(),

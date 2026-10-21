@@ -1,9 +1,10 @@
 use std::cmp::{min, Ordering};
 
-use delegation_program_interface::diff::{
+use rkyv::util::AlignedVec;
+
+use super::{
     SIZE_OF_CHANGED_LEN, SIZE_OF_NUM_OFFSET_PAIRS, SIZE_OF_SINGLE_OFFSET_PAIR,
 };
-use rkyv::util::AlignedVec;
 
 /// Computes the encoded changed segments between two account-data buffers.
 ///
@@ -61,9 +62,7 @@ pub fn compute_diff(original: &[u8], changed: &[u8]) -> AlignedVec {
 
 #[cfg(test)]
 mod tests {
-    use delegation_program_interface::diff::DiffSet;
-
-    use super::compute_diff;
+    use super::{super::DiffSet, compute_diff};
 
     #[test]
     fn computes_parseable_diff() {

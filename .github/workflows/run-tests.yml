@@ -88,14 +88,11 @@ jobs:
       - name: run interface tests with backward compatibility
         run: cargo test --manifest-path interface/Cargo.toml --features backward-compat
 
-      - name: run client tests
-        run: cargo test --manifest-path client/Cargo.toml
+      - name: run interface diff tests
+        run: cargo test --manifest-path interface/Cargo.toml --no-default-features --features diff
 
-      - name: run client diff tests
-        run: cargo test --manifest-path client/Cargo.toml --no-default-features --features diff
-
-      - name: run client encryption tests
-        run: cargo test --manifest-path client/Cargo.toml --no-default-features --features encryption
+      - name: run interface encryption tests
+        run: cargo test --manifest-path interface/Cargo.toml --no-default-features --features encryption
 
       - name: run tests (cargo test-sbf)
         run: |

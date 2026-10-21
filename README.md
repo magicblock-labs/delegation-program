@@ -5,13 +5,13 @@ Delegation program for MagicBlock Ephemeral Rollups, based on the
 
 ## Repository layout
 
-This repository is a Cargo workspace with three independently versioned
+This repository is a Cargo workspace with two independently versioned
 packages:
 
 - [`program/`](program/) contains the on-chain program.
 - [`interface/`](interface/) contains the public wire types, account layouts,
-  PDA helpers, CPI helpers, and instruction builders.
-- [`client/`](client/) contains off-chain diff and encryption helpers.
+  PDA helpers, CPI helpers, instruction builders, and feature-gated off-chain
+  helpers.
 
 Anchor integration tests live in
 [`integration-tests/anchor/`](integration-tests/anchor/). Design documents,

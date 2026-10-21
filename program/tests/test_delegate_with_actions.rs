@@ -1,16 +1,14 @@
 use delegation_program::solana_program;
-use delegation_program_client::{
+use delegation_program_interface::{
+    args::{DelegateArgs, DelegateWithActionsArgs},
+    compact,
+    compat::borsh::BorshDeserialize,
     encryption,
     instruction_builder::{
         delegate_with_actions, Encryptable, EncryptableFrom,
         PostDelegationInstruction,
     },
     Decrypt,
-};
-use delegation_program_interface::{
-    args::{DelegateArgs, DelegateWithActionsArgs},
-    compact,
-    compat::borsh::BorshDeserialize,
 };
 use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
 use solana_sdk::signer::Signer;

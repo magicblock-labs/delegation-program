@@ -3096,7 +3096,6 @@ dependencies = [
  "bytemuck",
  "const-crypto",
  "magicblock-delegation-program",
- "magicblock-delegation-program-client",
  "magicblock-delegation-program-interface",
  "num_enum",
  "pinocchio 0.10.2",
@@ -3127,21 +3126,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "magicblock-delegation-program-client"
-version = "0.1.0"
-dependencies = [
- "libsodium-rs",
- "magicblock-delegation-program-interface",
- "rkyv",
- "solana-keypair",
- "solana-program 4.0.0",
- "solana-sdk-ids",
- "solana-signer",
- "spl-token-interface",
- "thiserror 1.0.69",
-]
-
-[[package]]
 name = "magicblock-delegation-program-interface"
 version = "0.1.0"
 dependencies = [
@@ -3150,21 +3134,26 @@ dependencies = [
  "borsh 1.6.1",
  "bytemuck",
  "const-crypto",
+ "libsodium-rs",
  "num_enum",
  "pinocchio 0.10.2",
  "pinocchio-log",
  "pinocchio-system",
  "rand 0.8.5",
+ "rkyv",
  "serde",
  "solana-address 2.6.1",
  "solana-instruction",
+ "solana-keypair",
  "solana-loader-v3-interface 7.0.0",
  "solana-program 4.0.0",
  "solana-pubkey 2.4.0",
  "solana-pubkey 4.2.0",
  "solana-sdk-ids",
  "solana-sha256-hasher 3.1.0",
+ "solana-signer",
  "solana-system-interface 3.0.0",
+ "spl-token-interface",
  "static_assertions",
  "strum 0.28.0",
  "thiserror 1.0.69",

@@ -91,15 +91,14 @@ impl EncryptableAccountMeta {
     pub fn to_compact(
         self,
         index: u8,
-    ) -> delegation_program_interface::compact::EncryptableAccountMeta {
-        delegation_program_interface::compact::EncryptableAccountMeta {
-            account_meta:
-                delegation_program_interface::compact::AccountMeta::try_new(
-                    index,
-                    self.account_meta.is_signer,
-                    self.account_meta.is_writable,
-                )
-                .expect("compact account index must fit in 6 bits"),
+    ) -> crate::compact::EncryptableAccountMeta {
+        crate::compact::EncryptableAccountMeta {
+            account_meta: crate::compact::AccountMeta::try_new(
+                index,
+                self.account_meta.is_signer,
+                self.account_meta.is_writable,
+            )
+            .expect("compact account index must fit in 6 bits"),
             is_encryptable: self.is_encryptable,
         }
     }
@@ -145,7 +144,7 @@ impl EncryptableFrom for Vec<u8> {
 ///
 #[test]
 fn dev_experience() {
-    const USDC_SCALE: u64 = 1000_000;
+    const USDC_SCALE: u64 = 1_000_000;
 
     use solana_program::{instruction::AccountMeta, pubkey::Pubkey};
     use spl_token::instruction::TokenInstruction;

@@ -1,15 +1,13 @@
-use delegation_program_interface::{
-    args::{
-        MaybeEncryptedAccountMeta, MaybeEncryptedIxData, MaybeEncryptedPubkey,
-        PostDelegationActions,
-    },
-    compact,
-};
 use solana_keypair::Keypair;
 use solana_signer::Signer;
 use thiserror::Error;
 
 use crate::{
+    args::{
+        MaybeEncryptedAccountMeta, MaybeEncryptedIxData, MaybeEncryptedPubkey,
+        PostDelegationActions,
+    },
+    compact,
     encryption::{self, EncryptionError, KEY_LEN},
     solana_program::instruction::{AccountMeta, Instruction},
 };

@@ -164,8 +164,7 @@ fn apply_diff_impl(
 #[cfg(test)]
 mod tests {
 
-    use delegation_program_client::diff::compute_diff;
-    use delegation_program_interface::diff::DiffSet;
+    use delegation_program_interface::diff::{compute_diff, DiffSet};
     use rand::{
         rngs::{OsRng, StdRng},
         seq::IteratorRandom,
