@@ -41,6 +41,8 @@ pub enum DlpV2Instruction {
     CommitFinalizeFromBuffer = 114,
     /// Grows a delegated account by one step before a large direct finalization.
     PrepareCommitFinalize = 115,
+    /// Returns a delegated account to its original owner.
+    Undelegate = 116,
 }
 
 impl DlpV2Instruction {

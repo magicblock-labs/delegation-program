@@ -257,6 +257,10 @@ pub fn process_finalize_commitment(
         let mut metadata =
             DelegationMetadataFast::from_account(delegation_metadata)?;
         metadata.set_last_commit_id(u64::from(pending.commit_seq()));
+        if pending.allow_undelegation() {
+            metadata
+                .set_undelegation_requester(UndelegationRequester::Validator);
+        }
     }
 
     drop(delegation_cluster_data);

@@ -8,6 +8,7 @@ pub const VERIFIER_REGISTRY_SEED: &[u8] = b"verifier-registry";
 pub const STATE_BUFFER_SEED: &[u8] = b"state-buffer";
 pub const PENDING_COMMITMENT_SEED: &[u8] = b"pending-commitment";
 pub const CHALLENGE_SEED: &[u8] = b"challenge";
+pub const UNDELEGATE_BUFFER_SEED: &[u8] = b"undelegate-buffer";
 
 // TODO (snawaz): Precompute these addresses if PDA derivation becomes const-safe.
 
@@ -102,4 +103,11 @@ pub fn challenge_pda(
         &crate::id(),
     )
     .0
+}
+
+pub fn undelegate_buffer_pda(delegated_account: &Pubkey) -> (Pubkey, u8) {
+    Pubkey::find_program_address(
+        &[UNDELEGATE_BUFFER_SEED, delegated_account.as_ref()],
+        &crate::id(),
+    )
 }
