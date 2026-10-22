@@ -548,6 +548,7 @@ fn propose_commitment_args() -> ProposeCommitmentArgs {
         commit_id: 1,
         lamports: 1_000,
         owner: Pubkey::new_from_array([7; 32]),
+        allow_undelegation: false,
         da_pointer_hash: [9; 32],
         er_slot: Some(42),
     }
