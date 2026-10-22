@@ -62,6 +62,12 @@ pub struct PendingCommitment {
     /// Owner committed by the operator.
     pub owner: Pubkey,
 
+    /// Whether finalization should make the account undelegatable.
+    pub allow_undelegation: bool,
+
+    /// Keeps the following fixed-width fields eight-byte aligned.
+    pub _pad_after_allow_undelegation: [u8; 7],
+
     /// Hash binding operator, account, commit id, delegation, DA, and state.
     pub state_commitment_hash: [u8; 32],
 

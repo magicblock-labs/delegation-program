@@ -242,6 +242,7 @@ pub fn process_propose_commitment(
             delegation_record: delegation_record.address(),
             da_pointer_hash: args.da_pointer_hash(),
             account_state_hash: &account_state_hash,
+            allow_undelegation: args.allow_undelegation(),
             verifier_registry: verifier_registry.address(),
             challenge_window_id,
         });
@@ -260,6 +261,8 @@ pub fn process_propose_commitment(
         data_hash,
         lamports: args.lamports(),
         owner: *args.owner(),
+        allow_undelegation: args.allow_undelegation(),
+        _pad_after_allow_undelegation: [0; 7],
         state_commitment_hash,
         verifier_registry: verifier_registry.address().to_bytes().into(),
         challenge_window_id,
@@ -472,6 +475,7 @@ struct StateCommitmentHashInput<'a> {
     delegation_record: &'a Address,
     da_pointer_hash: &'a [u8; 32],
     account_state_hash: &'a [u8; 32],
+    allow_undelegation: bool,
     verifier_registry: &'a Address,
     challenge_window_id: u64,
 }
@@ -486,6 +490,7 @@ fn state_commitment_hash(input: StateCommitmentHashInput<'_>) -> [u8; 32] {
         input.delegation_record.as_ref(),
         input.da_pointer_hash,
         input.account_state_hash,
+        &[input.allow_undelegation as u8],
         input.verifier_registry.as_ref(),
         &input.challenge_window_id.to_le_bytes(),
     ])
