@@ -11,6 +11,9 @@ pub struct ProposeCommitmentArgs {
 
     pub owner: Pubkey,
 
+    /// Whether finalization should make the account undelegatable.
+    pub allow_undelegation: bool,
+
     /// Hash of replay/data-availability pointer bytes.
     pub da_pointer_hash: [u8; 32],
 

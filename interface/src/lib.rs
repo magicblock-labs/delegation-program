@@ -3,6 +3,7 @@ pub use ::solana_program;
 pub mod args;
 pub mod compact;
 pub mod compat;
+pub mod consts;
 
 #[cfg(feature = "diff")]
 pub mod diff;
@@ -18,6 +19,7 @@ pub mod state;
 pub mod instruction_builder;
 
 pub use args::*;
+pub use consts::*;
 pub use instruction::*;
 pub use pda::*;
 pub use state::*;
