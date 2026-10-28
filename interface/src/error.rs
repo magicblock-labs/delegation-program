@@ -194,6 +194,12 @@ pub enum DlpError {
     #[error("Account data is too large for one-step undelegation")]
     AccountDataTooLargeForUndelegation = 56,
 
+    #[error("Invalid StateBuffer rent payer")]
+    InvalidStateBufferRentPayer = 57,
+
+    #[error("StateBuffer is still required by a live commitment")]
+    StateBufferInUse = 58,
+
     #[error("An infallible error is encountered possibly due to logic error")]
     InfallibleError = 100,
 }

@@ -43,6 +43,8 @@ pub enum DlpV2Instruction {
     PrepareCommitFinalize = 115,
     /// Returns a delegated account to its original owner.
     Undelegate = 116,
+    /// Closes a state buffer and returns its rent to the stored payer.
+    CloseStateBuffer = 117,
 }
 
 impl DlpV2Instruction {
