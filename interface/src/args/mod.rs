@@ -2,6 +2,7 @@
 // instruction tag, so v2 instruction args use `buffer_offset = 1`.
 
 mod challenger_reveal;
+mod close_state_buffer;
 mod commit_finalize;
 mod commit_finalize_from_buffer;
 mod delegate;
@@ -17,6 +18,7 @@ mod update_verifier_registry;
 mod write_state_buffer;
 
 pub use challenger_reveal::*;
+pub use close_state_buffer::*;
 pub use commit_finalize::*;
 pub use commit_finalize_from_buffer::*;
 pub use delegate::*;
