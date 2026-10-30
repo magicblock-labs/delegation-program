@@ -5,7 +5,7 @@ use crate::compat::Pubkey;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[variable_offset_layout(buffer_offset = 1)]
 pub struct CommitFinalizeFromBufferArgs {
-    /// Next commit id for this delegated account and its StateBuffer.
+    /// Next commit sequence number for this delegated account and its StateBuffer.
     pub commit_seq: u64,
 
     /// Account lamports on the ER after this commit.
@@ -24,7 +24,7 @@ pub struct CommitFinalizeFromBufferArgs {
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[variable_offset_layout(buffer_offset = 1)]
 pub struct PrepareCommitFinalizeArgs {
-    /// Next commit id whose finalization needs this account size.
+    /// Next commit sequence number whose finalization needs this account size.
     pub commit_seq: u64,
 
     /// Final delegated-account data length.
