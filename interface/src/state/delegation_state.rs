@@ -33,7 +33,7 @@ pub struct DelegationState {
     /// Account lamports at delegation or after the latest finalization.
     pub lamports: u64,
 
-    /// Latest finalized commit id applied to the delegated account.
+    /// Latest finalized commit sequence number applied to the delegated account.
     pub last_commit_seq: u64,
 
     /// Who requested undelegation, stored as `UndelegationRequester::value()`.
