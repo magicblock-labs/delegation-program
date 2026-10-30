@@ -19,13 +19,13 @@ pub fn finalize_commitment(
     operator: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
 ) -> Instruction {
     finalize_commitment_with_state_authority(
         operator,
         delegation_cluster,
         account,
-        commit_id,
+        commit_seq,
         None,
     )
 }
@@ -35,17 +35,20 @@ pub fn finalize_challenger_commitment(
     challenger: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
 ) -> Instruction {
-    let challenge =
-        challenge_pda(&account.compatize(), commit_id, &challenger.compatize())
-            .modernize();
+    let challenge = challenge_pda(
+        &account.compatize(),
+        commit_seq,
+        &challenger.compatize(),
+    )
+    .modernize();
 
     finalize_commitment_with_state_authority(
         challenger,
         delegation_cluster,
         account,
-        commit_id,
+        commit_seq,
         Some(challenge),
     )
 }
@@ -54,13 +57,14 @@ fn finalize_commitment_with_state_authority(
     state_authority: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
     challenge: Option<Pubkey>,
 ) -> Instruction {
     let mut accounts = vec![
         AccountMeta::new(state_authority, true),
         AccountMeta::new(
-            pending_commitment_pda(&account.compatize(), commit_id).modernize(),
+            pending_commitment_pda(&account.compatize(), commit_seq)
+                .modernize(),
             false,
         ),
         AccountMeta::new(account, false),
@@ -79,7 +83,7 @@ fn finalize_commitment_with_state_authority(
         AccountMeta::new_readonly(
             state_buffer_pda(
                 &account.compatize(),
-                commit_id,
+                commit_seq,
                 &state_authority.compatize(),
             )
             .modernize(),

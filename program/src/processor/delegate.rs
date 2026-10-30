@@ -139,7 +139,7 @@ pub fn process_delegate(
     *state.rent_payer_mut()? = *payer.address();
     state.delegation_slot_mut()?.set(Clock::get()?.slot)?;
     state.lamports_mut()?.set(delegated_account_lamports)?;
-    state.last_commit_id_mut()?.set(0)?;
+    state.last_commit_seq_mut()?.set(0)?;
     *state.undelegation_requester_mut()? = UndelegationRequester::None.value();
     *state.delegated_account_bump_mut()? = args.delegated_account_bump();
     *state.seed_count_mut()? = seeds.len() as u8;

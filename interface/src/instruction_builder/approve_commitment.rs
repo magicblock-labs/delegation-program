@@ -14,7 +14,7 @@ pub fn approve_commitment(
     verifier: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
 ) -> Instruction {
     Instruction {
         program_id: crate::id().modernize(),
@@ -29,7 +29,7 @@ pub fn approve_commitment(
                 false,
             ),
             AccountMeta::new(
-                pending_commitment_pda(&account.compatize(), commit_id)
+                pending_commitment_pda(&account.compatize(), commit_seq)
                     .modernize(),
                 false,
             ),

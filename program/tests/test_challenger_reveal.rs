@@ -102,7 +102,7 @@ async fn test_challenger_reveal_matching_state_penalizes_and_reopens_commitment(
         challenge.challenger_state_buffer,
         state_buffer_pda(
             &env.delegated_account,
-            env.commit_id,
+            env.commit_seq,
             &env.challenger.pubkey()
         )
     );
@@ -271,12 +271,12 @@ async fn test_challenger_reveal_fails_with_wrong_challenger_buffer() {
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         reveal_args,
     );
     ix.accounts[4].pubkey = state_buffer_pda(
         &env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         &env.operator.pubkey(),
     );
 
@@ -296,11 +296,11 @@ async fn test_challenger_reveal_fails_with_unfinalized_challenger_buffer() {
         env.committed_owner,
         account_data_hash(&expected_data),
     );
-    let commit_id = env.commit_id;
+    let commit_seq = env.commit_seq;
     write_challenger_state_buffer_args(
         &mut env,
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: expected_data.len() as u32,
             offset: 0,
             chunk: expected_data[..2].to_vec(),
@@ -339,7 +339,7 @@ async fn test_challenger_reveal_fails_with_wrong_fee_vault() {
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         reveal_args,
     );
     ix.accounts[6].pubkey = env.challenger.pubkey();
@@ -358,7 +358,7 @@ struct ChallengerRevealEnv {
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
-    commit_id: u64,
+    commit_seq: u64,
     challenge_config: ChallengeConfig,
     operator_state_data: Vec<u8>,
 }
@@ -378,7 +378,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
     let delegation_cluster =
         dpi::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let committed_owner = Pubkey::new_unique();
-    let commit_id = 1;
+    let commit_seq = 1;
     let operator_state_data = vec![9, 8, 7, 6, 5];
     let record_lamports = LAMPORTS_PER_SOL;
     let committed_lamports = LAMPORTS_PER_SOL;
@@ -464,7 +464,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
         &operator,
         delegated_account,
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: operator_state_data.len() as u32,
             offset: 0,
             chunk: operator_state_data.clone(),
@@ -482,7 +482,7 @@ async fn setup_challenger_reveal_env() -> ChallengerRevealEnv {
         delegated_account,
         committed_owner,
         committed_lamports,
-        commit_id,
+        commit_seq,
         challenge_config,
         operator_state_data,
     }
@@ -496,7 +496,7 @@ async fn propose(
         env.delegation_cluster,
         env.delegated_account,
         ProposeCommitmentArgs {
-            commit_id: env.commit_id,
+            commit_seq: env.commit_seq,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
             da_pointer_hash: [9; 32],
@@ -517,7 +517,7 @@ async fn raise_for_reveal(
         env.challenger.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         RaiseChallengeArgs {
             state_commitment_hash: pending.state_commitment_hash,
             challenge_hash: challenge_hash(
@@ -525,7 +525,7 @@ async fn raise_for_reveal(
                 env.operator.pubkey(),
                 env.challenger.pubkey(),
                 env.delegated_account,
-                env.commit_id,
+                env.commit_seq,
                 reveal_args,
             ),
             stake_lamports,
@@ -544,7 +544,7 @@ async fn reveal(
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         args,
     );
 
@@ -558,7 +558,7 @@ async fn write_challenger_state_buffer(
     write_challenger_state_buffer_args(
         env,
         WriteStateBufferArgs {
-            commit_id: env.commit_id,
+            commit_seq: env.commit_seq,
             total_len: data.len() as u32,
             offset: 0,
             chunk: data,
@@ -684,7 +684,7 @@ async fn read_pending_commitment(
         .banks_client
         .get_account(pending_commitment_pda(
             &env.delegated_account,
-            env.commit_id,
+            env.commit_seq,
         ))
         .await
         .unwrap()
@@ -790,7 +790,7 @@ fn valid_reveal_args(
 fn challenge_address(env: &ChallengerRevealEnv) -> Pubkey {
     challenge_pda(
         &env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         &env.challenger.pubkey(),
     )
 }
@@ -805,7 +805,7 @@ fn challenge_hash(
     operator: Pubkey,
     challenger: Pubkey,
     account: Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
     args: &ChallengerRevealArgs,
 ) -> [u8; 32] {
     solana_sha256_hasher::hashv(&[
@@ -814,7 +814,7 @@ fn challenge_hash(
         operator.as_ref(),
         challenger.as_ref(),
         account.as_ref(),
-        &commit_id.to_le_bytes(),
+        &commit_seq.to_le_bytes(),
         &args.lamports.to_le_bytes(),
         args.owner.as_ref(),
         &args.data_hash,
