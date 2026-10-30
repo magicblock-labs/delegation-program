@@ -43,7 +43,7 @@ async fn test_commit_finalize_applies_full_data_and_diff() {
         &context,
         &context.current_validator,
         CommitFinalizeArgs {
-            commit_id: 1,
+            commit_seq: 1,
             lamports: INITIAL_LAMPORTS + 500,
             owner: context.original_owner,
             allow_undelegation: false,
@@ -72,7 +72,7 @@ async fn test_commit_finalize_applies_full_data_and_diff() {
 
         assert_eq!(account.data, FULL_DATA);
         assert_eq!(account.lamports, INITIAL_LAMPORTS + 500);
-        assert_eq!(state.last_commit_id(), 1);
+        assert_eq!(state.last_commit_seq(), 1);
         assert_eq!(state.lamports(), INITIAL_LAMPORTS + 500);
         assert_eq!(
             state.undelegation_requester(),
@@ -85,7 +85,7 @@ async fn test_commit_finalize_applies_full_data_and_diff() {
         &context,
         &context.current_validator,
         CommitFinalizeArgs {
-            commit_id: 2,
+            commit_seq: 2,
             lamports: INITIAL_LAMPORTS + 300,
             owner: context.original_owner,
             allow_undelegation: true,
@@ -113,7 +113,7 @@ async fn test_commit_finalize_applies_full_data_and_diff() {
 
     assert_eq!(account.data, changed_data);
     assert_eq!(account.lamports, INITIAL_LAMPORTS + 300);
-    assert_eq!(state.last_commit_id(), 2);
+    assert_eq!(state.last_commit_seq(), 2);
     assert_eq!(state.lamports(), INITIAL_LAMPORTS + 300);
     assert_eq!(
         state.undelegation_requester(),
@@ -191,10 +191,10 @@ async fn test_commit_finalize_requires_owner_undelegation_to_be_allowed() {
 
 fn full_data_args(
     context: &CommitFinalizeTestContext,
-    commit_id: u64,
+    commit_seq: u64,
 ) -> CommitFinalizeArgs {
     CommitFinalizeArgs {
-        commit_id,
+        commit_seq,
         lamports: INITIAL_LAMPORTS,
         owner: context.original_owner,
         allow_undelegation: false,
@@ -316,7 +316,7 @@ async fn setup_commit_finalize_test(
         rent_payer: Pubkey::new_unique(),
         delegation_slot: 0,
         lamports: INITIAL_LAMPORTS,
-        last_commit_id: 0,
+        last_commit_seq: 0,
         undelegation_requester: undelegation_requester.value(),
         delegated_account_bump: 0,
         seed_count: 0,

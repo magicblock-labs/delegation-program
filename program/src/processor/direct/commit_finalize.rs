@@ -52,7 +52,7 @@ pub fn process_commit_finalize(
         delegation_state,
         delegation_cluster,
         CommitFinalizeInput {
-            commit_id: args.commit_id(),
+            commit_seq: args.commit_seq(),
             lamports: args.lamports(),
             owner: args.owner(),
             allow_undelegation: args.allow_undelegation(),
