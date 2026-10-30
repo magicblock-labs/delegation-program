@@ -5,7 +5,7 @@ use crate::compat::Pubkey;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[variable_offset_layout(buffer_offset = 1)]
 pub struct CommitFinalizeArgs {
-    /// Next commit id for this delegated account.
+    /// Next commit sequence number for this delegated account.
     pub commit_seq: u64,
 
     /// Account lamports on the ER after this commit.
