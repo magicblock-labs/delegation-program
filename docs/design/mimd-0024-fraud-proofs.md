@@ -380,7 +380,7 @@ pub enum ResolvedStateSource {
 /// Created by: `ProposeCommitment`.
 /// Closed by: `CloseTerminalAccounts` after finalize, cancel, or expiry.
 ///
-/// One account per delegated account and commit id.
+/// One account per delegated account and commit sequence number.
 pub struct PendingCommitment {
     /// Current state-machine state for this commitment.
     pub status: PendingCommitmentStatus,
@@ -392,7 +392,7 @@ pub struct PendingCommitment {
     pub operator_bond: Pubkey,
     /// Delegated account whose base-layer state will be finalized.
     pub account_pubkey: Pubkey,
-    /// Validator-chosen nonce for this account commitment.
+    /// Monotonically increasing sequence number for this account's commitments.
     pub commit_seq: u64,
     /// Delegation metadata tying this account to the ER context.
     pub delegation_record: Pubkey,
@@ -406,8 +406,8 @@ pub struct PendingCommitment {
     pub lamports: u64,
     /// Owner committed by the operator.
     pub owner: Pubkey,
-    /// Hash binding cluster, validator, account, commit id, delegation, DA,
-    /// and state.
+    /// Hash binding cluster, validator, account, commit sequence number,
+    /// delegation, DA, and state.
     pub state_commitment_hash: [u8; 32],
     /// Registry account used when this commitment was posted.
     pub verifier_registry: Pubkey,
@@ -743,7 +743,7 @@ pub struct ResolveDisputeArgs {
   instructions retain their validator-key authorization model.
 - `WriteStateBuffer` must run before `ProposeCommitment` for the operator state.
   `ProposeCommitment` rejects if the operator buffer is missing, unfinished, or
-  belongs to another account, commit id, or current validator.
+  belongs to another account, commit sequence number, or current validator.
 - `ProposeCommitment` reads `data_hash` from the finalized operator buffer,
   verifies that the delegation, operator bond, and verifier registry belong to
   the same cluster, computes `account_state_hash` and
