@@ -70,7 +70,7 @@ async fn test_finalize_commitment() {
     assert_eq!(delegation_record.lamports, env.committed_lamports);
 
     let delegation_metadata = read_delegation_metadata(&mut env).await;
-    assert_eq!(delegation_metadata.last_commit_id, env.commit_id);
+    assert_eq!(delegation_metadata.last_commit_id, env.commit_seq);
 }
 
 #[tokio::test]
@@ -111,7 +111,7 @@ async fn test_finalize_commitment_fails_with_wrong_operator() {
         wrong_operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
     );
 
     assert!(process_ix(&mut env.context, ix, &[&wrong_operator])
@@ -226,7 +226,7 @@ struct FinalizeCommitmentEnv {
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
-    commit_id: u64,
+    commit_seq: u64,
     final_state_data: Vec<u8>,
 }
 
@@ -248,7 +248,7 @@ async fn setup_finalize_commitment_env(
         dpi::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let account_owner = Pubkey::new_unique();
     let committed_owner = account_owner;
-    let commit_id = 1;
+    let commit_seq = 1;
     let final_state_data = vec![9, 8, 7, 6, 5];
 
     add_lamport_account(&mut program_test, authority.pubkey());
@@ -330,7 +330,7 @@ async fn setup_finalize_commitment_env(
         &operator,
         delegated_account,
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: final_state_data.len() as u32,
             offset: 0,
             chunk: final_state_data.clone(),
@@ -347,7 +347,7 @@ async fn setup_finalize_commitment_env(
         delegated_account,
         committed_owner,
         committed_lamports,
-        commit_id,
+        commit_seq,
         final_state_data,
     }
 }
@@ -360,7 +360,7 @@ async fn propose(
         env.delegation_cluster,
         env.delegated_account,
         ProposeCommitmentArgs {
-            commit_id: env.commit_id,
+            commit_seq: env.commit_seq,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
             da_pointer_hash: [9; 32],
@@ -378,7 +378,7 @@ async fn approve(
         env.verifier.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
     );
 
     process_ix(&mut env.context, ix, &[&env.verifier]).await
@@ -391,7 +391,7 @@ async fn finalize(
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
     );
 
     process_ix(&mut env.context, ix, &[&env.operator]).await
@@ -506,7 +506,7 @@ async fn read_pending_commitment(
         .banks_client
         .get_account(pending_commitment_pda(
             &env.delegated_account,
-            env.commit_id,
+            env.commit_seq,
         ))
         .await
         .unwrap()

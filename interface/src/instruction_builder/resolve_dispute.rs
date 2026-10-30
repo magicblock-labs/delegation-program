@@ -17,7 +17,7 @@ pub fn resolve_dispute(
     delegation_cluster: Pubkey,
     challenger: Pubkey,
     account: Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
     args: ResolveDisputeArgs,
 ) -> Instruction {
     Instruction {
@@ -27,14 +27,14 @@ pub fn resolve_dispute(
             AccountMeta::new(
                 challenge_pda(
                     &account.compatize(),
-                    commit_id,
+                    commit_seq,
                     &challenger.compatize(),
                 )
                 .modernize(),
                 false,
             ),
             AccountMeta::new(
-                pending_commitment_pda(&account.compatize(), commit_id)
+                pending_commitment_pda(&account.compatize(), commit_seq)
                     .modernize(),
                 false,
             ),

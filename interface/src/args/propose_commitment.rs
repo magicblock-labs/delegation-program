@@ -5,7 +5,7 @@ use crate::compat::Pubkey;
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[variable_offset_layout(buffer_offset = 1)]
 pub struct ProposeCommitmentArgs {
-    pub commit_id: u64,
+    pub commit_seq: u64,
 
     pub lamports: u64,
 

@@ -163,7 +163,7 @@ state_commitment_hash = H(
   delegation_cluster,
   operator_identity,
   account_pubkey,
-  commit_id,
+  commit_seq,
   delegation_record,
   da_pointer_hash,
   account_state_hash,
@@ -177,7 +177,7 @@ challenge_hash = H(
   operator_identity,
   challenger_identity,
   account_pubkey,
-  commit_id,
+  commit_seq,
   challenger_lamports,
   challenger_owner,
   challenger_data_hash,
@@ -198,9 +198,9 @@ Seed strings are placeholders until frozen.
 | `OperatorBond` | `["operator-bond", delegation_cluster]` | Cluster-scoped operator stake for the challenge flow that survives validator rotation. |
 | `VerifierBond` | `["verifier-bond", delegation_cluster, verifier]` | Verifier stake isolated to one cluster. |
 | `VerifierRegistry` | `["verifier-registry", delegation_cluster]` | Verifiers selectable for one challenge-enabled cluster. |
-| `PendingCommitment` | `["pending-commitment", account, commit_id]` | Main commitment state machine. |
-| `StateBuffer` | `["state-buffer", account, commit_id, authority]` | Chunked state payload opened by an operator or challenger. The payload may be full `Account::data` bytes or an encoded diff. |
-| `Challenge` | `["challenge", account, commit_id, challenger]` | One challenge against one pending commitment. |
+| `PendingCommitment` | `["pending-commitment", account, commit_seq]` | Main commitment state machine. |
+| `StateBuffer` | `["state-buffer", account, commit_seq, authority]` | Chunked state payload opened by an operator or challenger. The payload may be full `Account::data` bytes or an encoded diff. |
+| `Challenge` | `["challenge", account, commit_seq, challenger]` | One challenge against one pending commitment. |
 | `PayoutTimelock` | `["payout-timelock", challenge]` | Delayed payout for correct challenger. |
 
 ### Essential Fields
@@ -376,7 +376,7 @@ pub enum ResolvedStateSource {
     ChallengerReveal,
 }
 
-/// PDA: `["pending-commitment", account, commit_id]`
+/// PDA: `["pending-commitment", account, commit_seq]`
 /// Created by: `ProposeCommitment`.
 /// Closed by: `CloseTerminalAccounts` after finalize, cancel, or expiry.
 ///
@@ -393,7 +393,7 @@ pub struct PendingCommitment {
     /// Delegated account whose base-layer state will be finalized.
     pub account_pubkey: Pubkey,
     /// Validator-chosen nonce for this account commitment.
-    pub commit_id: u64,
+    pub commit_seq: u64,
     /// Delegation metadata tying this account to the ER context.
     pub delegation_record: Pubkey,
     /// Hash of replay/data-availability pointer bytes.
@@ -454,7 +454,7 @@ pub struct SelectedVerifier {
 // Review: `challenge_window_id` should be kept only if window extensions or
 // retries need an explicit round id.
 
-/// PDA: `["state-buffer", account, commit_id, authority]`
+/// PDA: `["state-buffer", account, commit_seq, authority]`
 /// Created by: first `WriteStateBuffer`.
 /// Frozen by: final `WriteStateBuffer` chunk.
 /// Closed by: `CloseTerminalAccounts`.
@@ -470,7 +470,7 @@ pub struct StateBuffer {
     pub account_pubkey: Pubkey,
 
     /// Commitment this buffer belongs to.
-    pub commit_id: u64,
+    pub commit_seq: u64,
 
     /// Hash of the uploaded payload. Zero until finalized.
     pub data_hash: [u8; 32],
@@ -509,7 +509,7 @@ pub enum ChallengeOutcome {
     ChallengerCorrectOperatorSlashed,
 }
 
-/// PDA: `["challenge", account, commit_id, challenger]`
+/// PDA: `["challenge", account, commit_seq, challenger]`
 /// Created by: `RaiseChallenge`.
 /// Closed by: `CloseTerminalAccounts` after a terminal challenge outcome.
 ///
@@ -596,8 +596,8 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
-| `WriteStateBuffer`<ul><li>ix-data: <code>commit_id, total_len, offset, chunk</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_id, authority]` seed pattern. The instruction remains cluster-neutral; consuming instructions validate the payload, authority, and cluster relationship. |
-| `ProposeCommitment`<ul><li>ix-data: <code>commit_id, lamports, owner, da_pointer_hash, er_slot</code></li><li>accounts: <strong>current validator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, DelegationMetadata, DelegationCluster, VerifierRegistry, system program</strong></li></ul> | Current validator | Requires `Challenge` mode, verifies the delegation's cluster and current validator, consumes only cluster-scoped bond and registry accounts, selects verifiers, and starts the challenge window. `DelegationRecord` and `DelegationMetadata` are temporary v1-layout dependencies until their v2 replacement exists. |
+| `WriteStateBuffer`<ul><li>ix-data: <code>commit_seq, total_len, offset, chunk</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_seq, authority]` seed pattern. The instruction remains cluster-neutral; consuming instructions validate the payload, authority, and cluster relationship. |
+| `ProposeCommitment`<ul><li>ix-data: <code>commit_seq, lamports, owner, da_pointer_hash, er_slot</code></li><li>accounts: <strong>current validator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, DelegationMetadata, DelegationCluster, VerifierRegistry, system program</strong></li></ul> | Current validator | Requires `Challenge` mode, verifies the delegation's cluster and current validator, consumes only cluster-scoped bond and registry accounts, selects verifiers, and starts the challenge window. `DelegationRecord` and `DelegationMetadata` are temporary v1-layout dependencies until their v2 replacement exists. |
 | `ApproveCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from the selected verifier. v2 MVP requires exactly one selected verifier, so no verifier index is needed. Duplicate approvals do not increase the count. |
 | `RaiseChallenge`<ul><li>ix-data: <code>state_commitment_hash, challenge_hash, stake_lamports</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, system program</strong></li></ul> | Challenger | Requires the cluster stored by the pending commitment, locks challenger stake, stores the salted `challenge_hash`, and blocks normal finalization until reveal, timeout, or resolution. It does not consume challenger state bytes. |
 | `ChallengerReveal`<ul><li>ix-data: <code>lamports, owner, data_hash, salt</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, finalized operator StateBuffer, finalized challenger StateBuffer, DelegationCluster, protocol fee vault</strong></li></ul> | Challenger | Opens the challenged state and salt, validates both state buffers and the stored `challenge_hash`, penalizes invalid or matching reveals, or moves mismatches to resolver decision. |
@@ -653,10 +653,10 @@ create and write accounts in the `StateBuffer` namespace, using the fixed seed
 pattern:
 
 ```text
-["state-buffer", account, commit_id, authority]
+["state-buffer", account, commit_seq, authority]
 ```
 
-The header must bind the same `authority`, `account_pubkey`, and `commit_id`.
+The header must bind the same `authority`, `account_pubkey`, and `commit_seq`.
 The buffer is inert until a consuming instruction validates the authority role:
 
 - `ProposeCommitment` accepts a finalized buffer whose authority is the operator;
@@ -666,7 +666,7 @@ The buffer is inert until a consuming instruction validates the authority role:
   needs buffered transport, and validates authority against the challenger.
 
 If future protocol flows need multiple buffer purposes for the same
-`account + commit_id + authority`, add an explicit `buffer_kind` or purpose seed
+`account + commit_seq + authority`, add an explicit `buffer_kind` or purpose seed
 and matching header field. Reusing the same address space for unrelated opened
 state can create collisions or confused-consumer bugs.
 
@@ -676,7 +676,7 @@ duplicate retries remain valid.
 
 Consuming instructions must check:
 
-- buffer PDA seeds match `account_pubkey`, `commit_id`, and `authority`;
+- buffer PDA seeds match `account_pubkey`, `commit_seq`, and `authority`;
 - buffer is finalized;
 - buffer commitment matches the `PendingCommitment`;
 - authority matches the operator for `ProposeCommitment` and happy-path
@@ -692,7 +692,7 @@ are too slow.
 
 ```rust
 pub struct WriteStateBufferArgs<'a> {
-    pub commit_id: u64,
+    pub commit_seq: u64,
     pub total_len: u32,
     /// Must equal StateBuffer.payload.len(), unless retrying an exact old chunk.
     pub offset: u32,
@@ -700,7 +700,7 @@ pub struct WriteStateBufferArgs<'a> {
 }
 
 pub struct ProposeCommitmentArgs {
-    pub commit_id: u64,
+    pub commit_seq: u64,
     pub lamports: u64,
     pub owner: Pubkey,
     pub da_pointer_hash: [u8; 32],

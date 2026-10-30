@@ -2,7 +2,7 @@ use wheels::fixed_offset_layout;
 
 use crate::{compat::Pubkey, error::DlpError};
 
-/// PDA: `["state-buffer", account, commit_id, authority]`.
+/// PDA: `["state-buffer", account, commit_seq, authority]`.
 /// Created by `WriteStateBuffer`.
 /// Closed by `CloseTerminalAccounts` after finalize, cancel, or expiry.
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -21,7 +21,7 @@ pub struct StateBuffer {
     pub account_pubkey: Pubkey,
 
     /// Flow-specific nonce that identifies this opened buffer.
-    pub commit_id: u64,
+    pub commit_seq: u64,
 
     /// Hash of the finalized payload. Zero until finalized.
     pub data_hash: [u8; 32],

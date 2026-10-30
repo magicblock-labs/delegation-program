@@ -94,7 +94,7 @@ async fn test_delegate_creates_cluster_bound_delegation_state() {
     assert_eq!(*state.original_owner(), OWNER_PROGRAM_ID);
     assert_eq!(*state.rent_payer(), context.payer.pubkey());
     assert_eq!(state.lamports(), delegated_account.lamports);
-    assert_eq!(state.last_commit_id(), 0);
+    assert_eq!(state.last_commit_seq(), 0);
     assert_eq!(
         state.undelegation_requester(),
         UndelegationRequester::None.value()

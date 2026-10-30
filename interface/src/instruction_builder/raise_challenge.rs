@@ -16,7 +16,7 @@ pub fn raise_challenge(
     challenger: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
     args: RaiseChallengeArgs,
 ) -> Instruction {
     Instruction {
@@ -26,14 +26,14 @@ pub fn raise_challenge(
             AccountMeta::new(
                 challenge_pda(
                     &account.compatize(),
-                    commit_id,
+                    commit_seq,
                     &challenger.compatize(),
                 )
                 .modernize(),
                 false,
             ),
             AccountMeta::new(
-                pending_commitment_pda(&account.compatize(), commit_id)
+                pending_commitment_pda(&account.compatize(), commit_seq)
                     .modernize(),
                 false,
             ),

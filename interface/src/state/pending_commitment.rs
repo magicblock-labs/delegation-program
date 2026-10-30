@@ -15,7 +15,7 @@ pub const PENDING_COMMITMENT_STATUS_CANCELLED: u8 = 9;
 pub const RESOLVED_STATE_SOURCE_OPERATOR_COMMITMENT: u8 = 1;
 pub const RESOLVED_STATE_SOURCE_CHALLENGER_REVEAL: u8 = 2;
 
-/// PDA: `["pending-commitment", account, commit_id]`.
+/// PDA: `["pending-commitment", account, commit_seq]`.
 /// Created by `ProposeCommitment`.
 /// Closed by `CloseTerminalAccounts` after finalize, cancel, or expiry.
 ///
@@ -42,7 +42,7 @@ pub struct PendingCommitment {
     pub account_pubkey: Pubkey,
 
     /// Operator-chosen nonce for this account commitment.
-    pub commit_id: u64,
+    pub commit_seq: u64,
 
     /// Delegation record tying this account to the ER context.
     pub delegation_record: Pubkey,

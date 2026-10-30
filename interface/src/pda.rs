@@ -60,14 +60,14 @@ pub fn verifier_bond_pda(
 
 pub fn state_buffer_pda(
     account: &Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
     authority: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             STATE_BUFFER_SEED,
             account.as_ref(),
-            &commit_id.to_le_bytes(),
+            &commit_seq.to_le_bytes(),
             authority.as_ref(),
         ],
         &crate::id(),
@@ -75,12 +75,12 @@ pub fn state_buffer_pda(
     .0
 }
 
-pub fn pending_commitment_pda(account: &Pubkey, commit_id: u64) -> Pubkey {
+pub fn pending_commitment_pda(account: &Pubkey, commit_seq: u64) -> Pubkey {
     Pubkey::find_program_address(
         &[
             PENDING_COMMITMENT_SEED,
             account.as_ref(),
-            &commit_id.to_le_bytes(),
+            &commit_seq.to_le_bytes(),
         ],
         &crate::id(),
     )
@@ -89,14 +89,14 @@ pub fn pending_commitment_pda(account: &Pubkey, commit_id: u64) -> Pubkey {
 
 pub fn challenge_pda(
     account: &Pubkey,
-    commit_id: u64,
+    commit_seq: u64,
     challenger: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             CHALLENGE_SEED,
             account.as_ref(),
-            &commit_id.to_le_bytes(),
+            &commit_seq.to_le_bytes(),
             challenger.as_ref(),
         ],
         &crate::id(),

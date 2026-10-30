@@ -198,13 +198,13 @@ pub fn process_finalize_commitment(
         true,
     )?;
 
-    let commit_id_bytes = pending.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending.commit_seq().to_le_bytes();
     require_initialized_pda(
         state_buffer,
         &[
             STATE_BUFFER_SEED,
             delegated_account.address().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
             state_authority.address().as_ref(),
         ],
         &crate::fast::ID,
@@ -217,14 +217,14 @@ pub fn process_finalize_commitment(
         delegation_cluster,
         selected_state.owner,
     )?;
-    validate_delegation_metadata(delegation_metadata, pending.commit_id())?;
+    validate_delegation_metadata(delegation_metadata, pending.commit_seq())?;
 
     let state_buffer_data = state_buffer.try_borrow()?;
     let raw_state = validate_state_buffer(
         state_buffer_data.as_ref(),
         state_authority,
         delegated_account,
-        pending.commit_id(),
+        pending.commit_seq(),
         selected_state.data_hash,
     )?;
 
@@ -256,7 +256,7 @@ pub fn process_finalize_commitment(
     {
         let mut metadata =
             DelegationMetadataFast::from_account(delegation_metadata)?;
-        metadata.set_last_commit_id(pending.commit_id());
+        metadata.set_last_commit_id(pending.commit_seq());
     }
 
     drop(delegation_cluster_data);
@@ -276,13 +276,13 @@ fn validate_pending_commitment(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let commit_id_bytes = pending.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending.commit_seq().to_le_bytes();
     require_initialized_pda(
         pending_commitment,
         &[
             PENDING_COMMITMENT_SEED,
             pending.account_pubkey().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
         ],
         &crate::fast::ID,
         true,
@@ -395,14 +395,14 @@ fn validate_delegation_record(
 
 fn validate_delegation_metadata(
     delegation_metadata: &AccountView,
-    commit_id: u64,
+    commit_seq: u64,
 ) -> ProgramResult {
     let metadata = DelegationMetadataFast::from_account(delegation_metadata)?;
-    let expected_commit_id = metadata
+    let expected_commit_seq = metadata
         .last_commit_id()
         .checked_add(1)
         .ok_or(DlpError::Overflow)?;
-    require_eq!(commit_id, expected_commit_id, DlpError::NonceOutOfOrder);
+    require_eq!(commit_seq, expected_commit_seq, DlpError::NonceOutOfOrder);
 
     match metadata.undelegation_requester()? {
         UndelegationRequester::None => Ok(()),
@@ -419,7 +419,7 @@ fn validate_state_buffer<'a>(
     data: &'a [u8],
     state_authority: &AccountView,
     delegated_account: &AccountView,
-    commit_id: u64,
+    commit_seq: u64,
     expected_data_hash: &[u8; 32],
 ) -> Result<&'a [u8], ProgramError> {
     let state = StateBuffer::decode(data)?;
@@ -438,8 +438,8 @@ fn validate_state_buffer<'a>(
         DlpError::InvalidDelegatedAccount
     );
     require_eq!(
-        state.commit_id(),
-        commit_id,
+        state.commit_seq(),
+        commit_seq,
         ProgramError::InvalidInstructionData
     );
     require_eq!(
@@ -533,13 +533,13 @@ fn validate_challenge(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let commit_id_bytes = pending.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending.commit_seq().to_le_bytes();
     require_initialized_pda(
         challenge_account,
         &[
             CHALLENGE_SEED,
             pending.account_pubkey().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
             challenge.challenger_identity().as_ref(),
         ],
         &crate::fast::ID,
