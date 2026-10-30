@@ -35,7 +35,7 @@ impl CommitStateUpdate<'_> {
 }
 
 pub(crate) struct CommitFinalizeInput<'a> {
-    pub(crate) commit_id: u64,
+    pub(crate) commit_seq: u64,
     pub(crate) lamports: u64,
     pub(crate) owner: &'a dpi::compat::Pubkey,
     pub(crate) allow_undelegation: bool,
@@ -119,9 +119,9 @@ pub(crate) fn apply_commit_finalize(
         ProgramError::InvalidAccountData
     );
     require_eq!(
-        input.commit_id,
+        input.commit_seq,
         state
-            .last_commit_id()
+            .last_commit_seq()
             .checked_add(1)
             .ok_or(DlpError::Overflow)?,
         DlpError::NonceOutOfOrder
@@ -182,7 +182,7 @@ pub(crate) fn apply_commit_finalize(
 
     let mut state = DelegationState::decode_mut(delegation_state)?;
     state.lamports_mut()?.set(input.lamports)?;
-    state.last_commit_id_mut()?.set(input.commit_id)?;
+    state.last_commit_seq_mut()?.set(input.commit_seq)?;
     *state.undelegation_requester_mut()? = next_undelegation_requester;
 
     Ok(())
