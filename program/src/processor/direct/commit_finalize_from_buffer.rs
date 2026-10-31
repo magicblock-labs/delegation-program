@@ -80,7 +80,7 @@ fn validate_state_buffer(
     delegated_account: &AccountView,
     state_buffer: &AccountView,
     buffer: &dpi::StateBufferView<'_>,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> ProgramResult {
     let commit_seq_bytes = commit_seq.to_le_bytes();
     let bump = [buffer.bump()];
