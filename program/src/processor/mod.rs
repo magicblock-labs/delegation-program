@@ -1,10 +1,13 @@
 use delegation_program_interface as dpi;
 mod bootstrap;
 mod delegate;
+mod direct;
 mod fraud_proofs;
+pub(crate) mod internal;
 
 pub use bootstrap::*;
 pub use delegate::*;
+pub use direct::*;
 use dpi::DlpV2Instruction;
 pub use fraud_proofs::*;
 use pinocchio::{AccountView, ProgramResult};
@@ -53,5 +56,8 @@ pub fn process_instruction(
             process_resolve_dispute(accounts, data)
         }
         DlpV2Instruction::Delegate => process_delegate(accounts, data),
+        DlpV2Instruction::CommitFinalize => {
+            process_commit_finalize(accounts, data)
+        }
     }
 }
