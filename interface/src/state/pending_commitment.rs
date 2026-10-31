@@ -15,11 +15,11 @@ pub const PENDING_COMMITMENT_STATUS_CANCELLED: u8 = 9;
 pub const RESOLVED_STATE_SOURCE_OPERATOR_COMMITMENT: u8 = 1;
 pub const RESOLVED_STATE_SOURCE_CHALLENGER_REVEAL: u8 = 2;
 
-/// PDA: `["pending-commitment", account, commit_id]`.
+/// PDA: `["pending-commitment", account, commit_seq]`.
 /// Created by `ProposeCommitment`.
 /// Closed by `CloseTerminalAccounts` after finalize, cancel, or expiry.
 ///
-/// One account per delegated account and commit id.
+/// One account per delegated account and commit sequence number.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[fixed_offset_layout(buffer_offset = 0)]
 pub struct PendingCommitment {
@@ -41,8 +41,8 @@ pub struct PendingCommitment {
     /// Delegated account whose base-layer state will be finalized.
     pub account_pubkey: Pubkey,
 
-    /// Operator-chosen nonce for this account commitment.
-    pub commit_id: u64,
+    /// Monotonically increasing sequence number for this account's commitments.
+    pub commit_seq: u32,
 
     /// Delegation record tying this account to the ER context.
     pub delegation_record: Pubkey,
@@ -62,7 +62,8 @@ pub struct PendingCommitment {
     /// Owner committed by the operator.
     pub owner: Pubkey,
 
-    /// Hash binding operator, account, commit id, delegation, DA, and state.
+    /// Hash binding operator, account, commit sequence number, delegation, DA,
+    /// and state.
     pub state_commitment_hash: [u8; 32],
 
     /// Registry account used when this commitment was posted.

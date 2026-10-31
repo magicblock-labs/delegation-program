@@ -26,7 +26,7 @@ pub fn write_state_buffer(
             AccountMeta::new(
                 state_buffer_pda(
                     &account.compatize(),
-                    args.commit_id,
+                    args.commit_seq,
                     &authority.compatize(),
                 )
                 .modernize(),

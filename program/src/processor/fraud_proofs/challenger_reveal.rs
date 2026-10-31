@@ -99,7 +99,7 @@ pub fn process_challenger_reveal(
         operator_state_buffer,
         pending.operator_identity(),
         pending.account_pubkey(),
-        pending.commit_id(),
+        pending.commit_seq(),
         pending.data_hash(),
     )?;
 
@@ -108,7 +108,7 @@ pub fn process_challenger_reveal(
         challenger_state_buffer,
         &challenger_identity,
         pending.account_pubkey(),
-        pending.commit_id(),
+        pending.commit_seq(),
         args.data_hash(),
     )?;
 
@@ -229,13 +229,13 @@ fn validate_pending_commitment(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let commit_id_bytes = pending.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending.commit_seq().to_le_bytes();
     require_initialized_pda(
         pending_commitment,
         &[
             PENDING_COMMITMENT_SEED,
             pending.account_pubkey().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
         ],
         &crate::fast::ID,
         true,
@@ -276,13 +276,13 @@ fn validate_challenge(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let commit_id_bytes = pending.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending.commit_seq().to_le_bytes();
     require_initialized_pda(
         challenge,
         &[
             CHALLENGE_SEED,
             pending.account_pubkey().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
             challenger.address().as_ref(),
         ],
         &crate::fast::ID,
@@ -328,16 +328,16 @@ fn validate_state_buffer(
     state_buffer: &AccountView,
     authority: &dpi::compat::Pubkey,
     account_pubkey: &dpi::compat::Pubkey,
-    commit_id: u64,
+    commit_seq: u32,
     expected_data_hash: &[u8; 32],
 ) -> ProgramResult {
-    let commit_id_bytes = commit_id.to_le_bytes();
+    let commit_seq_bytes = commit_seq.to_le_bytes();
     require_initialized_pda(
         state_buffer,
         &[
             STATE_BUFFER_SEED,
             account_pubkey.as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
             authority.as_ref(),
         ],
         &crate::fast::ID,
@@ -358,8 +358,8 @@ fn validate_state_buffer(
         ProgramError::InvalidAccountData
     );
     require_eq!(
-        state.commit_id(),
-        commit_id,
+        state.commit_seq(),
+        commit_seq,
         ProgramError::InvalidInstructionData
     );
     require_eq!(
@@ -440,7 +440,7 @@ fn challenge_hash(
         pending.operator_identity().as_ref(),
         challenge.challenger_identity().as_ref(),
         pending.account_pubkey().as_ref(),
-        &pending.commit_id().to_le_bytes(),
+        &pending.commit_seq().to_le_bytes(),
         &args.lamports().to_le_bytes(),
         args.owner().as_ref(),
         args.data_hash(),

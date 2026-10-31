@@ -81,13 +81,13 @@ pub fn process_raise_challenge(
     )?;
 
     let pending_account_pubkey = *pending_state.account_pubkey();
-    let commit_id_bytes = pending_state.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending_state.commit_seq().to_le_bytes();
     let challenge_bump = require_uninitialized_pda(
         challenge,
         &[
             CHALLENGE_SEED,
             pending_account_pubkey.as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
             challenger.address().as_ref(),
         ],
         &crate::fast::ID,
@@ -128,7 +128,7 @@ pub fn process_raise_challenge(
         &[Signer::from(&[
             Seed::from(CHALLENGE_SEED),
             Seed::from(pending_account_pubkey.as_ref()),
-            Seed::from(&commit_id_bytes),
+            Seed::from(&commit_seq_bytes),
             Seed::from(challenger.address().as_ref()),
             Seed::from(&[challenge_bump]),
         ])],
@@ -194,13 +194,13 @@ fn validate_pending_commitment(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let commit_id_bytes = pending_commitment.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending_commitment.commit_seq().to_le_bytes();
     require_initialized_pda(
         pending_commitment_account,
         &[
             PENDING_COMMITMENT_SEED,
             pending_commitment.account_pubkey().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
         ],
         &crate::fast::ID,
         true,

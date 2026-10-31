@@ -55,7 +55,7 @@ async fn test_propose_commitment() {
         .banks
         .get_account(pending_commitment_pda(
             &env.delegated_account,
-            args.commit_id,
+            args.commit_seq,
         ))
         .await
         .unwrap()
@@ -82,7 +82,7 @@ async fn test_propose_commitment() {
         env.operator.pubkey()
     );
     assert_eq!(*pending_commitment.account_pubkey(), env.delegated_account);
-    assert_eq!(pending_commitment.commit_id(), args.commit_id);
+    assert_eq!(pending_commitment.commit_seq(), args.commit_seq);
     assert_eq!(pending_commitment.lamports(), args.lamports);
     assert_eq!(*pending_commitment.owner(), args.owner);
     assert_eq!(
@@ -231,7 +231,7 @@ async fn test_propose_commitment_fails_without_state_buffer() {
     })
     .await;
     let mut args = propose_commitment_args();
-    args.commit_id = 99;
+    args.commit_seq = 99;
 
     assert!(propose(&mut env, args).await.is_err());
 }
@@ -264,7 +264,7 @@ async fn test_propose_commitment_rejects_wrong_owner() {
 }
 
 #[tokio::test]
-async fn test_propose_commitment_rejects_out_of_order_commit_id() {
+async fn test_propose_commitment_rejects_out_of_order_commit_seq() {
     let mut env = setup_propose_commitment_env(ProposeCommitmentSetup {
         verifier_count: 2,
         register_operator_as_verifier: true,
@@ -272,14 +272,14 @@ async fn test_propose_commitment_rejects_out_of_order_commit_id() {
     })
     .await;
     let mut args = propose_commitment_args();
-    args.commit_id = 2;
+    args.commit_seq = 2;
     write_state(
         &mut env.banks,
         &env.payer,
         &env.operator,
         env.delegated_account,
         WriteStateBufferArgs {
-            commit_id: args.commit_id,
+            commit_seq: args.commit_seq,
             total_len: state_data().len() as u32,
             offset: 0,
             chunk: state_data(),
@@ -442,7 +442,7 @@ async fn setup_propose_commitment_env(
         &operator,
         delegated_account,
         WriteStateBufferArgs {
-            commit_id: propose_commitment_args().commit_id,
+            commit_seq: propose_commitment_args().commit_seq,
             total_len: state_data().len() as u32,
             offset: 0,
             chunk: state_data(),
@@ -545,7 +545,7 @@ async fn register_and_add_verifier(
 
 fn propose_commitment_args() -> ProposeCommitmentArgs {
     ProposeCommitmentArgs {
-        commit_id: 1,
+        commit_seq: 1,
         lamports: 1_000,
         owner: Pubkey::new_from_array([7; 32]),
         da_pointer_hash: [9; 32],

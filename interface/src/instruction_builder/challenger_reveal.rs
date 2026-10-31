@@ -17,7 +17,7 @@ pub fn challenger_reveal(
     operator: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_id: u64,
+    commit_seq: u32,
     args: ChallengerRevealArgs,
 ) -> Instruction {
     Instruction {
@@ -27,21 +27,21 @@ pub fn challenger_reveal(
             AccountMeta::new(
                 challenge_pda(
                     &account.compatize(),
-                    commit_id,
+                    commit_seq,
                     &challenger.compatize(),
                 )
                 .modernize(),
                 false,
             ),
             AccountMeta::new(
-                pending_commitment_pda(&account.compatize(), commit_id)
+                pending_commitment_pda(&account.compatize(), commit_seq)
                     .modernize(),
                 false,
             ),
             AccountMeta::new_readonly(
                 state_buffer_pda(
                     &account.compatize(),
-                    commit_id,
+                    commit_seq,
                     &operator.compatize(),
                 )
                 .modernize(),
@@ -50,7 +50,7 @@ pub fn challenger_reveal(
             AccountMeta::new_readonly(
                 state_buffer_pda(
                     &account.compatize(),
-                    commit_id,
+                    commit_seq,
                     &challenger.compatize(),
                 )
                 .modernize(),

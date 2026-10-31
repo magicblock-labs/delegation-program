@@ -102,13 +102,13 @@ pub fn process_propose_commitment(
         false,
         "operator bond",
     )?;
-    let commit_id_bytes = args.commit_id().to_le_bytes();
+    let commit_seq_bytes = args.commit_seq().to_le_bytes();
     require_initialized_pda(
         state_buffer,
         &[
             STATE_BUFFER_SEED,
             delegated_account.address().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
             current_validator.address().as_ref(),
         ],
         &crate::fast::ID,
@@ -154,7 +154,7 @@ pub fn process_propose_commitment(
         &state_buffer_state,
         current_validator,
         delegated_account,
-        args.commit_id(),
+        args.commit_seq(),
     )?;
     drop(state_buffer_data);
 
@@ -179,7 +179,7 @@ pub fn process_propose_commitment(
     let delegation_metadata =
         DelegationMetadataRef::from_account(delegation_metadata)?;
     require_eq!(
-        args.commit_id(),
+        u64::from(args.commit_seq()),
         delegation_metadata
             .last_commit_id()
             .checked_add(1)
@@ -238,7 +238,7 @@ pub fn process_propose_commitment(
             delegation_cluster: delegation_cluster.address(),
             operator_identity: current_validator.address(),
             account_pubkey: delegated_account.address(),
-            commit_id: args.commit_id(),
+            commit_seq: args.commit_seq(),
             delegation_record: delegation_record.address(),
             da_pointer_hash: args.da_pointer_hash(),
             account_state_hash: &account_state_hash,
@@ -253,7 +253,7 @@ pub fn process_propose_commitment(
         operator_identity: *current_validator.address(),
         operator_bond: operator_bond.address().to_bytes().into(),
         account_pubkey: delegated_account.address().to_bytes().into(),
-        commit_id: args.commit_id(),
+        commit_seq: args.commit_seq(),
         delegation_record: delegation_record.address().to_bytes().into(),
         da_pointer_hash: *args.da_pointer_hash(),
         account_state_hash,
@@ -290,7 +290,7 @@ pub fn process_propose_commitment(
         &[
             PENDING_COMMITMENT_SEED,
             delegated_account.address().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
         ],
         &crate::fast::ID,
         true,
@@ -304,7 +304,7 @@ pub fn process_propose_commitment(
         &[Signer::from(&[
             Seed::from(PENDING_COMMITMENT_SEED),
             Seed::from(delegated_account.address().as_ref()),
-            Seed::from(&commit_id_bytes),
+            Seed::from(&commit_seq_bytes),
             Seed::from(&[pending_commitment_bump]),
         ])],
         current_validator,
@@ -373,7 +373,7 @@ fn validate_state_buffer(
     state_buffer: &dpi::StateBufferView<'_>,
     operator: &AccountView,
     delegated_account: &AccountView,
-    commit_id: u64,
+    commit_seq: u32,
 ) -> Result<[u8; 32], ProgramError> {
     if state_buffer.discriminator() != StateBuffer::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
@@ -389,8 +389,8 @@ fn validate_state_buffer(
         ProgramError::InvalidAccountData
     );
     require_eq!(
-        state_buffer.commit_id(),
-        commit_id,
+        state_buffer.commit_seq(),
+        commit_seq,
         ProgramError::InvalidInstructionData
     );
     require_eq!(
@@ -468,7 +468,7 @@ struct StateCommitmentHashInput<'a> {
     delegation_cluster: &'a Address,
     operator_identity: &'a Address,
     account_pubkey: &'a Address,
-    commit_id: u64,
+    commit_seq: u32,
     delegation_record: &'a Address,
     da_pointer_hash: &'a [u8; 32],
     account_state_hash: &'a [u8; 32],
@@ -482,7 +482,7 @@ fn state_commitment_hash(input: StateCommitmentHashInput<'_>) -> [u8; 32] {
         input.delegation_cluster.as_ref(),
         input.operator_identity.as_ref(),
         input.account_pubkey.as_ref(),
-        &input.commit_id.to_le_bytes(),
+        &input.commit_seq.to_le_bytes(),
         input.delegation_record.as_ref(),
         input.da_pointer_hash,
         input.account_state_hash,

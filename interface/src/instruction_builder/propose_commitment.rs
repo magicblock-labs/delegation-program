@@ -34,14 +34,14 @@ pub fn propose_commitment(
                 false,
             ),
             AccountMeta::new(
-                pending_commitment_pda(&account.compatize(), args.commit_id)
+                pending_commitment_pda(&account.compatize(), args.commit_seq)
                     .modernize(),
                 false,
             ),
             AccountMeta::new_readonly(
                 state_buffer_pda(
                     &account.compatize(),
-                    args.commit_id,
+                    args.commit_seq,
                     &current_validator.compatize(),
                 )
                 .modernize(),

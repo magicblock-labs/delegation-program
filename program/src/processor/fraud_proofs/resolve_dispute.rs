@@ -254,13 +254,13 @@ fn validate_pending_commitment(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let commit_id_bytes = pending.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending.commit_seq().to_le_bytes();
     require_initialized_pda(
         pending_commitment,
         &[
             PENDING_COMMITMENT_SEED,
             pending.account_pubkey().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
         ],
         &crate::fast::ID,
         true,
@@ -300,13 +300,13 @@ fn validate_challenge(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    let commit_id_bytes = pending.commit_id().to_le_bytes();
+    let commit_seq_bytes = pending.commit_seq().to_le_bytes();
     require_initialized_pda(
         challenge,
         &[
             CHALLENGE_SEED,
             pending.account_pubkey().as_ref(),
-            &commit_id_bytes,
+            &commit_seq_bytes,
             challenger.address().as_ref(),
         ],
         &crate::fast::ID,

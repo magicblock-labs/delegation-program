@@ -23,7 +23,7 @@ use crate::fixtures::v2::setup_program_test_env;
 #[tokio::test]
 async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
     let mut env = setup_write_state_buffer_env().await;
-    let commit_id = 7;
+    let commit_seq = 7;
     let data = vec![1, 2, 3, 4];
 
     write_buffer(
@@ -32,7 +32,7 @@ async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: data.len() as u32,
             offset: 0,
             chunk: data.clone(),
@@ -43,7 +43,7 @@ async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
 
     let state_buffer = state_buffer_pda(
         &env.delegated.pubkey(),
-        commit_id,
+        commit_seq,
         &env.writer.pubkey(),
     );
     let state_buffer_account =
@@ -53,7 +53,7 @@ async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
     assert_eq!(state.discriminator(), StateBuffer::DISCRIMINATOR);
     assert_eq!(*state.authority(), env.writer.pubkey());
     assert_eq!(*state.account_pubkey(), env.delegated.pubkey());
-    assert_eq!(state.commit_id(), commit_id);
+    assert_eq!(state.commit_seq(), commit_seq);
     assert_eq!(state.total_len(), data.len() as u32);
     assert!(state.finalized());
     assert_eq!(*state.data_hash(), account_data_hash(&data));
@@ -69,7 +69,7 @@ async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
 #[tokio::test]
 async fn test_write_state_buffer_empty_payload_finalizes() {
     let mut env = setup_write_state_buffer_env().await;
-    let commit_id = 16;
+    let commit_seq = 16;
 
     write_buffer(
         &mut env.banks,
@@ -77,7 +77,7 @@ async fn test_write_state_buffer_empty_payload_finalizes() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: 0,
             offset: 0,
             chunk: vec![],
@@ -88,7 +88,7 @@ async fn test_write_state_buffer_empty_payload_finalizes() {
 
     let state_buffer = state_buffer_pda(
         &env.delegated.pubkey(),
-        commit_id,
+        commit_seq,
         &env.writer.pubkey(),
     );
     let state_buffer_account =
@@ -109,11 +109,11 @@ async fn test_write_state_buffer_empty_payload_finalizes() {
 #[tokio::test]
 async fn test_write_state_buffer_multiple_chunks_finalize() {
     let mut env = setup_write_state_buffer_env().await;
-    let commit_id = 8;
+    let commit_seq = 8;
     let total_len = 5;
     let state_buffer = state_buffer_pda(
         &env.delegated.pubkey(),
-        commit_id,
+        commit_seq,
         &env.writer.pubkey(),
     );
 
@@ -124,7 +124,7 @@ async fn test_write_state_buffer_multiple_chunks_finalize() {
             &env.writer,
             env.delegated.pubkey(),
             WriteStateBufferArgs {
-                commit_id,
+                commit_seq,
                 total_len,
                 offset: 0,
                 chunk: vec![1, 2],
@@ -167,7 +167,7 @@ async fn test_write_state_buffer_multiple_chunks_finalize() {
             &env.writer,
             env.delegated.pubkey(),
             WriteStateBufferArgs {
-                commit_id,
+                commit_seq,
                 total_len,
                 offset: 2,
                 chunk: vec![3, 4, 5],
@@ -198,10 +198,10 @@ async fn test_write_state_buffer_multiple_chunks_finalize() {
 #[tokio::test]
 async fn test_write_state_buffer_grows_payload_span_past_initial_capacity() {
     let mut env = setup_write_state_buffer_env().await;
-    let commit_id = 15;
+    let commit_seq = 15;
     let state_buffer = state_buffer_pda(
         &env.delegated.pubkey(),
-        commit_id,
+        commit_seq,
         &env.writer.pubkey(),
     );
     let initial_payload_capacity = StateBuffer::MAX_INITIAL_PAYLOAD_LEN;
@@ -227,7 +227,7 @@ async fn test_write_state_buffer_grows_payload_span_past_initial_capacity() {
             &env.writer,
             env.delegated.pubkey(),
             WriteStateBufferArgs {
-                commit_id,
+                commit_seq,
                 total_len: total_len as u32,
                 offset: offset as u32,
                 chunk,
@@ -272,7 +272,7 @@ async fn test_write_state_buffer_grows_payload_span_past_initial_capacity() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: total_len as u32,
             offset: first_write_len as u32,
             chunk: crossing_chunk.clone(),
@@ -306,7 +306,7 @@ async fn test_write_state_buffer_grows_payload_span_past_initial_capacity() {
 #[tokio::test]
 async fn test_write_state_buffer_duplicate_retry() {
     let mut env = setup_write_state_buffer_env().await;
-    let commit_id = 9;
+    let commit_seq = 9;
     let first_chunk = vec![1, 2];
 
     write_buffer(
@@ -315,7 +315,7 @@ async fn test_write_state_buffer_duplicate_retry() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: 4,
             offset: 0,
             chunk: first_chunk.clone(),
@@ -330,7 +330,7 @@ async fn test_write_state_buffer_duplicate_retry() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: 4,
             offset: 0,
             chunk: first_chunk,
@@ -341,7 +341,7 @@ async fn test_write_state_buffer_duplicate_retry() {
 
     let state_buffer = state_buffer_pda(
         &env.delegated.pubkey(),
-        commit_id,
+        commit_seq,
         &env.writer.pubkey(),
     );
     let state_buffer_account =
@@ -368,7 +368,7 @@ async fn test_write_state_buffer_duplicate_retry() {
 #[tokio::test]
 async fn test_write_state_buffer_rejects_mismatched_duplicate_retry() {
     let mut env = setup_write_state_buffer_env().await;
-    let commit_id = 10;
+    let commit_seq = 10;
 
     write_buffer(
         &mut env.banks,
@@ -376,7 +376,7 @@ async fn test_write_state_buffer_rejects_mismatched_duplicate_retry() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: 4,
             offset: 0,
             chunk: vec![1, 2],
@@ -391,7 +391,7 @@ async fn test_write_state_buffer_rejects_mismatched_duplicate_retry() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: 4,
             offset: 0,
             chunk: vec![1, 9],
@@ -412,7 +412,7 @@ async fn test_write_state_buffer_rejects_wrong_offset() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id: 11,
+            commit_seq: 11,
             total_len: 4,
             offset: 1,
             chunk: vec![1, 2],
@@ -433,7 +433,7 @@ async fn test_write_state_buffer_rejects_oversized_total_len() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id: 12,
+            commit_seq: 12,
             total_len: StateBuffer::MAX_TOTAL_PAYLOAD_LEN + 1,
             offset: 0,
             chunk: vec![1],
@@ -447,7 +447,7 @@ async fn test_write_state_buffer_rejects_oversized_total_len() {
 #[tokio::test]
 async fn test_write_state_buffer_rejects_post_finalize_mutation() {
     let mut env = setup_write_state_buffer_env().await;
-    let commit_id = 13;
+    let commit_seq = 13;
     let data = vec![1, 2, 3];
 
     write_buffer(
@@ -456,7 +456,7 @@ async fn test_write_state_buffer_rejects_post_finalize_mutation() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: data.len() as u32,
             offset: 0,
             chunk: data.clone(),
@@ -471,7 +471,7 @@ async fn test_write_state_buffer_rejects_post_finalize_mutation() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: data.len() as u32,
             offset: 0,
             chunk: data,
@@ -486,7 +486,7 @@ async fn test_write_state_buffer_rejects_post_finalize_mutation() {
         &env.writer,
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: 3,
             offset: 3,
             chunk: vec![4],
@@ -500,7 +500,7 @@ async fn test_write_state_buffer_rejects_post_finalize_mutation() {
 #[tokio::test]
 async fn test_write_state_buffer_rejects_wrong_authority_for_buffer() {
     let mut env = setup_write_state_buffer_env().await;
-    let commit_id = 14;
+    let commit_seq = 14;
     let wrong_authority = Keypair::new();
     fund_account(&mut env.banks, &env.payer, &wrong_authority.pubkey()).await;
 
@@ -509,7 +509,7 @@ async fn test_write_state_buffer_rejects_wrong_authority_for_buffer() {
         env.writer.pubkey(),
         env.delegated.pubkey(),
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: 2,
             offset: 0,
             chunk: vec![1, 2],

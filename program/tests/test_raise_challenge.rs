@@ -50,7 +50,7 @@ async fn test_raise_challenge() {
     let args = valid_raise_challenge_args(pending_before.state_commitment_hash);
     let challenge_address = challenge_pda(
         &env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         &env.challenger.pubkey(),
     );
 
@@ -71,7 +71,7 @@ async fn test_raise_challenge() {
     assert_eq!(challenge.outcome(), CHALLENGE_OUTCOME_NONE);
     assert_eq!(
         *challenge.pending_commitment(),
-        pending_commitment_pda(&env.delegated_account, env.commit_id)
+        pending_commitment_pda(&env.delegated_account, env.commit_seq)
     );
     assert_eq!(*challenge.challenger_identity(), env.challenger.pubkey());
     assert_eq!(
@@ -114,7 +114,7 @@ async fn test_raise_challenge_fails_without_challenger_signature() {
         env.challenger.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         args,
     );
     ix.accounts[0].is_signer = false;
@@ -164,7 +164,7 @@ async fn test_raise_challenge_uses_submitted_policy() {
         .banks_client
         .get_account(challenge_pda(
             &env.delegated_account,
-            env.commit_id,
+            env.commit_seq,
             &env.challenger.pubkey(),
         ))
         .await
@@ -238,7 +238,7 @@ struct RaiseChallengeEnv {
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
-    commit_id: u64,
+    commit_seq: u32,
     challenge_config: ChallengeConfig,
 }
 
@@ -257,7 +257,7 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
     let delegation_cluster =
         dpi::pda::delegation_cluster_pda(&cluster_identity.pubkey());
     let committed_owner = Pubkey::new_unique();
-    let commit_id = 1;
+    let commit_seq = 1;
     let final_state_data = vec![9, 8, 7, 6, 5];
     let record_lamports = LAMPORTS_PER_SOL;
     let committed_lamports = LAMPORTS_PER_SOL;
@@ -342,7 +342,7 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
         &operator,
         delegated_account,
         WriteStateBufferArgs {
-            commit_id,
+            commit_seq,
             total_len: final_state_data.len() as u32,
             offset: 0,
             chunk: final_state_data.clone(),
@@ -361,7 +361,7 @@ async fn setup_raise_challenge_env() -> RaiseChallengeEnv {
         delegated_account,
         committed_owner,
         committed_lamports,
-        commit_id,
+        commit_seq,
         challenge_config,
     }
 }
@@ -372,7 +372,7 @@ async fn propose(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
         env.delegation_cluster,
         env.delegated_account,
         ProposeCommitmentArgs {
-            commit_id: env.commit_id,
+            commit_seq: env.commit_seq,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
             da_pointer_hash: [9; 32],
@@ -388,7 +388,7 @@ async fn approve(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
         env.verifier.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
     );
 
     process_ix(&mut env.context, ix, &[&env.verifier]).await
@@ -402,7 +402,7 @@ async fn raise(
         env.challenger.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
         args,
     );
 
@@ -414,7 +414,7 @@ async fn finalize(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
         env.operator.pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        env.commit_id,
+        env.commit_seq,
     );
 
     process_ix(&mut env.context, ix, &[&env.operator]).await
@@ -531,7 +531,7 @@ async fn read_pending_commitment(
         .banks_client
         .get_account(pending_commitment_pda(
             &env.delegated_account,
-            env.commit_id,
+            env.commit_seq,
         ))
         .await
         .unwrap()

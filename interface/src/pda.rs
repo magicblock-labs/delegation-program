@@ -1,6 +1,7 @@
 use crate::compat::Pubkey;
 
 pub const DELEGATION_CLUSTER_SEED: &[u8] = b"delegation-cluster";
+pub const DELEGATION_STATE_SEED: &[u8] = b"delegation-state";
 pub const OPERATOR_BOND_SEED: &[u8] = b"operator-bond";
 pub const VERIFIER_BOND_SEED: &[u8] = b"verifier-bond";
 pub const VERIFIER_REGISTRY_SEED: &[u8] = b"verifier-registry";
@@ -13,6 +14,14 @@ pub const CHALLENGE_SEED: &[u8] = b"challenge";
 pub fn delegation_cluster_pda(cluster_id: &Pubkey) -> Pubkey {
     Pubkey::find_program_address(
         &[DELEGATION_CLUSTER_SEED, cluster_id.as_ref()],
+        &crate::id(),
+    )
+    .0
+}
+
+pub fn delegation_state_pda(delegated_account: &Pubkey) -> Pubkey {
+    Pubkey::find_program_address(
+        &[DELEGATION_STATE_SEED, delegated_account.as_ref()],
         &crate::id(),
     )
     .0
@@ -51,14 +60,14 @@ pub fn verifier_bond_pda(
 
 pub fn state_buffer_pda(
     account: &Pubkey,
-    commit_id: u64,
+    commit_seq: u32,
     authority: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             STATE_BUFFER_SEED,
             account.as_ref(),
-            &commit_id.to_le_bytes(),
+            &commit_seq.to_le_bytes(),
             authority.as_ref(),
         ],
         &crate::id(),
@@ -66,12 +75,12 @@ pub fn state_buffer_pda(
     .0
 }
 
-pub fn pending_commitment_pda(account: &Pubkey, commit_id: u64) -> Pubkey {
+pub fn pending_commitment_pda(account: &Pubkey, commit_seq: u32) -> Pubkey {
     Pubkey::find_program_address(
         &[
             PENDING_COMMITMENT_SEED,
             account.as_ref(),
-            &commit_id.to_le_bytes(),
+            &commit_seq.to_le_bytes(),
         ],
         &crate::id(),
     )
@@ -80,14 +89,14 @@ pub fn pending_commitment_pda(account: &Pubkey, commit_id: u64) -> Pubkey {
 
 pub fn challenge_pda(
     account: &Pubkey,
-    commit_id: u64,
+    commit_seq: u32,
     challenger: &Pubkey,
 ) -> Pubkey {
     Pubkey::find_program_address(
         &[
             CHALLENGE_SEED,
             account.as_ref(),
-            &commit_id.to_le_bytes(),
+            &commit_seq.to_le_bytes(),
             challenger.as_ref(),
         ],
         &crate::id(),
