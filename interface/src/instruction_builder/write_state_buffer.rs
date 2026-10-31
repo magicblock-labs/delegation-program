@@ -11,7 +11,7 @@ use crate::{
     DlpV2Instruction, WriteStateBufferArgs,
 };
 
-/// Builds the instruction that writes full account-state bytes to a v2 buffer.
+/// Builds the instruction that writes account-state payload bytes to a buffer.
 pub fn write_state_buffer(
     payer: Pubkey,
     authority: Pubkey,

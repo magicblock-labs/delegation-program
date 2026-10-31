@@ -1,6 +1,7 @@
 mod approve_commitment;
 mod challenger_reveal;
 mod commit_finalize;
+mod commit_finalize_from_buffer;
 mod delegate;
 mod finalize_commitment;
 mod init_delegation_cluster;
@@ -16,6 +17,7 @@ mod write_state_buffer;
 pub use approve_commitment::*;
 pub use challenger_reveal::*;
 pub use commit_finalize::*;
+pub use commit_finalize_from_buffer::*;
 pub use delegate::*;
 pub use finalize_commitment::*;
 pub use init_delegation_cluster::*;
