@@ -53,7 +53,7 @@ pub struct StateBuffer {
 }
 
 impl StateBuffer {
-    pub const DISCRIMINATOR: [u8; 8] = *b"v2sbuf01";
+    pub const DISCRIMINATOR: [u8; 8] = *b"v2sbuf00";
 
     /// Maximum account data bytes a StateBuffer PDA may allocate.
     pub const MAX_ACCOUNT_DATA_LEN: usize = 10 * 1024 * 1024;
