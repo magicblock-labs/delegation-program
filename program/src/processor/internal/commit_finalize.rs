@@ -35,7 +35,7 @@ impl CommitStateUpdate<'_> {
 }
 
 pub(crate) struct CommitFinalizeInput<'a> {
-    pub(crate) commit_seq: u64,
+    pub(crate) commit_seq: u32,
     pub(crate) lamports: u64,
     pub(crate) owner: &'a dpi::compat::Pubkey,
     pub(crate) allow_undelegation: bool,

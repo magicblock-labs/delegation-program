@@ -191,7 +191,7 @@ async fn test_commit_finalize_requires_owner_undelegation_to_be_allowed() {
 
 fn full_data_args(
     context: &CommitFinalizeTestContext,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> CommitFinalizeArgs {
     CommitFinalizeArgs {
         commit_seq,
