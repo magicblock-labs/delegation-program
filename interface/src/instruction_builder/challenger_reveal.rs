@@ -17,7 +17,7 @@ pub fn challenger_reveal(
     operator: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
     args: ChallengerRevealArgs,
 ) -> Instruction {
     Instruction {

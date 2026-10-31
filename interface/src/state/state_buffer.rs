@@ -20,8 +20,8 @@ pub struct StateBuffer {
     /// Delegated account whose payload is stored after this header.
     pub account_pubkey: Pubkey,
 
-    /// Flow-specific nonce that identifies this opened buffer.
-    pub commit_seq: u64,
+    /// Commit sequence number that identifies this opened buffer.
+    pub commit_seq: u32,
 
     /// Hash of the finalized payload. Zero until finalized.
     pub data_hash: [u8; 32],

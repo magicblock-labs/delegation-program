@@ -328,7 +328,7 @@ fn validate_state_buffer(
     state_buffer: &AccountView,
     authority: &dpi::compat::Pubkey,
     account_pubkey: &dpi::compat::Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
     expected_data_hash: &[u8; 32],
 ) -> ProgramResult {
     let commit_seq_bytes = commit_seq.to_le_bytes();

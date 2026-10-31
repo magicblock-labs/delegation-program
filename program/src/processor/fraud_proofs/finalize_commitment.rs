@@ -256,7 +256,7 @@ pub fn process_finalize_commitment(
     {
         let mut metadata =
             DelegationMetadataFast::from_account(delegation_metadata)?;
-        metadata.set_last_commit_id(pending.commit_seq());
+        metadata.set_last_commit_id(u64::from(pending.commit_seq()));
     }
 
     drop(delegation_cluster_data);
@@ -395,14 +395,18 @@ fn validate_delegation_record(
 
 fn validate_delegation_metadata(
     delegation_metadata: &AccountView,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> ProgramResult {
     let metadata = DelegationMetadataFast::from_account(delegation_metadata)?;
     let expected_commit_seq = metadata
         .last_commit_id()
         .checked_add(1)
         .ok_or(DlpError::Overflow)?;
-    require_eq!(commit_seq, expected_commit_seq, DlpError::NonceOutOfOrder);
+    require_eq!(
+        u64::from(commit_seq),
+        expected_commit_seq,
+        DlpError::NonceOutOfOrder
+    );
 
     match metadata.undelegation_requester()? {
         UndelegationRequester::None => Ok(()),
@@ -419,7 +423,7 @@ fn validate_state_buffer<'a>(
     data: &'a [u8],
     state_authority: &AccountView,
     delegated_account: &AccountView,
-    commit_seq: u64,
+    commit_seq: u32,
     expected_data_hash: &[u8; 32],
 ) -> Result<&'a [u8], ProgramError> {
     let state = StateBuffer::decode(data)?;

@@ -393,7 +393,7 @@ pub struct PendingCommitment {
     /// Delegated account whose base-layer state will be finalized.
     pub account_pubkey: Pubkey,
     /// Monotonically increasing sequence number for this account's commitments.
-    pub commit_seq: u64,
+    pub commit_seq: u32,
     /// Delegation metadata tying this account to the ER context.
     pub delegation_record: Pubkey,
     /// Hash of replay/data-availability pointer bytes.
@@ -470,7 +470,7 @@ pub struct StateBuffer {
     pub account_pubkey: Pubkey,
 
     /// Commitment this buffer belongs to.
-    pub commit_seq: u64,
+    pub commit_seq: u32,
 
     /// Hash of the uploaded payload. Zero until finalized.
     pub data_hash: [u8; 32],
@@ -692,7 +692,7 @@ are too slow.
 
 ```rust
 pub struct WriteStateBufferArgs<'a> {
-    pub commit_seq: u64,
+    pub commit_seq: u32,
     pub total_len: u32,
     /// Must equal StateBuffer.payload.len(), unless retrying an exact old chunk.
     pub offset: u32,
@@ -700,7 +700,7 @@ pub struct WriteStateBufferArgs<'a> {
 }
 
 pub struct ProposeCommitmentArgs {
-    pub commit_seq: u64,
+    pub commit_seq: u32,
     pub lamports: u64,
     pub owner: Pubkey,
     pub da_pointer_hash: [u8; 32],

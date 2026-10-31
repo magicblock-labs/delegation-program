@@ -179,7 +179,7 @@ pub fn process_propose_commitment(
     let delegation_metadata =
         DelegationMetadataRef::from_account(delegation_metadata)?;
     require_eq!(
-        args.commit_seq(),
+        u64::from(args.commit_seq()),
         delegation_metadata
             .last_commit_id()
             .checked_add(1)
@@ -373,7 +373,7 @@ fn validate_state_buffer(
     state_buffer: &dpi::StateBufferView<'_>,
     operator: &AccountView,
     delegated_account: &AccountView,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> Result<[u8; 32], ProgramError> {
     if state_buffer.discriminator() != StateBuffer::DISCRIMINATOR {
         return Err(ProgramError::InvalidAccountData);
@@ -468,7 +468,7 @@ struct StateCommitmentHashInput<'a> {
     delegation_cluster: &'a Address,
     operator_identity: &'a Address,
     account_pubkey: &'a Address,
-    commit_seq: u64,
+    commit_seq: u32,
     delegation_record: &'a Address,
     da_pointer_hash: &'a [u8; 32],
     account_state_hash: &'a [u8; 32],

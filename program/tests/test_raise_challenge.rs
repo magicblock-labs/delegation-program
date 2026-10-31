@@ -238,7 +238,7 @@ struct RaiseChallengeEnv {
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
-    commit_seq: u64,
+    commit_seq: u32,
     challenge_config: ChallengeConfig,
 }
 
