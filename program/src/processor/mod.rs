@@ -4,6 +4,7 @@ mod delegate;
 mod direct;
 mod fraud_proofs;
 pub(crate) mod internal;
+mod undelegate;
 
 pub use bootstrap::*;
 pub use delegate::*;
@@ -11,6 +12,7 @@ pub use direct::*;
 use dpi::DlpV2Instruction;
 pub use fraud_proofs::*;
 use pinocchio::{AccountView, ProgramResult};
+pub use undelegate::*;
 
 #[inline(never)]
 pub fn process_instruction(
@@ -65,5 +67,6 @@ pub fn process_instruction(
         DlpV2Instruction::PrepareCommitFinalize => {
             process_prepare_commit_finalize(accounts, data)
         }
+        DlpV2Instruction::Undelegate => process_undelegate(accounts, data),
     }
 }
