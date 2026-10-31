@@ -358,7 +358,7 @@ struct ChallengerRevealEnv {
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
-    commit_seq: u64,
+    commit_seq: u32,
     challenge_config: ChallengeConfig,
     operator_state_data: Vec<u8>,
 }
@@ -805,7 +805,7 @@ fn challenge_hash(
     operator: Pubkey,
     challenger: Pubkey,
     account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
     args: &ChallengerRevealArgs,
 ) -> [u8; 32] {
     solana_sha256_hasher::hashv(&[

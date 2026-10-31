@@ -527,7 +527,7 @@ async fn approve(
     verifier: &Keypair,
     delegation_cluster: Pubkey,
     delegated_account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> Result<(), solana_program_test::BanksClientError> {
     let latest_blockhash: Hash = banks.get_latest_blockhash().await.unwrap();
     let blockhash = banks
@@ -553,7 +553,7 @@ async fn approve(
 async fn read_pending_commitment_data(
     banks: &mut BanksClient,
     delegated_account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> Vec<u8> {
     let pending_commitment_account = banks
         .get_account(pending_commitment_pda(&delegated_account, commit_seq))

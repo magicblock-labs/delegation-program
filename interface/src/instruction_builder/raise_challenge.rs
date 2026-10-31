@@ -16,7 +16,7 @@ pub fn raise_challenge(
     challenger: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
     args: RaiseChallengeArgs,
 ) -> Instruction {
     Instruction {

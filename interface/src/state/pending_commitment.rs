@@ -42,7 +42,7 @@ pub struct PendingCommitment {
     pub account_pubkey: Pubkey,
 
     /// Monotonically increasing sequence number for this account's commitments.
-    pub commit_seq: u64,
+    pub commit_seq: u32,
 
     /// Delegation record tying this account to the ER context.
     pub delegation_record: Pubkey,

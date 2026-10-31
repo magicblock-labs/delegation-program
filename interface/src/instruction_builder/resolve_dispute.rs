@@ -17,7 +17,7 @@ pub fn resolve_dispute(
     delegation_cluster: Pubkey,
     challenger: Pubkey,
     account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
     args: ResolveDisputeArgs,
 ) -> Instruction {
     Instruction {

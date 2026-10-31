@@ -14,7 +14,7 @@ pub fn approve_commitment(
     verifier: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> Instruction {
     Instruction {
         program_id: crate::id().modernize(),

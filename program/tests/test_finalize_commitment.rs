@@ -70,7 +70,10 @@ async fn test_finalize_commitment() {
     assert_eq!(delegation_record.lamports, env.committed_lamports);
 
     let delegation_metadata = read_delegation_metadata(&mut env).await;
-    assert_eq!(delegation_metadata.last_commit_id, env.commit_seq);
+    assert_eq!(
+        delegation_metadata.last_commit_id,
+        u64::from(env.commit_seq)
+    );
 }
 
 #[tokio::test]
@@ -226,7 +229,7 @@ struct FinalizeCommitmentEnv {
     delegated_account: Pubkey,
     committed_owner: Pubkey,
     committed_lamports: u64,
-    commit_seq: u64,
+    commit_seq: u32,
     final_state_data: Vec<u8>,
 }
 

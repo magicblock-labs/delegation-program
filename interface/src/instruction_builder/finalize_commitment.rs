@@ -19,7 +19,7 @@ pub fn finalize_commitment(
     operator: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> Instruction {
     finalize_commitment_with_state_authority(
         operator,
@@ -35,7 +35,7 @@ pub fn finalize_challenger_commitment(
     challenger: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
 ) -> Instruction {
     let challenge = challenge_pda(
         &account.compatize(),
@@ -57,7 +57,7 @@ fn finalize_commitment_with_state_authority(
     state_authority: Pubkey,
     delegation_cluster: Pubkey,
     account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
     challenge: Option<Pubkey>,
 ) -> Instruction {
     let mut accounts = vec![
