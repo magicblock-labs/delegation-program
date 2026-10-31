@@ -36,7 +36,7 @@ struct CommitFinalizeFromBufferTestContext {
 }
 
 struct PreloadedBuffer {
-    commit_seq: u64,
+    commit_seq: u32,
     payload: Vec<u8>,
     data_hash: [u8; 32],
 }
@@ -165,7 +165,7 @@ async fn test_commit_finalize_from_buffer_rejects_invalid_finalized_hash() {
 
 fn finalize_instruction(
     context: &CommitFinalizeFromBufferTestContext,
-    commit_seq: u64,
+    commit_seq: u32,
     payload_kind: CommitPayloadKind,
 ) -> Instruction {
     commit_finalize_from_buffer(
@@ -185,7 +185,7 @@ fn finalize_instruction(
 
 async fn upload_payload(
     context: &CommitFinalizeFromBufferTestContext,
-    commit_seq: u64,
+    commit_seq: u32,
     payload: &[u8],
 ) {
     let mut offset = 0;

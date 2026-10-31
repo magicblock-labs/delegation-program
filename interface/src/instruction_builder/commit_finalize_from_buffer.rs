@@ -81,7 +81,7 @@ pub fn prepare_commit_finalize_instructions(
     current_validator: Pubkey,
     delegation_cluster: Pubkey,
     delegated_account: Pubkey,
-    commit_seq: u64,
+    commit_seq: u32,
     current_data_len: usize,
     target_data_len: u32,
 ) -> Result<Vec<Instruction>, DataLayoutError> {
