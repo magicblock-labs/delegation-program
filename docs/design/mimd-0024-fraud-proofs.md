@@ -457,7 +457,7 @@ pub struct SelectedVerifier {
 /// PDA: `["state-buffer", account, commit_seq, authority]`
 /// Created by: first `WriteStateBuffer`.
 /// Frozen by: final `WriteStateBuffer` chunk.
-/// Closed by: `CloseTerminalAccounts`.
+/// Closed by: `CloseStateBuffer` when no live commitment needs it.
 ///
 /// Header and extendable bytes for an opened state payload.
 pub struct StateBuffer {
@@ -465,6 +465,9 @@ pub struct StateBuffer {
     /// Operator authority is used for the commitment state.
     /// Challenger authority is used for the challenged state.
     pub authority: Pubkey,
+
+    /// Initial payer that receives the buffer's reclaimed rent.
+    pub rent_payer: Pubkey,
 
     /// Account whose state payload is being opened.
     pub account_pubkey: Pubkey,
@@ -597,6 +600,7 @@ Commitment, approval, challenge, resolution, and finalization instructions.
 | Instruction | Expected invoker | Description |
 | --- | --- | --- |
 | `WriteStateBuffer`<ul><li>ix-data: <code>commit_seq, total_len, offset, chunk</code></li><li>accounts: <strong>payer signer, authority signer, StateBuffer, delegated account, system program</strong></li></ul> | Authority for a known state-buffer flow | System-level instruction. Creates, grows, writes, and finalizes a DLP-owned `StateBuffer` PDA using the fixed `["state-buffer", account, commit_seq, authority]` seed pattern. The instruction remains cluster-neutral; consuming instructions validate the payload, authority, and cluster relationship. |
+| `CloseStateBuffer`<ul><li>ix-data: <code>commit_seq, state_buffer_bump, pending_commitment_bump</code></li><li>accounts: <strong>authority signer, StateBuffer, delegated account, stored rent payer, PendingCommitment</strong></li></ul> | Buffer authority | Closes a consumed or abandoned buffer and returns its rent to the payer recorded by the first write. Cleanup is idempotent and rejects buffers still needed by a live commitment. |
 | `ProposeCommitment`<ul><li>ix-data: <code>commit_seq, lamports, owner, da_pointer_hash, er_slot</code></li><li>accounts: <strong>current validator signer, OperatorBond, PendingCommitment, finalized operator StateBuffer, delegated account, DelegationRecord, DelegationMetadata, DelegationCluster, VerifierRegistry, system program</strong></li></ul> | Current validator | Requires `Challenge` mode, verifies the delegation's cluster and current validator, consumes only cluster-scoped bond and registry accounts, selects verifiers, and starts the challenge window. `DelegationRecord` and `DelegationMetadata` are temporary v1-layout dependencies until their v2 replacement exists. |
 | `ApproveCommitment`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>verifier signer, VerifierBond, PendingCommitment</strong></li></ul> | Selected verifier | Records approval from the selected verifier. v2 MVP requires exactly one selected verifier, so no verifier index is needed. Duplicate approvals do not increase the count. |
 | `RaiseChallenge`<ul><li>ix-data: <code>state_commitment_hash, challenge_hash, stake_lamports</code></li><li>accounts: <strong>challenger signer, Challenge, PendingCommitment, DelegationCluster, system program</strong></li></ul> | Challenger | Requires the cluster stored by the pending commitment, locks challenger stake, stores the salted `challenge_hash`, and blocks normal finalization until reveal, timeout, or resolution. It does not consume challenger state bytes. |
@@ -616,7 +620,7 @@ These instructions can be skipped while implementing the first usable v2 flow.
 | `ExtendChallengeWindow`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, DelegationCluster</strong></li></ul> | Cranker | Low priority. Extends an under-approved commitment according to the commitment's cluster policy, or expires it after the maximum extensions. Initial v2 can expire under-approved commitments instead. |
 | `MarkChallengerRevealTimeout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>cranker, PendingCommitment, Challenge, fee vault</strong></li></ul> | Cranker | Deferred. Closes an unrevealed challenge after the reveal timeout, applies the configured challenger penalty, and unblocks or expires the pending commitment according to final policy. |
 | `ClaimPayout`<ul><li>ix-data: <code>empty</code></li><li>accounts: <strong>beneficiary signer, PayoutTimelock</strong></li></ul> | Beneficiary | Low priority. Needed only if dispute payouts are delayed through `PayoutTimelock`; otherwise `ResolveDispute` can pay immediately. |
-| `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Low priority. Closes terminal records and buffers after their parent commitment or challenge can no longer change. |
+| `CloseTerminalAccounts`<ul><li>ix-data: <code>close_kind</code></li><li>accounts: <strong>recipient, account to close, terminal parent account</strong></li></ul> | Cranker or recipient | Low priority. Closes the remaining terminal commitment and challenge accounts after their parent state can no longer change. `StateBuffer` cleanup uses `CloseStateBuffer`. |
 
 ### Obsolete Or Remove-Candidate Instructions
 
@@ -633,12 +637,12 @@ These instructions are not part of the current v2 MVP flow.
 DLP owns the buffer account because the buffer is part of the fraud-proof state
 machine, not only temporary transport.
 
-The first write creates the `StateBuffer` PDA, writes the fixed fields, and
-allocates up to the maximum account growth allowed in one instruction. Later
-writes grow the same PDA by at most that limit and append more bytes. Each new
-write must use `offset == payload.len()`; this keeps the MVP simple and avoids a
-separate chunks bitmap account. An exact old chunk may be repeated as an
-idempotent retry.
+The first write creates the `StateBuffer` PDA, records its rent payer, writes the
+fixed fields, and allocates up to the maximum account growth allowed in one
+instruction. Later writes grow the same PDA by at most that limit and append
+more bytes. Each new write must use `offset == payload.len()`; this keeps the MVP
+simple and avoids a separate chunks bitmap account. An exact old chunk may be
+repeated as an idempotent retry.
 
 The account layout is:
 
@@ -673,6 +677,13 @@ state can create collisions or confused-consumer bugs.
 When `payload.len() == total_len`, `WriteStateBuffer` hashes the payload and sets
 `finalized = true`. After that, the buffer cannot accept new bytes; exact
 duplicate retries remain valid.
+
+`CloseStateBuffer` requires the buffer authority to sign and always returns rent
+to the payer recorded by the first write. It can close partial abandoned uploads,
+finalized abandoned uploads, and buffers consumed by Direct settlement. If the
+canonical `PendingCommitment` exists, cleanup is allowed only after that
+commitment is finalized, expired, or cancelled. Repeating cleanup after the
+buffer is already closed succeeds without moving lamports again.
 
 Consuming instructions must check:
 

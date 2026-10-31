@@ -3,8 +3,8 @@ use delegation_program_interface as dpi;
 use dpi::{
     diff::compute_diff,
     instruction_builder::{
-        commit_finalize_from_buffer, prepare_commit_finalize_instructions,
-        write_state_buffer,
+        close_state_buffer, commit_finalize_from_buffer,
+        prepare_commit_finalize_instructions, write_state_buffer,
     },
     pda::{delegation_cluster_pda, delegation_state_pda, state_buffer_pda},
     CommitFinalizeFromBufferArgs, CommitPayloadKind, DelegationCluster,
@@ -99,6 +99,29 @@ async fn test_commit_finalize_from_buffer_applies_large_chunked_payload() {
     assert!(StateBuffer::decode(&buffer_account.data)
         .unwrap()
         .finalized());
+
+    submit_instructions(
+        &context,
+        vec![close_state_buffer(
+            context.current_validator.pubkey(),
+            context.delegated_account,
+            1,
+            context.payer.pubkey(),
+        )
+        .unwrap()],
+    )
+    .await
+    .unwrap();
+    assert!(context
+        .banks
+        .get_account(state_buffer_pda(
+            &context.delegated_account,
+            1,
+            &context.current_validator.pubkey(),
+        ))
+        .await
+        .unwrap()
+        .is_none());
 }
 
 #[tokio::test]
@@ -341,6 +364,7 @@ async fn setup_test(
             discriminator: StateBuffer::DISCRIMINATOR,
             bump,
             authority: current_validator.pubkey(),
+            rent_payer: current_validator.pubkey(),
             account_pubkey: delegated_account,
             commit_seq: preloaded.commit_seq,
             data_hash: preloaded.data_hash,
