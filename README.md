@@ -58,7 +58,8 @@ CI only proposes them.
    with `dry_run`). It builds `delegation_program` verifiably, uploads a buffer,
    and opens a Squads proposal that upgrades the program and records its
    verified build. The job summary shows the proposal number and executable
-   hash.
+   hash. Set `ref` to a commit SHA, release tag or branch to build that
+   source instead of the one the workflow is run from.
 2. Members review and approve the proposal in the Squads app for mainnet. For
    devnet, members can use the shared command-line tools with their own keypair.
 3. Once approved, any member with Execute permission executes it.
