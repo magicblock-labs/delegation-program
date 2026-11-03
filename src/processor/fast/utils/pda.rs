@@ -131,6 +131,11 @@ pub(crate) fn close_pda(
 /// Close PDA with fees, distributing the fees to the specified addresses in sequence
 /// The total fees are calculated as `fee_percentage` of the total lamports in the PDA
 /// Each fee address receives fee_percentage % of the previous fee address's amount
+///
+/// The lamports left after fees are refunded to `rent_reimbursement`. If that
+/// refund would leave the account rent-paying (e.g. an empty rent payer
+/// receiving a few thousand lamports of dust), the runtime rejects the whole
+/// transaction, so the refund goes to the validator fees vault instead.
 pub(crate) fn close_pda_with_fees(
     target_account: &AccountView,
     rent_reimbursement: &AccountView,
@@ -153,6 +158,14 @@ pub(crate) fn close_pda_with_fees(
             .set_lamports(validator_fees_vault.lamports() + validator_fee);
     }
 
+    if destination_amount > 0
+        && !is_rent_exempt_after_refund(rent_reimbursement, destination_amount)?
+    {
+        validator_fees_vault
+            .set_lamports(validator_fees_vault.lamports() + destination_amount);
+        destination_amount = 0;
+    }
+
     rent_reimbursement
         .set_lamports(rent_reimbursement.lamports() + destination_amount);
     target_account.set_lamports(0);
@@ -162,6 +175,16 @@ pub(crate) fn close_pda_with_fees(
     }
 
     target_account.resize(0)
+}
+
+/// Whether `account` is rent-exempt once `refund` lamports are added to it
+fn is_rent_exempt_after_refund(
+    account: &AccountView,
+    refund: u64,
+) -> Result<bool, ProgramError> {
+    let minimum_balance =
+        Rent::get()?.try_minimum_balance(account.data_len())?;
+    Ok(account.lamports().saturating_add(refund) >= minimum_balance)
 }
 
 #[cfg(test)]
