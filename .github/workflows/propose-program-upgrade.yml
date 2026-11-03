@@ -15,6 +15,9 @@ on:
         type: choice
         options: [devnet, mainnet]
         default: devnet
+      ref:
+        description: Commit SHA, release tag, or branch of the program to propose. Defaults to the ref the workflow runs on.
+        default: ""
       proposal_name:
         description: Squads proposal memo
         default: Upgrade delegation program
@@ -36,6 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ inputs.ref }}
           persist-credentials: false
 
       - uses: magicblock-labs/.github/actions/squads-program-upgrade@2789218e3d6332e244eb2aa55b87cfb9c10c5a7f
