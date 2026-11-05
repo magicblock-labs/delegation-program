@@ -177,7 +177,7 @@ pub(crate) fn validate_commit_state(
     delegation_state: &AccountView,
     delegation_cluster: &AccountView,
     state: &DelegationStateView<'_>,
-    commit_seq: u64,
+    commit_seq: u32,
     is_writable: bool,
 ) -> ProgramResult {
     let state_bump = [state.bump()];
