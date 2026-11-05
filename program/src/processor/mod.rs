@@ -1,5 +1,6 @@
 use delegation_program_interface as dpi;
 mod bootstrap;
+mod close_state_buffer;
 mod delegate;
 mod direct;
 mod fraud_proofs;
@@ -7,6 +8,7 @@ pub(crate) mod internal;
 mod undelegate;
 
 pub use bootstrap::*;
+pub use close_state_buffer::*;
 pub use delegate::*;
 pub use direct::*;
 use dpi::DlpV2Instruction;
@@ -68,5 +70,8 @@ pub fn process_instruction(
             process_prepare_commit_finalize(accounts, data)
         }
         DlpV2Instruction::Undelegate => process_undelegate(accounts, data),
+        DlpV2Instruction::CloseStateBuffer => {
+            process_close_state_buffer(accounts, data)
+        }
     }
 }

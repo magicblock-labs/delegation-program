@@ -64,6 +64,14 @@ pub fn state_buffer_pda(
     commit_seq: u32,
     authority: &Pubkey,
 ) -> Pubkey {
+    state_buffer_pda_with_bump(account, commit_seq, authority).0
+}
+
+pub fn state_buffer_pda_with_bump(
+    account: &Pubkey,
+    commit_seq: u32,
+    authority: &Pubkey,
+) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             STATE_BUFFER_SEED,
@@ -73,10 +81,16 @@ pub fn state_buffer_pda(
         ],
         &crate::id(),
     )
-    .0
 }
 
 pub fn pending_commitment_pda(account: &Pubkey, commit_seq: u32) -> Pubkey {
+    pending_commitment_pda_with_bump(account, commit_seq).0
+}
+
+pub fn pending_commitment_pda_with_bump(
+    account: &Pubkey,
+    commit_seq: u32,
+) -> (Pubkey, u8) {
     Pubkey::find_program_address(
         &[
             PENDING_COMMITMENT_SEED,
@@ -85,7 +99,6 @@ pub fn pending_commitment_pda(account: &Pubkey, commit_seq: u32) -> Pubkey {
         ],
         &crate::id(),
     )
-    .0
 }
 
 pub fn challenge_pda(

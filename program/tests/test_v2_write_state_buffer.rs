@@ -52,6 +52,7 @@ async fn test_write_state_buffer_unregistered_authority_one_chunk_finalizes() {
 
     assert_eq!(state.discriminator(), StateBuffer::DISCRIMINATOR);
     assert_eq!(*state.authority(), env.writer.pubkey());
+    assert_eq!(*state.rent_payer(), env.payer.pubkey());
     assert_eq!(*state.account_pubkey(), env.delegated.pubkey());
     assert_eq!(state.commit_seq(), commit_seq);
     assert_eq!(state.total_len(), data.len() as u32);

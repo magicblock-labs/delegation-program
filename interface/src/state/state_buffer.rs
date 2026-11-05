@@ -4,7 +4,7 @@ use crate::{compat::Pubkey, error::DlpError};
 
 /// PDA: `["state-buffer", account, commit_seq, authority]`.
 /// Created by `WriteStateBuffer`.
-/// Closed by `CloseTerminalAccounts` after finalize, cancel, or expiry.
+/// Closed by `CloseStateBuffer` when no live commitment needs it.
 #[derive(Clone, Debug, PartialEq, Eq)]
 #[fixed_offset_layout(buffer_offset = 0)]
 pub struct StateBuffer {
@@ -19,6 +19,9 @@ pub struct StateBuffer {
     /// This is the operator identity for an operator commitment buffer, or the
     /// challenger identity for a challenger dispute buffer.
     pub authority: Pubkey,
+
+    /// Account that funded this buffer and receives its reclaimed rent.
+    pub rent_payer: Pubkey,
 
     /// Delegated account whose payload is stored after this header.
     pub account_pubkey: Pubkey,

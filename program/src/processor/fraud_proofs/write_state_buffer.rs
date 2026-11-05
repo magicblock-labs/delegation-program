@@ -109,6 +109,7 @@ pub fn process_write_state_buffer(
             discriminator: StateBuffer::DISCRIMINATOR,
             bump: state_buffer_bump,
             authority: *authority.address(),
+            rent_payer: *payer.address(),
             account_pubkey: *delegated_account.address(),
             commit_seq: args.commit_seq(),
             data_hash: [0; 32],
