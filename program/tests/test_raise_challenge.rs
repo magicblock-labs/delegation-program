@@ -375,6 +375,7 @@ async fn propose(env: &mut RaiseChallengeEnv) -> Result<(), BanksClientError> {
             commit_seq: env.commit_seq,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
+            allow_undelegation: false,
             da_pointer_hash: [9; 32],
             er_slot: Some(42),
         },

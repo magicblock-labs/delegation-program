@@ -10,7 +10,7 @@ use dpi::{
             delegation_metadata_pda_from_delegated_account,
             delegation_record_pda_from_delegated_account,
         },
-        state::{DelegationMetadata, DelegationRecord},
+        state::{DelegationMetadata, DelegationRecord, UndelegationRequester},
     },
     pda::pending_commitment_pda,
     PendingCommitment, ProposeCommitmentArgs, RegisterOperatorArgs,
@@ -73,6 +73,25 @@ async fn test_finalize_commitment() {
     assert_eq!(
         delegation_metadata.last_commit_id,
         u64::from(env.commit_seq)
+    );
+}
+
+#[tokio::test]
+async fn test_finalize_commitment_records_validator_undelegation_request() {
+    let mut env =
+        setup_finalize_commitment_env(LAMPORTS_PER_SOL, LAMPORTS_PER_SOL).await;
+    env.allow_undelegation = true;
+
+    propose(&mut env).await.unwrap();
+    approve(&mut env).await.unwrap();
+    warp_past_challenge_window(&mut env).await;
+    finalize(&mut env).await.unwrap();
+
+    assert_eq!(
+        read_delegation_metadata(&mut env)
+            .await
+            .undelegation_requester,
+        UndelegationRequester::Validator
     );
 }
 
@@ -230,6 +249,7 @@ struct FinalizeCommitmentEnv {
     committed_owner: Pubkey,
     committed_lamports: u64,
     commit_seq: u32,
+    allow_undelegation: bool,
     final_state_data: Vec<u8>,
 }
 
@@ -351,6 +371,7 @@ async fn setup_finalize_commitment_env(
         committed_owner,
         committed_lamports,
         commit_seq,
+        allow_undelegation: false,
         final_state_data,
     }
 }
@@ -366,6 +387,7 @@ async fn propose(
             commit_seq: env.commit_seq,
             lamports: env.committed_lamports,
             owner: env.committed_owner,
+            allow_undelegation: env.allow_undelegation,
             da_pointer_hash: [9; 32],
             er_slot: Some(42),
         },
