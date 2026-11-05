@@ -107,12 +107,14 @@ pub fn process_write_state_buffer(
 
         StateBuffer {
             discriminator: StateBuffer::DISCRIMINATOR,
+            bump: state_buffer_bump,
             authority: *authority.address(),
             account_pubkey: *delegated_account.address(),
             commit_seq: args.commit_seq(),
             data_hash: [0; 32],
             total_len: args.total_len(),
             finalized: false,
+            payload_alignment_padding: [0; 2],
             payload: Vec::new(),
         }
         .encode_to(state_buffer.try_borrow_mut()?.as_mut())?;
@@ -282,6 +284,11 @@ fn validate_state_buffer(
         state.total_len(),
         args.total_len(),
         ProgramError::InvalidInstructionData
+    );
+    require_eq!(
+        &state.payload_alignment_padding(),
+        &[0; 2],
+        ProgramError::InvalidAccountData
     );
     require_le!(
         state.payload().len(),

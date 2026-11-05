@@ -59,5 +59,11 @@ pub fn process_instruction(
         DlpV2Instruction::CommitFinalize => {
             process_commit_finalize(accounts, data)
         }
+        DlpV2Instruction::CommitFinalizeFromBuffer => {
+            process_commit_finalize_from_buffer(accounts, data)
+        }
+        DlpV2Instruction::PrepareCommitFinalize => {
+            process_prepare_commit_finalize(accounts, data)
+        }
     }
 }
