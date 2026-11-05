@@ -279,7 +279,7 @@ pub fn process_propose_commitment(
         active_challenge: None,
         resolved_state_source: None,
         er_slot: args.er_slot(),
-        _pad_before_selected_verifiers: [0; 5],
+        _pad_before_selected_verifiers: [0; 9],
         selected_verifiers,
     };
 

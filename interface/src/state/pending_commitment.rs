@@ -109,7 +109,7 @@ pub struct PendingCommitment {
     pub er_slot: Option<u64>,
 
     /// Aligns selected verifier elements after the Vec length prefix.
-    pub _pad_before_selected_verifiers: [u8; 5],
+    pub _pad_before_selected_verifiers: [u8; 9],
 
     /// Verifiers selected by round-robin for this commitment.
     #[extendable = 2]
