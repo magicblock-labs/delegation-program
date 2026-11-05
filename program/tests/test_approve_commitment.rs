@@ -56,7 +56,7 @@ async fn test_approve_commitment() {
         &env.verifiers[0],
         env.delegation_cluster,
         env.delegated_account,
-        args.commit_id,
+        args.commit_seq,
     )
     .await
     .unwrap();
@@ -64,7 +64,7 @@ async fn test_approve_commitment() {
     let pending_commitment_data = read_pending_commitment_data(
         &mut env.banks,
         env.delegated_account,
-        args.commit_id,
+        args.commit_seq,
     )
     .await;
     let pending_commitment =
@@ -103,7 +103,7 @@ async fn test_approve_commitment_duplicate_is_noop() {
         &env.verifiers[0],
         env.delegation_cluster,
         env.delegated_account,
-        args.commit_id,
+        args.commit_seq,
     )
     .await
     .unwrap();
@@ -113,7 +113,7 @@ async fn test_approve_commitment_duplicate_is_noop() {
         &env.verifiers[0],
         env.delegation_cluster,
         env.delegated_account,
-        args.commit_id,
+        args.commit_seq,
     )
     .await
     .unwrap();
@@ -121,7 +121,7 @@ async fn test_approve_commitment_duplicate_is_noop() {
     let pending_commitment_data = read_pending_commitment_data(
         &mut env.banks,
         env.delegated_account,
-        args.commit_id,
+        args.commit_seq,
     )
     .await;
     let pending_commitment =
@@ -157,7 +157,7 @@ async fn test_approve_commitment_fails_with_wrong_verifier() {
         &env.verifiers[1],
         env.delegation_cluster,
         env.delegated_account,
-        args.commit_id,
+        args.commit_seq,
     )
     .await
     .is_err());
@@ -183,7 +183,7 @@ async fn test_approve_commitment_fails_without_verifier_signature() {
         env.verifiers[0].pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        args.commit_id,
+        args.commit_seq,
     );
     ix.accounts[0].is_signer = false;
 
@@ -218,7 +218,7 @@ async fn test_approve_commitment_fails_with_instruction_data() {
         env.verifiers[0].pubkey(),
         env.delegation_cluster,
         env.delegated_account,
-        args.commit_id,
+        args.commit_seq,
     );
     ix.data.push(1);
 
@@ -355,7 +355,7 @@ async fn setup_approve_commitment_env(
         &operator,
         delegated_account,
         WriteStateBufferArgs {
-            commit_id: propose_commitment_args().commit_id,
+            commit_seq: propose_commitment_args().commit_seq,
             total_len: state_data().len() as u32,
             offset: 0,
             chunk: state_data(),
@@ -456,7 +456,7 @@ async fn register_and_add_verifier(
 
 fn propose_commitment_args() -> ProposeCommitmentArgs {
     ProposeCommitmentArgs {
-        commit_id: 1,
+        commit_seq: 1,
         lamports: 1_000,
         owner: Pubkey::new_from_array([7; 32]),
         da_pointer_hash: [9; 32],
@@ -527,7 +527,7 @@ async fn approve(
     verifier: &Keypair,
     delegation_cluster: Pubkey,
     delegated_account: Pubkey,
-    commit_id: u64,
+    commit_seq: u32,
 ) -> Result<(), solana_program_test::BanksClientError> {
     let latest_blockhash: Hash = banks.get_latest_blockhash().await.unwrap();
     let blockhash = banks
@@ -538,7 +538,7 @@ async fn approve(
         verifier.pubkey(),
         delegation_cluster,
         delegated_account,
-        commit_id,
+        commit_seq,
     );
     let tx = Transaction::new_signed_with_payer(
         &[ix],
@@ -553,10 +553,10 @@ async fn approve(
 async fn read_pending_commitment_data(
     banks: &mut BanksClient,
     delegated_account: Pubkey,
-    commit_id: u64,
+    commit_seq: u32,
 ) -> Vec<u8> {
     let pending_commitment_account = banks
-        .get_account(pending_commitment_pda(&delegated_account, commit_id))
+        .get_account(pending_commitment_pda(&delegated_account, commit_seq))
         .await
         .unwrap()
         .unwrap();

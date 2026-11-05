@@ -50,11 +50,11 @@ pub fn process_write_state_buffer(
     let args = WriteStateBufferArgs::decode(data)?;
     let (offset, write_end) = validate_args(&args)?;
 
-    let commit_id_bytes = args.commit_id().to_le_bytes();
+    let commit_seq_bytes = args.commit_seq().to_le_bytes();
     let state_buffer_seeds = [
         STATE_BUFFER_SEED,
         delegated_account.address().as_ref(),
-        &commit_id_bytes,
+        &commit_seq_bytes,
         authority.address().as_ref(),
     ];
 
@@ -98,7 +98,7 @@ pub fn process_write_state_buffer(
             &[Signer::from(&[
                 Seed::from(STATE_BUFFER_SEED),
                 Seed::from(delegated_account.address().as_ref()),
-                Seed::from(&commit_id_bytes),
+                Seed::from(&commit_seq_bytes),
                 Seed::from(authority.address().as_ref()),
                 Seed::from(&[state_buffer_bump]),
             ])],
@@ -109,7 +109,7 @@ pub fn process_write_state_buffer(
             discriminator: StateBuffer::DISCRIMINATOR,
             authority: *authority.address(),
             account_pubkey: *delegated_account.address(),
-            commit_id: args.commit_id(),
+            commit_seq: args.commit_seq(),
             data_hash: [0; 32],
             total_len: args.total_len(),
             finalized: false,
@@ -274,8 +274,8 @@ fn validate_state_buffer(
         ProgramError::InvalidAccountData
     );
     require_eq!(
-        state.commit_id(),
-        args.commit_id(),
+        state.commit_seq(),
+        args.commit_seq(),
         ProgramError::InvalidInstructionData
     );
     require_eq!(

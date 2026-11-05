@@ -12,7 +12,7 @@ pub const CHALLENGE_OUTCOME_MATCHING_STATE_CHALLENGER_PENALIZED: u8 = 2;
 pub const CHALLENGE_OUTCOME_OPERATOR_CORRECT_CHALLENGER_SLASHED: u8 = 3;
 pub const CHALLENGE_OUTCOME_CHALLENGER_CORRECT_OPERATOR_SLASHED: u8 = 4;
 
-/// PDA: `["challenge", account, commit_id, challenger]`.
+/// PDA: `["challenge", account, commit_seq, challenger]`.
 /// Created by `RaiseChallenge`.
 /// Closed by `CloseTerminalAccounts` after terminal challenge outcome.
 #[derive(Clone, Debug, PartialEq, Eq)]
