@@ -325,7 +325,7 @@ fn pending_commitment_data(
         active_challenge: None,
         resolved_state_source: None,
         er_slot: None,
-        _pad_before_selected_verifiers: [0; 5],
+        _pad_before_selected_verifiers: [0; 9],
         selected_verifiers: vec![],
     }
     .encode()
