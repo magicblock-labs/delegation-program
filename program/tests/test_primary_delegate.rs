@@ -104,7 +104,7 @@ async fn test_delegate_creates_cluster_bound_delegation_state() {
         context.delegated_account_bump
     );
     assert_eq!(seeds.len(), 1);
-    assert_eq!(seeds.get(0).unwrap().as_slice(), DELEGATED_ACCOUNT_SEED);
+    assert_eq!(seeds.get(0).unwrap().value(), DELEGATED_ACCOUNT_SEED);
     assert_eq!(
         state_account.lamports,
         Rent::default().minimum_balance(state_account.data.len())

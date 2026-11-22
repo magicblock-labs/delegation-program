@@ -120,11 +120,11 @@ pub(crate) fn owner_callback_data(
     );
     for seed in seeds.iter() {
         data.extend_from_slice(
-            &u32::try_from(seed.as_slice().len())
+            &u32::try_from(seed.value().len())
                 .map_err(|_| dpi::error::DlpError::Overflow)?
                 .to_le_bytes(),
         );
-        data.extend_from_slice(seed.as_slice());
+        data.extend_from_slice(seed.value());
     }
 
     Ok(data)

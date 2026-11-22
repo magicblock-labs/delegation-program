@@ -204,11 +204,11 @@ fn validate_delegated_account(
         [&[]; DelegationState::MAX_SEEDS + 1];
     for (index, seed) in seeds.iter().enumerate() {
         require_le!(
-            seed.as_slice().len(),
+            seed.value().len(),
             DelegationState::MAX_SEED_LEN,
             ProgramError::MaxSeedLengthExceeded
         );
-        pda_seeds[index] = seed.as_slice();
+        pda_seeds[index] = seed.value();
     }
     let delegated_account_bump = [args.delegated_account_bump()];
     pda_seeds[seeds.len()] = &delegated_account_bump;
