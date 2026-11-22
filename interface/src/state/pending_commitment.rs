@@ -123,7 +123,7 @@ pub struct PendingCommitment {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 2)]
+#[fixed_offset_layout(buffer_offset = 4)]
 pub struct SelectedVerifier {
     /// Selected verifier identity.
     pub verifier_identity: Pubkey,

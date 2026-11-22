@@ -165,19 +165,19 @@ pub fn process_challenger_reveal(
     drop(pending_data);
 
     let mut challenge_state = Challenge::decode_mut(challenge)?;
-    *challenge_state.challenger_lamports_mut()? = args.lamports();
-    *challenge_state.challenger_owner_mut()? = *args.owner();
-    *challenge_state.challenger_data_hash_mut()? = *args.data_hash();
-    *challenge_state.challenger_state_buffer_mut()? =
+    *challenge_state.challenger_lamports_mut() = args.lamports();
+    *challenge_state.challenger_owner_mut() = *args.owner();
+    *challenge_state.challenger_data_hash_mut() = *args.data_hash();
+    *challenge_state.challenger_state_buffer_mut() =
         *challenger_state_buffer.address();
-    *challenge_state.status_mut()? = challenge_status;
-    *challenge_state.outcome_mut()? = challenge_outcome;
+    *challenge_state.status_mut() = challenge_status;
+    *challenge_state.outcome_mut() = challenge_outcome;
 
     let mut pending = PendingCommitment::decode_mut(pending_commitment)?;
-    *pending.status_mut()? = pending_status;
+    *pending.status_mut() = pending_status;
     if reopen_pending {
-        pending.active_challenge_mut()?.set(None)?;
-        pending.resolved_state_source_mut()?.set(None)?;
+        pending.active_challenge_mut().set(None);
+        pending.resolved_state_source_mut().set(None);
     }
 
     Ok(())

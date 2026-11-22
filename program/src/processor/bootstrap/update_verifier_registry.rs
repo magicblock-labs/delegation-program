@@ -114,16 +114,18 @@ pub fn process_update_verifier_registry(
     // is small. Before allowing unbounded growth, cap the entry count or
     // replace this with paged storage / Merkle-root based membership.
     let old_registry_len = verifier_registry.data_len();
-    let mut verifier_registry_state =
-        VerifierRegistry::decode_mut(verifier_registry)?;
+    {
+        let mut verifier_registry_state =
+            VerifierRegistry::decode_mut(verifier_registry)?;
 
-    verifier_registry_state
-        .entries_mut()?
-        .push(&VerifierRegistryEntry {
-            verifier_identity: *verifier_identity,
-            stake_lamports: verifier_bond_state.stake_lamports(),
-            weight: args.weight(),
-        })?;
+        verifier_registry_state
+            .entries_mut()
+            .push(&VerifierRegistryEntry {
+                verifier_identity: *verifier_identity,
+                stake_lamports: verifier_bond_state.stake_lamports(),
+                weight: args.weight(),
+            })?;
+    }
 
     let new_registry_len = verifier_registry.data_len();
     if new_registry_len > old_registry_len {

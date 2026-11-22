@@ -20,7 +20,7 @@ use wheels::{
 
 use crate::{
     legacy::processor::{
-        fast::utils::pda::{create_pda, AccountSpace},
+        fast::utils::pda::create_pda_with_rent_exempt_lamports,
         utils::curve::is_on_curve_fast,
     },
     requires::{require_uninitialized_account, StandardCtx},
@@ -114,14 +114,15 @@ pub fn process_delegate(
 
     let seeds = args.seeds();
     let encoded_seeds = seeds.as_bytes();
-    let state_len =
+    let final_state_len =
         DelegationState::data_len_from_encoded_seeds_len(encoded_seeds.len())?;
     let delegated_account_lamports = delegated_account.lamports();
 
-    create_pda(
+    create_pda_with_rent_exempt_lamports(
         delegation_state,
         &crate::fast::ID,
-        AccountSpace::CurrentRent(state_len),
+        DelegationState::MIN_DATA_LEN,
+        Rent::get()?.try_minimum_balance(final_state_len)?,
         &[Signer::from(&[
             Seed::from(DELEGATION_STATE_SEED),
             Seed::from(delegated_account.address().as_ref()),
@@ -131,21 +132,19 @@ pub fn process_delegate(
     )?;
 
     let mut state = DelegationState::decode_mut(delegation_state)?;
-    *state.discriminator_mut()? = DelegationState::DISCRIMINATOR;
-    *state.bump_mut()? = args.delegation_state_bump();
-    *state.delegated_account_mut()? = *delegated_account.address();
-    *state.delegation_cluster_mut()? = *delegation_cluster.address();
-    *state.original_owner_mut()? = *original_owner.address();
-    *state.rent_payer_mut()? = *payer.address();
-    state.delegation_slot_mut()?.set(Clock::get()?.slot)?;
-    state.lamports_mut()?.set(delegated_account_lamports)?;
-    state.last_commit_seq_mut()?.set(0)?;
-    *state.undelegation_requester_mut()? = UndelegationRequester::None.value();
-    *state.delegated_account_bump_mut()? = args.delegated_account_bump();
-    *state.seed_count_mut()? = seeds.len() as u8;
-    state
-        .encoded_seeds_mut()?
-        .extend_from_slice(encoded_seeds)?;
+    *state.discriminator_mut() = DelegationState::DISCRIMINATOR;
+    *state.bump_mut() = args.delegation_state_bump();
+    *state.delegated_account_mut() = *delegated_account.address();
+    *state.delegation_cluster_mut() = *delegation_cluster.address();
+    *state.original_owner_mut() = *original_owner.address();
+    *state.rent_payer_mut() = *payer.address();
+    state.delegation_slot_mut().set(Clock::get()?.slot);
+    state.lamports_mut().set(delegated_account_lamports);
+    state.last_commit_seq_mut().set(0);
+    *state.undelegation_requester_mut() = UndelegationRequester::None.value();
+    *state.delegated_account_bump_mut() = args.delegated_account_bump();
+    *state.seed_count_mut() = seeds.len() as u8;
+    state.encoded_seeds_mut().extend_from_slice(encoded_seeds)?;
 
     if !delegate_buffer.is_data_empty() {
         require_eq!(

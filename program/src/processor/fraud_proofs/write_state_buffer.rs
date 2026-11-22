@@ -78,9 +78,7 @@ pub fn process_write_state_buffer(
             ProgramError::InvalidInstructionData
         );
 
-        let initial_len = StateBuffer::data_len_from_payload_capacity(
-            initial_payload_capacity,
-        )?;
+        let initial_len = StateBuffer::MIN_DATA_LEN;
         let final_len = StateBuffer::data_len_from_payload_capacity(
             args.total_len() as usize,
         )?;
@@ -215,12 +213,18 @@ fn write_chunk(
         ProgramError::InvalidInstructionData
     );
 
+    let resize_step = if state_fields.payload_capacity == 0 {
+        StateBuffer::MAX_INITIAL_PAYLOAD_LEN
+    } else {
+        StateBuffer::MAX_ACCOUNT_DATA_GROWTH_PER_WRITE
+    };
+
     StateBuffer::decode_mut(&MaxLenStorage::new(
         state_buffer_account,
         StateBuffer::data_len_from_payload_capacity(state_fields.total_len)?,
-        StateBuffer::MAX_ACCOUNT_DATA_GROWTH_PER_WRITE,
+        resize_step,
     ))?
-    .payload_mut()?
+    .payload_mut()
     .extend_from_slice(args.chunk())?;
 
     let data_hash = if write_end == state_fields.total_len {
@@ -239,8 +243,8 @@ fn write_chunk(
 
     if let Some(data_hash) = data_hash {
         let mut state_mut = StateBuffer::decode_mut(state_buffer_account)?;
-        *state_mut.data_hash_mut()? = data_hash;
-        state_mut.finalized_mut()?.set(true)?;
+        *state_mut.data_hash_mut() = data_hash;
+        state_mut.finalized_mut().set(true);
     }
 
     Ok(())
@@ -249,6 +253,7 @@ fn write_chunk(
 struct StateBufferFields {
     total_len: usize,
     payload_len: usize,
+    payload_capacity: usize,
     finalized: bool,
 }
 
@@ -312,6 +317,7 @@ fn validate_state_buffer(
     Ok(StateBufferFields {
         total_len: state.total_len() as usize,
         payload_len: state.payload().len(),
+        payload_capacity: state.payload().capacity(),
         finalized: state.finalized(),
     })
 }

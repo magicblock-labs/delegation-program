@@ -2,7 +2,7 @@ use wheels::variable_offset_layout;
 
 /// One owner-program seed used to derive the delegated account.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[variable_offset_layout(buffer_offset = unknown)]
+#[variable_offset_layout(buffer_offset = any)]
 pub struct DelegationSeed {
     #[flexible = 1]
     pub value: Vec<u8>,

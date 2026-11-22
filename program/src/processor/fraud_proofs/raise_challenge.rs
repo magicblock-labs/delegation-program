@@ -144,11 +144,11 @@ pub fn process_raise_challenge(
 
     challenge_state.encode_to(challenge.try_borrow_mut()?.as_mut())?;
     let mut pending_state = PendingCommitment::decode_mut(pending_commitment)?;
-    *pending_state.status_mut()? =
+    *pending_state.status_mut() =
         PENDING_COMMITMENT_STATUS_AWAITING_CHALLENGER_REVEAL;
     pending_state
-        .active_challenge_mut()?
-        .set(Some(challenge_address))?;
+        .active_challenge_mut()
+        .set(Some(challenge_address));
 
     Ok(())
 }

@@ -67,7 +67,7 @@ solana-sdk-ids = "3.1.0"
 solana-sha256-hasher = "3.1.0"
 solana-signer = { version = "3.0.0", optional = true }
 solana-system-interface = { version = "3.0.0", features = ["bincode"] }
-wheels = { version = "0.1.0", git = "https://github.com/magicblock-labs/magicblock-wheels.git", branch = "snawaz/nested-layout-options" }
+wheels = { version = "0.1.0", git = "https://github.com/magicblock-labs/magicblock-wheels.git", rev = "31b8f7b93e439d651ced70b153b3142e9e2e4d37" }
 
 [dev-dependencies]
 rand = { version = "0.8.5", features = ["small_rng"] }

@@ -129,9 +129,9 @@ pub(crate) fn apply_commit_finalize(
     drop(account_data);
 
     let mut state = DelegationState::decode_mut(delegation_state)?;
-    state.lamports_mut()?.set(input.lamports)?;
-    state.last_commit_seq_mut()?.set(input.commit_seq)?;
-    *state.undelegation_requester_mut()? = next_undelegation_requester;
+    state.lamports_mut().set(input.lamports);
+    state.last_commit_seq_mut().set(input.commit_seq);
+    *state.undelegation_requester_mut() = next_undelegation_requester;
 
     Ok(())
 }

@@ -265,7 +265,7 @@ pub fn process_finalize_commitment(
 
     drop(delegation_cluster_data);
     drop(pending_data);
-    *PendingCommitment::decode_mut(pending_commitment)?.status_mut()? =
+    *PendingCommitment::decode_mut(pending_commitment)?.status_mut() =
         PENDING_COMMITMENT_STATUS_FINALIZED;
 
     Ok(())

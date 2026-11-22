@@ -26,7 +26,7 @@ pub struct VerifierRegistry {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 3)]
+#[fixed_offset_layout(buffer_offset = 5)]
 pub struct VerifierRegistryEntry {
     /// Verifier identity selectable by DLP.
     pub verifier_identity: Pubkey,
