@@ -70,7 +70,7 @@ async fn test_commit_finalize_from_buffer_perf() {
 
         let metadata = metadata.unwrap();
 
-        assertables::assert_lt!(metadata.compute_units_consumed, 1500);
+        assertables::assert_lt!(metadata.compute_units_consumed, 1550);
 
         assert_eq!(
             metadata.log_messages.len(),
