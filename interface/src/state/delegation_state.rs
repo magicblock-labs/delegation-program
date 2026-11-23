@@ -7,7 +7,7 @@ use crate::{compat::Pubkey, error::DlpError, DelegationSeed};
 /// PDA: `["delegation-state", delegated_account]`.
 /// Created by `Delegate`; closed when the account is undelegated.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 0)]
+#[fixed_offset_layout(buffer_offset = any)]
 pub struct DelegationState {
     /// Account type marker.
     pub discriminator: [u8; 8],

@@ -9,7 +9,7 @@ pub struct DelegationSeed {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[variable_offset_layout(buffer_offset = 1)]
+#[variable_offset_layout(buffer_offset = any)]
 pub struct DelegateArgs {
     /// Bump for the owner-program delegate buffer PDA.
     /// Set by the instruction builder.

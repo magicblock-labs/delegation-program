@@ -3,7 +3,7 @@ use wheels::variable_offset_layout;
 use crate::compat::Pubkey;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[variable_offset_layout(buffer_offset = 1)]
+#[variable_offset_layout(buffer_offset = any)]
 pub struct ProposeCommitmentArgs {
     pub commit_seq: u32,
 

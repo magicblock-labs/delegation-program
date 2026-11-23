@@ -1,7 +1,7 @@
 use wheels::variable_offset_layout;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[variable_offset_layout(buffer_offset = 1)]
+#[variable_offset_layout(buffer_offset = any)]
 pub struct CloseStateBufferArgs {
     /// Commit sequence number that identifies the buffer and its possible commitment.
     pub commit_seq: u32,
