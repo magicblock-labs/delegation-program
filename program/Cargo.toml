@@ -59,7 +59,7 @@ solana-security-txt = { version = ">=1.1", optional = true }
 static_assertions = "1.1.0"
 strum = { version = ">=0.27", features = ["derive"] }
 thiserror = { version = ">=1" }
-wheels = { version = "0.1.0", git = "https://github.com/magicblock-labs/magicblock-wheels.git", rev = "31b8f7b93e439d651ced70b153b3142e9e2e4d37" }
+wheels = { version = "0.1.0", git = "https://github.com/magicblock-labs/magicblock-wheels.git", rev = "9aa3dbbea23ae428c61625dca58aca7ca3ad0e2a" }
 
 pinocchio                          = { version = "0.10.1", optional = true }
 pinocchio-log                      = { version = "0.5.1" , optional = true }
