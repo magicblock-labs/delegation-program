@@ -95,8 +95,8 @@ pub fn process_approve_commitment(
     drop(pending_data);
 
     let mut pending_state = PendingCommitment::decode_mut(pending_commitment)?;
-    pending_state.approval_count_mut()?.set(1)?;
-    pending_state.selected_verifiers_mut()?.set(
+    pending_state.approval_count_mut().set(1);
+    pending_state.selected_verifiers_mut().set(
         0,
         &SelectedVerifier {
             verifier_identity,

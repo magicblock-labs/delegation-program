@@ -54,14 +54,11 @@ impl DelegationState {
     pub const DISCRIMINATOR: [u8; 8] = *b"v2delst0";
     pub const MAX_SEEDS: usize = 8;
     pub const MAX_SEED_LEN: usize = 32;
-    pub const ENCODED_SEEDS_LEN_HEADER_LEN: usize = 2;
-
     pub fn data_len_from_encoded_seeds_len(
         encoded_seeds_len: usize,
     ) -> Result<usize, DlpError> {
         Self::MIN_DATA_LEN
-            .checked_add(Self::ENCODED_SEEDS_LEN_HEADER_LEN)
-            .and_then(|len| len.checked_add(encoded_seeds_len))
+            .checked_add(encoded_seeds_len)
             .ok_or(DlpError::Overflow)
     }
 }

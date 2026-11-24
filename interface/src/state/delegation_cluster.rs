@@ -4,7 +4,7 @@ use crate::compat::Pubkey;
 
 /// Challenge-only policy for a delegation cluster.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = unknown)]
+#[fixed_offset_layout(buffer_offset = any)]
 pub struct ChallengeConfig {
     /// Multisig-controlled signer allowed to resolve disputes.
     pub resolver: Pubkey,

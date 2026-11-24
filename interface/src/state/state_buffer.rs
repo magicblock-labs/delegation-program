@@ -61,15 +61,23 @@ impl StateBuffer {
     /// Maximum account data bytes a StateBuffer PDA may grow in one write.
     pub const MAX_ACCOUNT_DATA_GROWTH_PER_WRITE: usize = 10_240;
 
-    /// Offset of the extendable payload length header.
-    pub const PAYLOAD_LEN_HEADER_OFFSET: usize = Self::MIN_DATA_LEN;
-
     /// Byte length of the extendable payload length header.
     pub const PAYLOAD_LEN_HEADER_LEN: usize = 4;
 
-    /// Offset where payload bytes begin in account data.
-    pub const PAYLOAD_BYTES_OFFSET: usize =
+    /// Byte length of the extendable payload capacity header.
+    pub const PAYLOAD_CAPACITY_HEADER_LEN: usize = 4;
+
+    /// Offset of the extendable payload length header.
+    pub const PAYLOAD_LEN_HEADER_OFFSET: usize = Self::MIN_DATA_LEN
+        - Self::PAYLOAD_LEN_HEADER_LEN
+        - Self::PAYLOAD_CAPACITY_HEADER_LEN;
+
+    /// Offset of the extendable payload capacity header.
+    pub const PAYLOAD_CAPACITY_HEADER_OFFSET: usize =
         Self::PAYLOAD_LEN_HEADER_OFFSET + Self::PAYLOAD_LEN_HEADER_LEN;
+
+    /// Offset where payload bytes begin in account data.
+    pub const PAYLOAD_BYTES_OFFSET: usize = Self::MIN_DATA_LEN;
 
     /// Maximum payload bytes allocated when a StateBuffer PDA is created.
     pub const MAX_INITIAL_PAYLOAD_LEN: usize =

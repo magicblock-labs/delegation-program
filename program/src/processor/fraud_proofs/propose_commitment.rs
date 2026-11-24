@@ -316,8 +316,8 @@ pub fn process_propose_commitment(
     pending_commitment_state
         .encode_to(pending_commitment.try_borrow_mut()?.as_mut())?;
     VerifierRegistry::decode_mut(verifier_registry)?
-        .next_selection_index_mut()?
-        .set(next_selection_index)?;
+        .next_selection_index_mut()
+        .set(next_selection_index);
 
     Ok(())
 }

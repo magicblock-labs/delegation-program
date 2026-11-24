@@ -152,22 +152,22 @@ pub fn process_resolve_dispute(
     drop(pending_data);
 
     let mut challenge_state = Challenge::decode_mut(challenge)?;
-    *challenge_state.status_mut()? = CHALLENGE_STATUS_TERMINAL;
-    *challenge_state.outcome_mut()? = challenge_outcome;
+    *challenge_state.status_mut() = CHALLENGE_STATUS_TERMINAL;
+    *challenge_state.outcome_mut() = challenge_outcome;
 
     let mut pending = PendingCommitment::decode_mut(pending_commitment)?;
-    *pending.status_mut()? = pending_status;
-    pending.active_challenge_mut()?.set(None)?;
+    *pending.status_mut() = pending_status;
+    pending.active_challenge_mut().set(None);
     pending
-        .resolved_state_source_mut()?
-        .set(Some(resolved_state_source))?;
+        .resolved_state_source_mut()
+        .set(Some(resolved_state_source));
 
     if slash_operator {
         let mut operator_bond = OperatorBond::decode_mut(operator_bond)?;
-        operator_bond.stake_lamports_mut()?.set(0)?;
-        operator_bond.locked_lamports_mut()?.set(0)?;
-        *operator_bond.status_mut()? = OperatorStatus::Slashed.value();
-        operator_bond.withdraw_requested_slot_mut()?.set(None)?;
+        operator_bond.stake_lamports_mut().set(0);
+        operator_bond.locked_lamports_mut().set(0);
+        *operator_bond.status_mut() = OperatorStatus::Slashed.value();
+        operator_bond.withdraw_requested_slot_mut().set(None);
     }
 
     Ok(())
