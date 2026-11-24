@@ -3,7 +3,7 @@ use wheels::fixed_offset_layout;
 use crate::compat::Pubkey;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 0)]
+#[fixed_offset_layout(buffer_offset = any)]
 pub struct VerifierBond {
     /// Account type marker.
     pub discriminator: [u8; 8],

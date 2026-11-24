@@ -21,7 +21,7 @@ pub const RESOLVED_STATE_SOURCE_CHALLENGER_REVEAL: u8 = 2;
 ///
 /// One account per delegated account and commit sequence number.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 0)]
+#[fixed_offset_layout(buffer_offset = any)]
 pub struct PendingCommitment {
     /// Account type marker.
     pub discriminator: [u8; 8],
@@ -123,7 +123,7 @@ pub struct PendingCommitment {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 4)]
+#[fixed_offset_layout(buffer_offset = any)]
 pub struct SelectedVerifier {
     /// Selected verifier identity.
     pub verifier_identity: Pubkey,

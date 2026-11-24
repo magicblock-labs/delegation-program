@@ -6,7 +6,7 @@ use crate::compat::Pubkey;
 /// Created by `InitDelegationCluster`; updated by `UpdateVerifierRegistry`.
 /// Not normally closed.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 0)]
+#[fixed_offset_layout(buffer_offset = any)]
 pub struct VerifierRegistry {
     /// Account type marker.
     pub discriminator: [u8; 8],
@@ -26,7 +26,7 @@ pub struct VerifierRegistry {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 5)]
+#[fixed_offset_layout(buffer_offset = any)]
 pub struct VerifierRegistryEntry {
     /// Verifier identity selectable by DLP.
     pub verifier_identity: Pubkey,

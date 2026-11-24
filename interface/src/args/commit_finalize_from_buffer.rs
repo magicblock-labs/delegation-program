@@ -3,7 +3,7 @@ use wheels::variable_offset_layout;
 use crate::compat::Pubkey;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[variable_offset_layout(buffer_offset = 1)]
+#[variable_offset_layout(buffer_offset = any)]
 pub struct CommitFinalizeFromBufferArgs {
     /// Next commit sequence number for this delegated account and its StateBuffer.
     pub commit_seq: u32,
@@ -22,7 +22,7 @@ pub struct CommitFinalizeFromBufferArgs {
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[variable_offset_layout(buffer_offset = 1)]
+#[variable_offset_layout(buffer_offset = any)]
 pub struct PrepareCommitFinalizeArgs {
     /// Next commit sequence number whose finalization needs this account size.
     pub commit_seq: u32,

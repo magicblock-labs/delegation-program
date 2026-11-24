@@ -1,5 +1,6 @@
-// V2 processors decode args from `instruction_data[1..]` after the one-byte
-// instruction tag, so v2 instruction args use `buffer_offset = 1`.
+// Instruction args use `buffer_offset = any` unless decoding relies on their
+// position after the one-byte tag. CommitFinalizeArgs keeps offset 1 so its
+// inline diff payload remains four-byte aligned.
 
 mod challenger_reveal;
 mod close_state_buffer;

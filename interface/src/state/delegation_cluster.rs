@@ -52,7 +52,7 @@ impl ChallengeConfig {
 /// PDA: `["delegation-cluster", cluster_id]`.
 /// Created by `InitDelegationCluster`; not normally closed.
 #[derive(Clone, Debug, PartialEq, Eq)]
-#[fixed_offset_layout(buffer_offset = 0)]
+#[fixed_offset_layout(buffer_offset = any)]
 pub struct DelegationCluster {
     /// Account type marker.
     pub discriminator: [u8; 8],
