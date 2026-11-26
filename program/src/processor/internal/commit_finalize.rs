@@ -6,7 +6,7 @@ use dpi::{
     DelegationStateView, UndelegationRequester,
 };
 use pinocchio::{
-    address::address_eq,
+    address::{address_eq, PDA_MARKER},
     error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
     AccountView, ProgramResult,
@@ -142,14 +142,17 @@ pub(crate) fn validate_direct_cluster(
     cluster: &DelegationClusterView<'_>,
 ) -> ProgramResult {
     let cluster_bump = [cluster.bump()];
-    dpi::require_initialized_pda!(
+    // The bump was validated when the PDA was initialized. Hash the complete
+    // PDA preimage directly to avoid repeating the curve check.
+    dpi::require_initialized_pda_fast!(
         delegation_cluster,
         &[
             DELEGATION_CLUSTER_SEED,
             cluster.cluster_id().as_ref(),
             &cluster_bump,
+            crate::fast::ID.as_ref(),
+            PDA_MARKER,
         ],
-        &crate::fast::ID,
         false
     );
     require_eq!(
@@ -181,14 +184,17 @@ pub(crate) fn validate_commit_state(
     is_writable: bool,
 ) -> ProgramResult {
     let state_bump = [state.bump()];
-    dpi::require_initialized_pda!(
+    // The bump was validated when the PDA was initialized. Hash the complete
+    // PDA preimage directly to avoid repeating the curve check.
+    dpi::require_initialized_pda_fast!(
         delegation_state,
         &[
             DELEGATION_STATE_SEED,
             delegated_account.address().as_ref(),
             &state_bump,
+            crate::fast::ID.as_ref(),
+            PDA_MARKER,
         ],
-        &crate::fast::ID,
         is_writable
     );
     require_eq!(

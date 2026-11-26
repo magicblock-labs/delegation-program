@@ -10,7 +10,10 @@ use dpi::{
 use solana_program::{
     native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, rent::Rent,
 };
-use solana_program_test::{BanksClient, BanksClientError, ProgramTest};
+use solana_program_test::{
+    BanksClient, BanksClientError, BanksTransactionResultWithMetadata,
+    ProgramTest,
+};
 use solana_sdk::{
     account::Account,
     instruction::InstructionError,
@@ -118,6 +121,53 @@ async fn test_commit_finalize_applies_full_data_and_diff() {
     assert_eq!(
         state.undelegation_requester(),
         UndelegationRequester::Validator.value()
+    );
+}
+
+#[tokio::test]
+async fn test_commit_finalize_steady_state_perf() {
+    let context =
+        setup_commit_finalize_test(false, UndelegationRequester::None).await;
+    let committed_data = vec![1; INITIAL_DATA.len()];
+    let instruction = commit_finalize(
+        context.current_validator.pubkey(),
+        context.delegation_cluster,
+        context.delegated_account,
+        CommitFinalizeArgs {
+            commit_seq: 1,
+            lamports: INITIAL_LAMPORTS,
+            owner: context.original_owner,
+            allow_undelegation: false,
+            payload_kind: CommitPayloadKind::FullData.value(),
+            payload_alignment_padding: 0,
+            payload: committed_data.clone(),
+        },
+    )
+    .unwrap();
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &context.current_validator],
+        context.banks.get_latest_blockhash().await.unwrap(),
+    );
+
+    let BanksTransactionResultWithMetadata { result, metadata } = context
+        .banks
+        .process_transaction_with_metadata(transaction)
+        .await
+        .unwrap();
+    result.unwrap();
+    assertables::assert_le!(metadata.unwrap().compute_units_consumed, 2_750);
+
+    assert_eq!(
+        context
+            .banks
+            .get_account(context.delegated_account)
+            .await
+            .unwrap()
+            .unwrap()
+            .data,
+        committed_data
     );
 }
 
