@@ -1,9 +1,8 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    error::DlpError,
-    pda::{DELEGATION_CLUSTER_SEED, DELEGATION_STATE_SEED},
-    DelegationCluster, DelegationClusterView, DelegationState,
-    DelegationStateView, UndelegationRequester,
+    error::DlpError, pda::DELEGATION_STATE_SEED, DelegationCluster,
+    DelegationClusterView, DelegationState, DelegationStateView,
+    UndelegationRequester,
 };
 use pinocchio::{
     address::{address_eq, PDA_MARKER},
@@ -55,11 +54,6 @@ pub(crate) fn apply_commit_finalize(
     require_owned_by!(delegated_account, &crate::fast::ID);
     require!(delegated_account.is_writable(), ProgramError::Immutable);
 
-    let cluster_data = delegation_cluster.try_borrow()?;
-    let cluster = DelegationCluster::decode(cluster_data.as_ref())?;
-    validate_direct_cluster(current_validator, delegation_cluster, &cluster)?;
-    drop(cluster_data);
-
     let state_data = delegation_state.try_borrow()?;
     let state = DelegationState::decode(state_data.as_ref())?;
     validate_commit_state(
@@ -97,6 +91,11 @@ pub(crate) fn apply_commit_finalize(
     };
     let previous_lamports = state.lamports();
     drop(state_data);
+
+    let cluster_data = delegation_cluster.try_borrow()?;
+    let cluster = DelegationCluster::decode(cluster_data.as_ref())?;
+    validate_direct_cluster_policy(current_validator, &cluster)?;
+    drop(cluster_data);
 
     require_ge!(
         delegated_account.lamports(),
@@ -136,30 +135,15 @@ pub(crate) fn apply_commit_finalize(
     Ok(())
 }
 
-pub(crate) fn validate_direct_cluster(
+/// Validates the live policy read from a cluster already authenticated through
+/// its address stored in `DelegationState`.
+pub(crate) fn validate_direct_cluster_policy(
     current_validator: &AccountView,
-    delegation_cluster: &AccountView,
     cluster: &DelegationClusterView<'_>,
 ) -> ProgramResult {
-    let cluster_bump = [cluster.bump()];
-    // The bump was validated when the PDA was initialized. Hash the complete
-    // PDA preimage directly to avoid repeating the curve check.
-    dpi::require_initialized_pda_fast!(
-        delegation_cluster,
-        &[
-            DELEGATION_CLUSTER_SEED,
-            cluster.cluster_id().as_ref(),
-            &cluster_bump,
-            crate::fast::ID.as_ref(),
-            PDA_MARKER,
-        ],
-        false
-    );
-    require_eq!(
-        &cluster.discriminator(),
-        &DelegationCluster::DISCRIMINATOR,
-        ProgramError::InvalidAccountData
-    );
+    // CHECKPOINT: DelegationState binds the exact cluster account after full
+    // validation during delegation. Revisit this trust if clusters ever become
+    // closeable or reassignable.
     require!(!cluster.paused(), ProgramError::InvalidAccountData);
     require_eq!(
         cluster.challenge_config().is_none(),

@@ -15,7 +15,7 @@ use wheels::{
 };
 
 use crate::processor::internal::{
-    validate_commit_state, validate_direct_cluster,
+    validate_commit_state, validate_direct_cluster_policy,
 };
 
 /// Grow a delegated account by one runtime-permitted step before finalization.
@@ -54,11 +54,6 @@ pub fn process_prepare_commit_finalize(
         ProgramError::InvalidInstructionData
     );
 
-    let cluster_data = delegation_cluster.try_borrow()?;
-    let cluster = DelegationCluster::decode(cluster_data.as_ref())?;
-    validate_direct_cluster(current_validator, delegation_cluster, &cluster)?;
-    drop(cluster_data);
-
     let state_data = delegation_state.try_borrow()?;
     let state = DelegationState::decode(state_data.as_ref())?;
     validate_commit_state(
@@ -69,12 +64,19 @@ pub fn process_prepare_commit_finalize(
         args.commit_seq(),
         false,
     )?;
+    let previous_lamports = state.lamports();
+    drop(state_data);
+
+    let cluster_data = delegation_cluster.try_borrow()?;
+    let cluster = DelegationCluster::decode(cluster_data.as_ref())?;
+    validate_direct_cluster_policy(current_validator, &cluster)?;
+    drop(cluster_data);
+
     require_ge!(
         delegated_account.lamports(),
-        state.lamports(),
+        previous_lamports,
         DlpError::InvalidDelegatedState
     );
-    drop(state_data);
 
     let target_data_len = args.target_data_len() as usize;
     if delegated_account.data_len() >= target_data_len {

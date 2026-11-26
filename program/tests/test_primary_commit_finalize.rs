@@ -157,7 +157,7 @@ async fn test_commit_finalize_steady_state_perf() {
         .await
         .unwrap();
     result.unwrap();
-    assertables::assert_le!(metadata.unwrap().compute_units_consumed, 2_750);
+    assertables::assert_le!(metadata.unwrap().compute_units_consumed, 2_500);
 
     assert_eq!(
         context
@@ -168,6 +168,49 @@ async fn test_commit_finalize_steady_state_perf() {
             .unwrap()
             .data,
         committed_data
+    );
+}
+
+#[tokio::test]
+async fn test_commit_finalize_rejects_cluster_not_bound_to_state() {
+    let context =
+        setup_commit_finalize_test(false, UndelegationRequester::None).await;
+    let mut instruction = commit_finalize(
+        context.current_validator.pubkey(),
+        context.delegation_cluster,
+        context.delegated_account,
+        full_data_args(&context, 1),
+    )
+    .unwrap();
+    instruction
+        .accounts
+        .iter_mut()
+        .find(|account| account.pubkey == context.delegation_cluster)
+        .unwrap()
+        .pubkey = context.delegated_account;
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &context.current_validator],
+        context.banks.get_latest_blockhash().await.unwrap(),
+    );
+    let error = context
+        .banks
+        .process_transaction(transaction)
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(
+            error,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::InvalidAccountData,
+                ),
+            )
+        ),
+        "unexpected error: {error:?}"
     );
 }
 
