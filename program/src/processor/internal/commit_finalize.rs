@@ -12,8 +12,8 @@ use pinocchio::{
 };
 use pinocchio_system::instructions as system;
 use wheels::{
-    layout::Decodable, require, require_eq, require_eq_keys, require_ge,
-    require_owned_by, require_signer,
+    require, require_eq, require_eq_keys, require_ge, require_owned_by,
+    require_signer,
 };
 
 use crate::{
@@ -50,20 +50,43 @@ pub(crate) fn apply_commit_finalize(
     input: CommitFinalizeInput<'_>,
 ) -> ProgramResult {
     require_signer!(current_validator);
-    require!(current_validator.is_writable(), ProgramError::Immutable);
+    //require!(current_validator.is_writable(), ProgramError::Immutable);
     require_owned_by!(delegated_account, &crate::fast::ID);
-    require!(delegated_account.is_writable(), ProgramError::Immutable);
+    //require!(delegated_account.is_writable(), ProgramError::Immutable);
 
-    let mut state = DelegationState::decode_mut(delegation_state)?;
+    require_ge!(
+        delegation_state.data_len(),
+        DelegationState::MIN_DATA_LEN,
+        ProgramError::InvalidAccountData
+    );
+    let state_bump =
+        [delegation_state.try_borrow()?[DelegationState::OFFSETS[1]]];
+    // The bump was validated when the PDA was initialized. Hash the complete
+    // PDA preimage directly to avoid repeating the curve check.
+    dpi::require_initialized_pda_fast!(
+        delegation_state,
+        &[
+            DELEGATION_STATE_SEED,
+            delegated_account.address().as_ref(),
+            &state_bump,
+            crate::fast::ID.as_ref(),
+            PDA_MARKER,
+        ],
+        true
+    );
+
+    // SAFETY: The unique DLP-owned state PDA was authenticated above. Delegate
+    // initializes it with this layout, and later instructions preserve it.
+    let mut state =
+        unsafe { DelegationState::decode_mut_unchecked(delegation_state)? };
+
     let (previous_lamports, next_undelegation_requester) = {
         let state = state.as_view();
         validate_commit_state(
             delegated_account,
-            delegation_state,
             delegation_cluster,
             &state,
             input.commit_seq,
-            true,
         )?;
         require_eq_keys!(
             state.original_owner(),
@@ -94,7 +117,11 @@ pub(crate) fn apply_commit_finalize(
     };
 
     let cluster_data = delegation_cluster.try_borrow()?;
-    let cluster = DelegationCluster::decode(cluster_data.as_ref())?;
+    // SAFETY: The authenticated DelegationState binds this exact cluster,
+    // which Delegate fully validates. Clusters are not closeable, and cluster
+    // updates preserve this layout.
+    let cluster =
+        unsafe { DelegationCluster::decode_unchecked(cluster_data.as_ref()) };
     validate_direct_cluster_policy(current_validator, &cluster)?;
     drop(cluster_data);
 
@@ -104,18 +131,28 @@ pub(crate) fn apply_commit_finalize(
         DlpError::InvalidDelegatedState
     );
 
-    delegated_account.resize(input.state_update.data_len())?;
+    let previous_data_len = delegated_account.data_len();
+    let next_data_len = input.state_update.data_len();
+    if next_data_len != previous_data_len {
+        delegated_account.resize(next_data_len)?;
+    }
+    //if input.lamports != previous_lamports {
     settle_lamports(
         current_validator,
         delegated_account,
         previous_lamports,
         input.lamports,
     )?;
-    require_ge!(
-        delegated_account.lamports(),
-        Rent::get()?.try_minimum_balance(delegated_account.data_len())?,
-        DlpError::InsufficientRent
-    );
+    //}
+    // Delegate establishes rent exemption. Recheck only when this instruction
+    // can weaken it by increasing required rent or reducing the balance.
+    if next_data_len > previous_data_len || input.lamports < previous_lamports {
+        require_ge!(
+            delegated_account.lamports(),
+            Rent::get()?.try_minimum_balance(next_data_len)?,
+            DlpError::InsufficientRent
+        );
+    }
 
     let mut account_data = delegated_account.try_borrow_mut()?;
     match input.state_update {
@@ -159,28 +196,13 @@ pub(crate) fn validate_direct_cluster_policy(
     Ok(())
 }
 
+#[inline(always)]
 pub(crate) fn validate_commit_state(
     delegated_account: &AccountView,
-    delegation_state: &AccountView,
     delegation_cluster: &AccountView,
     state: &DelegationStateView<'_>,
     commit_seq: u32,
-    is_writable: bool,
 ) -> ProgramResult {
-    let state_bump = [state.bump()];
-    // The bump was validated when the PDA was initialized. Hash the complete
-    // PDA preimage directly to avoid repeating the curve check.
-    dpi::require_initialized_pda_fast!(
-        delegation_state,
-        &[
-            DELEGATION_STATE_SEED,
-            delegated_account.address().as_ref(),
-            &state_bump,
-            crate::fast::ID.as_ref(),
-            PDA_MARKER,
-        ],
-        is_writable
-    );
     require_eq!(
         &state.discriminator(),
         &DelegationState::DISCRIMINATOR,
@@ -208,6 +230,7 @@ pub(crate) fn validate_commit_state(
     Ok(())
 }
 
+#[inline(always)]
 fn settle_lamports(
     current_validator: &AccountView,
     delegated_account: &AccountView,

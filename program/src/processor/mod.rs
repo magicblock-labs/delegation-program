@@ -22,7 +22,7 @@ pub fn process_instruction(
     data: &[u8],
     ix: DlpV2Instruction,
 ) -> ProgramResult {
-    pinocchio_log::log!("fast_process_instruction: {}", ix.name());
+    // pinocchio_log::log!("fast_process_instruction: {}", ix.name());
     match ix {
         DlpV2Instruction::InitDelegationCluster => {
             process_init_delegation_cluster(accounts, data)

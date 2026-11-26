@@ -1,9 +1,10 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    error::DlpError, DelegationCluster, DelegationState,
-    PrepareCommitFinalizeArgs, StateBuffer,
+    error::DlpError, pda::DELEGATION_STATE_SEED, DelegationCluster,
+    DelegationState, PrepareCommitFinalizeArgs, StateBuffer,
 };
 use pinocchio::{
+    address::{address_eq, PDA_MARKER},
     error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
     AccountView, ProgramResult,
@@ -56,13 +57,25 @@ pub fn process_prepare_commit_finalize(
 
     let state_data = delegation_state.try_borrow()?;
     let state = DelegationState::decode(state_data.as_ref())?;
+    let state_bump = [state.bump()];
+    // The bump was validated when the PDA was initialized. Hash the complete
+    // PDA preimage directly to avoid repeating the curve check.
+    dpi::require_initialized_pda_fast!(
+        delegation_state,
+        &[
+            DELEGATION_STATE_SEED,
+            delegated_account.address().as_ref(),
+            &state_bump,
+            crate::fast::ID.as_ref(),
+            PDA_MARKER,
+        ],
+        false
+    );
     validate_commit_state(
         delegated_account,
-        delegation_state,
         delegation_cluster,
         &state,
         args.commit_seq(),
-        false,
     )?;
     let previous_lamports = state.lamports();
     drop(state_data);

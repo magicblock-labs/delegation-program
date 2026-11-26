@@ -14,8 +14,8 @@ use pinocchio::{
 };
 use pinocchio_system::instructions as system;
 use wheels::{
-    layout::Decodable, require, require_eq, require_eq_keys, require_le,
-    require_n_accounts, require_owned_by, require_signer,
+    layout::Decodable, require, require_eq, require_eq_keys, require_ge,
+    require_le, require_n_accounts, require_owned_by, require_signer,
 };
 
 use crate::{
@@ -117,12 +117,13 @@ pub fn process_delegate(
     let final_state_len =
         DelegationState::data_len_from_encoded_seeds_len(encoded_seeds.len())?;
     let delegated_account_lamports = delegated_account.lamports();
+    let rent = Rent::get()?;
 
     create_pda_with_rent_exempt_lamports(
         delegation_state,
         &crate::fast::ID,
         DelegationState::MIN_DATA_LEN,
-        Rent::get()?.try_minimum_balance(final_state_len)?,
+        rent.try_minimum_balance(final_state_len)?,
         &[Signer::from(&[
             Seed::from(DELEGATION_STATE_SEED),
             Seed::from(delegated_account.address().as_ref()),
@@ -163,10 +164,15 @@ pub fn process_delegate(
         system::Transfer {
             from: payer,
             to: delegated_account,
-            lamports: Rent::get()?.try_minimum_balance(0)?,
+            lamports: rent.try_minimum_balance(0)?,
         }
         .invoke()?;
     }
+    require_ge!(
+        delegated_account.lamports(),
+        rent.try_minimum_balance(delegated_account.data_len())?,
+        DlpError::InsufficientRent
+    );
 
     Ok(())
 }
