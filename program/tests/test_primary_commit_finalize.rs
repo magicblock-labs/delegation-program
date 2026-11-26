@@ -157,7 +157,7 @@ async fn test_commit_finalize_steady_state_perf() {
         .await
         .unwrap();
     result.unwrap();
-    assertables::assert_le!(metadata.unwrap().compute_units_consumed, 2_500);
+    assertables::assert_le!(metadata.unwrap().compute_units_consumed, 2_250);
 
     assert_eq!(
         context

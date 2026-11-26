@@ -54,43 +54,44 @@ pub(crate) fn apply_commit_finalize(
     require_owned_by!(delegated_account, &crate::fast::ID);
     require!(delegated_account.is_writable(), ProgramError::Immutable);
 
-    let state_data = delegation_state.try_borrow()?;
-    let state = DelegationState::decode(state_data.as_ref())?;
-    validate_commit_state(
-        delegated_account,
-        delegation_state,
-        delegation_cluster,
-        &state,
-        input.commit_seq,
-        true,
-    )?;
-    require_eq_keys!(
-        state.original_owner(),
-        input.owner,
-        ProgramError::InvalidAccountData
-    );
-    let next_undelegation_requester = match state.undelegation_requester() {
-        value if value == UndelegationRequester::None.value() => {
-            if input.allow_undelegation {
-                UndelegationRequester::Validator.value()
-            } else {
+    let mut state = DelegationState::decode_mut(delegation_state)?;
+    let (previous_lamports, next_undelegation_requester) = {
+        let state = state.as_view();
+        validate_commit_state(
+            delegated_account,
+            delegation_state,
+            delegation_cluster,
+            &state,
+            input.commit_seq,
+            true,
+        )?;
+        require_eq_keys!(
+            state.original_owner(),
+            input.owner,
+            ProgramError::InvalidAccountData
+        );
+        let next_undelegation_requester = match state.undelegation_requester() {
+            value if value == UndelegationRequester::None.value() => {
+                if input.allow_undelegation {
+                    UndelegationRequester::Validator.value()
+                } else {
+                    value
+                }
+            }
+            value if value == UndelegationRequester::Validator.value() => {
+                return Err(DlpError::AlreadyUndelegated.into());
+            }
+            value if value == UndelegationRequester::OwnerProgram.value() => {
+                require!(
+                    input.allow_undelegation,
+                    DlpError::OwnerRequestedUndelegation
+                );
                 value
             }
-        }
-        value if value == UndelegationRequester::Validator.value() => {
-            return Err(DlpError::AlreadyUndelegated.into());
-        }
-        value if value == UndelegationRequester::OwnerProgram.value() => {
-            require!(
-                input.allow_undelegation,
-                DlpError::OwnerRequestedUndelegation
-            );
-            value
-        }
-        _ => return Err(ProgramError::InvalidAccountData),
+            _ => return Err(ProgramError::InvalidAccountData),
+        };
+        (state.lamports(), next_undelegation_requester)
     };
-    let previous_lamports = state.lamports();
-    drop(state_data);
 
     let cluster_data = delegation_cluster.try_borrow()?;
     let cluster = DelegationCluster::decode(cluster_data.as_ref())?;
@@ -127,7 +128,6 @@ pub(crate) fn apply_commit_finalize(
     }
     drop(account_data);
 
-    let mut state = DelegationState::decode_mut(delegation_state)?;
     state.lamports_mut().set(input.lamports);
     state.last_commit_seq_mut().set(input.commit_seq);
     *state.undelegation_requester_mut() = next_undelegation_requester;
