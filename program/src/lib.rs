@@ -73,7 +73,14 @@ pub fn fast_process_instruction(
         ));
     };
 
+    // return: 55 CU
+
     if tag == dpi::DlpV2Instruction::CommitFinalize as u8 {
+        // return: 75 CU
+
+        //if data.len() < 100000 {
+        //    return Some(Ok(()));
+        //}
         return Some(processor::process_commit_finalize(accounts, v2_data));
     } else if let Ok(ix) = dpi::DlpV2Instruction::try_from(tag) {
         return Some(processor::process_instruction(accounts, v2_data, ix));

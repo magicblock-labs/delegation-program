@@ -57,6 +57,7 @@ pub(crate) struct CommitFinalizeInput<'a> {
 /// The canonical state address is still validated below. Any check not listed
 /// here must not be assumed safe to omit.
 ///
+#[inline(always)]
 pub(crate) fn apply_commit_finalize(
     current_validator: &AccountView,
     delegated_account: &AccountView,
@@ -64,6 +65,12 @@ pub(crate) fn apply_commit_finalize(
     delegation_cluster: &AccountView,
     input: CommitFinalizeInput<'_>,
 ) -> ProgramResult {
+    // return: 201 CU
+
+    //if delegation_state.data_len() < 100000 {
+    //    return Ok(());
+    //}
+
     require_signer!(current_validator);
 
     require_ge!(
@@ -194,6 +201,7 @@ pub(crate) fn apply_commit_finalize(
 
 /// Validates the live policy read from a cluster already authenticated through
 /// its address stored in `DelegationState`.
+#[inline(always)]
 pub(crate) fn validate_direct_cluster_policy(
     current_validator: &AccountView,
     cluster: &DelegationClusterView<'_>,
