@@ -12,8 +12,7 @@ use pinocchio::{
 };
 use pinocchio_system::instructions as system;
 use wheels::{
-    require, require_eq, require_eq_keys, require_ge, require_owned_by,
-    require_signer,
+    require, require_eq, require_eq_keys, require_ge, require_signer,
 };
 
 use crate::{
@@ -42,6 +41,22 @@ pub(crate) struct CommitFinalizeInput<'a> {
     pub(crate) state_update: CommitStateUpdate<'a>,
 }
 
+///
+/// CHECKPOINT: The following checks are deliberately omitted:
+///
+/// - validator writability: the runtime rejects any required lamport mutation;
+///
+/// - delegated-account writability: the runtime rejects any required mutation;
+///
+/// - delegated-account ownership: the runtime rejects any data mutation,
+///   resize, or lamport debit that requires DLP ownership;
+///
+/// - state ownership and writability: `last_commit_seq` always changes, so the
+///   runtime enforces both and rolls the instruction back atomically.
+///
+/// The canonical state address is still validated below. Any check not listed
+/// here must not be assumed safe to omit.
+///
 pub(crate) fn apply_commit_finalize(
     current_validator: &AccountView,
     delegated_account: &AccountView,
@@ -50,9 +65,6 @@ pub(crate) fn apply_commit_finalize(
     input: CommitFinalizeInput<'_>,
 ) -> ProgramResult {
     require_signer!(current_validator);
-    //require!(current_validator.is_writable(), ProgramError::Immutable);
-    require_owned_by!(delegated_account, &crate::fast::ID);
-    //require!(delegated_account.is_writable(), ProgramError::Immutable);
 
     require_ge!(
         delegation_state.data_len(),
@@ -61,22 +73,30 @@ pub(crate) fn apply_commit_finalize(
     );
     let state_bump =
         [delegation_state.try_borrow()?[DelegationState::OFFSETS[1]]];
-    // The bump was validated when the PDA was initialized. Hash the complete
-    // PDA preimage directly to avoid repeating the curve check.
-    dpi::require_initialized_pda_fast!(
-        delegation_state,
-        &[
+
+    // This cannot be replaced with only the stored delegated-account key. A
+    // malicious validator can delegate an account containing forged
+    // DelegationState bytes and pass that account here as a fake state account.
+    {
+        let expected_state_address = solana_sha256_hasher::hashv(&[
             DELEGATION_STATE_SEED,
             delegated_account.address().as_ref(),
             &state_bump,
             crate::fast::ID.as_ref(),
             PDA_MARKER,
-        ],
-        true
-    );
+        ])
+        .to_bytes();
+        require!(
+            address_eq(
+                delegation_state.address(),
+                &expected_state_address.into()
+            ),
+            ProgramError::InvalidSeeds
+        );
+    }
 
-    // SAFETY: The unique DLP-owned state PDA was authenticated above. Delegate
-    // initializes it with this layout, and later instructions preserve it.
+    // SAFETY: The unique state PDA and its minimum layout size were authenticated
+    // above. Delegate initializes this layout, and later instructions preserve it.
     let mut state =
         unsafe { DelegationState::decode_mut_unchecked(delegation_state)? };
 
