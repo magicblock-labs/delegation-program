@@ -118,6 +118,103 @@ An 8-byte local therefore has no fixed price. If it remains in a register, its
 creation may cost zero. If it must be written to and read from the stack, the raw
 store and load cost two CU, with possible additional register and pointer work.
 
+### Function calls and scalar arguments
+
+The next benchmark used separate `#[inline(never)]` functions. Each callee added
+its scalar arguments, and the caller kept the result observable. The identity
+loop itself executed six SBF instructions per iteration.
+
+| Compiled pattern           | Total CU per iteration | Extra CU over no-call loop | Notes                                                        |
+| -------------------------- | ---------------------: | -------------------------: | ------------------------------------------------------------ |
+| No call                    |                      6 |                          0 | Matching volatile-loop baseline.                             |
+| Pure call, no arguments    |                      6 |                          0 | LLVM removed the call.                                       |
+| Pure identity call         |                      6 |                          0 | LLVM removed this one-argument call too.                     |
+| Sum two scalar arguments   |                     12 |                          6 | Includes call, callee addition, return, and caller handling. |
+| Sum three scalar arguments |                     14 |                          8 | Includes two additions in the callee.                        |
+| Sum four scalar arguments  |                     16 |                         10 | Includes three additions in the callee.                      |
+| Sum five scalar arguments  |                     18 |                         12 | Includes four additions in the callee.                       |
+| Sum six scalar arguments   |                     23 |                         17 | Additional arguments begin using the stack ABI.              |
+| Sum seven scalar arguments |                     26 |                         20 | Includes stack-argument loads and six additions.             |
+| Sum eight scalar arguments |                     29 |                         23 | Includes stack-argument loads and seven additions.           |
+
+These rows do **not** say that a two-argument function call costs six CU. A
+direct SBF call and return are one instruction each, but the table also includes
+argument preparation, the additions, result handling, and any ABI work.
+
+SBF exposes five argument registers. In this build, once the function had more
+than five scalar parameters, the compiler used the fifth register as a pointer
+to stack arguments. The generated six-argument callee loaded the extra values
+from that stack area. This explains the visible increase between five and six
+arguments, but it is an ABI observation rather than a stable Rust guarantee.
+
+Also, `#[inline(never)]` prevents inlining; it does not force an otherwise
+unnecessary call to remain. LLVM still proved the zero-argument and identity
+calls had no relevant side effects and removed them.
+
+### Passing, copying, and returning values
+
+The benchmark built the aggregate values from the changing loop state so LLVM
+could not move them outside the loop. The value and reference variants then
+summed every `u64` field.
+
+| Compiled pattern                | Total CU per iteration | Extra CU over identity | Observation                                                    |
+| ------------------------------- | ---------------------: | ---------------------: | -------------------------------------------------------------- |
+| Read a `u64` through `&u64`     |                     11 |                      5 | Includes a call, one dereference, return, and caller handling. |
+| Pass 16 bytes by value          |                     16 |                     10 | Same generated callee as the reference form in this build.     |
+| Pass 16 bytes by reference      |                     16 |                     10 | Aggregate construction and two field reads dominate.           |
+| Pass 32 bytes by value          |                     26 |                     20 | Passed indirectly by this compiler and ABI.                    |
+| Pass 32 bytes by reference      |                     26 |                     20 | No measured advantage over by value in this example.           |
+| Pass 64 bytes by value          |                     46 |                     40 | Passed indirectly by this compiler and ABI.                    |
+| Pass 64 bytes by reference      |                     46 |                     40 | No measured advantage over by value in this example.           |
+| Volatile-read 16-byte aggregate |                     13 |                      7 | LLVM read the two fields directly; no destination copy.        |
+| Volatile-read 32-byte aggregate |                     17 |                     11 | Four loads and additions, plus call/return handling.           |
+| Volatile-read 64-byte aggregate |                     25 |                     19 | Eight loads and additions, plus call/return handling.          |
+| Return a 16-byte aggregate      |                     19 |                     13 | Uses a hidden output pointer and stores two fields.            |
+| Return a 32-byte aggregate      |                     29 |                     23 | Uses a hidden output pointer and stores four fields.           |
+| Return a 64-byte aggregate      |                     49 |                     43 | Uses a hidden output pointer and stores eight fields.          |
+| Force a 16-byte stack local     |                     15 |                      9 | Constructs, stores, reloads, and consumes two fields.          |
+| Force a 32-byte stack local     |                     25 |                     19 | Constructs, stores, reloads, and consumes four fields.         |
+| Force a 64-byte stack local     |                     45 |                     39 | Constructs, stores, reloads, and consumes eight fields.        |
+
+The by-value results do not mean that copying 64 bytes is free. For these
+function signatures, the Rust ABI passed the larger values indirectly, so the
+by-value and reference callees compiled to the same field loads. A different
+type, caller, mutation pattern, or compiler version may require an actual copy.
+
+Likewise, `let copied = value` has no fixed cost even when the type implements
+`Copy`. LLVM may keep a scalar in the same register, emit a one-CU move, read the
+original fields directly, expand a small copy into loads and stores, or lower a
+larger copy to a memory syscall. Copying a reference has the same rule: it copies
+one pointer-sized value and often needs no instruction if the existing register
+can be reused. Dereferencing the copied reference is a separate load.
+
+Returning aggregates is different in this benchmark. Values larger than one
+register used a hidden output pointer supplied by the caller, and the callee
+stored each field through it. This made aggregate returns visibly more expensive
+than returning a `u64`.
+
+### Local variables and stack storage
+
+A local declaration reserves no CU by itself. Stack-frame size is decided when
+the program is compiled, and unused locals disappear. Runtime cost appears only
+when generated instructions initialize, spill, load, store, copy, or drop the
+value.
+
+| Source-level action                     | Possible generated work                                      |
+| --------------------------------------- | ------------------------------------------------------------ |
+| Bind a value already in a register      | Nothing, or a one-CU register move.                          |
+| Copy an immutable reference             | Nothing, or a one-CU pointer move.                           |
+| Dereference a reference                 | Usually one load after its address is available.             |
+| Spill one scalar to the stack           | One store; loading it again costs one more instruction.      |
+| Initialize a fixed-size stack aggregate | Commonly one store per scalar-sized field, plus setup.       |
+| Read the aggregate fields               | Commonly one load per field, unless values remain available. |
+| Drop a type without `Drop`              | No runtime work solely for the drop.                         |
+| Drop a type implementing `Drop`         | Whatever the generated destructor and its callees execute.   |
+
+The forced-local rows above deliberately used volatile access. Normal Rust code
+often costs less because LLVM can keep fields in registers, forward values from
+stores to later uses, or remove the local entirely.
+
 ## Memory operations
 
 When Rust lowers a copy or comparison to a memory syscall, Agave charges:
