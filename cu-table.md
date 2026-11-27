@@ -215,6 +215,48 @@ The forced-local rows above deliberately used volatile access. Normal Rust code
 often costs less because LLVM can keep fields in registers, forward values from
 stores to later uses, or remove the local entirely.
 
+### Reading integers from byte buffers
+
+For `u32` and `u64`, `read_unaligned()` was **not cheaper** than copying the
+bytes into a temporary array and calling `from_le_bytes()`. The optimized SBF
+contained no temporary-array copy. LLVM reduced both forms to one integer load.
+
+The benchmark compared these forms:
+
+```rust
+// The caller must guarantee that at least size_of::<T>() bytes are valid.
+let value = unsafe { pointer.cast::<u64>().read_unaligned() };
+
+// Bounds-checked slice followed by a temporary array.
+let value = u64::from_le_bytes(data[..8].try_into().unwrap());
+```
+
+| Compiled form                                             | Successful-path SBF instructions | Generated work                |
+| --------------------------------------------------------- | -------------------------------: | ----------------------------- |
+| Raw `read_unaligned::<u32>()`                             |                                2 | One 32-bit load, then `exit`. |
+| Raw array copy followed by `u32::from_le_bytes()`         |                                2 | The same load and `exit`.     |
+| Raw `read_unaligned::<u64>()`                             |                                2 | One 64-bit load, then `exit`. |
+| Raw array copy followed by `u64::from_le_bytes()`         |                                2 | The same load and `exit`.     |
+| Length check, then `read_unaligned::<u32>()`              |                                3 | Branch, 32-bit load, `exit`.  |
+| `data[..4].try_into()` followed by `u32::from_le_bytes()` |                                3 | Branch, 32-bit load, `exit`.  |
+| Length check, then `read_unaligned::<u64>()`              |                                3 | Branch, 64-bit load, `exit`.  |
+| `data[..8].try_into()` followed by `u64::from_le_bytes()` |                                3 | Branch, 64-bit load, `exit`.  |
+
+The raw copy and `read_unaligned()` functions even shared the same symbol in
+the generated binary because their machine code was identical. The checked
+versions also had identical successful paths. These counts include the callee's
+final `exit`, but not a caller-side call instruction.
+
+Therefore, prefer the safe temporary-array form when starting from a slice. It
+retains bounds checking and explicitly states the byte order without costing
+more CU in this build. `read_unaligned()` is useful only when the surrounding
+decoder has already proved the byte range valid and the unsafe access makes that
+contract clear; skipping the check is otherwise unsound.
+
+`read_unaligned::<u64>()` reads native-endian data. SBF is little-endian, but
+portable code should still use `u64::from_le(read_value)` when the serialized
+format is little-endian. The conversion compiles away on SBF.
+
 ## Memory operations
 
 When Rust lowers a copy or comparison to a memory syscall, Agave charges:
