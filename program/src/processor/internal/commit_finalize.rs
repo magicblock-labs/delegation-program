@@ -1,20 +1,18 @@
 use delegation_program_interface as dpi;
 use dpi::{
-    error::DlpError,
-    pda::{DELEGATION_CLUSTER_SEED, DELEGATION_STATE_SEED},
-    DelegationCluster, DelegationClusterView, DelegationState,
-    DelegationStateView, UndelegationRequester,
+    error::DlpError, pda::DELEGATION_STATE_SEED, DelegationCluster,
+    DelegationClusterView, DelegationState, DelegationStateView,
+    UndelegationRequester,
 };
 use pinocchio::{
-    address::address_eq,
+    address::{address_eq, PDA_MARKER},
     error::ProgramError,
     sysvars::{rent::Rent, Sysvar},
     AccountView, ProgramResult,
 };
 use pinocchio_system::instructions as system;
 use wheels::{
-    layout::Decodable, require, require_eq, require_eq_keys, require_ge,
-    require_owned_by, require_signer,
+    require, require_eq, require_eq_keys, require_ge, require_signer,
 };
 
 use crate::{
@@ -43,6 +41,31 @@ pub(crate) struct CommitFinalizeInput<'a> {
     pub(crate) state_update: CommitStateUpdate<'a>,
 }
 
+///
+/// CHECKPOINT: The following checks are deliberately omitted:
+///
+/// - validator writability: the runtime rejects any required lamport mutation;
+///
+/// - delegated-account writability: the runtime rejects any required mutation;
+///
+/// - delegated-account ownership: the runtime rejects any data mutation,
+///   resize, or lamport debit that requires DLP ownership;
+///
+/// - state ownership and writability: `last_commit_seq` always changes, so the
+///   runtime enforces both and rolls the instruction back atomically.
+///
+/// - state discriminator: the fixed `DELEGATION_STATE_SEED` in the authenticated
+///   PDA derivation proves that this account belongs to the delegation-state
+///   namespace;
+///
+/// - serialized delegated-account binding: the authenticated state PDA is
+///   derived from the passed delegated-account address, so the address already
+///   proves this binding.
+///
+/// The canonical state address is still validated below. Any check not listed
+/// here must not be assumed safe to omit.
+///
+#[inline(always)]
 pub(crate) fn apply_commit_finalize(
     current_validator: &AccountView,
     delegated_account: &AccountView,
@@ -50,53 +73,87 @@ pub(crate) fn apply_commit_finalize(
     delegation_cluster: &AccountView,
     input: CommitFinalizeInput<'_>,
 ) -> ProgramResult {
+    // return: 201 CU
+
+    //if delegation_state.data_len() < 100000 {
+    //    return Ok(());
+    //}
+
     require_signer!(current_validator);
-    require!(current_validator.is_writable(), ProgramError::Immutable);
-    require_owned_by!(delegated_account, &crate::fast::ID);
-    require!(delegated_account.is_writable(), ProgramError::Immutable);
 
-    let cluster_data = delegation_cluster.try_borrow()?;
-    let cluster = DelegationCluster::decode(cluster_data.as_ref())?;
-    validate_direct_cluster(current_validator, delegation_cluster, &cluster)?;
-    drop(cluster_data);
-
-    let state_data = delegation_state.try_borrow()?;
-    let state = DelegationState::decode(state_data.as_ref())?;
-    validate_commit_state(
-        delegated_account,
-        delegation_state,
-        delegation_cluster,
-        &state,
-        input.commit_seq,
-        true,
-    )?;
-    require_eq_keys!(
-        state.original_owner(),
-        input.owner,
+    require_ge!(
+        delegation_state.data_len(),
+        DelegationState::MIN_DATA_LEN,
         ProgramError::InvalidAccountData
     );
-    let next_undelegation_requester = match state.undelegation_requester() {
-        value if value == UndelegationRequester::None.value() => {
-            if input.allow_undelegation {
-                UndelegationRequester::Validator.value()
-            } else {
+    let state_bump =
+        [delegation_state.try_borrow()?[DelegationState::OFFSETS[1]]];
+
+    // This is the cross-cluster security boundary. Without it, one cluster's
+    // validator could pass a DLP-owned account containing forged DelegationState
+    // bytes and use it to claim an account delegated to another cluster.
+    {
+        let expected_state_address = solana_sha256_hasher::hashv(&[
+            DELEGATION_STATE_SEED,
+            delegated_account.address().as_ref(),
+            &state_bump,
+            crate::fast::ID.as_ref(),
+            PDA_MARKER,
+        ])
+        .to_bytes();
+        require!(
+            address_eq(
+                delegation_state.address(),
+                &expected_state_address.into()
+            ),
+            ProgramError::InvalidSeeds
+        );
+    }
+
+    // SAFETY: The unique state PDA and its minimum layout size were authenticated
+    // above. Delegate initializes this layout, and later instructions preserve it.
+    let mut state =
+        unsafe { DelegationState::decode_mut_unchecked(delegation_state)? };
+
+    let (previous_lamports, next_undelegation_requester) = {
+        let state = state.as_view();
+        validate_commit_state(delegation_cluster, &state, input.commit_seq)?;
+        require_eq_keys!(
+            state.original_owner(),
+            input.owner,
+            ProgramError::InvalidAccountData
+        );
+        let next_undelegation_requester = match state.undelegation_requester() {
+            value if value == UndelegationRequester::None.value() => {
+                if input.allow_undelegation {
+                    UndelegationRequester::Validator.value()
+                } else {
+                    value
+                }
+            }
+            value if value == UndelegationRequester::Validator.value() => {
+                return Err(DlpError::AlreadyUndelegated.into());
+            }
+            value if value == UndelegationRequester::OwnerProgram.value() => {
+                require!(
+                    input.allow_undelegation,
+                    DlpError::OwnerRequestedUndelegation
+                );
                 value
             }
-        }
-        value if value == UndelegationRequester::Validator.value() => {
-            return Err(DlpError::AlreadyUndelegated.into());
-        }
-        value if value == UndelegationRequester::OwnerProgram.value() => {
-            require!(
-                input.allow_undelegation,
-                DlpError::OwnerRequestedUndelegation
-            );
-            value
-        }
-        _ => return Err(ProgramError::InvalidAccountData),
+            _ => return Err(ProgramError::InvalidAccountData),
+        };
+        (state.lamports(), next_undelegation_requester)
     };
-    let previous_lamports = state.lamports();
-    drop(state_data);
+
+    let cluster_data = delegation_cluster.try_borrow()?;
+    // SAFETY: The authenticated DelegationState binds this exact cluster,
+    // which Delegate fully validates. Clusters are not closeable, and cluster
+    // updates preserve this layout.
+    let cluster =
+        unsafe { DelegationCluster::decode_unchecked(cluster_data.as_ref()) };
+    validate_direct_cluster_policy(current_validator, &cluster)?;
+    drop(cluster_data);
 
     require_ge!(
         delegated_account.lamports(),
@@ -104,18 +161,28 @@ pub(crate) fn apply_commit_finalize(
         DlpError::InvalidDelegatedState
     );
 
-    delegated_account.resize(input.state_update.data_len())?;
+    let previous_data_len = delegated_account.data_len();
+    let next_data_len = input.state_update.data_len();
+    if next_data_len != previous_data_len {
+        delegated_account.resize(next_data_len)?;
+    }
+    //if input.lamports != previous_lamports {
     settle_lamports(
         current_validator,
         delegated_account,
         previous_lamports,
         input.lamports,
     )?;
-    require_ge!(
-        delegated_account.lamports(),
-        Rent::get()?.try_minimum_balance(delegated_account.data_len())?,
-        DlpError::InsufficientRent
-    );
+    //}
+    // Delegate establishes rent exemption. Recheck only when this instruction
+    // can weaken it by increasing required rent or reducing the balance.
+    if next_data_len > previous_data_len || input.lamports < previous_lamports {
+        require_ge!(
+            delegated_account.lamports(),
+            Rent::get()?.try_minimum_balance(next_data_len)?,
+            DlpError::InsufficientRent
+        );
+    }
 
     let mut account_data = delegated_account.try_borrow_mut()?;
     match input.state_update {
@@ -128,7 +195,6 @@ pub(crate) fn apply_commit_finalize(
     }
     drop(account_data);
 
-    let mut state = DelegationState::decode_mut(delegation_state)?;
     state.lamports_mut().set(input.lamports);
     state.last_commit_seq_mut().set(input.commit_seq);
     *state.undelegation_requester_mut() = next_undelegation_requester;
@@ -136,27 +202,16 @@ pub(crate) fn apply_commit_finalize(
     Ok(())
 }
 
-pub(crate) fn validate_direct_cluster(
+/// Validates the live policy read from a cluster already authenticated through
+/// its address stored in `DelegationState`.
+#[inline(always)]
+pub(crate) fn validate_direct_cluster_policy(
     current_validator: &AccountView,
-    delegation_cluster: &AccountView,
     cluster: &DelegationClusterView<'_>,
 ) -> ProgramResult {
-    let cluster_bump = [cluster.bump()];
-    dpi::require_initialized_pda!(
-        delegation_cluster,
-        &[
-            DELEGATION_CLUSTER_SEED,
-            cluster.cluster_id().as_ref(),
-            &cluster_bump,
-        ],
-        &crate::fast::ID,
-        false
-    );
-    require_eq!(
-        &cluster.discriminator(),
-        &DelegationCluster::DISCRIMINATOR,
-        ProgramError::InvalidAccountData
-    );
+    // CHECKPOINT: DelegationState binds the exact cluster account after full
+    // validation during delegation. Revisit this trust if clusters ever become
+    // closeable or reassignable.
     require!(!cluster.paused(), ProgramError::InvalidAccountData);
     require_eq!(
         cluster.challenge_config().is_none(),
@@ -172,35 +227,15 @@ pub(crate) fn validate_direct_cluster(
     Ok(())
 }
 
+/// Validates mutable commit state after the caller authenticates the canonical
+/// state PDA. That authentication already proves the state namespace and its
+/// delegated-account binding.
+#[inline(always)]
 pub(crate) fn validate_commit_state(
-    delegated_account: &AccountView,
-    delegation_state: &AccountView,
     delegation_cluster: &AccountView,
     state: &DelegationStateView<'_>,
     commit_seq: u32,
-    is_writable: bool,
 ) -> ProgramResult {
-    let state_bump = [state.bump()];
-    dpi::require_initialized_pda!(
-        delegation_state,
-        &[
-            DELEGATION_STATE_SEED,
-            delegated_account.address().as_ref(),
-            &state_bump,
-        ],
-        &crate::fast::ID,
-        is_writable
-    );
-    require_eq!(
-        &state.discriminator(),
-        &DelegationState::DISCRIMINATOR,
-        ProgramError::InvalidAccountData
-    );
-    require_eq_keys!(
-        state.delegated_account(),
-        delegated_account.address(),
-        DlpError::InvalidDelegatedAccount
-    );
     require_eq_keys!(
         state.delegation_cluster(),
         delegation_cluster.address(),
@@ -218,6 +253,7 @@ pub(crate) fn validate_commit_state(
     Ok(())
 }
 
+#[inline(always)]
 fn settle_lamports(
     current_validator: &AccountView,
     delegated_account: &AccountView,
