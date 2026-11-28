@@ -54,6 +54,14 @@ pub(crate) struct CommitFinalizeInput<'a> {
 /// - state ownership and writability: `last_commit_seq` always changes, so the
 ///   runtime enforces both and rolls the instruction back atomically.
 ///
+/// - state discriminator: the fixed `DELEGATION_STATE_SEED` in the authenticated
+///   PDA derivation proves that this account belongs to the delegation-state
+///   namespace;
+///
+/// - serialized delegated-account binding: the authenticated state PDA is
+///   derived from the passed delegated-account address, so the address already
+///   proves this binding.
+///
 /// The canonical state address is still validated below. Any check not listed
 /// here must not be assumed safe to omit.
 ///
@@ -81,9 +89,9 @@ pub(crate) fn apply_commit_finalize(
     let state_bump =
         [delegation_state.try_borrow()?[DelegationState::OFFSETS[1]]];
 
-    // This cannot be replaced with only the stored delegated-account key. A
-    // malicious validator can delegate an account containing forged
-    // DelegationState bytes and pass that account here as a fake state account.
+    // This is the cross-cluster security boundary. Without it, one cluster's
+    // validator could pass a DLP-owned account containing forged DelegationState
+    // bytes and use it to claim an account delegated to another cluster.
     {
         let expected_state_address = solana_sha256_hasher::hashv(&[
             DELEGATION_STATE_SEED,
@@ -109,12 +117,7 @@ pub(crate) fn apply_commit_finalize(
 
     let (previous_lamports, next_undelegation_requester) = {
         let state = state.as_view();
-        validate_commit_state(
-            delegated_account,
-            delegation_cluster,
-            &state,
-            input.commit_seq,
-        )?;
+        validate_commit_state(delegation_cluster, &state, input.commit_seq)?;
         require_eq_keys!(
             state.original_owner(),
             input.owner,
@@ -224,23 +227,15 @@ pub(crate) fn validate_direct_cluster_policy(
     Ok(())
 }
 
+/// Validates mutable commit state after the caller authenticates the canonical
+/// state PDA. That authentication already proves the state namespace and its
+/// delegated-account binding.
 #[inline(always)]
 pub(crate) fn validate_commit_state(
-    delegated_account: &AccountView,
     delegation_cluster: &AccountView,
     state: &DelegationStateView<'_>,
     commit_seq: u32,
 ) -> ProgramResult {
-    require_eq!(
-        &state.discriminator(),
-        &DelegationState::DISCRIMINATOR,
-        ProgramError::InvalidAccountData
-    );
-    require_eq_keys!(
-        state.delegated_account(),
-        delegated_account.address(),
-        DlpError::InvalidDelegatedAccount
-    );
     require_eq_keys!(
         state.delegation_cluster(),
         delegation_cluster.address(),

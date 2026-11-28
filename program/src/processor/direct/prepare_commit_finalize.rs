@@ -71,12 +71,7 @@ pub fn process_prepare_commit_finalize(
         ],
         false
     );
-    validate_commit_state(
-        delegated_account,
-        delegation_cluster,
-        &state,
-        args.commit_seq(),
-    )?;
+    validate_commit_state(delegation_cluster, &state, args.commit_seq())?;
     let previous_lamports = state.lamports();
     drop(state_data);
 

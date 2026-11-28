@@ -33,6 +33,7 @@ struct CommitFinalizeTestContext {
     current_validator: Keypair,
     delegated_account: Pubkey,
     delegation_state: Pubkey,
+    forged_delegation_state: Pubkey,
     delegation_cluster: Pubkey,
     original_owner: Pubkey,
 }
@@ -215,6 +216,49 @@ async fn test_commit_finalize_rejects_cluster_not_bound_to_state() {
 }
 
 #[tokio::test]
+async fn test_commit_finalize_rejects_noncanonical_state_with_valid_bindings() {
+    let context =
+        setup_commit_finalize_test(false, UndelegationRequester::None).await;
+    let mut instruction = commit_finalize(
+        context.current_validator.pubkey(),
+        context.delegation_cluster,
+        context.delegated_account,
+        full_data_args(&context, 1),
+    )
+    .unwrap();
+    instruction
+        .accounts
+        .iter_mut()
+        .find(|account| account.pubkey == context.delegation_state)
+        .unwrap()
+        .pubkey = context.forged_delegation_state;
+    let transaction = Transaction::new_signed_with_payer(
+        &[instruction],
+        Some(&context.payer.pubkey()),
+        &[&context.payer, &context.current_validator],
+        context.banks.get_latest_blockhash().await.unwrap(),
+    );
+    let error = context
+        .banks
+        .process_transaction(transaction)
+        .await
+        .unwrap_err();
+
+    assert!(
+        matches!(
+            error,
+            BanksClientError::TransactionError(
+                TransactionError::InstructionError(
+                    0,
+                    InstructionError::InvalidSeeds,
+                ),
+            )
+        ),
+        "unexpected error: {error:?}"
+    );
+}
+
+#[tokio::test]
 async fn test_commit_finalize_rejects_out_of_order_commit() {
     let context =
         setup_commit_finalize_test(false, UndelegationRequester::None).await;
@@ -337,6 +381,7 @@ async fn setup_commit_finalize_test(
         &dpi::id(),
     );
     let delegation_state = delegation_state_pda(&delegated_account);
+    let forged_delegation_state = Pubkey::new_unique();
     let (_, state_bump) = Pubkey::find_program_address(
         &[dpi::pda::DELEGATION_STATE_SEED, delegated_account.as_ref()],
         &dpi::id(),
@@ -417,10 +462,21 @@ async fn setup_commit_finalize_test(
     }
     .encode()
     .unwrap();
+    let state_lamports = Rent::default().minimum_balance(state_data.len());
+    program_test.add_account(
+        forged_delegation_state,
+        Account {
+            lamports: state_lamports,
+            data: state_data.clone(),
+            owner: dpi::id(),
+            executable: false,
+            rent_epoch: 0,
+        },
+    );
     program_test.add_account(
         delegation_state,
         Account {
-            lamports: Rent::default().minimum_balance(state_data.len()),
+            lamports: state_lamports,
             data: state_data,
             owner: dpi::id(),
             executable: false,
@@ -435,6 +491,7 @@ async fn setup_commit_finalize_test(
         current_validator,
         delegated_account,
         delegation_state,
+        forged_delegation_state,
         delegation_cluster,
         original_owner,
     }
