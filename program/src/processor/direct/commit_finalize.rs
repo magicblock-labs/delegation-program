@@ -1,7 +1,7 @@
 use delegation_program_interface as dpi;
 use dpi::{CommitFinalizeArgs, CommitPayloadKind};
 use pinocchio::{error::ProgramError, AccountView, ProgramResult};
-use wheels::{layout::Decodable, require_eq, require_n_accounts};
+use wheels::{layout::Decodable, require_n_accounts};
 
 use crate::processor::internal::{
     apply_commit_finalize, CommitFinalizeInput, CommitStateUpdate,
@@ -34,19 +34,13 @@ pub fn process_commit_finalize(
 
     // return: 126
 
-    require_eq!(
-        args.payload_alignment_padding(),
-        0,
-        ProgramError::InvalidInstructionData
-    );
-
-    let state_update = match args.payload_kind() {
+    let state_update = match args.payload_kind_x() {
         value if value == CommitPayloadKind::FullData.value() => {
-            CommitStateUpdate::FullData(args.payload())
+            CommitStateUpdate::FullData(args.payload_x())
         }
         value if value == CommitPayloadKind::Diff.value() => {
             CommitStateUpdate::Diff(dpi::diff::DiffSet::try_new(
-                args.payload(),
+                args.payload_x(),
             )?)
         }
         _ => return Err(ProgramError::InvalidInstructionData),

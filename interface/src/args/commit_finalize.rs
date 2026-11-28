@@ -84,4 +84,14 @@ where
         //self.bytes[offset] != 0
         unsafe { *self.bytes.get_unchecked(44) != 0 }
     }
+
+    #[inline(always)]
+    pub fn payload_kind_x(&self) -> u8 {
+        unsafe { *self.bytes.get_unchecked(45) }
+    }
+
+    #[inline(always)]
+    pub fn payload_x(&self) -> &'a [u8] {
+        unsafe { self.bytes.get_unchecked(51..) }
+    }
 }
